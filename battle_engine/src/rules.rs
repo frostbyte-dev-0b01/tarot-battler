@@ -1,7 +1,7 @@
 //! Rule evaluation: checks ordered conditions to select an ability.
 
 use crate::abilities::AbilityMap;
-use crate::models::{CharacterState, Comparator, Condition, ConditionSubject};
+use crate::models::{CharacterState, Comparator, Condition, ConditionSubject, QueryValue};
 
 /// Evaluate the actor's rules in order. Returns the name of the first ability
 /// whose conditions are all met AND whose SPI cost the actor can afford.
@@ -27,7 +27,7 @@ pub fn evaluate_rules(
         let all_met = rule
             .conditions
             .iter()
-            .all(|cond| check_condition(cond, actor, target, allies));
+            .all(|cond| check_condition(cond, actor, target, allies, &rule.ability));
 
         if all_met {
             return Some(rule.ability.clone());
@@ -37,12 +37,28 @@ pub fn evaluate_rules(
 }
 
 /// Check a single condition against the relevant subject.
+/// `ability_name` provides context for UseCount and TurnsSinceUse queries.
 fn check_condition(
     cond: &Condition,
     actor: &CharacterState,
     target: Option<&CharacterState>,
     allies: &[CharacterState],
+    ability_name: &str,
 ) -> bool {
+    // UseCount and TurnsSinceUse are always about the actor's own tracking,
+    // regardless of subject field.
+    match &cond.value {
+        QueryValue::UseCount => {
+            let val = actor.ability_use_count(ability_name);
+            return compare(val, &cond.comparator, cond.threshold);
+        }
+        QueryValue::TurnsSinceUse => {
+            let val = actor.turns_since_ability_use(ability_name);
+            return compare(val, &cond.comparator, cond.threshold);
+        }
+        _ => {}
+    }
+
     match &cond.subject {
         ConditionSubject::SelfChar => {
             let val = actor.query_value(&cond.value);
@@ -56,11 +72,21 @@ fn check_condition(
             None => false,
         },
         ConditionSubject::Companion => {
-            // True if ANY companion matches the condition
+            // True if ANY adjacent companion matches
             let comp_ids = actor.companions();
             allies
                 .iter()
                 .filter(|c| c.is_alive() && comp_ids.contains(&c.id()))
+                .any(|c| {
+                    let val = c.query_value(&cond.value);
+                    compare(val, &cond.comparator, cond.threshold)
+                })
+        }
+        ConditionSubject::Ally => {
+            // True if ANY living teammate matches (excluding self)
+            allies
+                .iter()
+                .filter(|c| c.is_alive() && c.id() != actor.id())
                 .any(|c| {
                     let val = c.query_value(&cond.value);
                     compare(val, &cond.comparator, cond.threshold)
@@ -259,6 +285,144 @@ mod tests {
         }];
         let actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
         let abilities = make_abilities();
+        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+    }
+
+    #[test]
+    fn ally_condition_checks_all_living_teammates() {
+        let rules = vec![Rule {
+            ability: "Embolden".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::Ally,
+                value: QueryValue::Hp,
+                comparator: Comparator::Lte,
+                threshold: 5,
+            }],
+        }];
+        let actor = make_char_with_rules(0, vec![(Stat::SPI, 5), (Stat::CON, 10)], rules);
+        let abilities = make_abilities();
+
+        // All allies healthy
+        let ally = make_char(1, vec![(Stat::CON, 10)]);
+        assert!(evaluate_rules(&actor, None, &[ally], &abilities).is_none());
+
+        // One ally low HP — not adjacent (not a companion), but still an ally
+        let mut ally_hurt = make_char(1, vec![(Stat::CON, 10)]);
+        ally_hurt.take_damage(16); // HP=4
+        assert_eq!(evaluate_rules(&actor, None, &[ally_hurt], &abilities).as_deref(), Some("Embolden"));
+    }
+
+    #[test]
+    fn ally_condition_excludes_self() {
+        // Actor has low HP, but Ally condition should not match self
+        let rules = vec![Rule {
+            ability: "Embolden".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::Ally,
+                value: QueryValue::Hp,
+                comparator: Comparator::Lte,
+                threshold: 5,
+            }],
+        }];
+        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5), (Stat::CON, 10)], rules);
+        actor.take_damage(18); // actor HP=2, but should not self-match
+
+        let abilities = make_abilities();
+        // Pass actor in allies list (simulating team slice that includes self)
+        let actor_clone = actor.clone();
+        assert!(evaluate_rules(&actor, None, &[actor_clone], &abilities).is_none());
+    }
+
+    #[test]
+    fn use_count_condition() {
+        let rules = vec![Rule {
+            ability: "Crush".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::SelfChar,
+                value: QueryValue::UseCount,
+                comparator: Comparator::Lte,
+                threshold: 2, // use at most 2 times
+            }],
+        }];
+        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 10)], rules);
+        let abilities = make_abilities();
+
+        // Never used → count=0, 0 <= 2 → matches
+        assert_eq!(evaluate_rules(&actor, None, &[], &abilities).as_deref(), Some("Crush"));
+
+        // Used twice → count=2, 2 <= 2 → still matches
+        actor.record_ability_use("Crush");
+        actor.record_ability_use("Crush");
+        assert_eq!(evaluate_rules(&actor, None, &[], &abilities).as_deref(), Some("Crush"));
+
+        // Used three times → count=3, 3 <= 2 → fails
+        actor.record_ability_use("Crush");
+        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+    }
+
+    #[test]
+    fn turns_since_use_condition() {
+        let rules = vec![Rule {
+            ability: "Embolden".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::SelfChar,
+                value: QueryValue::TurnsSinceUse,
+                comparator: Comparator::Gte,
+                threshold: 3, // only use if >= 3 turns since last use
+            }],
+        }];
+        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 10)], rules);
+        let abilities = make_abilities();
+
+        // Never used → turns_since = MAX → matches
+        assert_eq!(evaluate_rules(&actor, None, &[], &abilities).as_deref(), Some("Embolden"));
+
+        // Simulate: turn 1, use Embolden
+        actor.increment_turn_count(); // turn 1
+        actor.record_ability_use("Embolden");
+
+        // Turn 2: 1 turn since use, 1 < 3 → fails
+        actor.increment_turn_count();
+        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+
+        // Turn 3: 2 turns since use → fails
+        actor.increment_turn_count();
+        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+
+        // Turn 4: 3 turns since use → matches
+        actor.increment_turn_count();
+        assert_eq!(evaluate_rules(&actor, None, &[], &abilities).as_deref(), Some("Embolden"));
+    }
+
+    #[test]
+    fn turns_since_use_resets_on_reuse() {
+        let rules = vec![Rule {
+            ability: "Crush".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::SelfChar,
+                value: QueryValue::TurnsSinceUse,
+                comparator: Comparator::Gte,
+                threshold: 2,
+            }],
+        }];
+        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 10)], rules);
+        let abilities = make_abilities();
+
+        // Turn 1: use it
+        actor.increment_turn_count();
+        actor.record_ability_use("Crush");
+
+        // Turn 2: 1 since use → fails
+        actor.increment_turn_count();
+        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+
+        // Turn 3: 2 since use → matches, use again
+        actor.increment_turn_count();
+        assert_eq!(evaluate_rules(&actor, None, &[], &abilities).as_deref(), Some("Crush"));
+        actor.record_ability_use("Crush");
+
+        // Turn 4: 1 since re-use → fails again
+        actor.increment_turn_count();
         assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
     }
 }

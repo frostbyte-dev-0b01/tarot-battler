@@ -44,6 +44,7 @@ pub enum ConditionSubject {
     SelfChar,
     Target,
     Companion,
+    Ally,
 }
 
 /// What value the condition reads.
@@ -53,6 +54,8 @@ pub enum QueryValue {
     Stat(Stat),
     Hp,
     Spi,
+    UseCount,
+    TurnsSinceUse,
 }
 
 /// Comparison operator for conditions.
@@ -125,6 +128,9 @@ pub struct CharacterState {
     companions: Vec<u32>,
     effects: Vec<Effect>,
     rules: Vec<Rule>,
+    actor_turn_count: u32,
+    ability_use_counts: HashMap<String, u32>,
+    ability_last_used_turn: HashMap<String, u32>,
 }
 
 impl CharacterState {
@@ -145,6 +151,9 @@ impl CharacterState {
             companions: Vec::new(),
             effects: Vec::new(),
             rules: config.rules.clone(),
+            actor_turn_count: 0,
+            ability_use_counts: HashMap::new(),
+            ability_last_used_turn: HashMap::new(),
         }
     }
 
@@ -258,11 +267,40 @@ impl CharacterState {
     }
 
     /// Returns the value of a query (stat, HP, or SPI) for condition evaluation.
+    /// UseCount and TurnsSinceUse are not handled here — they require ability context.
     pub fn query_value(&self, qv: &QueryValue) -> u32 {
         match qv {
             QueryValue::Stat(stat) => self.get_eff_stat(stat),
             QueryValue::Hp => self.curr_hp,
             QueryValue::Spi => self.curr_spi,
+            QueryValue::UseCount | QueryValue::TurnsSinceUse => 0,
+        }
+    }
+
+    pub fn actor_turn_count(&self) -> u32 {
+        self.actor_turn_count
+    }
+
+    pub fn increment_turn_count(&mut self) {
+        self.actor_turn_count += 1;
+    }
+
+    /// Record that the actor used an ability on their current turn.
+    pub fn record_ability_use(&mut self, ability_name: &str) {
+        *self.ability_use_counts.entry(ability_name.to_string()).or_insert(0) += 1;
+        self.ability_last_used_turn.insert(ability_name.to_string(), self.actor_turn_count);
+    }
+
+    pub fn ability_use_count(&self, ability_name: &str) -> u32 {
+        self.ability_use_counts.get(ability_name).copied().unwrap_or(0)
+    }
+
+    /// Returns actor turns elapsed since this ability was last used.
+    /// If never used, returns u32::MAX (always passes >= checks).
+    pub fn turns_since_ability_use(&self, ability_name: &str) -> u32 {
+        match self.ability_last_used_turn.get(ability_name) {
+            Some(&turn) => self.actor_turn_count.saturating_sub(turn),
+            None => u32::MAX,
         }
     }
 

@@ -97,10 +97,14 @@ Allies — all friendly characters on the team
 
 Targeting
 
-Role assignment determines default targeting
-Physical attackers target lowest FOR enemy in front row
-Magical attackers target lowest WIS enemy in front row
-Tiebreak by lowest HP within same FOR/WIS value
+Offensive type: STR > INT → physical attacker, INT > STR → magical attacker, tie → random
+Defensive type: FOR > WIS → physical defender, WIS > FOR → magical defender, tie → random
+Target selection from frontmost occupied row of living enemies:
+
+Physical attackers prefer magical defenders (weak to physical)
+Magical attackers prefer physical defenders (weak to magical)
+If no preferred-weakness match in front row, pick randomly from front row
+
 Abilities can explicitly override targeting — taunt, misdirect, veil etc
 Targeting modification is a distinct and powerful ability category
 
@@ -116,16 +120,13 @@ No rule satisfied → basic attack
 
 Available conditions:
 
-Self stat >/</= value
-Target stat >/</= value
-Companion stat >/</= value
-Ally stat >/</= value
-Turn count >/</= value
-Use count >/</= value
-Last event — ally defeated, self damaged, target damaged
-Target type — highest STR enemy, lowest HP enemy, buffed/debuffed target
-Probability — X% chance
-Always — explicit fallback override
+Self stat/HP/SPI >/< value
+Target stat/HP/SPI >/< value
+Companion stat/HP/SPI >/< value — true if any adjacent ally matches
+Ally stat/HP/SPI >/< value — true if any living teammate matches
+Use count >/< value — total times this rule's ability has been used by this character
+Turns since use >/< value — actor turns elapsed since this rule's ability was last used (never used = infinity, always passes >= checks)
+Always — empty conditions list, explicit fallback override
 
 
 Example Character — The Emperor

@@ -193,6 +193,7 @@ impl BattleState {
         };
 
         actor_team[actor_idx].reset_speed();
+        actor_team[actor_idx].increment_turn_count();
 
         let actor_id = actor_team[actor_idx].id();
         let actor_name = actor_team[actor_idx].base_name().to_string();
@@ -217,8 +218,9 @@ impl BattleState {
 
         if let Some(ref name) = ability_name {
             if let Some(ability_def) = self.abilities.get(name).cloned() {
-                // Spend SPI
+                // Spend SPI and record usage
                 actor_team[actor_idx].spend_spi(ability_def.spi_cost);
+                actor_team[actor_idx].record_ability_use(name);
 
                 // Execute ability
                 let damage_dealt = execute_ability(
