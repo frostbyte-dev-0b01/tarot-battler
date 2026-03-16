@@ -12,13 +12,23 @@ fn main() {
     let characters = loader::load_characters(&data_dir.join("characters.json"))
         .expect("Failed to load characters");
 
-    // Split into two teams: first two vs last two
+    // First 5 characters = Team A, last 5 = Team B
     let (team_a, team_b) = characters.split_at(characters.len() / 2);
 
     let seed: u64 = std::env::args()
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(42);
+
+    eprintln!("=== Team A ===");
+    for c in team_a {
+        eprintln!("  {} (row {})", c.base_name, c.position.row);
+    }
+    eprintln!("=== Team B ===");
+    for c in team_b {
+        eprintln!("  {} (row {})", c.base_name, c.position.row);
+    }
+    eprintln!("Seed: {}\n", seed);
 
     let battle = engine::BattleState::new(team_a, team_b, seed);
     let log = battle.run();

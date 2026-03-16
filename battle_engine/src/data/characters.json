@@ -6,51 +6,8 @@
     "item": null,
     "position": { "row": 0, "col": 0 },
     "stats": {
-      "CON": 10,
-      "STR": 6,
-      "INT": 4,
-      "FOR": 3,
-      "WIS": 2,
-      "DEX": 4,
-      "SPI": 5,
-      "FOC": 5,
-      "RES": 3
-    }
-  },
-  {
-    "base_name": "The High Priestess",
-    "passive": "Veil of Mystery",
-    "actives": ["Moonbeam", "Inner Sight"],
-    "item": null,
-    "position": { "row": 1, "col": 1 },
-    "stats": {
-      "CON": 6,
-      "STR": 2,
-      "INT": 8,
-      "FOR": 2,
-      "WIS": 7,
-      "DEX": 5,
-      "SPI": 7,
-      "FOC": 6,
-      "RES": 4
-    }
-  },
-  {
-    "base_name": "The Fool",
-    "passive": "Beginner's Luck",
-    "actives": ["Leap of Faith", "Stumble"],
-    "item": null,
-    "position": { "row": 0, "col": 1 },
-    "stats": {
-      "CON": 7,
-      "STR": 4,
-      "INT": 4,
-      "FOR": 3,
-      "WIS": 3,
-      "DEX": 7,
-      "SPI": 6,
-      "FOC": 4,
-      "RES": 4
+      "CON": 10, "STR": 6, "INT": 4, "FOR": 3, "WIS": 2,
+      "DEX": 4, "SPI": 5, "FOC": 5, "RES": 3
     }
   },
   {
@@ -58,17 +15,98 @@
     "passive": "Collapse",
     "actives": ["Shatter", "Rubble"],
     "item": null,
+    "position": { "row": 0, "col": 1 },
+    "stats": {
+      "CON": 8, "STR": 8, "INT": 3, "FOR": 5, "WIS": 2,
+      "DEX": 3, "SPI": 4, "FOC": 3, "RES": 2
+    }
+  },
+  {
+    "base_name": "The Chariot",
+    "passive": "Momentum",
+    "actives": ["Charge", "Rally"],
+    "item": null,
     "position": { "row": 0, "col": 2 },
     "stats": {
-      "CON": 8,
-      "STR": 8,
-      "INT": 3,
-      "FOR": 5,
-      "WIS": 2,
-      "DEX": 3,
-      "SPI": 4,
-      "FOC": 3,
-      "RES": 2
+      "CON": 9, "STR": 7, "INT": 3, "FOR": 4, "WIS": 2,
+      "DEX": 5, "SPI": 4, "FOC": 4, "RES": 3
+    }
+  },
+  {
+    "base_name": "The High Priestess",
+    "passive": "Veil of Mystery",
+    "actives": ["Moonbeam", "Inner Sight"],
+    "item": null,
+    "position": { "row": 1, "col": 0 },
+    "stats": {
+      "CON": 6, "STR": 2, "INT": 8, "FOR": 2, "WIS": 7,
+      "DEX": 5, "SPI": 7, "FOC": 6, "RES": 4
+    }
+  },
+  {
+    "base_name": "The Hermit",
+    "passive": "Solitude",
+    "actives": ["Lantern", "Withdraw"],
+    "item": null,
+    "position": { "row": 1, "col": 1 },
+    "stats": {
+      "CON": 7, "STR": 2, "INT": 7, "FOR": 3, "WIS": 6,
+      "DEX": 4, "SPI": 8, "FOC": 5, "RES": 5
+    }
+  },
+  {
+    "base_name": "The Fool",
+    "passive": "Beginner's Luck",
+    "actives": ["Leap of Faith", "Stumble"],
+    "item": null,
+    "position": { "row": 0, "col": 0 },
+    "stats": {
+      "CON": 7, "STR": 4, "INT": 4, "FOR": 3, "WIS": 3,
+      "DEX": 7, "SPI": 6, "FOC": 4, "RES": 4
+    }
+  },
+  {
+    "base_name": "The Magician",
+    "passive": "As Above So Below",
+    "actives": ["Transmute", "Channel"],
+    "item": null,
+    "position": { "row": 0, "col": 1 },
+    "stats": {
+      "CON": 5, "STR": 3, "INT": 9, "FOR": 2, "WIS": 5,
+      "DEX": 6, "SPI": 6, "FOC": 7, "RES": 3
+    }
+  },
+  {
+    "base_name": "Strength",
+    "passive": "Inner Fire",
+    "actives": ["Tame", "Roar"],
+    "item": null,
+    "position": { "row": 0, "col": 2 },
+    "stats": {
+      "CON": 9, "STR": 7, "INT": 3, "FOR": 6, "WIS": 3,
+      "DEX": 4, "SPI": 5, "FOC": 3, "RES": 4
+    }
+  },
+  {
+    "base_name": "The Moon",
+    "passive": "Illusion",
+    "actives": ["Nightmare", "Ebb"],
+    "item": null,
+    "position": { "row": 1, "col": 0 },
+    "stats": {
+      "CON": 5, "STR": 2, "INT": 8, "FOR": 2, "WIS": 6,
+      "DEX": 5, "SPI": 8, "FOC": 7, "RES": 4
+    }
+  },
+  {
+    "base_name": "The Star",
+    "passive": "Hope",
+    "actives": ["Wish", "Restore"],
+    "item": null,
+    "position": { "row": 1, "col": 1 },
+    "stats": {
+      "CON": 6, "STR": 2, "INT": 6, "FOR": 3, "WIS": 7,
+      "DEX": 4, "SPI": 9, "FOC": 5, "RES": 5
     }
   }
 ]

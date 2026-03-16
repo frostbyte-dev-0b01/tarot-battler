@@ -110,12 +110,16 @@ impl BattleState {
             }
         }
 
-        // Execute turns for ready characters
+        // Execute turns for ready characters (re-check alive — may have died this step)
         for idx in ready_a {
-            self.execute_turn_a(idx);
+            if self.team_a[idx].is_alive() {
+                self.execute_turn_a(idx);
+            }
         }
         for idx in ready_b {
-            self.execute_turn_b(idx);
+            if self.team_b[idx].is_alive() {
+                self.execute_turn_b(idx);
+            }
         }
 
         // SPI regen every N steps
@@ -426,6 +430,159 @@ mod tests {
                 assert_eq!(winner, "draw");
             }
             _ => panic!("Expected BattleEnd"),
+        }
+    }
+
+    #[test]
+    fn three_v_three_completes() {
+        let front1 = make_config("Front1", 0, vec![
+            (Stat::CON, 10), (Stat::STR, 8), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        let front2 = make_config("Front2", 0, vec![
+            (Stat::CON, 8), (Stat::STR, 6), (Stat::INT, 4),
+            (Stat::FOR, 4), (Stat::WIS, 4), (Stat::DEX, 6), (Stat::SPI, 5),
+        ]);
+        let back = make_config("Back", 1, vec![
+            (Stat::CON, 6), (Stat::STR, 3), (Stat::INT, 10),
+            (Stat::FOR, 2), (Stat::WIS, 8), (Stat::DEX, 4), (Stat::SPI, 7),
+        ]);
+        let log = BattleState::new(
+            &[front1.clone(), back.clone()],
+            &[front2.clone(), back.clone(), front1.clone()],
+            99,
+        ).run();
+        let events = log.events();
+        // Should have a definitive end
+        assert!(matches!(events.last().unwrap(), BattleEvent::BattleEnd { .. }));
+        // Should have multiple defeats (at least losing team fully defeated)
+        let defeat_count = events.iter().filter(|e| matches!(e, BattleEvent::Defeat { .. })).count();
+        assert!(defeat_count >= 2, "3v3 should have at least 2 defeats, got {}", defeat_count);
+    }
+
+    #[test]
+    fn row_protection_prevents_back_row_targeting() {
+        // Team B: tanky front row + squishy back row
+        // Team A attacks team B, so we check that team A (id=0) never targets SquishyBack
+        // before Front is defeated.
+        let front = make_config("Front", 0, vec![
+            (Stat::CON, 15), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        let squishy_back = make_config("SquishyBack", 1, vec![
+            (Stat::CON, 3), (Stat::STR, 3), (Stat::INT, 10),
+            (Stat::FOR, 1), (Stat::WIS, 8), (Stat::DEX, 4), (Stat::SPI, 7),
+        ]);
+        let attacker = make_config("Attacker", 0, vec![
+            (Stat::CON, 12), (Stat::STR, 10), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 6), (Stat::SPI, 4),
+        ]);
+        let log = BattleState::new(
+            &[attacker],
+            &[front, squishy_back],
+            42,
+        ).run();
+
+        // Before Front is defeated, team A's attacks (actor_id=0) must only target Front
+        let mut front_defeated = false;
+        for event in log.events() {
+            match event {
+                BattleEvent::Defeat { character_name, .. } if character_name == "Front" => {
+                    front_defeated = true;
+                }
+                BattleEvent::BasicAttack { actor_id, target_name, .. } if *actor_id == 0 => {
+                    if !front_defeated {
+                        assert_eq!(
+                            target_name, "Front",
+                            "Back row targeted before front row defeated"
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    #[test]
+    fn all_enemies_defeated_means_victory() {
+        // 3v1: team A should win easily
+        let fighter = make_config("Fighter", 0, vec![
+            (Stat::CON, 10), (Stat::STR, 8), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        let lone = make_config("Lone", 0, vec![
+            (Stat::CON, 8), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        let log = BattleState::new(
+            &[fighter.clone(), fighter.clone(), fighter],
+            &[lone],
+            42,
+        ).run();
+        match log.events().last().unwrap() {
+            BattleEvent::BattleEnd { winner, .. } => assert_eq!(winner, "team_a"),
+            _ => panic!("Expected BattleEnd"),
+        }
+    }
+
+    #[test]
+    fn multi_row_formation_two_rows() {
+        // Team A: 2 front, 1 back. Team B: 1 front, 2 back.
+        // Team B's back row should be safe until front falls.
+        let tanky = make_config("Tank", 0, vec![
+            (Stat::CON, 15), (Stat::STR, 5), (Stat::INT, 3),
+            (Stat::FOR, 8), (Stat::WIS, 5), (Stat::DEX, 4), (Stat::SPI, 4),
+        ]);
+        let dps = make_config("DPS", 1, vec![
+            (Stat::CON, 6), (Stat::STR, 12), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 2), (Stat::DEX, 6), (Stat::SPI, 4),
+        ]);
+        let log = BattleState::new(
+            &[tanky.clone(), dps.clone()],
+            &[tanky, dps.clone(), dps],
+            7,
+        ).run();
+        let events = log.events();
+        assert!(matches!(events.last().unwrap(), BattleEvent::BattleEnd { .. }));
+        // Verify battle involved multiple characters acting
+        let unique_actors: std::collections::HashSet<u32> = events.iter().filter_map(|e| match e {
+            BattleEvent::BasicAttack { actor_id, .. } => Some(*actor_id),
+            _ => None,
+        }).collect();
+        assert!(unique_actors.len() >= 3, "Expected at least 3 unique actors, got {}", unique_actors.len());
+    }
+
+    #[test]
+    fn dead_characters_do_not_act() {
+        // Run a multi-character battle and verify no defeated character acts after death
+        let front = make_config("Front", 0, vec![
+            (Stat::CON, 8), (Stat::STR, 8), (Stat::INT, 3),
+            (Stat::FOR, 4), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        let back = make_config("Back", 1, vec![
+            (Stat::CON, 6), (Stat::STR, 3), (Stat::INT, 8),
+            (Stat::FOR, 2), (Stat::WIS, 6), (Stat::DEX, 5), (Stat::SPI, 6),
+        ]);
+        let log = BattleState::new(
+            &[front.clone(), back.clone(), front.clone()],
+            &[front, back.clone(), back],
+            42,
+        ).run();
+
+        let mut defeated_ids: std::collections::HashSet<u32> = std::collections::HashSet::new();
+        for event in log.events() {
+            match event {
+                BattleEvent::BasicAttack { actor_id, .. } => {
+                    assert!(
+                        !defeated_ids.contains(actor_id),
+                        "Defeated character {} acted after death", actor_id
+                    );
+                }
+                BattleEvent::Defeat { character_id, .. } => {
+                    defeated_ids.insert(*character_id);
+                }
+                _ => {}
+            }
         }
     }
 }
