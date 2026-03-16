@@ -1,10 +1,18 @@
-//! Load character configurations from JSON files.
+//! Load character configurations and ability definitions from JSON files.
 
 use std::path::Path;
 
+use crate::abilities::AbilityMap;
 use crate::models::CharacterConfig;
 
 pub fn load_characters(path: &Path) -> Result<Vec<CharacterConfig>, String> {
+    let data = std::fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+    serde_json::from_str(&data)
+        .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
+}
+
+pub fn load_abilities(path: &Path) -> Result<AbilityMap, String> {
     let data = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
     serde_json::from_str(&data)

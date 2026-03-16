@@ -1,8 +1,10 @@
+mod abilities;
 mod damage;
 mod engine;
 mod loader;
 mod logger;
 mod models;
+mod rules;
 mod targeting;
 
 use std::path::Path;
@@ -11,6 +13,8 @@ fn main() {
     let data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data");
     let characters = loader::load_characters(&data_dir.join("characters.json"))
         .expect("Failed to load characters");
+    let abilities = loader::load_abilities(&data_dir.join("abilities.json"))
+        .expect("Failed to load abilities");
 
     // First 5 characters = Team A, last 5 = Team B
     let (team_a, team_b) = characters.split_at(characters.len() / 2);
@@ -30,7 +34,7 @@ fn main() {
     }
     eprintln!("Seed: {}\n", seed);
 
-    let battle = engine::BattleState::new(team_a, team_b, seed);
+    let battle = engine::BattleState::new(team_a, team_b, abilities, seed);
     let log = battle.run();
     println!("{}", log.to_json());
 }

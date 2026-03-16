@@ -19,6 +19,21 @@ pub enum BattleEvent {
         damage: u32,
         target_hp_remaining: u32,
     },
+    AbilityUsed {
+        step: u32,
+        actor_id: u32,
+        actor_name: String,
+        ability_name: String,
+        spi_cost: u32,
+    },
+    AbilityDamage {
+        step: u32,
+        actor_id: u32,
+        target_id: u32,
+        target_name: String,
+        damage: u32,
+        target_hp_remaining: u32,
+    },
     Defeat {
         step: u32,
         character_id: u32,

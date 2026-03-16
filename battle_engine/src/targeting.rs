@@ -106,6 +106,7 @@ mod tests {
             item: None,
             position: Position { row, col: 0 },
             stats: stats.into_iter().collect(),
+            rules: Vec::new(),
         };
         CharacterState::from_config(id, &config)
     }

@@ -8,7 +8,16 @@
     "stats": {
       "CON": 10, "STR": 6, "INT": 4, "FOR": 3, "WIS": 2,
       "DEX": 4, "SPI": 5, "FOC": 5, "RES": 3
-    }
+    },
+    "rules": [
+      { "ability": "Crush", "conditions": [
+        { "subject": "target", "value": "hp", "comparator": "lte", "threshold": 3 }
+      ]},
+      { "ability": "Embolden", "conditions": [
+        { "subject": "companion", "value": "spi", "comparator": "lte", "threshold": 1 }
+      ]},
+      { "ability": "Crush", "conditions": [] }
+    ]
   },
   {
     "base_name": "The Tower",

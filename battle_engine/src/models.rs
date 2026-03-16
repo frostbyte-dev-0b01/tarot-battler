@@ -27,6 +27,56 @@ impl Position {
     pub fn is_valid(&self) -> bool {
         self.row < 4 && self.col < 4
     }
+
+    /// Cardinal adjacency (up/down/left/right, no diagonals).
+    pub fn is_adjacent(&self, other: &Position) -> bool {
+        let dr = (self.row as i8 - other.row as i8).abs();
+        let dc = (self.col as i8 - other.col as i8).abs();
+        (dr == 1 && dc == 0) || (dr == 0 && dc == 1)
+    }
+}
+
+/// Who the condition checks against.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConditionSubject {
+    #[serde(rename = "self")]
+    SelfChar,
+    Target,
+    Companion,
+}
+
+/// What value the condition reads.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QueryValue {
+    Stat(Stat),
+    Hp,
+    Spi,
+}
+
+/// Comparison operator for conditions.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Comparator {
+    Gte,
+    Lte,
+}
+
+/// A single condition that must be met for a rule to fire.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct Condition {
+    pub subject: ConditionSubject,
+    pub value: QueryValue,
+    pub comparator: Comparator,
+    pub threshold: u32,
+}
+
+/// An ordered rule: if all conditions are met (AND), use this ability.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct Rule {
+    pub ability: String,
+    pub conditions: Vec<Condition>,
 }
 
 /// Static character definition loaded from JSON (archetype + loadout).
@@ -38,6 +88,8 @@ pub struct CharacterConfig {
     pub item: Option<String>,
     pub position: Position,
     pub stats: HashMap<Stat, u32>,
+    #[serde(default)]
+    pub rules: Vec<Rule>,
 }
 
 /// Determines how an [`Effect`] modifies a character each turn.
@@ -70,7 +122,9 @@ pub struct CharacterState {
     spd_counter: u32,
     spd_max: u32,
     target: Option<u32>,
+    companions: Vec<u32>,
     effects: Vec<Effect>,
+    rules: Vec<Rule>,
 }
 
 impl CharacterState {
@@ -88,7 +142,9 @@ impl CharacterState {
             spd_counter: dex,
             spd_max: dex,
             target: None,
+            companions: Vec::new(),
             effects: Vec::new(),
+            rules: config.rules.clone(),
         }
     }
 
@@ -185,8 +241,29 @@ impl CharacterState {
         self.target = None;
     }
 
+    pub fn companions(&self) -> &[u32] {
+        &self.companions
+    }
+
+    pub fn set_companions(&mut self, ids: Vec<u32>) {
+        self.companions = ids;
+    }
+
     pub fn effects(&self) -> &[Effect] {
         &self.effects
+    }
+
+    pub fn rules(&self) -> &[Rule] {
+        &self.rules
+    }
+
+    /// Returns the value of a query (stat, HP, or SPI) for condition evaluation.
+    pub fn query_value(&self, qv: &QueryValue) -> u32 {
+        match qv {
+            QueryValue::Stat(stat) => self.get_eff_stat(stat),
+            QueryValue::Hp => self.curr_hp,
+            QueryValue::Spi => self.curr_spi,
+        }
     }
 
     /// Rejects StatModifier effects targeting pool stats (CON, DEX, SPI).
@@ -229,6 +306,7 @@ mod tests {
             item: None,
             position: Position { row: 0, col: 0 },
             stats: stats.into_iter().collect(),
+            rules: Vec::new(),
         }
     }
 
@@ -453,5 +531,22 @@ mod tests {
         assert!(Position { row: 3, col: 3 }.is_valid());
         assert!(!Position { row: 4, col: 0 }.is_valid());
         assert!(!Position { row: 0, col: 4 }.is_valid());
+    }
+
+    #[test]
+    fn cardinal_adjacency() {
+        let center = Position { row: 1, col: 1 };
+        // Cardinal neighbors
+        assert!(center.is_adjacent(&Position { row: 0, col: 1 })); // up
+        assert!(center.is_adjacent(&Position { row: 2, col: 1 })); // down
+        assert!(center.is_adjacent(&Position { row: 1, col: 0 })); // left
+        assert!(center.is_adjacent(&Position { row: 1, col: 2 })); // right
+        // Diagonals are NOT adjacent
+        assert!(!center.is_adjacent(&Position { row: 0, col: 0 }));
+        assert!(!center.is_adjacent(&Position { row: 2, col: 2 }));
+        // Same position is NOT adjacent
+        assert!(!center.is_adjacent(&Position { row: 1, col: 1 }));
+        // Two apart is NOT adjacent
+        assert!(!center.is_adjacent(&Position { row: 3, col: 1 }));
     }
 }

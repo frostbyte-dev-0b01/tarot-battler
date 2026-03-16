@@ -1,0 +1,14 @@
+{
+  "Crush": {
+    "spi_cost": 2,
+    "primitives": [
+      { "kind": "deal_physical_damage", "target": "current_target", "multiplier": 1.5 }
+    ]
+  },
+  "Embolden": {
+    "spi_cost": 3,
+    "primitives": [
+      { "kind": "restore_spi", "target": "companions", "amount": 1 }
+    ]
+  }
+}
