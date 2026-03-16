@@ -91,3 +91,111 @@ pub fn select_target(
         Some(*ids.choose(rng).unwrap())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{CharacterConfig, Position};
+    use rand::SeedableRng;
+
+    fn make_char(id: u32, row: u8, stats: Vec<(Stat, u32)>) -> CharacterState {
+        let config = CharacterConfig {
+            base_name: format!("Char{}", id),
+            passive: String::new(),
+            actives: Vec::new(),
+            item: None,
+            position: Position { row, col: 0 },
+            stats: stats.into_iter().collect(),
+        };
+        CharacterState::from_config(id, &config)
+    }
+
+    #[test]
+    fn offensive_type_physical_when_str_higher() {
+        let c = make_char(0, 0, vec![(Stat::STR, 15), (Stat::INT, 5)]);
+        let mut rng = StdRng::seed_from_u64(0);
+        assert_eq!(compute_offensive_type(&c, &mut rng), OffensiveType::Physical);
+    }
+
+    #[test]
+    fn offensive_type_magical_when_int_higher() {
+        let c = make_char(0, 0, vec![(Stat::STR, 5), (Stat::INT, 15)]);
+        let mut rng = StdRng::seed_from_u64(0);
+        assert_eq!(compute_offensive_type(&c, &mut rng), OffensiveType::Magical);
+    }
+
+    #[test]
+    fn defensive_type_physical_when_for_higher() {
+        let c = make_char(0, 0, vec![(Stat::FOR, 12), (Stat::WIS, 5)]);
+        let mut rng = StdRng::seed_from_u64(0);
+        assert_eq!(compute_defensive_type(&c, &mut rng), DefensiveType::Physical);
+    }
+
+    #[test]
+    fn defensive_type_magical_when_wis_higher() {
+        let c = make_char(0, 0, vec![(Stat::FOR, 5), (Stat::WIS, 12)]);
+        let mut rng = StdRng::seed_from_u64(0);
+        assert_eq!(compute_defensive_type(&c, &mut rng), DefensiveType::Magical);
+    }
+
+    #[test]
+    fn select_target_returns_none_for_empty_enemies() {
+        let attacker = make_char(0, 0, vec![(Stat::STR, 10), (Stat::INT, 5)]);
+        let mut rng = StdRng::seed_from_u64(0);
+        assert_eq!(select_target(&attacker, &[], &mut rng), None);
+    }
+
+    #[test]
+    fn select_target_returns_none_when_all_dead() {
+        let attacker = make_char(0, 0, vec![(Stat::STR, 10), (Stat::INT, 5)]);
+        let mut enemy = make_char(1, 0, vec![(Stat::CON, 5)]);
+        enemy.take_damage(100);
+        let mut rng = StdRng::seed_from_u64(0);
+        assert_eq!(select_target(&attacker, &[enemy], &mut rng), None);
+    }
+
+    #[test]
+    fn select_target_picks_from_frontmost_row() {
+        // Physical attacker (STR > INT)
+        let attacker = make_char(0, 0, vec![(Stat::STR, 15), (Stat::INT, 5)]);
+        // Enemy in row 1 and row 2 — should only consider row 1
+        let front = make_char(10, 1, vec![(Stat::CON, 10), (Stat::FOR, 5), (Stat::WIS, 12)]);
+        let back = make_char(11, 2, vec![(Stat::CON, 10), (Stat::FOR, 5), (Stat::WIS, 12)]);
+        let mut rng = StdRng::seed_from_u64(0);
+        let target = select_target(&attacker, &[front, back], &mut rng);
+        assert_eq!(target, Some(10)); // must be front row
+    }
+
+    #[test]
+    fn select_target_skips_dead_in_front_row() {
+        let attacker = make_char(0, 0, vec![(Stat::STR, 15), (Stat::INT, 5)]);
+        let mut front = make_char(10, 0, vec![(Stat::CON, 5)]);
+        front.take_damage(100); // dead
+        let back = make_char(11, 1, vec![(Stat::CON, 10), (Stat::FOR, 5), (Stat::WIS, 5)]);
+        let mut rng = StdRng::seed_from_u64(0);
+        let target = select_target(&attacker, &[front, back], &mut rng);
+        assert_eq!(target, Some(11)); // front is dead, targets back
+    }
+
+    #[test]
+    fn select_target_prefers_weakness_match() {
+        // Physical attacker should prefer magical defenders (weak to physical)
+        let attacker = make_char(0, 0, vec![(Stat::STR, 15), (Stat::INT, 5)]);
+        // Physical defender (FOR > WIS)
+        let phys_def = make_char(10, 0, vec![(Stat::CON, 10), (Stat::FOR, 15), (Stat::WIS, 3)]);
+        // Magical defender (WIS > FOR) — weak to physical
+        let mag_def = make_char(11, 0, vec![(Stat::CON, 10), (Stat::FOR, 3), (Stat::WIS, 15)]);
+
+        // Run many times to verify preference (with different seeds)
+        let mut targeted_mag = 0;
+        for seed in 0..50 {
+            let mut rng = StdRng::seed_from_u64(seed);
+            let target = select_target(&attacker, &[phys_def.clone(), mag_def.clone()], &mut rng);
+            if target == Some(11) {
+                targeted_mag += 1;
+            }
+        }
+        // Physical attacker should prefer magical defender most of the time
+        assert!(targeted_mag > 25, "Expected to prefer magical defender, got {}/50", targeted_mag);
+    }
+}

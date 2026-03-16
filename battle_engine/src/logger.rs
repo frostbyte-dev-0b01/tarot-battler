@@ -46,4 +46,8 @@ impl BattleLog {
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(&self.events).unwrap()
     }
+
+    pub fn events(&self) -> &[BattleEvent] {
+        &self.events
+    }
 }

@@ -1,0 +1,74 @@
+[
+  {
+    "base_name": "The Emperor",
+    "passive": "Authority",
+    "actives": ["Crush", "Embolden"],
+    "item": null,
+    "position": { "row": 0, "col": 0 },
+    "stats": {
+      "CON": 10,
+      "STR": 6,
+      "INT": 4,
+      "FOR": 3,
+      "WIS": 2,
+      "DEX": 4,
+      "SPI": 5,
+      "FOC": 5,
+      "RES": 3
+    }
+  },
+  {
+    "base_name": "The High Priestess",
+    "passive": "Veil of Mystery",
+    "actives": ["Moonbeam", "Inner Sight"],
+    "item": null,
+    "position": { "row": 1, "col": 1 },
+    "stats": {
+      "CON": 6,
+      "STR": 2,
+      "INT": 8,
+      "FOR": 2,
+      "WIS": 7,
+      "DEX": 5,
+      "SPI": 7,
+      "FOC": 6,
+      "RES": 4
+    }
+  },
+  {
+    "base_name": "The Fool",
+    "passive": "Beginner's Luck",
+    "actives": ["Leap of Faith", "Stumble"],
+    "item": null,
+    "position": { "row": 0, "col": 1 },
+    "stats": {
+      "CON": 7,
+      "STR": 4,
+      "INT": 4,
+      "FOR": 3,
+      "WIS": 3,
+      "DEX": 7,
+      "SPI": 6,
+      "FOC": 4,
+      "RES": 4
+    }
+  },
+  {
+    "base_name": "The Tower",
+    "passive": "Collapse",
+    "actives": ["Shatter", "Rubble"],
+    "item": null,
+    "position": { "row": 0, "col": 2 },
+    "stats": {
+      "CON": 8,
+      "STR": 8,
+      "INT": 3,
+      "FOR": 5,
+      "WIS": 2,
+      "DEX": 3,
+      "SPI": 4,
+      "FOC": 3,
+      "RES": 2
+    }
+  }
+]

@@ -59,6 +59,7 @@ pub struct Effect {
 }
 
 /// Mutable runtime state of a character during battle. Created from a [`CharacterConfig`].
+#[derive(Clone)]
 pub struct CharacterState {
     id: u32,
     base_name: String,
@@ -213,5 +214,244 @@ impl CharacterState {
             e.duration -= 1;
             e.duration > 0
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_config(stats: Vec<(Stat, u32)>) -> CharacterConfig {
+        CharacterConfig {
+            base_name: "Test".to_string(),
+            passive: String::new(),
+            actives: Vec::new(),
+            item: None,
+            position: Position { row: 0, col: 0 },
+            stats: stats.into_iter().collect(),
+        }
+    }
+
+    #[test]
+    fn from_config_sets_hp_to_twice_con() {
+        let config = make_config(vec![(Stat::CON, 10), (Stat::DEX, 5), (Stat::SPI, 3)]);
+        let state = CharacterState::from_config(0, &config);
+        assert_eq!(state.current_hp(), 20);
+    }
+
+    #[test]
+    fn from_config_copies_position() {
+        let mut config = make_config(vec![(Stat::CON, 5)]);
+        config.position = Position { row: 2, col: 3 };
+        let state = CharacterState::from_config(0, &config);
+        assert_eq!(state.position().row, 2);
+        assert_eq!(state.position().col, 3);
+    }
+
+    #[test]
+    fn take_damage_saturates_at_zero() {
+        let config = make_config(vec![(Stat::CON, 5)]);
+        let mut state = CharacterState::from_config(0, &config);
+        assert_eq!(state.current_hp(), 10);
+        state.take_damage(100);
+        assert_eq!(state.current_hp(), 0);
+        assert!(!state.is_alive());
+    }
+
+    #[test]
+    fn heal_caps_at_max_hp() {
+        let config = make_config(vec![(Stat::CON, 5)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.take_damage(3);
+        assert_eq!(state.current_hp(), 7);
+        state.heal(100);
+        assert_eq!(state.current_hp(), 10);
+    }
+
+    #[test]
+    fn spend_spi_fails_when_insufficient() {
+        let config = make_config(vec![(Stat::SPI, 5)]);
+        let mut state = CharacterState::from_config(0, &config);
+        assert!(state.spend_spi(3));
+        assert_eq!(state.current_spi(), 2);
+        assert!(!state.spend_spi(3));
+        assert_eq!(state.current_spi(), 2); // unchanged
+    }
+
+    #[test]
+    fn restore_spi_caps_at_base() {
+        let config = make_config(vec![(Stat::SPI, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.spend_spi(8);
+        state.restore_spi(100);
+        assert_eq!(state.current_spi(), 10);
+    }
+
+    #[test]
+    fn speed_system_ticks_and_escalates() {
+        let config = make_config(vec![(Stat::DEX, 3)]);
+        let mut state = CharacterState::from_config(0, &config);
+        // DEX=3: ticks 3->2, 2->1, 1->0 (ready)
+        assert!(!state.tick_speed());
+        assert!(!state.tick_speed());
+        assert!(state.tick_speed());
+        // After reset: spd_max = 3+2=5, counter=5
+        state.reset_speed();
+        for _ in 0..4 {
+            assert!(!state.tick_speed());
+        }
+        assert!(state.tick_speed()); // 5th tick
+        // Second reset: spd_max = 5+2=7
+        state.reset_speed();
+        for _ in 0..6 {
+            assert!(!state.tick_speed());
+        }
+        assert!(state.tick_speed()); // 7th tick
+    }
+
+    #[test]
+    fn effective_stat_includes_modifiers() {
+        let config = make_config(vec![(Stat::STR, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        assert_eq!(state.get_eff_stat(&Stat::STR), 10);
+
+        state.add_effect(Effect {
+            name: "buff".to_string(),
+            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: 5 },
+            duration: 3,
+            source_id: 99,
+        });
+        assert_eq!(state.get_eff_stat(&Stat::STR), 15);
+    }
+
+    #[test]
+    fn effective_stat_floors_at_zero() {
+        let config = make_config(vec![(Stat::STR, 3)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_effect(Effect {
+            name: "debuff".to_string(),
+            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: -10 },
+            duration: 2,
+            source_id: 99,
+        });
+        assert_eq!(state.get_eff_stat(&Stat::STR), 0);
+    }
+
+    #[test]
+    fn add_effect_rejects_pool_stat_modifiers() {
+        let config = make_config(vec![(Stat::CON, 10), (Stat::DEX, 5), (Stat::SPI, 5)]);
+        let mut state = CharacterState::from_config(0, &config);
+
+        for stat in [Stat::CON, Stat::DEX, Stat::SPI] {
+            let result = state.add_effect(Effect {
+                name: "bad".to_string(),
+                effect_type: EffectType::StatModifier { stat, magnitude: 5 },
+                duration: 1,
+                source_id: 99,
+            });
+            assert!(!result);
+        }
+        assert!(state.effects().is_empty());
+    }
+
+    #[test]
+    fn add_effect_allows_non_pool_stat_modifiers() {
+        let config = make_config(vec![(Stat::STR, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        let result = state.add_effect(Effect {
+            name: "buff".to_string(),
+            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: 3 },
+            duration: 2,
+            source_id: 99,
+        });
+        assert!(result);
+        assert_eq!(state.effects().len(), 1);
+    }
+
+    #[test]
+    fn add_effect_allows_non_stat_modifier_types() {
+        let config = make_config(vec![(Stat::CON, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        assert!(state.add_effect(Effect {
+            name: "dot".to_string(),
+            effect_type: EffectType::DamageOverTime { damage: 5 },
+            duration: 3,
+            source_id: 99,
+        }));
+        assert!(state.add_effect(Effect {
+            name: "hot".to_string(),
+            effect_type: EffectType::HealOverTime { amount: 3 },
+            duration: 2,
+            source_id: 99,
+        }));
+        assert!(state.add_effect(Effect {
+            name: "stun".to_string(),
+            effect_type: EffectType::Incapacitate,
+            duration: 1,
+            source_id: 99,
+        }));
+        assert_eq!(state.effects().len(), 3);
+    }
+
+    #[test]
+    fn tick_effects_preserves_permanent_effects() {
+        let config = make_config(vec![(Stat::STR, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_effect(Effect {
+            name: "permanent".to_string(),
+            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: 5 },
+            duration: 0, // permanent
+            source_id: 99,
+        });
+        state.tick_effects();
+        state.tick_effects();
+        assert_eq!(state.effects().len(), 1);
+        assert_eq!(state.get_eff_stat(&Stat::STR), 15);
+    }
+
+    #[test]
+    fn tick_effects_removes_expired() {
+        let config = make_config(vec![(Stat::STR, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_effect(Effect {
+            name: "short".to_string(),
+            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: 5 },
+            duration: 2,
+            source_id: 99,
+        });
+        state.tick_effects(); // duration 2 -> 1
+        assert_eq!(state.effects().len(), 1);
+        state.tick_effects(); // duration 1 -> 0, removed
+        assert_eq!(state.effects().len(), 0);
+        assert_eq!(state.get_eff_stat(&Stat::STR), 10);
+    }
+
+    #[test]
+    fn remove_effects_by_source() {
+        let config = make_config(vec![(Stat::STR, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_effect(Effect {
+            name: "a".to_string(),
+            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: 3 },
+            duration: 5,
+            source_id: 1,
+        });
+        state.add_effect(Effect {
+            name: "b".to_string(),
+            effect_type: EffectType::StatModifier { stat: Stat::FOR, magnitude: 2 },
+            duration: 5,
+            source_id: 2,
+        });
+        state.remove_effects_by_source(1);
+        assert_eq!(state.effects().len(), 1);
+        assert_eq!(state.get_eff_stat(&Stat::STR), 10); // modifier removed
+    }
+
+    #[test]
+    fn position_validity() {
+        assert!(Position { row: 0, col: 0 }.is_valid());
+        assert!(Position { row: 3, col: 3 }.is_valid());
+        assert!(!Position { row: 4, col: 0 }.is_valid());
+        assert!(!Position { row: 0, col: 4 }.is_valid());
     }
 }

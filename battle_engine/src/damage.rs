@@ -30,3 +30,68 @@ pub fn calc_basic_attack_damage(
         OffensiveType::Magical => calc_magical_damage(attacker, defender),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{CharacterConfig, Position};
+    use rand::SeedableRng;
+
+    fn make_char(id: u32, stats: Vec<(Stat, u32)>) -> CharacterState {
+        let config = CharacterConfig {
+            base_name: "Test".to_string(),
+            passive: String::new(),
+            actives: Vec::new(),
+            item: None,
+            position: Position { row: 0, col: 0 },
+            stats: stats.into_iter().collect(),
+        };
+        CharacterState::from_config(id, &config)
+    }
+
+    #[test]
+    fn physical_damage_str_minus_for() {
+        let attacker = make_char(0, vec![(Stat::STR, 15)]);
+        let defender = make_char(1, vec![(Stat::FOR, 8)]);
+        assert_eq!(calc_physical_damage(&attacker, &defender), 7);
+    }
+
+    #[test]
+    fn physical_damage_minimum_one() {
+        let attacker = make_char(0, vec![(Stat::STR, 3)]);
+        let defender = make_char(1, vec![(Stat::FOR, 20)]);
+        assert_eq!(calc_physical_damage(&attacker, &defender), 1);
+    }
+
+    #[test]
+    fn magical_damage_int_minus_wis() {
+        let attacker = make_char(0, vec![(Stat::INT, 16)]);
+        let defender = make_char(1, vec![(Stat::WIS, 5)]);
+        assert_eq!(calc_magical_damage(&attacker, &defender), 11);
+    }
+
+    #[test]
+    fn magical_damage_minimum_one() {
+        let attacker = make_char(0, vec![(Stat::INT, 2)]);
+        let defender = make_char(1, vec![(Stat::WIS, 15)]);
+        assert_eq!(calc_magical_damage(&attacker, &defender), 1);
+    }
+
+    #[test]
+    fn basic_attack_uses_physical_when_str_higher() {
+        let attacker = make_char(0, vec![(Stat::STR, 15), (Stat::INT, 5)]);
+        let defender = make_char(1, vec![(Stat::FOR, 8), (Stat::WIS, 3)]);
+        let mut rng = StdRng::seed_from_u64(0);
+        // STR > INT so physical: 15 - 8 = 7
+        assert_eq!(calc_basic_attack_damage(&attacker, &defender, &mut rng), 7);
+    }
+
+    #[test]
+    fn basic_attack_uses_magical_when_int_higher() {
+        let attacker = make_char(0, vec![(Stat::STR, 4), (Stat::INT, 16)]);
+        let defender = make_char(1, vec![(Stat::FOR, 8), (Stat::WIS, 5)]);
+        let mut rng = StdRng::seed_from_u64(0);
+        // INT > STR so magical: 16 - 5 = 11
+        assert_eq!(calc_basic_attack_damage(&attacker, &defender, &mut rng), 11);
+    }
+}

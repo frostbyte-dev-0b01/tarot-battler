@@ -311,3 +311,121 @@ impl BattleState {
         self.team_b.iter().find(|c| c.id() == id)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::logger::BattleEvent;
+    use crate::models::{Position, Stat};
+
+    fn make_config(name: &str, row: u8, stats: Vec<(Stat, u32)>) -> CharacterConfig {
+        CharacterConfig {
+            base_name: name.to_string(),
+            passive: String::new(),
+            actives: Vec::new(),
+            item: None,
+            position: Position { row, col: 0 },
+            stats: stats.into_iter().collect(),
+        }
+    }
+
+    fn warrior() -> CharacterConfig {
+        make_config("Warrior", 0, vec![
+            (Stat::CON, 12), (Stat::STR, 15), (Stat::INT, 4),
+            (Stat::FOR, 10), (Stat::WIS, 5), (Stat::DEX, 8),
+            (Stat::SPI, 6), (Stat::FOC, 5), (Stat::RES, 5),
+        ])
+    }
+
+    fn mage() -> CharacterConfig {
+        make_config("Mage", 0, vec![
+            (Stat::CON, 8), (Stat::STR, 4), (Stat::INT, 16),
+            (Stat::FOR, 5), (Stat::WIS, 12), (Stat::DEX, 10),
+            (Stat::SPI, 10), (Stat::FOC, 8), (Stat::RES, 7),
+        ])
+    }
+
+    #[test]
+    fn battle_produces_start_and_end_events() {
+        let log = BattleState::new(&[warrior()], &[mage()], 42).run();
+        let events = log.events();
+        assert!(events.len() >= 2);
+        assert!(matches!(&events[0], BattleEvent::BattleStart { .. }));
+        assert!(matches!(events.last().unwrap(), BattleEvent::BattleEnd { .. }));
+    }
+
+    #[test]
+    fn battle_is_deterministic_with_same_seed() {
+        let log1 = BattleState::new(&[warrior()], &[mage()], 123).run().to_json();
+        let log2 = BattleState::new(&[warrior()], &[mage()], 123).run().to_json();
+        assert_eq!(log1, log2);
+    }
+
+    #[test]
+    fn battle_has_winner() {
+        let log = BattleState::new(&[warrior()], &[mage()], 42).run();
+        let events = log.events();
+        match events.last().unwrap() {
+            BattleEvent::BattleEnd { winner, .. } => {
+                assert!(winner == "team_a" || winner == "team_b" || winner == "draw");
+            }
+            _ => panic!("Last event should be BattleEnd"),
+        }
+    }
+
+    #[test]
+    fn battle_contains_defeat_event() {
+        let log = BattleState::new(&[warrior()], &[mage()], 42).run();
+        let has_defeat = log.events().iter().any(|e| matches!(e, BattleEvent::Defeat { .. }));
+        assert!(has_defeat, "A 1v1 battle should have a Defeat event");
+    }
+
+    #[test]
+    fn battle_ids_are_unique_across_teams() {
+        let battle = BattleState::new(&[warrior(), warrior()], &[mage(), mage()], 0);
+        // Team A: ids 0,1. Team B: ids 2,3.
+        // Just verify it runs without panic (id collisions would cause logic errors)
+        let log = battle.run();
+        assert!(log.events().len() > 2);
+    }
+
+    #[test]
+    fn high_con_tank_survives_longer() {
+        // Tank with huge CON vs glass cannon
+        let tank = make_config("Tank", 0, vec![
+            (Stat::CON, 50), (Stat::STR, 8), (Stat::INT, 4),
+            (Stat::FOR, 10), (Stat::WIS, 10), (Stat::DEX, 5),
+            (Stat::SPI, 5),
+        ]);
+        let glass = make_config("Glass", 0, vec![
+            (Stat::CON, 3), (Stat::STR, 20), (Stat::INT, 4),
+            (Stat::FOR, 2), (Stat::WIS, 2), (Stat::DEX, 5),
+            (Stat::SPI, 5),
+        ]);
+        let log = BattleState::new(&[tank], &[glass], 42).run();
+        match log.events().last().unwrap() {
+            BattleEvent::BattleEnd { winner, .. } => {
+                // Tank should win — glass cannon only has 6 HP
+                assert_eq!(winner, "team_a");
+            }
+            _ => panic!("Expected BattleEnd"),
+        }
+    }
+
+    #[test]
+    fn draw_safety_triggers_at_max_steps() {
+        // Two characters that deal minimum damage (1) with massive HP — will hit step limit
+        let tanky = make_config("Tanky", 0, vec![
+            (Stat::CON, 200), (Stat::STR, 1), (Stat::INT, 1),
+            (Stat::FOR, 50), (Stat::WIS, 50), (Stat::DEX, 30),
+            (Stat::SPI, 5),
+        ]);
+        let log = BattleState::new(&[tanky.clone()], &[tanky], 0).run();
+        match log.events().last().unwrap() {
+            BattleEvent::BattleEnd { winner, .. } => {
+                assert_eq!(winner, "draw");
+            }
+            _ => panic!("Expected BattleEnd"),
+        }
+    }
+}
