@@ -63,6 +63,7 @@ pub struct CharacterState {
     id: u32,
     base_name: String,
     base_stats: HashMap<Stat, u32>,
+    position: Position,
     curr_hp: u32,
     curr_spi: u32,
     spd_counter: u32,
@@ -80,6 +81,7 @@ impl CharacterState {
             id,
             base_name: config.base_name.clone(),
             base_stats: config.stats.clone(),
+            position: config.position.clone(),
             curr_hp: hp,
             curr_spi: spi,
             spd_counter: dex,
@@ -95,6 +97,10 @@ impl CharacterState {
 
     pub fn base_name(&self) -> &str {
         &self.base_name
+    }
+
+    pub fn position(&self) -> &Position {
+        &self.position
     }
 
     pub fn get_base_stat(&self, stat: &Stat) -> u32 {
@@ -159,9 +165,11 @@ impl CharacterState {
         self.spd_counter == 0
     }
 
-    /// Resets speed counter after acting (DEX + 2 per design).
+    /// Resets speed counter after acting. Each action adds +2 to the reset value
+    /// (first reset: DEX+2, second: DEX+4, etc.), softening high-DEX dominance.
     pub fn reset_speed(&mut self) {
-        self.spd_counter = self.spd_max + 2;
+        self.spd_max += 2;
+        self.spd_counter = self.spd_max;
     }
 
     pub fn target(&self) -> Option<u32> {
@@ -196,10 +204,14 @@ impl CharacterState {
     }
 
     /// Decrements effect durations and removes expired ones.
+    /// Permanent effects (duration 0) are kept indefinitely.
     pub fn tick_effects(&mut self) {
-        for effect in &mut self.effects {
-            effect.duration = effect.duration.saturating_sub(1);
-        }
-        self.effects.retain(|e| e.duration > 0);
+        self.effects.retain_mut(|e| {
+            if e.duration == 0 {
+                return true; // permanent, keep
+            }
+            e.duration -= 1;
+            e.duration > 0
+        });
     }
 }
