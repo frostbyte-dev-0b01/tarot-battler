@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+use crate::statuses::{opposite_key, StackType, StatusBehavior, StatusDef, StatusInstance};
+
 /// The nine character attributes.
 #[derive(Hash, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Stat {
@@ -56,6 +58,8 @@ pub enum QueryValue {
     Spi,
     UseCount,
     TurnsSinceUse,
+    // TODO: StatusStacks(String) and HasStatus(String) for rule conditions
+    // e.g., { "value": { "status_stacks": "Bleed" }, "comparator": "gte", "threshold": 3 }
 }
 
 /// Comparison operator for conditions.
@@ -95,22 +99,11 @@ pub struct CharacterConfig {
     pub rules: Vec<Rule>,
 }
 
-/// Determines how an [`Effect`] modifies a character each turn.
+/// What happened when statuses ticked.
 #[derive(Debug, Clone)]
-pub enum EffectType {
-    StatModifier { stat: Stat, magnitude: i32 },
-    DamageOverTime { damage: u32 },
-    HealOverTime { amount: u32 },
-    Incapacitate,
-}
-
-/// A temporary modifier attached to a character. Duration of 0 means permanent until explicitly removed.
-#[derive(Debug, Clone)]
-pub struct Effect {
-    pub name: String,
-    pub effect_type: EffectType,
-    pub duration: u32,
-    pub source_id: u32,
+pub enum StatusTick {
+    DamageDealt { name: String, damage: u32 },
+    HealApplied { name: String, amount: u32 },
 }
 
 /// Mutable runtime state of a character during battle. Created from a [`CharacterConfig`].
@@ -118,6 +111,7 @@ pub struct Effect {
 pub struct CharacterState {
     id: u32,
     base_name: String,
+    passive: String,
     base_stats: HashMap<Stat, u32>,
     position: Position,
     curr_hp: u32,
@@ -126,7 +120,7 @@ pub struct CharacterState {
     spd_max: u32,
     target: Option<u32>,
     companions: Vec<u32>,
-    effects: Vec<Effect>,
+    statuses: HashMap<String, StatusInstance>,
     rules: Vec<Rule>,
     actor_turn_count: u32,
     ability_use_counts: HashMap<String, u32>,
@@ -141,6 +135,7 @@ impl CharacterState {
         Self {
             id,
             base_name: config.base_name.clone(),
+            passive: config.passive.clone(),
             base_stats: config.stats.clone(),
             position: config.position.clone(),
             curr_hp: hp,
@@ -149,7 +144,7 @@ impl CharacterState {
             spd_max: dex,
             target: None,
             companions: Vec::new(),
-            effects: Vec::new(),
+            statuses: HashMap::new(),
             rules: config.rules.clone(),
             actor_turn_count: 0,
             ability_use_counts: HashMap::new(),
@@ -165,6 +160,14 @@ impl CharacterState {
         &self.base_name
     }
 
+    pub fn passive(&self) -> &str {
+        &self.passive
+    }
+
+    pub fn is_incapacitated(&self) -> bool {
+        self.statuses.values().any(|s| matches!(s.behavior, StatusBehavior::SkipTurn))
+    }
+
     pub fn position(&self) -> &Position {
         &self.position
     }
@@ -173,14 +176,18 @@ impl CharacterState {
         self.base_stats.get(stat).copied().unwrap_or(0)
     }
 
-    /// Returns the effective stat value (base + sum of StatModifier effects).
+    /// Returns the effective stat value (base + sum of StatModPerStack status effects).
     pub fn get_eff_stat(&self, stat: &Stat) -> u32 {
         let base = self.get_base_stat(stat) as i32;
         let modifier: i32 = self
-            .effects
-            .iter()
-            .filter_map(|e| match &e.effect_type {
-                EffectType::StatModifier { stat: s, magnitude } if s == stat => Some(magnitude),
+            .statuses
+            .values()
+            .filter_map(|s| match &s.behavior {
+                StatusBehavior::StatModPerStack { magnitude }
+                    if s.stat.as_ref() == Some(stat) =>
+                {
+                    Some(*magnitude * s.stacks as i32)
+                }
                 _ => None,
             })
             .sum();
@@ -258,8 +265,16 @@ impl CharacterState {
         self.companions = ids;
     }
 
-    pub fn effects(&self) -> &[Effect] {
-        &self.effects
+    pub fn statuses(&self) -> &HashMap<String, StatusInstance> {
+        &self.statuses
+    }
+
+    pub fn has_status(&self, key: &str) -> bool {
+        self.statuses.contains_key(key)
+    }
+
+    pub fn status_stacks(&self, key: &str) -> u32 {
+        self.statuses.get(key).map_or(0, |s| s.stacks)
     }
 
     pub fn rules(&self) -> &[Rule] {
@@ -304,37 +319,149 @@ impl CharacterState {
         }
     }
 
-    /// Rejects StatModifier effects targeting pool stats (CON, DEX, SPI).
-    pub fn add_effect(&mut self, effect: Effect) -> bool {
-        if let EffectType::StatModifier { ref stat, .. } = effect.effect_type {
-            if matches!(stat, Stat::CON | Stat::DEX | Stat::SPI) {
-                return false;
+    /// Apply a named status effect. Handles stacking, NoStack replacement,
+    /// and Empower/Weaken cancellation. Rejects StatModPerStack targeting
+    /// pool stats (CON, DEX, SPI).
+    pub fn add_status(
+        &mut self,
+        key: &str,
+        mut stacks: u32,
+        source_id: u32,
+        def: &StatusDef,
+        stat: Option<Stat>,
+    ) -> bool {
+        // Reject stat mods on pool stats
+        if matches!(&def.behavior, StatusBehavior::StatModPerStack { .. }) {
+            if let Some(ref s) = stat {
+                if matches!(s, Stat::CON | Stat::DEX | Stat::SPI) {
+                    return false;
+                }
             }
         }
-        self.effects.push(effect);
+
+        // Handle Empower/Weaken cancellation
+        if let Some(ref opposes) = def.opposes {
+            let opp_key = opposite_key(key, opposes);
+            if let Some(opp) = self.statuses.get_mut(&opp_key) {
+                if opp.stacks >= stacks {
+                    opp.stacks -= stacks;
+                    if opp.stacks == 0 {
+                        self.statuses.remove(&opp_key);
+                    }
+                    return true; // fully cancelled
+                } else {
+                    stacks -= opp.stacks;
+                    self.statuses.remove(&opp_key);
+                    // fall through to apply remaining stacks
+                }
+            }
+        }
+
+        match def.stack_type {
+            StackType::TickDown | StackType::Permanent => {
+                if let Some(existing) = self.statuses.get_mut(key) {
+                    existing.stacks += stacks;
+                    existing.source_id = source_id;
+                } else {
+                    self.statuses.insert(key.to_string(), StatusInstance {
+                        stacks,
+                        source_id,
+                        behavior: def.behavior.clone(),
+                        stack_type: def.stack_type.clone(),
+                        stat,
+                    });
+                }
+            }
+            StackType::NoStack => {
+                if let Some(existing) = self.statuses.get_mut(key) {
+                    if stacks > existing.stacks {
+                        existing.stacks = stacks;
+                    }
+                    existing.source_id = source_id;
+                } else {
+                    self.statuses.insert(key.to_string(), StatusInstance {
+                        stacks,
+                        source_id,
+                        behavior: def.behavior.clone(),
+                        stack_type: def.stack_type.clone(),
+                        stat,
+                    });
+                }
+            }
+        }
         true
     }
 
-    pub fn remove_effects_by_source(&mut self, source_id: u32) {
-        self.effects.retain(|e| e.source_id != source_id);
+    /// Remove stacks of a status. If stacks reaches 0, removes the entry.
+    pub fn remove_status(&mut self, key: &str, stacks: u32) {
+        if let Some(existing) = self.statuses.get_mut(key) {
+            if existing.stacks <= stacks {
+                self.statuses.remove(key);
+            } else {
+                existing.stacks -= stacks;
+            }
+        }
     }
 
-    /// Decrements effect durations and removes expired ones.
-    /// Permanent effects (duration 0) are kept indefinitely.
-    pub fn tick_effects(&mut self) {
-        self.effects.retain_mut(|e| {
-            if e.duration == 0 {
-                return true; // permanent, keep
+    /// Tick all statuses: collect damage/heal events, apply net HP change,
+    /// then decrement stacks. Order of evaluation never matters — death is
+    /// only checked after all effects resolve.
+    pub fn tick_statuses(&mut self) -> Vec<StatusTick> {
+        let mut ticks = Vec::new();
+        let mut total_damage: u32 = 0;
+        let mut total_heal: u32 = 0;
+
+        // Collect damage/heal from all statuses
+        for (key, inst) in &self.statuses {
+            match &inst.behavior {
+                StatusBehavior::DamagePerStack { value } => {
+                    let dmg = value * inst.stacks;
+                    total_damage += dmg;
+                    ticks.push(StatusTick::DamageDealt {
+                        name: key.clone(),
+                        damage: dmg,
+                    });
+                }
+                StatusBehavior::HealPerStack { value } => {
+                    let heal = value * inst.stacks;
+                    total_heal += heal;
+                    ticks.push(StatusTick::HealApplied {
+                        name: key.clone(),
+                        amount: heal,
+                    });
+                }
+                // StatModPerStack and SkipTurn don't produce tick events
+                _ => {}
             }
-            e.duration -= 1;
-            e.duration > 0
+        }
+
+        // Apply net HP change (batch-resolve: order never matters)
+        let net = total_heal as i32 - total_damage as i32;
+        if net > 0 {
+            self.heal(net as u32);
+        } else if net < 0 {
+            self.take_damage((-net) as u32);
+        }
+
+        // Decrement stacks for TickDown and NoStack
+        self.statuses.retain(|_, inst| {
+            match inst.stack_type {
+                StackType::TickDown | StackType::NoStack => {
+                    inst.stacks = inst.stacks.saturating_sub(1);
+                    inst.stacks > 0
+                }
+                StackType::Permanent => true,
+            }
         });
+
+        ticks
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::statuses::{status_key, StatusDef};
 
     fn make_config(stats: Vec<(Stat, u32)>) -> CharacterConfig {
         CharacterConfig {
@@ -345,6 +472,54 @@ mod tests {
             position: Position { row: 0, col: 0 },
             stats: stats.into_iter().collect(),
             rules: Vec::new(),
+        }
+    }
+
+    fn bleed_def() -> StatusDef {
+        StatusDef {
+            behavior: StatusBehavior::DamagePerStack { value: 1 },
+            stack_type: StackType::TickDown,
+            opposes: None,
+        }
+    }
+
+    fn regen_def() -> StatusDef {
+        StatusDef {
+            behavior: StatusBehavior::HealPerStack { value: 2 },
+            stack_type: StackType::TickDown,
+            opposes: None,
+        }
+    }
+
+    fn empower_def() -> StatusDef {
+        StatusDef {
+            behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+            stack_type: StackType::TickDown,
+            opposes: Some("Weaken".to_string()),
+        }
+    }
+
+    fn weaken_def() -> StatusDef {
+        StatusDef {
+            behavior: StatusBehavior::StatModPerStack { magnitude: -1 },
+            stack_type: StackType::TickDown,
+            opposes: Some("Empower".to_string()),
+        }
+    }
+
+    fn stun_def() -> StatusDef {
+        StatusDef {
+            behavior: StatusBehavior::SkipTurn,
+            stack_type: StackType::NoStack,
+            opposes: None,
+        }
+    }
+
+    fn fortify_def() -> StatusDef {
+        StatusDef {
+            behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+            stack_type: StackType::Permanent,
+            opposes: None,
         }
     }
 
@@ -391,7 +566,7 @@ mod tests {
         assert!(state.spend_spi(3));
         assert_eq!(state.current_spi(), 2);
         assert!(!state.spend_spi(3));
-        assert_eq!(state.current_spi(), 2); // unchanged
+        assert_eq!(state.current_spi(), 2);
     }
 
     #[test]
@@ -407,160 +582,248 @@ mod tests {
     fn speed_system_ticks_and_escalates() {
         let config = make_config(vec![(Stat::DEX, 3)]);
         let mut state = CharacterState::from_config(0, &config);
-        // DEX=3: ticks 3->2, 2->1, 1->0 (ready)
         assert!(!state.tick_speed());
         assert!(!state.tick_speed());
         assert!(state.tick_speed());
-        // After reset: spd_max = 3+2=5, counter=5
         state.reset_speed();
         for _ in 0..4 {
             assert!(!state.tick_speed());
         }
-        assert!(state.tick_speed()); // 5th tick
-        // Second reset: spd_max = 5+2=7
+        assert!(state.tick_speed());
         state.reset_speed();
         for _ in 0..6 {
             assert!(!state.tick_speed());
         }
-        assert!(state.tick_speed()); // 7th tick
+        assert!(state.tick_speed());
     }
 
     #[test]
-    fn effective_stat_includes_modifiers() {
+    fn effective_stat_includes_empower() {
         let config = make_config(vec![(Stat::STR, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         assert_eq!(state.get_eff_stat(&Stat::STR), 10);
 
-        state.add_effect(Effect {
-            name: "buff".to_string(),
-            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: 5 },
-            duration: 3,
-            source_id: 99,
-        });
+        let key = status_key("Empower", Some(&Stat::STR));
+        state.add_status(&key, 5, 99, &empower_def(), Some(Stat::STR));
         assert_eq!(state.get_eff_stat(&Stat::STR), 15);
     }
 
     #[test]
-    fn effective_stat_floors_at_zero() {
+    fn effective_stat_floors_at_zero_with_weaken() {
         let config = make_config(vec![(Stat::STR, 3)]);
         let mut state = CharacterState::from_config(0, &config);
-        state.add_effect(Effect {
-            name: "debuff".to_string(),
-            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: -10 },
-            duration: 2,
-            source_id: 99,
-        });
+        let key = status_key("Weaken", Some(&Stat::STR));
+        state.add_status(&key, 10, 99, &weaken_def(), Some(Stat::STR));
         assert_eq!(state.get_eff_stat(&Stat::STR), 0);
     }
 
     #[test]
-    fn add_effect_rejects_pool_stat_modifiers() {
+    fn add_status_rejects_pool_stat_mods() {
         let config = make_config(vec![(Stat::CON, 10), (Stat::DEX, 5), (Stat::SPI, 5)]);
         let mut state = CharacterState::from_config(0, &config);
 
         for stat in [Stat::CON, Stat::DEX, Stat::SPI] {
-            let result = state.add_effect(Effect {
-                name: "bad".to_string(),
-                effect_type: EffectType::StatModifier { stat, magnitude: 5 },
-                duration: 1,
-                source_id: 99,
-            });
+            let key = status_key("Empower", Some(&stat));
+            let result = state.add_status(&key, 3, 99, &empower_def(), Some(stat));
             assert!(!result);
         }
-        assert!(state.effects().is_empty());
+        assert!(state.statuses().is_empty());
     }
 
     #[test]
-    fn add_effect_allows_non_pool_stat_modifiers() {
+    fn add_status_allows_non_pool_stat_mods() {
         let config = make_config(vec![(Stat::STR, 10)]);
         let mut state = CharacterState::from_config(0, &config);
-        let result = state.add_effect(Effect {
-            name: "buff".to_string(),
-            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: 3 },
-            duration: 2,
-            source_id: 99,
-        });
-        assert!(result);
-        assert_eq!(state.effects().len(), 1);
+        let key = status_key("Empower", Some(&Stat::STR));
+        assert!(state.add_status(&key, 3, 99, &empower_def(), Some(Stat::STR)));
+        assert_eq!(state.statuses().len(), 1);
     }
 
     #[test]
-    fn add_effect_allows_non_stat_modifier_types() {
+    fn tick_down_bleed_stacks_decay() {
+        let config = make_config(vec![(Stat::CON, 20)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_status("Bleed", 3, 99, &bleed_def(), None);
+
+        // Turn 1: 3 stacks fire (3 dmg), then 3→2
+        let ticks = state.tick_statuses();
+        assert_eq!(ticks.len(), 1);
+        assert!(matches!(&ticks[0], StatusTick::DamageDealt { damage: 3, .. }));
+        assert_eq!(state.current_hp(), 37); // 40 - 3
+        assert_eq!(state.status_stacks("Bleed"), 2);
+
+        // Turn 2: 2 stacks fire (2 dmg), then 2→1
+        state.tick_statuses();
+        assert_eq!(state.current_hp(), 35);
+        assert_eq!(state.status_stacks("Bleed"), 1);
+
+        // Turn 3: 1 stack fires (1 dmg), then 1→0, removed
+        state.tick_statuses();
+        assert_eq!(state.current_hp(), 34);
+        assert!(!state.has_status("Bleed"));
+    }
+
+    #[test]
+    fn tick_down_additive_stacking() {
+        let config = make_config(vec![(Stat::CON, 50)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_status("Bleed", 2, 99, &bleed_def(), None);
+        state.add_status("Bleed", 3, 99, &bleed_def(), None);
+        assert_eq!(state.status_stacks("Bleed"), 5);
+    }
+
+    #[test]
+    fn no_stack_replaces_with_higher() {
         let config = make_config(vec![(Stat::CON, 10)]);
         let mut state = CharacterState::from_config(0, &config);
-        assert!(state.add_effect(Effect {
-            name: "dot".to_string(),
-            effect_type: EffectType::DamageOverTime { damage: 5 },
-            duration: 3,
-            source_id: 99,
-        }));
-        assert!(state.add_effect(Effect {
-            name: "hot".to_string(),
-            effect_type: EffectType::HealOverTime { amount: 3 },
-            duration: 2,
-            source_id: 99,
-        }));
-        assert!(state.add_effect(Effect {
-            name: "stun".to_string(),
-            effect_type: EffectType::Incapacitate,
-            duration: 1,
-            source_id: 99,
-        }));
-        assert_eq!(state.effects().len(), 3);
+        state.add_status("Stun", 2, 99, &stun_def(), None);
+        assert_eq!(state.status_stacks("Stun"), 2);
+
+        // Reapply with higher
+        state.add_status("Stun", 3, 99, &stun_def(), None);
+        assert_eq!(state.status_stacks("Stun"), 3);
+
+        // Reapply with lower — no change
+        state.add_status("Stun", 1, 99, &stun_def(), None);
+        assert_eq!(state.status_stacks("Stun"), 3);
     }
 
     #[test]
-    fn tick_effects_preserves_permanent_effects() {
+    fn empower_weaken_cancellation_partial() {
         let config = make_config(vec![(Stat::STR, 10)]);
         let mut state = CharacterState::from_config(0, &config);
-        state.add_effect(Effect {
-            name: "permanent".to_string(),
-            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: 5 },
-            duration: 0, // permanent
-            source_id: 99,
-        });
-        state.tick_effects();
-        state.tick_effects();
-        assert_eq!(state.effects().len(), 1);
-        assert_eq!(state.get_eff_stat(&Stat::STR), 15);
+
+        let emp_key = status_key("Empower", Some(&Stat::STR));
+        let weak_key = status_key("Weaken", Some(&Stat::STR));
+
+        state.add_status(&emp_key, 3, 99, &empower_def(), Some(Stat::STR));
+        assert_eq!(state.get_eff_stat(&Stat::STR), 13);
+
+        // Apply 2 Weaken — cancels 2 Empower, leaving Empower:STR 1
+        state.add_status(&weak_key, 2, 99, &weaken_def(), Some(Stat::STR));
+        assert_eq!(state.status_stacks(&emp_key), 1);
+        assert!(!state.has_status(&weak_key));
+        assert_eq!(state.get_eff_stat(&Stat::STR), 11);
     }
 
     #[test]
-    fn tick_effects_removes_expired() {
+    fn empower_weaken_cancellation_overflow() {
         let config = make_config(vec![(Stat::STR, 10)]);
         let mut state = CharacterState::from_config(0, &config);
-        state.add_effect(Effect {
-            name: "short".to_string(),
-            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: 5 },
-            duration: 2,
-            source_id: 99,
-        });
-        state.tick_effects(); // duration 2 -> 1
-        assert_eq!(state.effects().len(), 1);
-        state.tick_effects(); // duration 1 -> 0, removed
-        assert_eq!(state.effects().len(), 0);
+
+        let emp_key = status_key("Empower", Some(&Stat::STR));
+        let weak_key = status_key("Weaken", Some(&Stat::STR));
+
+        state.add_status(&emp_key, 2, 99, &empower_def(), Some(Stat::STR));
+
+        // Apply 5 Weaken — cancels 2 Empower, leaves 3 Weaken
+        state.add_status(&weak_key, 5, 99, &weaken_def(), Some(Stat::STR));
+        assert!(!state.has_status(&emp_key));
+        assert_eq!(state.status_stacks(&weak_key), 3);
+        assert_eq!(state.get_eff_stat(&Stat::STR), 7);
+    }
+
+    #[test]
+    fn multiple_stat_empower_simultaneously() {
+        let config = make_config(vec![(Stat::STR, 10), (Stat::FOR, 5)]);
+        let mut state = CharacterState::from_config(0, &config);
+
+        let str_key = status_key("Empower", Some(&Stat::STR));
+        let for_key = status_key("Empower", Some(&Stat::FOR));
+
+        state.add_status(&str_key, 3, 99, &empower_def(), Some(Stat::STR));
+        state.add_status(&for_key, 2, 99, &empower_def(), Some(Stat::FOR));
+
+        assert_eq!(state.get_eff_stat(&Stat::STR), 13);
+        assert_eq!(state.get_eff_stat(&Stat::FOR), 7);
+    }
+
+    #[test]
+    fn permanent_status_never_decays() {
+        let config = make_config(vec![(Stat::FOR, 5)]);
+        let mut state = CharacterState::from_config(0, &config);
+
+        let key = status_key("Fortify", Some(&Stat::FOR));
+        state.add_status(&key, 2, 99, &fortify_def(), Some(Stat::FOR));
+
+        state.tick_statuses();
+        state.tick_statuses();
+        state.tick_statuses();
+
+        assert_eq!(state.status_stacks(&key), 2);
+        assert_eq!(state.get_eff_stat(&Stat::FOR), 7);
+    }
+
+    #[test]
+    fn batch_resolve_bleed_and_regen_survive() {
+        // 1 HP, 1 bleed (1 dmg), 3 regen (6 heal). Should survive.
+        let config = make_config(vec![(Stat::CON, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.take_damage(19); // 1 HP
+        assert_eq!(state.current_hp(), 1);
+
+        state.add_status("Bleed", 1, 99, &bleed_def(), None);
+        state.add_status("Regen", 3, 99, &regen_def(), None);
+
+        state.tick_statuses();
+        // Net: 6 heal - 1 dmg = +5. HP = 1 + 5 = 6
+        assert_eq!(state.current_hp(), 6);
+        assert!(state.is_alive());
+    }
+
+    #[test]
+    fn is_incapacitated_with_stun() {
+        let config = make_config(vec![(Stat::CON, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        assert!(!state.is_incapacitated());
+
+        state.add_status("Stun", 2, 99, &stun_def(), None);
+        assert!(state.is_incapacitated());
+    }
+
+    #[test]
+    fn stun_expires_after_ticks() {
+        let config = make_config(vec![(Stat::CON, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_status("Stun", 1, 99, &stun_def(), None);
+        assert!(state.is_incapacitated());
+
+        state.tick_statuses(); // 1→0, removed
+        assert!(!state.is_incapacitated());
+    }
+
+    #[test]
+    fn empower_ticks_down() {
+        let config = make_config(vec![(Stat::STR, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        let key = status_key("Empower", Some(&Stat::STR));
+        state.add_status(&key, 3, 99, &empower_def(), Some(Stat::STR));
+
+        assert_eq!(state.get_eff_stat(&Stat::STR), 13);
+        state.tick_statuses(); // 3→2
+        assert_eq!(state.get_eff_stat(&Stat::STR), 12);
+        state.tick_statuses(); // 2→1
+        assert_eq!(state.get_eff_stat(&Stat::STR), 11);
+        state.tick_statuses(); // 1→0, removed
         assert_eq!(state.get_eff_stat(&Stat::STR), 10);
     }
 
     #[test]
-    fn remove_effects_by_source() {
-        let config = make_config(vec![(Stat::STR, 10)]);
+    fn remove_status_partial() {
+        let config = make_config(vec![(Stat::CON, 10)]);
         let mut state = CharacterState::from_config(0, &config);
-        state.add_effect(Effect {
-            name: "a".to_string(),
-            effect_type: EffectType::StatModifier { stat: Stat::STR, magnitude: 3 },
-            duration: 5,
-            source_id: 1,
-        });
-        state.add_effect(Effect {
-            name: "b".to_string(),
-            effect_type: EffectType::StatModifier { stat: Stat::FOR, magnitude: 2 },
-            duration: 5,
-            source_id: 2,
-        });
-        state.remove_effects_by_source(1);
-        assert_eq!(state.effects().len(), 1);
-        assert_eq!(state.get_eff_stat(&Stat::STR), 10); // modifier removed
+        state.add_status("Bleed", 5, 99, &bleed_def(), None);
+        state.remove_status("Bleed", 2);
+        assert_eq!(state.status_stacks("Bleed"), 3);
+    }
+
+    #[test]
+    fn remove_status_full() {
+        let config = make_config(vec![(Stat::CON, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_status("Bleed", 3, 99, &bleed_def(), None);
+        state.remove_status("Bleed", 5);
+        assert!(!state.has_status("Bleed"));
     }
 
     #[test]
@@ -574,17 +837,13 @@ mod tests {
     #[test]
     fn cardinal_adjacency() {
         let center = Position { row: 1, col: 1 };
-        // Cardinal neighbors
-        assert!(center.is_adjacent(&Position { row: 0, col: 1 })); // up
-        assert!(center.is_adjacent(&Position { row: 2, col: 1 })); // down
-        assert!(center.is_adjacent(&Position { row: 1, col: 0 })); // left
-        assert!(center.is_adjacent(&Position { row: 1, col: 2 })); // right
-        // Diagonals are NOT adjacent
+        assert!(center.is_adjacent(&Position { row: 0, col: 1 }));
+        assert!(center.is_adjacent(&Position { row: 2, col: 1 }));
+        assert!(center.is_adjacent(&Position { row: 1, col: 0 }));
+        assert!(center.is_adjacent(&Position { row: 1, col: 2 }));
         assert!(!center.is_adjacent(&Position { row: 0, col: 0 }));
         assert!(!center.is_adjacent(&Position { row: 2, col: 2 }));
-        // Same position is NOT adjacent
         assert!(!center.is_adjacent(&Position { row: 1, col: 1 }));
-        // Two apart is NOT adjacent
         assert!(!center.is_adjacent(&Position { row: 3, col: 1 }));
     }
 }

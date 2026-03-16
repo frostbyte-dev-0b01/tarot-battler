@@ -3,11 +3,12 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
-use crate::abilities::{execute_ability, AbilityMap};
+use crate::abilities::{execute_ability, execute_primitives, AbilityMap, PassiveMap, PassiveTrigger};
 use crate::damage::calc_basic_attack_damage;
 use crate::logger::{BattleEvent, BattleLog};
-use crate::models::{CharacterConfig, CharacterState, Stat};
+use crate::models::{CharacterConfig, CharacterState, StatusTick, Stat};
 use crate::rules::evaluate_rules;
+use crate::statuses::StatusMap;
 use crate::targeting::select_target;
 
 const MAX_STEPS: u32 = 1000;
@@ -17,6 +18,8 @@ pub struct BattleState {
     team_a: Vec<CharacterState>,
     team_b: Vec<CharacterState>,
     abilities: AbilityMap,
+    passives: PassiveMap,
+    status_defs: StatusMap,
     step: u32,
     log: BattleLog,
     rng: StdRng,
@@ -27,6 +30,8 @@ impl BattleState {
         team_a_configs: &[CharacterConfig],
         team_b_configs: &[CharacterConfig],
         abilities: AbilityMap,
+        passives: PassiveMap,
+        status_defs: StatusMap,
         seed: u64,
     ) -> Self {
         let rng = StdRng::seed_from_u64(seed);
@@ -48,6 +53,8 @@ impl BattleState {
             team_a,
             team_b,
             abilities,
+            passives,
+            status_defs,
             step: 0,
             log: BattleLog::new(),
             rng,
@@ -100,6 +107,8 @@ impl BattleState {
             team_b: self.team_b.iter().map(|c| c.base_name().to_string()).collect(),
         });
 
+        self.execute_battle_start_passives();
+
         loop {
             if self.step_once() {
                 break;
@@ -107,6 +116,59 @@ impl BattleState {
         }
 
         self.log
+    }
+
+    /// Fire on_battle_start passives for all characters.
+    fn execute_battle_start_passives(&mut self) {
+        // Collect passive info first to avoid borrow issues
+        let team_a_passives: Vec<(usize, String)> = self.team_a.iter().enumerate()
+            .filter(|(_, c)| !c.passive().is_empty())
+            .map(|(i, c)| (i, c.passive().to_string()))
+            .collect();
+        let team_b_passives: Vec<(usize, String)> = self.team_b.iter().enumerate()
+            .filter(|(_, c)| !c.passive().is_empty())
+            .map(|(i, c)| (i, c.passive().to_string()))
+            .collect();
+
+        for (idx, passive_name) in team_a_passives {
+            if let Some(passive_def) = self.passives.get(&passive_name).cloned() {
+                if matches!(passive_def.trigger, PassiveTrigger::OnBattleStart) {
+                    let char_id = self.team_a[idx].id();
+                    let char_name = self.team_a[idx].base_name().to_string();
+                    self.log.push(BattleEvent::PassiveTriggered {
+                        step: 0,
+                        character_id: char_id,
+                        character_name: char_name,
+                        passive_name: passive_name.clone(),
+                    });
+                    execute_primitives(
+                        idx, &passive_name, &passive_def.primitives,
+                        &mut self.team_a, &mut self.team_b,
+                        &mut self.rng, &mut self.log, 0, &self.status_defs,
+                    );
+                }
+            }
+        }
+
+        for (idx, passive_name) in team_b_passives {
+            if let Some(passive_def) = self.passives.get(&passive_name).cloned() {
+                if matches!(passive_def.trigger, PassiveTrigger::OnBattleStart) {
+                    let char_id = self.team_b[idx].id();
+                    let char_name = self.team_b[idx].base_name().to_string();
+                    self.log.push(BattleEvent::PassiveTriggered {
+                        step: 0,
+                        character_id: char_id,
+                        character_name: char_name,
+                        passive_name: passive_name.clone(),
+                    });
+                    execute_primitives(
+                        idx, &passive_name, &passive_def.primitives,
+                        &mut self.team_b, &mut self.team_a,
+                        &mut self.rng, &mut self.log, 0, &self.status_defs,
+                    );
+                }
+            }
+        }
     }
 
     /// Advance one step. Returns true if the battle is over.
@@ -198,6 +260,18 @@ impl BattleState {
         let actor_id = actor_team[actor_idx].id();
         let actor_name = actor_team[actor_idx].base_name().to_string();
 
+        // Incapacitate check: skip action but still tick effects
+        if actor_team[actor_idx].is_incapacitated() {
+            self.log.push(BattleEvent::TurnSkipped {
+                step: self.step,
+                character_id: actor_id,
+                character_name: actor_name,
+                reason: "incapacitated".to_string(),
+            });
+            Self::tick_and_log_statuses(actor_team, actor_idx, &mut self.log, self.step);
+            return;
+        }
+
         // Get or reassign target
         let target_id = match Self::resolve_target(actor_idx, actor_team, enemy_team, &mut self.rng)
         {
@@ -232,21 +306,25 @@ impl BattleState {
                     &mut self.rng,
                     &mut self.log,
                     self.step,
+                    &self.status_defs,
                 );
 
                 // Check for defeats from ability damage
-                for (tid, _) in damage_dealt {
-                    if let Some(eidx) = enemy_team.iter().position(|c| c.id() == tid) {
+                for (tid, _) in &damage_dealt {
+                    if let Some(eidx) = enemy_team.iter().position(|c| c.id() == *tid) {
                         if !enemy_team[eidx].is_alive() {
                             let ename = enemy_team[eidx].base_name().to_string();
                             self.log.push(BattleEvent::Defeat {
                                 step: self.step,
-                                character_id: tid,
+                                character_id: *tid,
                                 character_name: ename,
                             });
                         }
                     }
                 }
+
+                // Tick effects after action
+                Self::tick_and_log_statuses(actor_team, actor_idx, &mut self.log, self.step);
 
                 // Reassign target if current target is dead
                 let current_target = actor_team[actor_idx].target();
@@ -299,6 +377,53 @@ impl BattleState {
                 actor_team[actor_idx].clear_target();
             }
         }
+
+        // Tick effects after basic attack
+        Self::tick_and_log_statuses(actor_team, actor_idx, &mut self.log, self.step);
+    }
+
+    /// Tick statuses on a character and log any DoT/HoT results.
+    fn tick_and_log_statuses(
+        team: &mut [CharacterState],
+        idx: usize,
+        log: &mut BattleLog,
+        step: u32,
+    ) {
+        let ticks = team[idx].tick_statuses();
+        let char_id = team[idx].id();
+        let char_name = team[idx].base_name().to_string();
+        for tick in ticks {
+            match tick {
+                StatusTick::DamageDealt { name, damage } => {
+                    log.push(BattleEvent::StatusDamage {
+                        step,
+                        character_id: char_id,
+                        character_name: char_name.clone(),
+                        status_name: name,
+                        damage,
+                        hp_remaining: team[idx].current_hp(),
+                    });
+                }
+                StatusTick::HealApplied { name, amount } => {
+                    log.push(BattleEvent::StatusHeal {
+                        step,
+                        character_id: char_id,
+                        character_name: char_name.clone(),
+                        status_name: name,
+                        amount,
+                        hp_remaining: team[idx].current_hp(),
+                    });
+                }
+            }
+        }
+        // Check if actor died from status damage
+        if !team[idx].is_alive() {
+            log.push(BattleEvent::Defeat {
+                step,
+                character_id: char_id,
+                character_name: char_name,
+            });
+        }
     }
 
     /// Resolve the actor's target, reassigning if needed. Returns None if no enemies alive.
@@ -335,12 +460,21 @@ impl BattleState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::abilities::{AbilityDef, Primitive, AbilityTarget};
+    use crate::abilities::{AbilityDef, Primitive, AbilityTarget, PassiveMap};
     use crate::logger::BattleEvent;
     use crate::models::{Comparator, Condition, ConditionSubject, Position, QueryValue, Rule, Stat};
+    use crate::statuses::StatusMap;
     use std::collections::HashMap;
 
     fn empty_abilities() -> AbilityMap {
+        HashMap::new()
+    }
+
+    fn empty_passives() -> PassiveMap {
+        HashMap::new()
+    }
+
+    fn empty_statuses() -> StatusMap {
         HashMap::new()
     }
 
@@ -378,7 +512,7 @@ mod tests {
 
     #[test]
     fn battle_produces_start_and_end_events() {
-        let log = BattleState::new(&[warrior()], &[mage()], empty_abilities(), 42).run();
+        let log = BattleState::new(&[warrior()], &[mage()], empty_abilities(), empty_passives(), empty_statuses(), 42).run();
         let events = log.events();
         assert!(events.len() >= 2);
         assert!(matches!(&events[0], BattleEvent::BattleStart { .. }));
@@ -387,14 +521,14 @@ mod tests {
 
     #[test]
     fn battle_is_deterministic_with_same_seed() {
-        let log1 = BattleState::new(&[warrior()], &[mage()], empty_abilities(), 123).run().to_json();
-        let log2 = BattleState::new(&[warrior()], &[mage()], empty_abilities(), 123).run().to_json();
+        let log1 = BattleState::new(&[warrior()], &[mage()], empty_abilities(), empty_passives(), empty_statuses(), 123).run().to_json();
+        let log2 = BattleState::new(&[warrior()], &[mage()], empty_abilities(), empty_passives(), empty_statuses(), 123).run().to_json();
         assert_eq!(log1, log2);
     }
 
     #[test]
     fn battle_has_winner() {
-        let log = BattleState::new(&[warrior()], &[mage()], empty_abilities(), 42).run();
+        let log = BattleState::new(&[warrior()], &[mage()], empty_abilities(), empty_passives(), empty_statuses(), 42).run();
         let events = log.events();
         match events.last().unwrap() {
             BattleEvent::BattleEnd { winner, .. } => {
@@ -406,14 +540,14 @@ mod tests {
 
     #[test]
     fn battle_contains_defeat_event() {
-        let log = BattleState::new(&[warrior()], &[mage()], empty_abilities(), 42).run();
+        let log = BattleState::new(&[warrior()], &[mage()], empty_abilities(), empty_passives(), empty_statuses(), 42).run();
         let has_defeat = log.events().iter().any(|e| matches!(e, BattleEvent::Defeat { .. }));
         assert!(has_defeat, "A 1v1 battle should have a Defeat event");
     }
 
     #[test]
     fn battle_ids_are_unique_across_teams() {
-        let battle = BattleState::new(&[warrior(), warrior()], &[mage(), mage()], empty_abilities(), 0);
+        let battle = BattleState::new(&[warrior(), warrior()], &[mage(), mage()], empty_abilities(), empty_passives(), empty_statuses(), 0);
         let log = battle.run();
         assert!(log.events().len() > 2);
     }
@@ -430,7 +564,7 @@ mod tests {
             (Stat::FOR, 2), (Stat::WIS, 2), (Stat::DEX, 5),
             (Stat::SPI, 5),
         ]);
-        let log = BattleState::new(&[tank], &[glass], empty_abilities(), 42).run();
+        let log = BattleState::new(&[tank], &[glass], empty_abilities(), empty_passives(), empty_statuses(), 42).run();
         match log.events().last().unwrap() {
             BattleEvent::BattleEnd { winner, .. } => {
                 assert_eq!(winner, "team_a");
@@ -446,7 +580,7 @@ mod tests {
             (Stat::FOR, 50), (Stat::WIS, 50), (Stat::DEX, 30),
             (Stat::SPI, 5),
         ]);
-        let log = BattleState::new(&[tanky.clone()], &[tanky], empty_abilities(), 0).run();
+        let log = BattleState::new(&[tanky.clone()], &[tanky], empty_abilities(), empty_passives(), empty_statuses(), 0).run();
         match log.events().last().unwrap() {
             BattleEvent::BattleEnd { winner, .. } => {
                 assert_eq!(winner, "draw");
@@ -473,6 +607,8 @@ mod tests {
             &[front1.clone(), back.clone()],
             &[front2.clone(), back.clone(), front1.clone()],
             empty_abilities(),
+            empty_passives(),
+            empty_statuses(),
             99,
         ).run();
         let events = log.events();
@@ -499,6 +635,8 @@ mod tests {
             &[attacker],
             &[front, squishy_back],
             empty_abilities(),
+            empty_passives(),
+            empty_statuses(),
             42,
         ).run();
 
@@ -535,6 +673,8 @@ mod tests {
             &[fighter.clone(), fighter.clone(), fighter],
             &[lone],
             empty_abilities(),
+            empty_passives(),
+            empty_statuses(),
             42,
         ).run();
         match log.events().last().unwrap() {
@@ -557,6 +697,8 @@ mod tests {
             &[tanky.clone(), dps.clone()],
             &[tanky, dps.clone(), dps],
             empty_abilities(),
+            empty_passives(),
+            empty_statuses(),
             7,
         ).run();
         let events = log.events();
@@ -582,6 +724,8 @@ mod tests {
             &[front.clone(), back.clone(), front.clone()],
             &[front, back.clone(), back],
             empty_abilities(),
+            empty_passives(),
+            empty_statuses(),
             42,
         ).run();
 
@@ -617,7 +761,7 @@ mod tests {
         let d = make_config_at("D", 0, 2, simple_stats());
 
         let dummy = make_config_at("Enemy", 0, 0, simple_stats());
-        let battle = BattleState::new(&[a, b, c, d], &[dummy], empty_abilities(), 0);
+        let battle = BattleState::new(&[a, b, c, d], &[dummy], empty_abilities(), empty_passives(), empty_statuses(), 0);
 
         let comps_a = battle.team_a[0].companions();
         assert!(comps_a.contains(&1), "A should have B as companion");
@@ -642,7 +786,7 @@ mod tests {
     fn companions_only_within_same_team() {
         let a = make_config_at("TeamA", 0, 0, simple_stats());
         let b = make_config_at("TeamB", 0, 1, simple_stats());
-        let battle = BattleState::new(&[a], &[b], empty_abilities(), 0);
+        let battle = BattleState::new(&[a], &[b], empty_abilities(), empty_passives(), empty_statuses(), 0);
 
         assert!(battle.team_a[0].companions().is_empty());
         assert!(battle.team_b[0].companions().is_empty());
@@ -653,7 +797,7 @@ mod tests {
         let loner = make_config_at("Loner", 0, 0, simple_stats());
         let far = make_config_at("Far", 2, 2, simple_stats());
         let enemy = make_config_at("Enemy", 0, 0, simple_stats());
-        let battle = BattleState::new(&[loner, far], &[enemy], empty_abilities(), 0);
+        let battle = BattleState::new(&[loner, far], &[enemy], empty_abilities(), empty_passives(), empty_statuses(), 0);
 
         assert!(battle.team_a[0].companions().is_empty());
         assert!(battle.team_a[1].companions().is_empty());
@@ -730,7 +874,7 @@ mod tests {
             (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 4), (Stat::SPI, 4),
         ]);
 
-        let log = BattleState::new(&[emperor], &[enemy], test_abilities(), 42).run();
+        let log = BattleState::new(&[emperor], &[enemy], test_abilities(), empty_passives(), empty_statuses(), 42).run();
         let events = log.events();
 
         // Should have at least one AbilityUsed for Crush
@@ -751,7 +895,7 @@ mod tests {
             (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 4), (Stat::SPI, 4),
         ]);
 
-        let log = BattleState::new(&[emperor], &[enemy], test_abilities(), 42).run();
+        let log = BattleState::new(&[emperor], &[enemy], test_abilities(), empty_passives(), empty_statuses(), 42).run();
         let events = log.events();
 
         let crush_count = events.iter().filter(|e| matches!(e,
@@ -777,8 +921,178 @@ mod tests {
             (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 5),
         ]);
 
-        let log = BattleState::new(&[a], &[b], test_abilities(), 42).run();
+        let log = BattleState::new(&[a], &[b], test_abilities(), empty_passives(), empty_statuses(), 42).run();
         let has_ability = log.events().iter().any(|e| matches!(e, BattleEvent::AbilityUsed { .. }));
         assert!(!has_ability, "Characters without rules should not use abilities");
+    }
+
+    // --- Effect ticking tests ---
+
+    #[test]
+    fn status_damage_produces_events() {
+        use crate::statuses::{StatusDef, StatusBehavior, StackType};
+
+        let mut attacker = make_config("Attacker", 0, vec![
+            (Stat::CON, 20), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 5),
+        ]);
+        attacker.rules = vec![Rule {
+            ability: "Poison".to_string(),
+            conditions: Vec::new(),
+        }];
+        let enemy = make_config("Enemy", 0, vec![
+            (Stat::CON, 30), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        let mut abilities = HashMap::new();
+        abilities.insert("Poison".to_string(), AbilityDef {
+            spi_cost: 1,
+            primitives: vec![Primitive::ApplyStatus {
+                target: AbilityTarget::CurrentTarget,
+                status: "Poison".to_string(),
+                stat: None,
+                stacks: 3,
+            }],
+        });
+
+        let mut statuses: StatusMap = HashMap::new();
+        statuses.insert("Poison".to_string(), StatusDef {
+            behavior: StatusBehavior::DamagePerStack { value: 2 },
+            stack_type: StackType::TickDown,
+            opposes: None,
+        });
+
+        let log = BattleState::new(&[attacker], &[enemy], abilities, empty_passives(), statuses, 42).run();
+        let status_dmg_count = log.events().iter().filter(|e| matches!(e, BattleEvent::StatusDamage { .. })).count();
+        assert!(status_dmg_count > 0, "Should have StatusDamage events from Poison");
+    }
+
+    #[test]
+    fn incapacitated_character_skips_turn() {
+        use crate::statuses::{StatusDef, StatusBehavior, StackType};
+
+        let a = make_config("A", 0, vec![
+            (Stat::CON, 50), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 3), (Stat::SPI, 5),
+        ]);
+        let b = make_config("B", 0, vec![
+            (Stat::CON, 50), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 3), (Stat::SPI, 5),
+        ]);
+
+        let stun_def = StatusDef {
+            behavior: StatusBehavior::SkipTurn,
+            stack_type: StackType::NoStack,
+            opposes: None,
+        };
+
+        let mut battle = BattleState::new(&[a], &[b], empty_abilities(), empty_passives(), empty_statuses(), 42);
+        battle.team_a[0].add_status("Stun", 2, 99, &stun_def, None);
+
+        let log = battle.run();
+        let skip_count = log.events().iter().filter(|e| matches!(e, BattleEvent::TurnSkipped { .. })).count();
+        assert!(skip_count > 0, "Stunned character should have TurnSkipped events");
+    }
+
+    #[test]
+    fn on_battle_start_passive_fires() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+        use crate::statuses::{StatusDef, StatusBehavior, StackType};
+
+        let mut char_config = make_config("Warrior", 0, vec![
+            (Stat::CON, 10), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 5),
+        ]);
+        char_config.passive = "TestPassive".to_string();
+
+        let enemy = make_config("Enemy", 0, vec![
+            (Stat::CON, 10), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("TestPassive".to_string(), PassiveDef {
+            trigger: PassiveTrigger::OnBattleStart,
+            primitives: vec![Primitive::ApplyStatus {
+                target: AbilityTarget::SelfChar,
+                status: "Empower".to_string(),
+                stat: Some(Stat::STR),
+                stacks: 5,
+            }],
+        });
+
+        let mut statuses: StatusMap = HashMap::new();
+        statuses.insert("Empower".to_string(), StatusDef {
+            behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+            stack_type: StackType::Permanent,
+            opposes: None,
+        });
+
+        let log = BattleState::new(&[char_config], &[enemy], empty_abilities(), passives, statuses, 42).run();
+        let has_passive = log.events().iter().any(|e| matches!(e,
+            BattleEvent::PassiveTriggered { passive_name, .. } if passive_name == "TestPassive"
+        ));
+        assert!(has_passive, "Should have PassiveTriggered event at battle start");
+    }
+
+    #[test]
+    fn passive_buff_affects_combat() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+        use crate::statuses::{StatusDef, StatusBehavior, StackType};
+
+        let mut warrior = make_config("Warrior", 0, vec![
+            (Stat::CON, 10), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 5),
+        ]);
+        warrior.passive = "PowerUp".to_string();
+
+        let enemy = make_config("Enemy", 0, vec![
+            (Stat::CON, 10), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("PowerUp".to_string(), PassiveDef {
+            trigger: PassiveTrigger::OnBattleStart,
+            primitives: vec![Primitive::ApplyStatus {
+                target: AbilityTarget::SelfChar,
+                status: "Empower".to_string(),
+                stat: Some(Stat::STR),
+                stacks: 100,
+            }],
+        });
+
+        let mut statuses: StatusMap = HashMap::new();
+        statuses.insert("Empower".to_string(), StatusDef {
+            behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+            stack_type: StackType::Permanent,
+            opposes: None,
+        });
+
+        // With huge STR buff, warrior should win easily
+        let log = BattleState::new(&[warrior], &[enemy], empty_abilities(), passives, statuses, 42).run();
+        match log.events().last().unwrap() {
+            BattleEvent::BattleEnd { winner, .. } => assert_eq!(winner, "team_a"),
+            _ => panic!("Expected BattleEnd"),
+        }
+    }
+
+    #[test]
+    fn unknown_passive_does_not_crash() {
+        let mut char_config = make_config("Warrior", 0, vec![
+            (Stat::CON, 10), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 5),
+        ]);
+        char_config.passive = "NonexistentPassive".to_string();
+
+        let enemy = make_config("Enemy", 0, vec![
+            (Stat::CON, 10), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        // Should complete without panicking
+        let log = BattleState::new(&[char_config], &[enemy], empty_abilities(), empty_passives(), empty_statuses(), 42).run();
+        assert!(matches!(log.events().last().unwrap(), BattleEvent::BattleEnd { .. }));
     }
 }

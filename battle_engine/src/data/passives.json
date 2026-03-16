@@ -1,0 +1,20 @@
+{
+  "Authority": {
+    "trigger": "on_battle_start",
+    "primitives": [
+      { "kind": "apply_status", "target": "all_enemies", "status": "Weaken", "stat": "STR", "stacks": 1 }
+    ]
+  },
+  "Hope": {
+    "trigger": "on_battle_start",
+    "primitives": [
+      { "kind": "apply_status", "target": "all_allies", "status": "Empower", "stat": "RES", "stacks": 1 }
+    ]
+  },
+  "Inner Fire": {
+    "trigger": "on_battle_start",
+    "primitives": [
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 2 }
+    ]
+  }
+}

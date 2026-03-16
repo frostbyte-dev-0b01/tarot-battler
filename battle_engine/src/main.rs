@@ -5,6 +5,7 @@ mod loader;
 mod logger;
 mod models;
 mod rules;
+mod statuses;
 mod targeting;
 
 use std::path::Path;
@@ -15,6 +16,10 @@ fn main() {
         .expect("Failed to load characters");
     let abilities = loader::load_abilities(&data_dir.join("abilities.json"))
         .expect("Failed to load abilities");
+    let passives = loader::load_passives(&data_dir.join("passives.json"))
+        .expect("Failed to load passives");
+    let statuses = loader::load_statuses(&data_dir.join("statuses.json"))
+        .expect("Failed to load statuses");
 
     // First 5 characters = Team A, last 5 = Team B
     let (team_a, team_b) = characters.split_at(characters.len() / 2);
@@ -34,7 +39,7 @@ fn main() {
     }
     eprintln!("Seed: {}\n", seed);
 
-    let battle = engine::BattleState::new(team_a, team_b, abilities, seed);
+    let battle = engine::BattleState::new(team_a, team_b, abilities, passives, statuses, seed);
     let log = battle.run();
     println!("{}", log.to_json());
 }

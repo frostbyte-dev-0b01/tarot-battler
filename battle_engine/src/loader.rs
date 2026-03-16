@@ -2,8 +2,9 @@
 
 use std::path::Path;
 
-use crate::abilities::AbilityMap;
+use crate::abilities::{AbilityMap, PassiveMap};
 use crate::models::CharacterConfig;
+use crate::statuses::StatusMap;
 
 pub fn load_characters(path: &Path) -> Result<Vec<CharacterConfig>, String> {
     let data = std::fs::read_to_string(path)
@@ -13,6 +14,20 @@ pub fn load_characters(path: &Path) -> Result<Vec<CharacterConfig>, String> {
 }
 
 pub fn load_abilities(path: &Path) -> Result<AbilityMap, String> {
+    let data = std::fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+    serde_json::from_str(&data)
+        .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
+}
+
+pub fn load_passives(path: &Path) -> Result<PassiveMap, String> {
+    let data = std::fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+    serde_json::from_str(&data)
+        .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
+}
+
+pub fn load_statuses(path: &Path) -> Result<StatusMap, String> {
     let data = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
     serde_json::from_str(&data)
