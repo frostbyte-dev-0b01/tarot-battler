@@ -5,6 +5,26 @@ const replayJsonInput = document.querySelector("#replay-json-input");
 const replayLoadButton = document.querySelector("#replay-load-button");
 const replayDemoButton = document.querySelector("#replay-demo-button");
 const replayValidationOutput = document.querySelector("#replay-validation-output");
+const teamConfigs = {
+  team_a: {
+    fileInput: document.querySelector("#team-a-file-input"),
+    jsonInput: document.querySelector("#team-a-json-input"),
+    loadButton: document.querySelector("#team-a-load-button"),
+    demoButton: document.querySelector("#team-a-demo-button"),
+    validationOutput: document.querySelector("#team-a-validation-output"),
+    metaName: document.querySelector('[data-team-meta="team_a_name"]'),
+    metaCount: document.querySelector('[data-team-meta="team_a_count"]'),
+  },
+  team_b: {
+    fileInput: document.querySelector("#team-b-file-input"),
+    jsonInput: document.querySelector("#team-b-json-input"),
+    loadButton: document.querySelector("#team-b-load-button"),
+    demoButton: document.querySelector("#team-b-demo-button"),
+    validationOutput: document.querySelector("#team-b-validation-output"),
+    metaName: document.querySelector('[data-team-meta="team_b_name"]'),
+    metaCount: document.querySelector('[data-team-meta="team_b_count"]'),
+  },
+};
 const replayPreviousButton = document.querySelector("#replay-previous-button");
 const replayPlayButton = document.querySelector("#replay-play-button");
 const replayPauseButton = document.querySelector("#replay-pause-button");
@@ -24,6 +44,10 @@ const appState = {
   selectedEventIndex: -1,
   selectedCharacterId: null,
   playbackTimerId: null,
+  teamConfigs: {
+    team_a: null,
+    team_b: null,
+  },
 };
 const metadataFields = {
   seed: document.querySelector('[data-meta-field="seed"]'),
@@ -134,6 +158,51 @@ const demoReplay = {
     },
     { tick: 7, type: "battle_end", winner: "team_a" },
   ],
+};
+
+const demoTeams = {
+  team_a: {
+    version: 1,
+    name: "Imperial Phalanx",
+    characters: [
+      {
+        id: "the_emperor",
+        display_name: "The Emperor",
+        position: { row: 0, col: 0 },
+        stats: { con: 7, str: 8, int: 3, for: 7, wis: 3, dex: 4, spi: 4 },
+        passive: "Authority",
+        actives: ["Crush", "Embolden"],
+        item: null,
+        rules: [
+          {
+            ability: "Crush",
+            when: [{ subject: "self", value: "mp", op: "gte", threshold: 2 }],
+          },
+        ],
+      },
+    ],
+  },
+  team_b: {
+    version: 1,
+    name: "Arcane Gambit",
+    characters: [
+      {
+        id: "the_star",
+        display_name: "The Star",
+        position: { row: 2, col: 1 },
+        stats: { con: 5, str: 2, int: 6, for: 3, wis: 7, dex: 3, spi: 6 },
+        passive: "Hope",
+        actives: ["Restore", "Purify"],
+        item: null,
+        rules: [
+          {
+            ability: "Restore",
+            when: [{ subject: "companion", value: "hp", op: "lte", threshold: 6 }],
+          },
+        ],
+      },
+    ],
+  },
 };
 
 for (const button of tabButtons) {
@@ -278,11 +347,43 @@ timelineSelectedOnlyInput.addEventListener("change", () => {
   renderTimeline();
 });
 
+for (const [teamKey, teamConfig] of Object.entries(teamConfigs)) {
+  teamConfig.loadButton.addEventListener("click", () => {
+    loadTeamFromText(teamKey, teamConfig.jsonInput.value.trim());
+  });
+
+  teamConfig.demoButton.addEventListener("click", () => {
+    teamConfig.jsonInput.value = JSON.stringify(demoTeams[teamKey], null, 2);
+    loadTeamFromText(teamKey, teamConfig.jsonInput.value);
+  });
+
+  teamConfig.fileInput.addEventListener("change", async (event) => {
+    const [file] = event.target.files ?? [];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const content = await file.text();
+      teamConfig.jsonInput.value = content;
+      loadTeamFromText(teamKey, content);
+    } catch (error) {
+      renderTeamValidation(teamKey, {
+        ok: false,
+        errors: [`Could not read team file: ${error.message}`],
+      });
+      resetTeamSummary(teamKey);
+    }
+  });
+}
+
 resetMetadata();
 resetBoards();
 renderPlaybackControls();
 renderTimeline();
 renderInspector(null);
+resetTeamSummary("team_a");
+resetTeamSummary("team_b");
 
 function validateReplay(candidate) {
   const errors = [];
@@ -604,6 +705,165 @@ function renderReplayValidation(result) {
 
   replayValidationOutput.classList.add("message-panel-error");
   replayValidationOutput.textContent = result.errors.map((error) => `- ${error}`).join("\n");
+}
+
+function loadTeamFromText(teamKey, sourceText) {
+  if (!sourceText) {
+    renderTeamValidation(teamKey, {
+      ok: false,
+      errors: ["Team JSON input is empty."],
+    });
+    appState.teamConfigs[teamKey] = null;
+    resetTeamSummary(teamKey);
+    return;
+  }
+
+  try {
+    const parsedTeam = JSON.parse(sourceText);
+    const validation = validateTeamConfig(parsedTeam);
+    renderTeamValidation(teamKey, validation);
+
+    if (validation.ok) {
+      appState.teamConfigs[teamKey] = parsedTeam;
+      renderTeamSummary(teamKey, parsedTeam);
+    } else {
+      appState.teamConfigs[teamKey] = null;
+      resetTeamSummary(teamKey);
+    }
+  } catch (error) {
+    renderTeamValidation(teamKey, {
+      ok: false,
+      errors: [`Could not parse team JSON: ${error.message}`],
+    });
+    appState.teamConfigs[teamKey] = null;
+    resetTeamSummary(teamKey);
+  }
+}
+
+function validateTeamConfig(candidate) {
+  const errors = [];
+
+  if (!isPlainObject(candidate)) {
+    return {
+      ok: false,
+      errors: ["Team must be a JSON object."],
+    };
+  }
+
+  if (typeof candidate.version !== "number") {
+    errors.push("`version` must be a number.");
+  }
+
+  if (typeof candidate.name !== "string" || candidate.name.trim() === "") {
+    errors.push("`name` must be a non-empty string.");
+  }
+
+  if (!Array.isArray(candidate.characters) || candidate.characters.length < 1) {
+    errors.push("`characters` must be an array with at least 1 character.");
+  } else {
+    validateTeamCharacters(candidate.characters, errors);
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+  };
+}
+
+function validateTeamCharacters(characters, errors) {
+  const seenIds = new Set();
+  const seenPositions = new Set();
+  const requiredStats = ["con", "str", "int", "for", "wis", "dex", "spi"];
+
+  characters.forEach((character, index) => {
+    const prefix = `characters[${index}]`;
+    if (!isPlainObject(character)) {
+      errors.push(`${prefix} must be an object.`);
+      return;
+    }
+
+    if (typeof character.id !== "string" || character.id.trim() === "") {
+      errors.push(`${prefix}.id must be a non-empty string.`);
+    } else if (seenIds.has(character.id)) {
+      errors.push(`${prefix}.id must be unique within the team.`);
+    } else {
+      seenIds.add(character.id);
+    }
+
+    if (!isPlainObject(character.position)) {
+      errors.push(`${prefix}.position must be an object.`);
+    } else {
+      const { row, col } = character.position;
+      if (!Number.isInteger(row) || row < 0 || row > 2) {
+        errors.push(`${prefix}.position.row must be an integer from 0 to 2.`);
+      }
+      if (!Number.isInteger(col) || col < 0 || col > 3) {
+        errors.push(`${prefix}.position.col must be an integer from 0 to 3.`);
+      }
+      if (Number.isInteger(row) && Number.isInteger(col)) {
+        const positionKey = `${row}:${col}`;
+        if (seenPositions.has(positionKey)) {
+          errors.push(`${prefix}.position must be unique within the team.`);
+        } else {
+          seenPositions.add(positionKey);
+        }
+      }
+    }
+
+    if (!isPlainObject(character.stats)) {
+      errors.push(`${prefix}.stats must be an object.`);
+    } else {
+      for (const statKey of requiredStats) {
+        if (typeof character.stats[statKey] !== "number") {
+          errors.push(`${prefix}.stats.${statKey} must be a number.`);
+        }
+      }
+    }
+
+    if (typeof character.passive !== "string" || character.passive.trim() === "") {
+      errors.push(`${prefix}.passive must be a non-empty string.`);
+    }
+
+    if (!Array.isArray(character.actives)) {
+      errors.push(`${prefix}.actives must be an array.`);
+    }
+
+    if (!Array.isArray(character.rules)) {
+      errors.push(`${prefix}.rules must be an array.`);
+    }
+  });
+}
+
+function renderTeamSummary(teamKey, teamConfig) {
+  const config = teamConfigs[teamKey];
+  config.metaName.textContent = teamConfig.name;
+  config.metaCount.textContent = String(teamConfig.characters.length);
+}
+
+function resetTeamSummary(teamKey) {
+  const config = teamConfigs[teamKey];
+  config.metaName.textContent = "-";
+  config.metaCount.textContent = "-";
+}
+
+function renderTeamValidation(teamKey, result) {
+  const output = teamConfigs[teamKey].validationOutput;
+  output.className = "message-panel";
+
+  if (result.ok) {
+    output.classList.add("message-panel-success");
+    output.textContent = "Team JSON is valid at the top level.";
+    return;
+  }
+
+  if (result.errors.length === 0) {
+    output.classList.add("message-panel-idle");
+    output.textContent = "Load a team JSON file or paste JSON to validate it.";
+    return;
+  }
+
+  output.classList.add("message-panel-error");
+  output.textContent = result.errors.map((error) => `- ${error}`).join("\n");
 }
 
 function isPlainObject(value) {

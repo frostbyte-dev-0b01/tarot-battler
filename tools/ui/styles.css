@@ -205,7 +205,8 @@ select {
 
 .replay-loader-controls,
 .button-row,
-.status-panels {
+.status-panels,
+.team-loader-body {
   display: grid;
   gap: 14px;
 }
@@ -243,6 +244,10 @@ select {
 .button-row {
   grid-template-columns: repeat(2, minmax(0, max-content));
   align-items: center;
+}
+
+.button-row-three {
+  grid-template-columns: repeat(2, minmax(0, max-content));
 }
 
 .button-row button,

@@ -270,18 +270,22 @@ Goal:
 
 Tasks:
 
-- [ ] add Team A file input
-- [ ] add Team B file input
-- [ ] add paste areas or sample team loaders
-- [ ] validate required fields from `design/team_builder_schema.md`
-- [ ] show validation errors inline
-- [ ] show team names and character counts
+- [x] add Team A file input
+- [x] add Team B file input
+- [x] add paste areas or sample team loaders
+- [x] validate required fields from `design/team_builder_schema.md`
+- [x] show validation errors inline
+- [x] show team names and character counts
 
 Acceptance criteria:
 
 - valid teams load into the UI
 - invalid teams show readable errors
 - users can inspect both teams without editing raw DOM manually
+
+Status:
+
+- completed with Team A and Team B JSON loading, demo data, validation, and summary panels
 
 ## Phase 9: Team Builder Forms
 

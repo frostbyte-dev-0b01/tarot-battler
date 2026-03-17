@@ -31,11 +31,11 @@
         <section class="workspace is-active" id="team-builder" aria-labelledby="team-builder-heading">
           <div class="workspace-header">
             <div>
-              <p class="eyebrow">Phase 1</p>
+              <p class="eyebrow">Phase 8</p>
               <h2 id="team-builder-heading">Team Builder</h2>
             </div>
             <p class="workspace-summary">
-              Placeholder layout for Team A, Team B, and import or export controls.
+              Team loading and validation are wired while the full form editor is still pending.
             </p>
           </div>
 
@@ -45,19 +45,43 @@
                 <p class="panel-kicker">Editor</p>
                 <h3 id="team-a-heading">Team A</h3>
               </div>
-              <div class="panel-body placeholder-stack">
-                <div class="placeholder-block">
-                  <strong>Team metadata</strong>
-                  <p>Name, load, validate, export.</p>
+              <div class="panel-body team-loader-body">
+                <label class="field-group">
+                  <span>Team file</span>
+                  <input id="team-a-file-input" type="file" accept=".json,application/json">
+                </label>
+                <div class="button-row button-row-three">
+                  <button id="team-a-load-button" type="button">Load Pasted Team</button>
+                  <button id="team-a-demo-button" type="button" class="button-secondary">Load Demo Team</button>
                 </div>
-                <div class="placeholder-block">
-                  <strong>Character list</strong>
-                  <p>Add, remove, and edit CharacterLoadout entries.</p>
-                </div>
-                <div class="placeholder-block">
-                  <strong>Rules editor</strong>
-                  <p>Ordered rules and condition editing will render here.</p>
-                </div>
+                <label class="field-group field-group-textarea" for="team-a-json-input">
+                  <span>Team JSON</span>
+                  <textarea
+                    id="team-a-json-input"
+                    rows="12"
+                    spellcheck="false"
+                    placeholder='Paste Team A JSON here, then click "Load Pasted Team".'
+                  ></textarea>
+                </label>
+                <section class="status-panel" aria-labelledby="team-a-summary-heading">
+                  <h4 id="team-a-summary-heading">Team Summary</h4>
+                  <dl class="metadata-grid">
+                    <div>
+                      <dt>Name</dt>
+                      <dd data-team-meta="team_a_name">-</dd>
+                    </div>
+                    <div>
+                      <dt>Characters</dt>
+                      <dd data-team-meta="team_a_count">-</dd>
+                    </div>
+                  </dl>
+                </section>
+                <section class="status-panel" aria-labelledby="team-a-validation-heading">
+                  <h4 id="team-a-validation-heading">Validation</h4>
+                  <div id="team-a-validation-output" class="message-panel message-panel-idle">
+                    Load a team JSON file or paste JSON to validate it.
+                  </div>
+                </section>
               </div>
             </section>
 
@@ -66,19 +90,43 @@
                 <p class="panel-kicker">Editor</p>
                 <h3 id="team-b-heading">Team B</h3>
               </div>
-              <div class="panel-body placeholder-stack">
-                <div class="placeholder-block">
-                  <strong>Team metadata</strong>
-                  <p>Name, load, validate, export.</p>
+              <div class="panel-body team-loader-body">
+                <label class="field-group">
+                  <span>Team file</span>
+                  <input id="team-b-file-input" type="file" accept=".json,application/json">
+                </label>
+                <div class="button-row button-row-three">
+                  <button id="team-b-load-button" type="button">Load Pasted Team</button>
+                  <button id="team-b-demo-button" type="button" class="button-secondary">Load Demo Team</button>
                 </div>
-                <div class="placeholder-block">
-                  <strong>Character list</strong>
-                  <p>Add, remove, and edit CharacterLoadout entries.</p>
-                </div>
-                <div class="placeholder-block">
-                  <strong>Rules editor</strong>
-                  <p>Ordered rules and condition editing will render here.</p>
-                </div>
+                <label class="field-group field-group-textarea" for="team-b-json-input">
+                  <span>Team JSON</span>
+                  <textarea
+                    id="team-b-json-input"
+                    rows="12"
+                    spellcheck="false"
+                    placeholder='Paste Team B JSON here, then click "Load Pasted Team".'
+                  ></textarea>
+                </label>
+                <section class="status-panel" aria-labelledby="team-b-summary-heading">
+                  <h4 id="team-b-summary-heading">Team Summary</h4>
+                  <dl class="metadata-grid">
+                    <div>
+                      <dt>Name</dt>
+                      <dd data-team-meta="team_b_name">-</dd>
+                    </div>
+                    <div>
+                      <dt>Characters</dt>
+                      <dd data-team-meta="team_b_count">-</dd>
+                    </div>
+                  </dl>
+                </section>
+                <section class="status-panel" aria-labelledby="team-b-validation-heading">
+                  <h4 id="team-b-validation-heading">Validation</h4>
+                  <div id="team-b-validation-output" class="message-panel message-panel-idle">
+                    Load a team JSON file or paste JSON to validate it.
+                  </div>
+                </section>
               </div>
             </section>
           </div>
