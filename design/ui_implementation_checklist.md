@@ -1,0 +1,372 @@
+# UI Implementation Checklist
+
+## Purpose
+
+This file turns `design/ui_spec.md` into a concrete implementation plan.
+
+The target is a lightweight local developer tool built with:
+
+- plain HTML
+- plain CSS
+- vanilla JavaScript
+
+The tool should help with:
+
+- authoring team JSON
+- loading replay JSON
+- scrubbing through battle state visually
+- understanding battle outcomes more quickly than raw JSON logs allow
+
+## Guiding Constraints
+
+- keep the first version framework-free
+- prefer simple file structure over abstractions
+- prioritize replay usefulness before team-builder polish
+- build around the schema docs, not ad hoc JSON
+- keep the board state visual and stateful, not just text-log driven
+
+## Proposed File Structure
+
+Initial target:
+
+- `tools/ui/index.html`
+- `tools/ui/styles.css`
+- `tools/ui/app.js`
+- `tools/ui/sample-data/`
+
+Split only if the JS becomes large:
+
+- `tools/ui/team-builder.js`
+- `tools/ui/replay-viewer.js`
+- `tools/ui/state.js`
+- `tools/ui/render.js`
+- `tools/ui/validators.js`
+
+## Phase 1: Static Shell
+
+Goal:
+
+- create the page shell and layout without data plumbing
+
+Tasks:
+
+- [ ] create `tools/ui/index.html`
+- [ ] create `tools/ui/styles.css`
+- [ ] create `tools/ui/app.js`
+- [ ] add a top-level layout with Team Builder and Replay Viewer sections or tabs
+- [ ] add placeholder regions for:
+  - [ ] Team A editor
+  - [ ] Team B editor
+  - [ ] inspector
+  - [ ] battle board
+  - [ ] playback controls
+  - [ ] timeline
+- [ ] make the page render well on desktop and usable on smaller widths
+
+Acceptance criteria:
+
+- page loads locally as static HTML
+- layout is visually clear even with placeholder content
+- replay area already follows the intended inspector / board / timeline structure
+
+## Phase 2: Replay Loader and Validation
+
+Goal:
+
+- load replay JSON into the page and validate its top-level structure
+
+Tasks:
+
+- [ ] add replay file input
+- [ ] add replay JSON paste area or sample replay loader
+- [ ] parse replay JSON safely with user-visible error messages
+- [ ] validate required top-level fields from `design/replay_schema.md`
+- [ ] render metadata summary:
+  - [ ] seed
+  - [ ] winner
+  - [ ] final tick count
+  - [ ] team names
+
+Acceptance criteria:
+
+- invalid replay JSON shows readable validation errors
+- valid replay JSON loads without console-only debugging
+- metadata appears in the UI after load
+
+## Phase 3: Initial Board Rendering
+
+Goal:
+
+- render both teams from the replay snapshot before any event playback
+
+Tasks:
+
+- [ ] build board rendering from replay `teams`
+- [ ] preserve 4-column by 3-row layout
+- [ ] render empty spaces explicitly
+- [ ] render character tiles with:
+  - [ ] display name
+  - [ ] HP bar based on `max_hp`
+  - [ ] MP bar based on `max_mp`
+  - [ ] passive name or placeholder
+- [ ] distinguish Team A and Team B clearly
+
+Acceptance criteria:
+
+- both teams render in correct positions
+- empty grid cells remain visible
+- defeated styling is not needed yet, but tile states are ready for it
+
+## Phase 4: Replay State Model
+
+Goal:
+
+- create a replay state object that can be advanced event by event
+
+Tasks:
+
+- [ ] define in-memory replay state initialized from the replay snapshot
+- [ ] track per-character:
+  - [ ] current HP
+  - [ ] current MP
+  - [ ] alive or defeated
+  - [ ] statuses and stacks
+- [ ] add event application logic for the minimum event set:
+  - [ ] `battle_start`
+  - [ ] `turn_start`
+  - [ ] `basic_attack`
+  - [ ] `ability_used`
+  - [ ] `damage`
+  - [ ] `healing`
+  - [ ] `status_applied`
+  - [ ] `status_removed`
+  - [ ] `status_tick`
+  - [ ] `passive_triggered`
+  - [ ] `turn_skipped`
+  - [ ] `resource_changed`
+  - [ ] `defeat`
+  - [ ] `battle_end`
+- [ ] rebuild board state from event index `0..N`
+
+Acceptance criteria:
+
+- replay state can be initialized and advanced deterministically
+- current HP, MP, and defeat state match the selected event index
+- the UI does not rely only on raw log text to describe state
+
+## Phase 5: Playback Controls
+
+Goal:
+
+- scrub through replay events interactively
+
+Tasks:
+
+- [ ] add previous-event button
+- [ ] add next-event button
+- [ ] add restart button
+- [ ] add event-index slider
+- [ ] show current event index
+- [ ] show current tick
+- [ ] ensure board re-renders from selected event state
+
+Optional in this phase:
+
+- [ ] play
+- [ ] pause
+- [ ] playback speed selector
+
+Acceptance criteria:
+
+- user can move event by event through the replay
+- the board updates correctly at each step
+- current tick and selected event are always visible
+
+## Phase 6: Timeline Panel
+
+Goal:
+
+- display a readable event timeline linked to playback state
+
+Tasks:
+
+- [ ] render the full ordered event list
+- [ ] highlight the currently selected event
+- [ ] group or label entries by tick
+- [ ] render readable text for major event types
+- [ ] add major-events-only filter
+- [ ] add selected-character-only filter
+
+Acceptance criteria:
+
+- selecting an event updates the board
+- timeline remains readable on dense ticks
+- filtering makes the replay easier to inspect
+
+## Phase 7: Inspector Panel
+
+Goal:
+
+- show detailed state for the selected character
+
+Tasks:
+
+- [ ] support selecting a character tile
+- [ ] support selecting a character from the timeline
+- [ ] display:
+  - [ ] display name
+  - [ ] team
+  - [ ] position
+  - [ ] current HP / max HP
+  - [ ] current MP / max MP
+  - [ ] alive or defeated state
+  - [ ] passive
+  - [ ] actives
+  - [ ] statuses with stacks
+  - [ ] base stats
+  - [ ] effective stats
+- [ ] highlight selected unit on the board
+- [ ] highlight current event source or target on the board when applicable
+
+Acceptance criteria:
+
+- clicking a unit reveals useful debugging state
+- inspector updates as replay position changes
+- source/target highlighting makes event context easier to follow
+
+## Phase 8: Team Builder Loader and Validation
+
+Goal:
+
+- load and validate the interim team JSON format
+
+Tasks:
+
+- [ ] add Team A file input
+- [ ] add Team B file input
+- [ ] add paste areas or sample team loaders
+- [ ] validate required fields from `design/team_builder_schema.md`
+- [ ] show validation errors inline
+- [ ] show team names and character counts
+
+Acceptance criteria:
+
+- valid teams load into the UI
+- invalid teams show readable errors
+- users can inspect both teams without editing raw DOM manually
+
+## Phase 9: Team Builder Forms
+
+Goal:
+
+- support direct editing of team data in the UI
+
+Tasks:
+
+- [ ] edit team name
+- [ ] add character
+- [ ] remove character
+- [ ] edit character identity fields
+- [ ] edit position
+- [ ] edit stats
+- [ ] edit passive
+- [ ] edit actives
+- [ ] edit item
+- [ ] edit rules
+
+Rules editor tasks:
+
+- [ ] add rule
+- [ ] remove rule
+- [ ] move rule up
+- [ ] move rule down
+- [ ] edit rule ability
+- [ ] add condition
+- [ ] remove condition
+- [ ] edit subject, value type, operator, threshold
+- [ ] support stat selector when `value` is stat-based
+
+Acceptance criteria:
+
+- a user can build a valid team entirely in the UI
+- edits round-trip cleanly to JSON
+- rule editing is explicit and readable
+
+## Phase 10: Import and Export Helpers
+
+Goal:
+
+- make the tool practical for everyday iteration
+
+Tasks:
+
+- [ ] export Team A JSON
+- [ ] export Team B JSON
+- [ ] copy team JSON to clipboard
+- [ ] import from pasted JSON
+- [ ] add sample team loader
+- [ ] add sample replay loader
+
+Acceptance criteria:
+
+- common dev-tool loops do not require editing files by hand every time
+- loading and exporting schemas is easy and predictable
+
+## Phase 11: Polish Pass
+
+Goal:
+
+- improve readability without turning the tool into a full product UI
+
+Tasks:
+
+- [ ] make board tiles visually distinct by team
+- [ ] mute defeated units clearly
+- [ ] improve HP and MP bar readability
+- [ ] make status summaries compact and scannable
+- [ ] improve responsive layout for narrower windows
+- [ ] ensure keyboard focus works reasonably for core controls
+
+Acceptance criteria:
+
+- tool feels intentionally usable, not only technically functional
+- replay analysis is faster than reading raw JSON
+
+## Recommended Build Order
+
+Recommended execution order:
+
+1. Phase 1: Static Shell
+2. Phase 2: Replay Loader and Validation
+3. Phase 3: Initial Board Rendering
+4. Phase 4: Replay State Model
+5. Phase 5: Playback Controls
+6. Phase 6: Timeline Panel
+7. Phase 7: Inspector Panel
+8. Phase 8: Team Builder Loader and Validation
+9. Phase 9: Team Builder Forms
+10. Phase 10: Import and Export Helpers
+11. Phase 11: Polish Pass
+
+This order prioritizes replay inspection first, which is likely the highest-value part of the tool.
+
+## Risks and Watchouts
+
+- event-only rendering is not enough; the replay must drive a mutable state model
+- replay schema and current engine output may not match exactly yet
+- rule editing can become noisy if too much abstraction is added early
+- drag-and-drop formation editing should be deferred until the basic editor works
+- timeline rendering can get cluttered if major and minor events are not distinguishable
+
+## Suggested First Milestone
+
+The first milestone worth shipping locally is:
+
+- static UI shell
+- replay loader
+- board rendering from initial snapshot
+- event-index scrubber
+- basic event-driven HP/MP updates
+- timeline with selected-event highlight
+
+If that milestone is solid, the replay viewer will already be useful for engine iteration before the team builder is fully finished.

@@ -14,6 +14,8 @@ Primary design references:
 - `design/implementation_notes.md` — prototype alignment notes, future ideas, and open design items
 - `design/team_builder_schema.md` — interim JSON contract for team builder and replay tooling
 - `design/replay_schema.md` — proposed replay JSON contract for battle viewer tooling
+- `design/ui_spec.md` — lightweight dev-tool UI structure for team editing and replay viewing
+- `design/ui_implementation_checklist.md` — phased UI build checklist and execution order
 
 ## Build Commands
 
