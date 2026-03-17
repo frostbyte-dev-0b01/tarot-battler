@@ -50,24 +50,28 @@ Goal:
 
 Tasks:
 
-- [ ] create `tools/ui/index.html`
-- [ ] create `tools/ui/styles.css`
-- [ ] create `tools/ui/app.js`
-- [ ] add a top-level layout with Team Builder and Replay Viewer sections or tabs
-- [ ] add placeholder regions for:
-  - [ ] Team A editor
-  - [ ] Team B editor
-  - [ ] inspector
-  - [ ] battle board
-  - [ ] playback controls
-  - [ ] timeline
-- [ ] make the page render well on desktop and usable on smaller widths
+- [x] create `tools/ui/index.html`
+- [x] create `tools/ui/styles.css`
+- [x] create `tools/ui/app.js`
+- [x] add a top-level layout with Team Builder and Replay Viewer sections or tabs
+- [x] add placeholder regions for:
+  - [x] Team A editor
+  - [x] Team B editor
+  - [x] inspector
+  - [x] battle board
+  - [x] playback controls
+  - [x] timeline
+- [x] make the page render well on desktop and usable on smaller widths
 
 Acceptance criteria:
 
 - page loads locally as static HTML
 - layout is visually clear even with placeholder content
 - replay area already follows the intended inspector / board / timeline structure
+
+Status:
+
+- completed in `tools/ui/`
 
 ## Phase 2: Replay Loader and Validation
 

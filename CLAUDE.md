@@ -30,9 +30,16 @@ All cargo commands should be run from `battle_engine/`.
 
 ## Architecture
 
-**Current state:** Early-stage Rust battle engine. No frontend, API, or database layers yet.
+**Current state:** Early-stage Rust battle engine with a lightweight static UI scaffold in `tools/ui/`. No API or database layers yet.
 
 **Planned stack:** Rust engine → Python/FastAPI API → React/Svelte frontend, with PostgreSQL for persistence.
+
+### UI Dev Tools (`tools/ui/`)
+
+- `index.html` — static shell for Team Builder and Replay Viewer tabs
+- `styles.css` — responsive layout and placeholder styling for the dev tool
+- `app.js` — lightweight UI bootstrapping, currently tab switching
+- `sample-data/` — placeholder location for replay and team JSON fixtures
 
 ### Battle Engine (`battle_engine/`)
 

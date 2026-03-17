@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tarot Battler Dev Tools</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Developer Tools</p>
+          <h1>Tarot Battler Workshop</h1>
+        </div>
+        <p class="header-note">
+          Team editing and replay viewing for local iteration.
+        </p>
+      </header>
+
+      <nav class="tab-bar" aria-label="Workspace sections">
+        <button class="tab-button is-active" type="button" data-tab-target="team-builder">
+          Team Builder
+        </button>
+        <button class="tab-button" type="button" data-tab-target="replay-viewer">
+          Replay Viewer
+        </button>
+      </nav>
+
+      <main>
+        <section class="workspace is-active" id="team-builder" aria-labelledby="team-builder-heading">
+          <div class="workspace-header">
+            <div>
+              <p class="eyebrow">Phase 1</p>
+              <h2 id="team-builder-heading">Team Builder</h2>
+            </div>
+            <p class="workspace-summary">
+              Placeholder layout for Team A, Team B, and import or export controls.
+            </p>
+          </div>
+
+          <div class="team-builder-layout">
+            <section class="panel panel-team" aria-labelledby="team-a-heading">
+              <div class="panel-header">
+                <p class="panel-kicker">Editor</p>
+                <h3 id="team-a-heading">Team A</h3>
+              </div>
+              <div class="panel-body placeholder-stack">
+                <div class="placeholder-block">
+                  <strong>Team metadata</strong>
+                  <p>Name, load, validate, export.</p>
+                </div>
+                <div class="placeholder-block">
+                  <strong>Character list</strong>
+                  <p>Add, remove, and edit CharacterLoadout entries.</p>
+                </div>
+                <div class="placeholder-block">
+                  <strong>Rules editor</strong>
+                  <p>Ordered rules and condition editing will render here.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel panel-team" aria-labelledby="team-b-heading">
+              <div class="panel-header">
+                <p class="panel-kicker">Editor</p>
+                <h3 id="team-b-heading">Team B</h3>
+              </div>
+              <div class="panel-body placeholder-stack">
+                <div class="placeholder-block">
+                  <strong>Team metadata</strong>
+                  <p>Name, load, validate, export.</p>
+                </div>
+                <div class="placeholder-block">
+                  <strong>Character list</strong>
+                  <p>Add, remove, and edit CharacterLoadout entries.</p>
+                </div>
+                <div class="placeholder-block">
+                  <strong>Rules editor</strong>
+                  <p>Ordered rules and condition editing will render here.</p>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section class="panel panel-wide" aria-labelledby="team-json-heading">
+            <div class="panel-header">
+              <p class="panel-kicker">Import / Export</p>
+              <h3 id="team-json-heading">Raw JSON and Validation</h3>
+            </div>
+            <div class="panel-body placeholder-stack">
+              <div class="placeholder-block">
+                <strong>JSON workbench</strong>
+                <p>Paste, inspect, and export team JSON here.</p>
+              </div>
+              <div class="placeholder-block">
+                <strong>Validation output</strong>
+                <p>Schema errors and warnings will render here.</p>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="workspace" id="replay-viewer" aria-labelledby="replay-viewer-heading">
+          <div class="workspace-header">
+            <div>
+              <p class="eyebrow">Phase 1</p>
+              <h2 id="replay-viewer-heading">Replay Viewer</h2>
+            </div>
+            <p class="workspace-summary">
+              Placeholder layout for inspector, battle board, playback controls, and timeline.
+            </p>
+          </div>
+
+          <div class="replay-layout">
+            <aside class="panel panel-inspector" aria-labelledby="inspector-heading">
+              <div class="panel-header">
+                <p class="panel-kicker">Inspector</p>
+                <h3 id="inspector-heading">Selected Unit</h3>
+              </div>
+              <div class="panel-body placeholder-stack">
+                <div class="placeholder-block">
+                  <strong>Character summary</strong>
+                  <p>Name, team, position, HP, MP, passive, and actives.</p>
+                </div>
+                <div class="placeholder-block">
+                  <strong>Statuses</strong>
+                  <p>Current stack state and effective stat breakdown.</p>
+                </div>
+              </div>
+            </aside>
+
+            <section class="panel panel-board" aria-labelledby="board-heading">
+              <div class="panel-header">
+                <p class="panel-kicker">Board</p>
+                <h3 id="board-heading">Battle Grid</h3>
+              </div>
+              <div class="panel-body board-placeholder">
+                <section class="team-board team-board-a" aria-labelledby="team-a-board-heading">
+                  <div class="team-board-header">
+                    <h4 id="team-a-board-heading">Team A</h4>
+                    <span>Front to back</span>
+                  </div>
+                  <div class="grid-board" aria-hidden="true">
+                    <span class="grid-label">Front</span>
+                    <span class="grid-label">Middle</span>
+                    <span class="grid-label">Back</span>
+                    <div class="grid-cells">
+                      <div class="grid-row">
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                      </div>
+                      <div class="grid-row">
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                      </div>
+                      <div class="grid-row">
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="team-board team-board-b" aria-labelledby="team-b-board-heading">
+                  <div class="team-board-header">
+                    <h4 id="team-b-board-heading">Team B</h4>
+                    <span>Front to back</span>
+                  </div>
+                  <div class="grid-board" aria-hidden="true">
+                    <span class="grid-label">Front</span>
+                    <span class="grid-label">Middle</span>
+                    <span class="grid-label">Back</span>
+                    <div class="grid-cells">
+                      <div class="grid-row">
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                      </div>
+                      <div class="grid-row">
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                      </div>
+                      <div class="grid-row">
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                        <div class="grid-cell"></div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </section>
+
+            <aside class="panel panel-timeline" aria-labelledby="timeline-heading">
+              <div class="panel-header">
+                <p class="panel-kicker">Timeline</p>
+                <h3 id="timeline-heading">Battle Log</h3>
+              </div>
+              <div class="panel-body placeholder-stack">
+                <div class="placeholder-block">
+                  <strong>Tick groups</strong>
+                  <p>Readable event log will render here, grouped by tick.</p>
+                </div>
+                <div class="placeholder-block">
+                  <strong>Filters</strong>
+                  <p>Major-events and selected-character filters will live here.</p>
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          <section class="panel panel-controls" aria-labelledby="playback-heading">
+            <div class="panel-header">
+              <p class="panel-kicker">Playback</p>
+              <h3 id="playback-heading">Controls</h3>
+            </div>
+            <div class="panel-body control-placeholder">
+              <button type="button" disabled>Previous</button>
+              <button type="button" disabled>Play</button>
+              <button type="button" disabled>Pause</button>
+              <button type="button" disabled>Next</button>
+              <div class="slider-shell" aria-hidden="true">
+                <span>Event Index</span>
+                <div class="slider-track"></div>
+              </div>
+              <div class="tick-placeholder">
+                <span>Tick</span>
+                <strong>0</strong>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
