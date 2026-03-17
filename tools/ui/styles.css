@@ -339,6 +339,87 @@ select {
   background: rgba(33, 25, 16, 0.04);
 }
 
+.timeline-panel-body {
+  display: grid;
+  gap: 16px;
+}
+
+.timeline-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(33, 25, 16, 0.05);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.timeline-list {
+  display: grid;
+  gap: 12px;
+  max-height: 560px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.timeline-tick-group {
+  display: grid;
+  gap: 8px;
+}
+
+.timeline-tick-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.timeline-event {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(33, 25, 16, 0.08);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.timeline-event:hover {
+  border-color: rgba(33, 25, 16, 0.18);
+}
+
+.timeline-event.is-selected {
+  border-color: rgba(162, 59, 42, 0.42);
+  background: rgba(162, 59, 42, 0.12);
+}
+
+.timeline-event-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.timeline-event-text {
+  margin: 0;
+  line-height: 1.4;
+}
+
 .board-placeholder {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

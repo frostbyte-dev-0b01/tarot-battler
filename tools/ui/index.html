@@ -223,14 +223,21 @@
                 <p class="panel-kicker">Timeline</p>
                 <h3 id="timeline-heading">Battle Log</h3>
               </div>
-              <div class="panel-body placeholder-stack">
-                <div class="placeholder-block">
-                  <strong>Tick groups</strong>
-                  <p>Readable event log will render here, grouped by tick.</p>
+              <div class="panel-body timeline-panel-body">
+                <div class="timeline-filters">
+                  <label class="toggle-pill" for="timeline-major-only">
+                    <input id="timeline-major-only" type="checkbox">
+                    <span>Major events only</span>
+                  </label>
+                  <label class="toggle-pill" for="timeline-selected-only">
+                    <input id="timeline-selected-only" type="checkbox">
+                    <span>Selected unit only</span>
+                  </label>
                 </div>
-                <div class="placeholder-block">
-                  <strong>Filters</strong>
-                  <p>Major-events and selected-character filters will live here.</p>
+                <div id="timeline-list" class="timeline-list">
+                  <div class="board-empty-state">
+                    Load a replay to view the timeline.
+                  </div>
                 </div>
               </div>
             </aside>

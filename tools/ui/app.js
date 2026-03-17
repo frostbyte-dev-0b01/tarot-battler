@@ -13,11 +13,15 @@ const replayRestartButton = document.querySelector("#replay-restart-button");
 const replayEventSlider = document.querySelector("#replay-event-slider");
 const replayEventLabel = document.querySelector("#replay-event-label");
 const replayTickDisplay = document.querySelector("#replay-tick-display");
+const timelineMajorOnlyInput = document.querySelector("#timeline-major-only");
+const timelineSelectedOnlyInput = document.querySelector("#timeline-selected-only");
+const timelineList = document.querySelector("#timeline-list");
 const teamABoard = document.querySelector("#team-a-board");
 const teamBBoard = document.querySelector("#team-b-board");
 const appState = {
   replay: null,
   selectedEventIndex: -1,
+  selectedCharacterId: null,
   playbackTimerId: null,
 };
 const metadataFields = {
@@ -258,9 +262,18 @@ replayEventSlider.addEventListener("input", (event) => {
   setSelectedEventIndex(sliderValue - 1);
 });
 
+timelineMajorOnlyInput.addEventListener("change", () => {
+  renderTimeline();
+});
+
+timelineSelectedOnlyInput.addEventListener("change", () => {
+  renderTimeline();
+});
+
 resetMetadata();
 resetBoards();
 renderPlaybackControls();
+renderTimeline();
 
 function validateReplay(candidate) {
   const errors = [];
@@ -339,6 +352,7 @@ function renderCurrentReplay() {
     resetBoards();
     replayTickDisplay.textContent = "0";
     replayEventLabel.textContent = "Event Index · Start";
+    renderTimeline();
     return;
   }
 
@@ -346,6 +360,7 @@ function renderCurrentReplay() {
   renderBoards(replayState);
   replayTickDisplay.textContent = String(getCurrentTick());
   replayEventLabel.textContent = `Event Index · ${formatEventIndexLabel()}`;
+  renderTimeline();
 }
 
 function renderBoards(replayState) {
@@ -372,6 +387,56 @@ function renderPlaybackControls() {
   replayPauseButton.disabled = appState.playbackTimerId === null;
   replayEventSlider.max = String(sliderMax);
   replayEventSlider.value = String(sliderValue);
+}
+
+function renderTimeline() {
+  if (!appState.replay) {
+    timelineList.innerHTML = '<div class="board-empty-state">Load a replay to view the timeline.</div>';
+    return;
+  }
+
+  const entries = appState.replay.events
+    .map((event, index) => ({ event, index }))
+    .filter(({ event }) => shouldRenderTimelineEvent(event));
+
+  if (entries.length === 0) {
+    timelineList.innerHTML = '<div class="board-empty-state">No events match the active timeline filters.</div>';
+    return;
+  }
+
+  let previousTick = null;
+  const markup = entries.map(({ event, index }) => {
+    const tickHeader = event.tick !== previousTick
+      ? `<div class="timeline-tick-label">Tick ${event.tick}</div>`
+      : "";
+    previousTick = event.tick;
+
+    return `
+      <section class="timeline-tick-group">
+        ${tickHeader}
+        <button class="timeline-event ${index === appState.selectedEventIndex ? "is-selected" : ""}" type="button" data-event-index="${index}">
+          <div class="timeline-event-meta">
+            <span>${formatEventType(event.type)}</span>
+            <span>#${index + 1}</span>
+          </div>
+          <p class="timeline-event-text">${escapeHtml(formatTimelineText(event))}</p>
+        </button>
+      </section>
+    `;
+  }).join("");
+
+  timelineList.innerHTML = markup;
+  bindTimelineEvents();
+}
+
+function bindTimelineEvents() {
+  const eventButtons = timelineList.querySelectorAll("[data-event-index]");
+  for (const button of eventButtons) {
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.eventIndex);
+      setSelectedEventIndex(index);
+    });
+  }
 }
 
 function setSelectedEventIndex(nextEventIndex) {
@@ -747,6 +812,79 @@ function formatStatuses(statuses) {
   }
 
   return entries.map(([status, stacks]) => `${status} x${stacks}`).join(" • ");
+}
+
+function shouldRenderTimelineEvent(event) {
+  if (timelineMajorOnlyInput.checked && !isMajorEvent(event.type)) {
+    return false;
+  }
+
+  if (timelineSelectedOnlyInput.checked && appState.selectedCharacterId) {
+    const eventCharacters = [
+      event.actor_id,
+      event.source_id,
+      event.target_id,
+    ].filter(Boolean);
+
+    return eventCharacters.includes(appState.selectedCharacterId);
+  }
+
+  return true;
+}
+
+function isMajorEvent(type) {
+  return [
+    "ability_used",
+    "basic_attack",
+    "damage",
+    "healing",
+    "status_applied",
+    "status_removed",
+    "status_tick",
+    "passive_triggered",
+    "turn_skipped",
+    "defeat",
+    "battle_end",
+  ].includes(type);
+}
+
+function formatEventType(type) {
+  return type.replaceAll("_", " ");
+}
+
+function formatTimelineText(event) {
+  switch (event.type) {
+    case "battle_start":
+      return "Battle starts.";
+    case "turn_start":
+      return `${event.actor_id ?? "Unknown"} begins a turn at ${event.current_hp ?? "?"} HP and ${event.current_mp ?? "?"} MP.`;
+    case "basic_attack":
+      return `${event.actor_id ?? "Unknown"} attacks ${event.target_id ?? "Unknown"} with a ${event.damage_kind ?? "basic"} hit.`;
+    case "ability_used":
+      return `${event.actor_id ?? "Unknown"} uses ${event.ability ?? "an ability"} for ${event.mp_cost ?? "?"} MP.`;
+    case "damage":
+      return `${event.source_id ?? "Unknown"} deals ${event.amount ?? "?"} ${event.damage_kind ?? ""} damage to ${event.target_id ?? "Unknown"}.`;
+    case "healing":
+      return `${event.source_id ?? "Unknown"} restores ${event.amount ?? "?"} HP to ${event.target_id ?? "Unknown"}.`;
+    case "status_applied":
+      return `${event.target_id ?? "Unknown"} gains ${event.status ?? "a status"} (${event.stacks_after ?? "?"} stacks).`;
+    case "status_removed":
+      return `${event.target_id ?? "Unknown"} loses ${event.status ?? "a status"} (${event.stacks_after ?? 0} stacks remain).`;
+    case "status_tick":
+      return `${event.target_id ?? "Unknown"} resolves ${event.status ?? "a status"} for ${event.amount ?? "?"} ${event.kind ?? "effect"}.`;
+    case "passive_triggered":
+      return `${event.actor_id ?? "Unknown"} triggers ${event.passive ?? "a passive"} on ${event.trigger ?? "an event"}.`;
+    case "turn_skipped":
+      return `${event.actor_id ?? "Unknown"} skips a turn because of ${event.reason ?? "an effect"}.`;
+    case "resource_changed":
+      return `${event.actor_id ?? "Unknown"} ${event.delta >= 0 ? "gains" : "spends"} ${Math.abs(event.delta ?? 0)} ${event.resource ?? "resource"}.`;
+    case "defeat":
+      return `${event.actor_id ?? "Unknown"} is defeated.`;
+    case "battle_end":
+      return `Battle ends with ${event.winner ?? "no one"} winning.`;
+    default:
+      return JSON.stringify(event);
+  }
 }
 
 function escapeHtml(value) {

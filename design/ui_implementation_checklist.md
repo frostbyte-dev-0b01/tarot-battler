@@ -210,18 +210,22 @@ Goal:
 
 Tasks:
 
-- [ ] render the full ordered event list
-- [ ] highlight the currently selected event
-- [ ] group or label entries by tick
-- [ ] render readable text for major event types
-- [ ] add major-events-only filter
-- [ ] add selected-character-only filter
+- [x] render the full ordered event list
+- [x] highlight the currently selected event
+- [x] group or label entries by tick
+- [x] render readable text for major event types
+- [x] add major-events-only filter
+- [x] add selected-character-only filter
 
 Acceptance criteria:
 
 - selecting an event updates the board
 - timeline remains readable on dense ticks
 - filtering makes the replay easier to inspect
+
+Status:
+
+- completed with clickable timeline events, tick grouping, and basic filters
 
 ## Phase 7: Inspector Panel
 
