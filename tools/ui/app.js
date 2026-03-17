@@ -354,6 +354,20 @@ timelineSelectedOnlyInput.addEventListener("change", () => {
   renderTimeline();
 });
 
+window.addEventListener("keydown", (event) => {
+  if (shouldIgnoreGlobalKeydown(event)) {
+    return;
+  }
+
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    setSelectedEventIndex(appState.selectedEventIndex - 1);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    setSelectedEventIndex(appState.selectedEventIndex + 1);
+  }
+});
+
 for (const [teamKey, teamConfig] of Object.entries(teamConfigs)) {
   teamConfig.loadButton.addEventListener("click", () => {
     loadTeamFromText(teamKey, teamConfig.jsonInput.value.trim());
@@ -1295,6 +1309,16 @@ function moveArrayItem(array, fromIndex, toIndex) {
 
 function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function shouldIgnoreGlobalKeydown(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName;
+  return target.isContentEditable || tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
 }
 
 function buildReplayState(replay, selectedEventIndex) {
