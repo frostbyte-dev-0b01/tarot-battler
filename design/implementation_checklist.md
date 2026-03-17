@@ -18,13 +18,13 @@ This checklist tracks the work required to align the Rust battle engine with the
 
 ## Phase 2: Speed System Rewrite
 
-- [ ] Replace current DEX timing model with `max_ticks = 10 - DEX`
-- [ ] Clamp `ticks_until_turn` with `max(max_ticks, 1)`
-- [ ] Increase `max_ticks` by `2` after each turn
-- [ ] Update tests for new speed progression
-- [ ] Update docs to reflect completed engine alignment
-- [ ] Run test suite
-- [ ] Commit Phase 2
+- [x] Replace current DEX timing model with `max_ticks = 10 - DEX`
+- [x] Clamp `ticks_until_turn` with `max(max_ticks, 1)`
+- [x] Increase `max_ticks` by `2` after each turn
+- [x] Update tests for new speed progression
+- [x] Update docs to reflect completed engine alignment
+- [x] Run test suite
+- [x] Commit Phase 2
 
 ## Phase 3: Turn Resolution Ordering
 

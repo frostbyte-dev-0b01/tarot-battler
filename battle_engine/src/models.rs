@@ -128,8 +128,8 @@ pub struct CharacterState {
     position: Position,
     curr_hp: u32,
     curr_mp: u32,
-    spd_counter: u32,
-    spd_max: u32,
+    ticks_until_turn: u32,
+    max_ticks: i32,
     target: Option<u32>,
     companions: Vec<u32>,
     statuses: HashMap<String, StatusInstance>,
@@ -145,7 +145,8 @@ impl CharacterState {
     pub fn from_config(id: u32, config: &CharacterConfig) -> Self {
         let hp = config.stats.get(&Stat::CON).copied().unwrap_or(0) * 2;
         let mp = config.stats.get(&Stat::SPI).copied().unwrap_or(0);
-        let dex = config.stats.get(&Stat::DEX).copied().unwrap_or(0);
+        let dex = config.stats.get(&Stat::DEX).copied().unwrap_or(0) as i32;
+        let max_ticks = 10 - dex;
         Self {
             id,
             base_name: config.base_name.clone(),
@@ -155,8 +156,8 @@ impl CharacterState {
             position: config.position.clone(),
             curr_hp: hp,
             curr_mp: mp,
-            spd_counter: dex,
-            spd_max: dex,
+            ticks_until_turn: max_ticks.max(1) as u32,
+            max_ticks,
             target: None,
             companions: Vec::new(),
             statuses: HashMap::new(),
@@ -263,15 +264,15 @@ impl CharacterState {
 
     /// Decrements speed counter. Returns true when the character is ready to act.
     pub fn tick_speed(&mut self) -> bool {
-        self.spd_counter = self.spd_counter.saturating_sub(1);
-        self.spd_counter == 0
+        self.ticks_until_turn = self.ticks_until_turn.saturating_sub(1);
+        self.ticks_until_turn == 0
     }
 
-    /// Resets speed counter after acting. Each action adds +2 to the reset value
-    /// (first reset: DEX+2, second: DEX+4, etc.), softening high-DEX dominance.
+    /// Resets speed after acting. Each turn adds +2 to max_ticks, while the
+    /// live countdown is clamped to a minimum of 1.
     pub fn reset_speed(&mut self) {
-        self.spd_max += 2;
-        self.spd_counter = self.spd_max;
+        self.max_ticks += 2;
+        self.ticks_until_turn = self.max_ticks.max(1) as u32;
     }
 
     pub fn target(&self) -> Option<u32> {
@@ -669,18 +670,32 @@ mod tests {
     fn speed_system_ticks_and_escalates() {
         let config = make_config(vec![(Stat::DEX, 3)]);
         let mut state = CharacterState::from_config(0, &config);
-        assert!(!state.tick_speed());
-        assert!(!state.tick_speed());
-        assert!(state.tick_speed());
-        state.reset_speed();
-        for _ in 0..4 {
-            assert!(!state.tick_speed());
-        }
-        assert!(state.tick_speed());
-        state.reset_speed();
         for _ in 0..6 {
             assert!(!state.tick_speed());
         }
+        assert!(state.tick_speed());
+        state.reset_speed();
+        for _ in 0..8 {
+            assert!(!state.tick_speed());
+        }
+        assert!(state.tick_speed());
+        state.reset_speed();
+        for _ in 0..10 {
+            assert!(!state.tick_speed());
+        }
+        assert!(state.tick_speed());
+    }
+
+    #[test]
+    fn speed_system_clamps_high_dex_to_one_tick() {
+        let config = make_config(vec![(Stat::DEX, 12)]);
+        let mut state = CharacterState::from_config(0, &config);
+
+        assert!(state.tick_speed());
+        state.reset_speed();
+        assert!(state.tick_speed());
+        state.reset_speed();
+        assert!(!state.tick_speed());
         assert!(state.tick_speed());
     }
 
