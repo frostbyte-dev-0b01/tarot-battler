@@ -1,0 +1,1 @@
+- [project_rule_system_decisions.md](project_rule_system_decisions.md) — Rule condition design: companion="any" semantics, queryable hp/spi, >= and <= comparators, sticky target reference
