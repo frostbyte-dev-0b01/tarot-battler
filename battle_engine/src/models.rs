@@ -44,7 +44,7 @@ pub enum ConditionSubject {
     SelfChar,
     Target,
     Companion,
-    Ally,
+    World,
 }
 
 /// What value the condition reads.
@@ -54,6 +54,9 @@ pub enum QueryValue {
     Stat(Stat),
     Hp,
     Mp,
+    TickCount,
+    AllyCount,
+    EnemyCount,
     UseCount,
     TurnsSinceUse,
     // TODO: StatusStacks(String) and HasStatus(String) for rule conditions
@@ -351,14 +354,18 @@ impl CharacterState {
         &self.rules
     }
 
-    /// Returns the value of a query (stat, HP, or MP) for condition evaluation.
+    /// Returns the value of a query (effective stat, HP, or MP) for condition evaluation.
     /// UseCount and TurnsSinceUse are not handled here — they require ability context.
     pub fn query_value(&self, qv: &QueryValue) -> u32 {
         match qv {
             QueryValue::Stat(stat) => self.get_eff_stat(stat),
             QueryValue::Hp => self.curr_hp,
             QueryValue::Mp => self.curr_mp,
-            QueryValue::UseCount | QueryValue::TurnsSinceUse => 0,
+            QueryValue::TickCount
+            | QueryValue::AllyCount
+            | QueryValue::EnemyCount
+            | QueryValue::UseCount
+            | QueryValue::TurnsSinceUse => 0,
         }
     }
 

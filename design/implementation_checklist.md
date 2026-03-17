@@ -37,14 +37,14 @@ This checklist tracks the work required to align the Rust battle engine with the
 
 ## Phase 4: Rule System Alignment
 
-- [ ] Remove `Ally` as a rule subject
-- [ ] Keep only `SelfChar`, `Companion`, `Target`, and `World`
-- [ ] Make rule stat checks use effective stats
-- [ ] Rename `round_count` semantics to `tick_count` in exposed rule vocabulary
-- [ ] Add regression tests for companion semantics and world counters
-- [ ] Update docs to reflect completed engine alignment
-- [ ] Run test suite
-- [ ] Commit Phase 4
+- [x] Remove `Ally` as a rule subject
+- [x] Keep only `SelfChar`, `Companion`, `Target`, and `World`
+- [x] Make rule stat checks use effective stats
+- [x] Rename `round_count` semantics to `tick_count` in exposed rule vocabulary
+- [x] Add regression tests for companion semantics and world counters
+- [x] Update docs to reflect completed engine alignment
+- [x] Run test suite
+- [x] Commit Phase 4
 
 ## Phase 5: MP Regen and Tick Semantics
 

@@ -54,10 +54,6 @@ The code and sample data now use this terminology. Remaining references should b
 
 These design decisions are now settled and should be reflected in the engine before further major combat expansion:
 
-- rules should be limited to `self`, `companion`, `target`, and `world`
-- `companion` in rules means any companion, not a specific targeting handoff
-- `ally_count` and `enemy_count` should be live only after death resolution is complete
-- `round_count` in code and data should be renamed to `tick_count` to match the design spec
 
 ## Open Balance and Tuning Questions
 

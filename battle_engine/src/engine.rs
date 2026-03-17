@@ -11,7 +11,7 @@ use crate::abilities::{
 use crate::damage::calc_basic_attack_damage;
 use crate::logger::{BattleEvent, BattleLog};
 use crate::models::{CharacterConfig, CharacterState, Stat, StatusTick};
-use crate::rules::evaluate_rules;
+use crate::rules::{WorldState, evaluate_rules};
 use crate::statuses::StatusMap;
 use crate::targeting::select_target;
 
@@ -462,10 +462,16 @@ impl BattleState {
 
         // Evaluate rules to see if an ability should be used
         let target_ref = &enemy_team[target_idx];
+        let world = WorldState {
+            tick_count: self.step,
+            ally_count: actor_team.iter().filter(|c| c.is_alive()).count() as u32,
+            enemy_count: enemy_team.iter().filter(|c| c.is_alive()).count() as u32,
+        };
         let ability_name = evaluate_rules(
             &actor_team[actor_idx],
             Some(target_ref),
             actor_team,
+            world,
             &self.abilities,
         );
 
@@ -1394,6 +1400,78 @@ mod tests {
 
         assert!(battle.team_a[0].companions().is_empty());
         assert!(battle.team_a[1].companions().is_empty());
+    }
+
+    #[test]
+    fn companion_rule_does_not_imply_companion_targeting() {
+        let mut actor = make_config_at(
+            "Support",
+            0,
+            0,
+            vec![
+                (Stat::CON, 10),
+                (Stat::STR, 4),
+                (Stat::INT, 4),
+                (Stat::FOR, 3),
+                (Stat::WIS, 3),
+                (Stat::DEX, 10),
+                (Stat::SPI, 4),
+            ],
+        );
+        actor.actives = vec!["Withdraw".to_string()];
+        actor.rules = vec![Rule {
+            ability: "Withdraw".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::Companion,
+                value: QueryValue::Mp,
+                comparator: Comparator::Lte,
+                threshold: 1,
+            }],
+        }];
+
+        let companion = make_config_at(
+            "Companion",
+            0,
+            1,
+            vec![
+                (Stat::CON, 10),
+                (Stat::STR, 4),
+                (Stat::INT, 4),
+                (Stat::FOR, 3),
+                (Stat::WIS, 3),
+                (Stat::DEX, 1),
+                (Stat::SPI, 5),
+            ],
+        );
+        let enemy = make_config_at("Enemy", 0, 0, simple_stats());
+
+        let mut abilities = HashMap::new();
+        abilities.insert(
+            "Withdraw".to_string(),
+            AbilityDef {
+                mp_cost: 1,
+                primitives: vec![Primitive::RestoreMp {
+                    target: AbilityTarget::SelfChar,
+                    amount: 3,
+                }],
+            },
+        );
+
+        let mut battle = BattleState::new(
+            &[actor, companion],
+            &[enemy],
+            abilities,
+            empty_passives(),
+            empty_statuses(),
+            42,
+        );
+        battle.team_a[0].spend_mp(3);
+        battle.team_a[1].spend_mp(4);
+
+        battle.step_once();
+
+        assert_eq!(battle.team_a[0].current_mp(), 4);
+        assert_eq!(battle.team_a[1].current_mp(), 1);
     }
 
     // --- Ability integration tests ---

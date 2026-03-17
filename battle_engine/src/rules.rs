@@ -3,6 +3,13 @@
 use crate::abilities::AbilityMap;
 use crate::models::{CharacterState, Comparator, Condition, ConditionSubject, QueryValue};
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct WorldState {
+    pub tick_count: u32,
+    pub ally_count: u32,
+    pub enemy_count: u32,
+}
+
 /// Evaluate the actor's rules in order. Returns the name of the first ability
 /// whose conditions are all met AND whose MP cost the actor can afford.
 /// Returns None if no rule matches (caller should fall back to basic attack).
@@ -10,6 +17,7 @@ pub fn evaluate_rules(
     actor: &CharacterState,
     target: Option<&CharacterState>,
     allies: &[CharacterState],
+    world: WorldState,
     abilities: &AbilityMap,
 ) -> Option<String> {
     for rule in actor.rules() {
@@ -35,7 +43,7 @@ pub fn evaluate_rules(
         let all_met = rule
             .conditions
             .iter()
-            .all(|cond| check_condition(cond, actor, target, allies, &rule.ability));
+            .all(|cond| check_condition(cond, actor, target, allies, world, &rule.ability));
 
         if all_met {
             return Some(rule.ability.clone());
@@ -51,6 +59,7 @@ fn check_condition(
     actor: &CharacterState,
     target: Option<&CharacterState>,
     allies: &[CharacterState],
+    world: WorldState,
     ability_name: &str,
 ) -> bool {
     // UseCount and TurnsSinceUse are always about the actor's own tracking,
@@ -90,16 +99,12 @@ fn check_condition(
                     compare(val, &cond.comparator, cond.threshold)
                 })
         }
-        ConditionSubject::Ally => {
-            // True if ANY living teammate matches (excluding self)
-            allies
-                .iter()
-                .filter(|c| c.is_alive() && c.id() != actor.id())
-                .any(|c| {
-                    let val = c.query_value(&cond.value);
-                    compare(val, &cond.comparator, cond.threshold)
-                })
-        }
+        ConditionSubject::World => match cond.value {
+            QueryValue::TickCount => compare(world.tick_count, &cond.comparator, cond.threshold),
+            QueryValue::AllyCount => compare(world.ally_count, &cond.comparator, cond.threshold),
+            QueryValue::EnemyCount => compare(world.enemy_count, &cond.comparator, cond.threshold),
+            _ => false,
+        },
     }
 }
 
@@ -153,6 +158,10 @@ mod tests {
         map
     }
 
+    fn world() -> WorldState {
+        WorldState::default()
+    }
+
     #[test]
     fn empty_conditions_always_matches() {
         let rules = vec![Rule {
@@ -161,7 +170,7 @@ mod tests {
         }];
         let actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
         let abilities = make_abilities();
-        let result = evaluate_rules(&actor, None, &[], &abilities);
+        let result = evaluate_rules(&actor, None, &[], world(), &abilities);
         assert_eq!(result.as_deref(), Some("Crush"));
     }
 
@@ -174,7 +183,7 @@ mod tests {
         let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
         actor.spend_mp(3); // only 2 left, need 3
         let abilities = make_abilities();
-        let result = evaluate_rules(&actor, None, &[], &abilities);
+        let result = evaluate_rules(&actor, None, &[], world(), &abilities);
         assert_eq!(result, None);
     }
 
@@ -194,13 +203,13 @@ mod tests {
 
         // Target HP=20 → doesn't match
         let target_high = make_char(1, vec![(Stat::CON, 10)]); // HP=20
-        assert!(evaluate_rules(&actor, Some(&target_high), &[], &abilities).is_none());
+        assert!(evaluate_rules(&actor, Some(&target_high), &[], world(), &abilities).is_none());
 
         // Target HP=4 → matches
         let mut target_low = make_char(1, vec![(Stat::CON, 10)]);
         target_low.take_damage(16); // HP=4
         assert_eq!(
-            evaluate_rules(&actor, Some(&target_low), &[], &abilities).as_deref(),
+            evaluate_rules(&actor, Some(&target_low), &[], world(), &abilities).as_deref(),
             Some("Crush")
         );
     }
@@ -222,13 +231,13 @@ mod tests {
 
         // Companion has plenty of SPI
         let companion_full = make_char(1, vec![(Stat::CON, 5), (Stat::SPI, 5)]);
-        assert!(evaluate_rules(&actor, None, &[companion_full], &abilities).is_none());
+        assert!(evaluate_rules(&actor, None, &[companion_full], world(), &abilities).is_none());
 
         // Companion has low SPI
         let mut companion_low = make_char(1, vec![(Stat::CON, 5), (Stat::SPI, 5)]);
         companion_low.spend_mp(4); // MP=1
         assert_eq!(
-            evaluate_rules(&actor, None, &[companion_low], &abilities).as_deref(),
+            evaluate_rules(&actor, None, &[companion_low], world(), &abilities).as_deref(),
             Some("Embolden")
         );
     }
@@ -247,12 +256,12 @@ mod tests {
         let actor = make_char_with_rules(0, vec![(Stat::SPI, 5), (Stat::STR, 12)], rules.clone());
         let abilities = make_abilities();
         assert_eq!(
-            evaluate_rules(&actor, None, &[], &abilities).as_deref(),
+            evaluate_rules(&actor, None, &[], world(), &abilities).as_deref(),
             Some("Crush")
         );
 
         let actor_weak = make_char_with_rules(0, vec![(Stat::SPI, 5), (Stat::STR, 8)], rules);
-        assert!(evaluate_rules(&actor_weak, None, &[], &abilities).is_none());
+        assert!(evaluate_rules(&actor_weak, None, &[], world(), &abilities).is_none());
     }
 
     #[test]
@@ -278,7 +287,7 @@ mod tests {
         // Target HP high → first rule fails, Embolden matches
         let target = make_char(1, vec![(Stat::CON, 10)]);
         assert_eq!(
-            evaluate_rules(&actor, Some(&target), &[], &abilities).as_deref(),
+            evaluate_rules(&actor, Some(&target), &[], world(), &abilities).as_deref(),
             Some("Embolden")
         );
 
@@ -286,7 +295,7 @@ mod tests {
         let mut target_low = make_char(1, vec![(Stat::CON, 10)]);
         target_low.take_damage(18); // HP=2
         assert_eq!(
-            evaluate_rules(&actor, Some(&target_low), &[], &abilities).as_deref(),
+            evaluate_rules(&actor, Some(&target_low), &[], world(), &abilities).as_deref(),
             Some("Crush")
         );
     }
@@ -309,7 +318,7 @@ mod tests {
             },
         );
         let abilities = make_abilities();
-        let result = evaluate_rules(&actor, None, &[], &abilities);
+        let result = evaluate_rules(&actor, None, &[], world(), &abilities);
         assert_eq!(result, None);
     }
 
@@ -326,55 +335,79 @@ mod tests {
         }];
         let actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
         let abilities = make_abilities();
-        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+        assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
     }
 
     #[test]
-    fn ally_condition_checks_all_living_teammates() {
+    fn world_ally_count_condition_uses_live_counts() {
         let rules = vec![Rule {
             ability: "Embolden".to_string(),
             conditions: vec![Condition {
-                subject: ConditionSubject::Ally,
-                value: QueryValue::Hp,
-                comparator: Comparator::Lte,
-                threshold: 5,
+                subject: ConditionSubject::World,
+                value: QueryValue::AllyCount,
+                comparator: Comparator::Gte,
+                threshold: 1,
             }],
         }];
         let actor = make_char_with_rules(0, vec![(Stat::SPI, 5), (Stat::CON, 10)], rules);
         let abilities = make_abilities();
 
-        // All allies healthy
-        let ally = make_char(1, vec![(Stat::CON, 10)]);
-        assert!(evaluate_rules(&actor, None, &[ally], &abilities).is_none());
-
-        // One ally low HP — not adjacent (not a companion), but still an ally
-        let mut ally_hurt = make_char(1, vec![(Stat::CON, 10)]);
-        ally_hurt.take_damage(16); // HP=4
         assert_eq!(
-            evaluate_rules(&actor, None, &[ally_hurt], &abilities).as_deref(),
+            evaluate_rules(
+                &actor,
+                None,
+                &[],
+                WorldState {
+                    tick_count: 3,
+                    ally_count: 1,
+                    enemy_count: 2,
+                },
+                &abilities
+            )
+            .as_deref(),
             Some("Embolden")
         );
+        assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
     }
 
     #[test]
-    fn ally_condition_excludes_self() {
-        // Actor has low HP, but Ally condition should not match self
+    fn world_tick_and_enemy_counts_can_gate_rules() {
         let rules = vec![Rule {
-            ability: "Embolden".to_string(),
-            conditions: vec![Condition {
-                subject: ConditionSubject::Ally,
-                value: QueryValue::Hp,
-                comparator: Comparator::Lte,
-                threshold: 5,
-            }],
+            ability: "Crush".to_string(),
+            conditions: vec![
+                Condition {
+                    subject: ConditionSubject::World,
+                    value: QueryValue::TickCount,
+                    comparator: Comparator::Gte,
+                    threshold: 5,
+                },
+                Condition {
+                    subject: ConditionSubject::World,
+                    value: QueryValue::EnemyCount,
+                    comparator: Comparator::Lte,
+                    threshold: 2,
+                },
+            ],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5), (Stat::CON, 10)], rules);
-        actor.take_damage(18); // actor HP=2, but should not self-match
-
+        let actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
         let abilities = make_abilities();
-        // Pass actor in allies list (simulating team slice that includes self)
-        let actor_clone = actor.clone();
-        assert!(evaluate_rules(&actor, None, &[actor_clone], &abilities).is_none());
+
+        assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
+        assert_eq!(
+            evaluate_rules(
+                &actor,
+                None,
+                &[],
+                WorldState {
+                    tick_count: 5,
+                    ally_count: 3,
+                    enemy_count: 2,
+                },
+                &abilities
+            )
+            .as_deref(),
+            Some("Crush")
+        );
     }
 
     #[test]
@@ -393,7 +426,7 @@ mod tests {
 
         // Never used → count=0, 0 <= 2 → matches
         assert_eq!(
-            evaluate_rules(&actor, None, &[], &abilities).as_deref(),
+            evaluate_rules(&actor, None, &[], world(), &abilities).as_deref(),
             Some("Crush")
         );
 
@@ -401,13 +434,13 @@ mod tests {
         actor.record_ability_use("Crush");
         actor.record_ability_use("Crush");
         assert_eq!(
-            evaluate_rules(&actor, None, &[], &abilities).as_deref(),
+            evaluate_rules(&actor, None, &[], world(), &abilities).as_deref(),
             Some("Crush")
         );
 
         // Used three times → count=3, 3 <= 2 → fails
         actor.record_ability_use("Crush");
-        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+        assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
     }
 
     #[test]
@@ -426,7 +459,7 @@ mod tests {
 
         // Never used → turns_since = MAX → matches
         assert_eq!(
-            evaluate_rules(&actor, None, &[], &abilities).as_deref(),
+            evaluate_rules(&actor, None, &[], world(), &abilities).as_deref(),
             Some("Embolden")
         );
 
@@ -436,16 +469,16 @@ mod tests {
 
         // Turn 2: 1 turn since use, 1 < 3 → fails
         actor.increment_turn_count();
-        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+        assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
 
         // Turn 3: 2 turns since use → fails
         actor.increment_turn_count();
-        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+        assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
 
         // Turn 4: 3 turns since use → matches
         actor.increment_turn_count();
         assert_eq!(
-            evaluate_rules(&actor, None, &[], &abilities).as_deref(),
+            evaluate_rules(&actor, None, &[], world(), &abilities).as_deref(),
             Some("Embolden")
         );
     }
@@ -463,12 +496,12 @@ mod tests {
         let abilities = make_abilities();
 
         // Without trait: can't afford
-        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+        assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
 
         // With trait: effective cost = max(3-1, 1) = 2, can afford
         actor.add_trait(TraitEffect::MpCostReduction { amount: 1 });
         assert_eq!(
-            evaluate_rules(&actor, None, &[], &abilities).as_deref(),
+            evaluate_rules(&actor, None, &[], world(), &abilities).as_deref(),
             Some("Embolden")
         );
     }
@@ -487,7 +520,7 @@ mod tests {
 
         let abilities = make_abilities();
         // Effective cost = max(2-100, 1) = 1, but 0 < 1, still can't afford
-        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+        assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
     }
 
     #[test]
@@ -510,18 +543,18 @@ mod tests {
 
         // Turn 2: 1 since use → fails
         actor.increment_turn_count();
-        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+        assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
 
         // Turn 3: 2 since use → matches, use again
         actor.increment_turn_count();
         assert_eq!(
-            evaluate_rules(&actor, None, &[], &abilities).as_deref(),
+            evaluate_rules(&actor, None, &[], world(), &abilities).as_deref(),
             Some("Crush")
         );
         actor.record_ability_use("Crush");
 
         // Turn 4: 1 since re-use → fails again
         actor.increment_turn_count();
-        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+        assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
     }
 }

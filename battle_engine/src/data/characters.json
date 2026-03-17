@@ -178,7 +178,7 @@
         { "subject": "self", "value": "use_count", "comparator": "lte", "threshold": 0 }
       ]},
       { "ability": "Restore", "conditions": [
-        { "subject": "ally", "value": "hp", "comparator": "lte", "threshold": 8 }
+        { "subject": "companion", "value": "hp", "comparator": "lte", "threshold": 8 }
       ]},
       { "ability": "Wish", "conditions": [
         { "subject": "self", "value": "hp", "comparator": "lte", "threshold": 8 }
