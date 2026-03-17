@@ -31,5 +31,40 @@
   "Thorns": {
     "type": "trait",
     "effect": { "kind": "damage_reflect", "amount": 2 }
+  },
+  "Momentum": {
+    "type": "triggered",
+    "trigger": "on_deal_damage",
+    "primitives": [
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 1 }
+    ]
+  },
+  "Collapse": {
+    "type": "triggered",
+    "trigger": "on_death",
+    "primitives": [
+      { "kind": "deal_physical_damage", "target": "all_enemies", "multiplier": 2.0 }
+    ]
+  },
+  "Vengeance": {
+    "type": "triggered",
+    "trigger": "on_take_damage",
+    "primitives": [
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 1 }
+    ]
+  },
+  "Reaper": {
+    "type": "triggered",
+    "trigger": "on_kill",
+    "primitives": [
+      { "kind": "restore_hp", "target": "self", "amount": 5 }
+    ]
+  },
+  "Meditation": {
+    "type": "triggered",
+    "trigger": "on_turn_start",
+    "primitives": [
+      { "kind": "restore_spi", "target": "self", "amount": 1 }
+    ]
   }
 }

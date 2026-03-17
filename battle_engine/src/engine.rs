@@ -23,6 +23,7 @@ pub struct BattleState {
     step: u32,
     log: BattleLog,
     rng: StdRng,
+    in_passive_phase: bool,
 }
 
 impl BattleState {
@@ -58,6 +59,7 @@ impl BattleState {
             step: 0,
             log: BattleLog::new(),
             rng,
+            in_passive_phase: false,
         };
         state.assign_companions();
         state.assign_all_targets();
@@ -130,66 +132,140 @@ impl BattleState {
             .map(|(i, c)| (i, c.passive().to_string()))
             .collect();
 
+        let trigger = PassiveTrigger::OnBattleStart;
+
         for (idx, passive_name) in team_a_passives {
             if let Some(passive_def) = self.passives.get(&passive_name).cloned() {
-                Self::apply_passive(
-                    idx, &passive_name, &passive_def,
+                let damage_dealt = Self::fire_passive_if_matches(
+                    idx, &passive_name, &passive_def, &trigger,
                     &mut self.team_a, &mut self.team_b,
-                    &mut self.rng, &mut self.log, &self.status_defs,
+                    &mut self.rng, &mut self.log, 0, &self.status_defs,
                 );
+                Self::log_defeats_from_damage(&damage_dealt, &self.team_b, &mut self.log, 0);
             }
         }
 
         for (idx, passive_name) in team_b_passives {
             if let Some(passive_def) = self.passives.get(&passive_name).cloned() {
-                Self::apply_passive(
-                    idx, &passive_name, &passive_def,
+                let damage_dealt = Self::fire_passive_if_matches(
+                    idx, &passive_name, &passive_def, &trigger,
                     &mut self.team_b, &mut self.team_a,
-                    &mut self.rng, &mut self.log, &self.status_defs,
+                    &mut self.rng, &mut self.log, 0, &self.status_defs,
                 );
+                Self::log_defeats_from_damage(&damage_dealt, &self.team_a, &mut self.log, 0);
             }
         }
     }
 
-    fn apply_passive(
+    /// Fire a triggered passive if it matches the expected trigger. Returns damage dealt.
+    fn fire_passive_if_matches(
         idx: usize,
         passive_name: &str,
         passive_def: &PassiveDef,
+        expected: &PassiveTrigger,
         actor_team: &mut [CharacterState],
         enemy_team: &mut [CharacterState],
         rng: &mut StdRng,
         log: &mut BattleLog,
+        step: u32,
         status_defs: &StatusMap,
-    ) {
-        let char_id = actor_team[idx].id();
-        let char_name = actor_team[idx].base_name().to_string();
-
+    ) -> Vec<(u32, u32)> {
         match passive_def {
-            PassiveDef::Triggered { trigger, primitives } => {
-                if matches!(trigger, PassiveTrigger::OnBattleStart) {
-                    log.push(BattleEvent::PassiveTriggered {
-                        step: 0,
-                        character_id: char_id,
-                        character_name: char_name,
-                        passive_name: passive_name.to_string(),
-                    });
-                    execute_primitives(
-                        idx, passive_name, primitives,
-                        actor_team, enemy_team,
-                        rng, log, 0, status_defs,
-                    );
-                }
-            }
-            PassiveDef::Trait { effect } => {
+            PassiveDef::Triggered { trigger, primitives }
+                if std::mem::discriminant(trigger) == std::mem::discriminant(expected) =>
+            {
+                let char_id = actor_team[idx].id();
+                let char_name = actor_team[idx].base_name().to_string();
                 log.push(BattleEvent::PassiveTriggered {
-                    step: 0,
+                    step,
+                    character_id: char_id,
+                    character_name: char_name,
+                    passive_name: passive_name.to_string(),
+                });
+                execute_primitives(
+                    idx, passive_name, primitives,
+                    actor_team, enemy_team,
+                    rng, log, step, status_defs,
+                )
+            }
+            PassiveDef::Trait { effect }
+                if matches!(expected, PassiveTrigger::OnBattleStart) =>
+            {
+                let char_id = actor_team[idx].id();
+                let char_name = actor_team[idx].base_name().to_string();
+                log.push(BattleEvent::PassiveTriggered {
+                    step,
                     character_id: char_id,
                     character_name: char_name,
                     passive_name: passive_name.to_string(),
                 });
                 actor_team[idx].add_trait(effect.clone());
+                Vec::new()
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Log defeats from damage dealt (used after passive execution — no further passives fire).
+    fn log_defeats_from_damage(
+        damage_dealt: &[(u32, u32)],
+        team: &[CharacterState],
+        log: &mut BattleLog,
+        step: u32,
+    ) {
+        for (tid, _) in damage_dealt {
+            if let Some(c) = team.iter().find(|c| c.id() == *tid) {
+                if !c.is_alive() {
+                    log.push(BattleEvent::Defeat {
+                        step,
+                        character_id: *tid,
+                        character_name: c.base_name().to_string(),
+                    });
+                }
             }
         }
+    }
+
+    /// Look up a character's passive and fire it if it matches the trigger.
+    /// Sets in_passive_phase during execution. Returns damage dealt.
+    fn try_fire_passive(
+        &mut self,
+        char_idx: usize,
+        trigger: &PassiveTrigger,
+        actor_team_is_a: bool,
+    ) -> Vec<(u32, u32)> {
+        if self.in_passive_phase {
+            return Vec::new();
+        }
+
+        let (actor_team, enemy_team) = if actor_team_is_a {
+            (&mut self.team_a as &mut [CharacterState], &mut self.team_b as &mut [CharacterState])
+        } else {
+            (&mut self.team_b as &mut [CharacterState], &mut self.team_a as &mut [CharacterState])
+        };
+
+        let passive_name = actor_team[char_idx].passive().to_string();
+        if passive_name.is_empty() {
+            return Vec::new();
+        }
+
+        let passive_def = match self.passives.get(&passive_name).cloned() {
+            Some(def) => def,
+            None => return Vec::new(),
+        };
+
+        self.in_passive_phase = true;
+        let damage_dealt = Self::fire_passive_if_matches(
+            char_idx, &passive_name, &passive_def, trigger,
+            actor_team, enemy_team,
+            &mut self.rng, &mut self.log, self.step, &self.status_defs,
+        );
+
+        // Log defeats from passive damage (no further passives fire)
+        Self::log_defeats_from_damage(&damage_dealt, enemy_team, &mut self.log, self.step);
+
+        self.in_passive_phase = false;
+        damage_dealt
     }
 
     /// Advance one step. Returns true if the battle is over.
@@ -269,14 +345,19 @@ impl BattleState {
 
     /// Execute a turn for a character. `is_team_a` determines which team the actor belongs to.
     fn execute_turn(&mut self, actor_idx: usize, is_team_a: bool) {
-        let (actor_team, enemy_team) = if is_team_a {
-            (&mut self.team_a as &mut [CharacterState], &mut self.team_b as &mut [CharacterState])
-        } else {
-            (&mut self.team_b as &mut [CharacterState], &mut self.team_a as &mut [CharacterState])
-        };
+        {
+            let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+            actor_team[actor_idx].reset_speed();
+            actor_team[actor_idx].increment_turn_count();
+        }
 
-        actor_team[actor_idx].reset_speed();
-        actor_team[actor_idx].increment_turn_count();
+        // on_turn_start fires before incapacitate check (fires even when stunned)
+        self.try_fire_passive(actor_idx, &PassiveTrigger::OnTurnStart, is_team_a);
+
+        let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+        if !actor_team[actor_idx].is_alive() {
+            return;
+        }
 
         let actor_id = actor_team[actor_idx].id();
         let actor_name = actor_team[actor_idx].base_name().to_string();
@@ -289,15 +370,17 @@ impl BattleState {
                 character_name: actor_name,
                 reason: "incapacitated".to_string(),
             });
+            let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
             Self::tick_and_log_statuses(actor_team, actor_idx, &mut self.log, self.step);
             return;
         }
 
         // Get or reassign target
+        let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         let target_id = match Self::resolve_target(actor_idx, actor_team, enemy_team, &mut self.rng)
         {
             Some(tid) => tid,
-            None => return, // no living enemies
+            None => return,
         };
 
         let target_idx = enemy_team.iter().position(|c| c.id() == target_id).unwrap();
@@ -313,6 +396,7 @@ impl BattleState {
 
         if let Some(ref name) = ability_name {
             if let Some(ability_def) = self.abilities.get(name).cloned() {
+                let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
                 // Spend SPI (reduced by trait) and record usage
                 let effective_cost = ability_def.spi_cost
                     .saturating_sub(actor_team[actor_idx].spi_cost_reduction())
@@ -333,63 +417,23 @@ impl BattleState {
                     &self.status_defs,
                 );
 
-                // Check for defeats and damage reflect from ability damage
-                for (tid, _) in &damage_dealt {
-                    if let Some(eidx) = enemy_team.iter().position(|c| c.id() == *tid) {
-                        if !enemy_team[eidx].is_alive() {
-                            let ename = enemy_team[eidx].base_name().to_string();
-                            self.log.push(BattleEvent::Defeat {
-                                step: self.step,
-                                character_id: *tid,
-                                character_name: ename,
-                            });
-                        }
-                        // Damage reflect
-                        let reflect = enemy_team[eidx].damage_reflect_amount();
-                        if reflect > 0 && actor_team[actor_idx].is_alive() {
-                            actor_team[actor_idx].take_damage(reflect);
-                            let reflector_name = enemy_team[eidx].base_name().to_string();
-                            self.log.push(BattleEvent::DamageReflect {
-                                step: self.step,
-                                reflector_id: *tid,
-                                reflector_name,
-                                target_id: actor_id,
-                                target_name: actor_team[actor_idx].base_name().to_string(),
-                                damage: reflect,
-                                target_hp_remaining: actor_team[actor_idx].current_hp(),
-                            });
-                            if !actor_team[actor_idx].is_alive() {
-                                self.log.push(BattleEvent::Defeat {
-                                    step: self.step,
-                                    character_id: actor_id,
-                                    character_name: actor_team[actor_idx].base_name().to_string(),
-                                });
-                            }
-                        }
-                    }
-                }
+                // Process damage results: defeats, reflect, and passive triggers
+                self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
 
                 // Tick effects after action
+                let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
                 Self::tick_and_log_statuses(actor_team, actor_idx, &mut self.log, self.step);
 
                 // Reassign target if current target is dead
-                let current_target = actor_team[actor_idx].target();
-                if let Some(ct) = current_target {
-                    if enemy_team.iter().find(|c| c.id() == ct).map_or(true, |c| !c.is_alive()) {
-                        let new_target = select_target(&actor_team[actor_idx], enemy_team, &mut self.rng);
-                        if let Some(tid) = new_target {
-                            actor_team[actor_idx].set_target(tid);
-                        } else {
-                            actor_team[actor_idx].clear_target();
-                        }
-                    }
-                }
+                let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng);
 
                 return;
             }
         }
 
         // Fallback: basic attack
+        let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         let damage = calc_basic_attack_damage(
             &actor_team[actor_idx],
             &enemy_team[target_idx],
@@ -410,45 +454,160 @@ impl BattleState {
             target_hp_remaining: hp_remaining,
         });
 
-        if !enemy_team[target_idx].is_alive() {
-            self.log.push(BattleEvent::Defeat {
-                step: self.step,
-                character_id: target_id,
-                character_name: target_name,
-            });
-            let new_target = select_target(&actor_team[actor_idx], enemy_team, &mut self.rng);
-            if let Some(tid) = new_target {
-                actor_team[actor_idx].set_target(tid);
-            } else {
-                actor_team[actor_idx].clear_target();
+        // Process damage: defeat, reflect, passive triggers
+        let damage_dealt = vec![(target_id, damage)];
+        self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
+
+        // Reassign target if dead
+        let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+        Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng);
+
+        // Tick effects after basic attack
+        let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+        Self::tick_and_log_statuses(actor_team, actor_idx, &mut self.log, self.step);
+    }
+
+    /// Split teams into (actor_team, enemy_team) based on which team the actor is on.
+    fn teams_mut<'a>(
+        team_a: &'a mut Vec<CharacterState>,
+        team_b: &'a mut Vec<CharacterState>,
+        is_team_a: bool,
+    ) -> (&'a mut [CharacterState], &'a mut [CharacterState]) {
+        if is_team_a {
+            (team_a.as_mut_slice(), team_b.as_mut_slice())
+        } else {
+            (team_b.as_mut_slice(), team_a.as_mut_slice())
+        }
+    }
+
+    /// Reassign target if current target is dead.
+    fn reassign_target_if_dead(
+        actor_idx: usize,
+        actor_team: &mut [CharacterState],
+        enemy_team: &[CharacterState],
+        rng: &mut StdRng,
+    ) {
+        if let Some(ct) = actor_team[actor_idx].target() {
+            if enemy_team.iter().find(|c| c.id() == ct).map_or(true, |c| !c.is_alive()) {
+                if let Some(tid) = select_target(&actor_team[actor_idx], enemy_team, rng) {
+                    actor_team[actor_idx].set_target(tid);
+                } else {
+                    actor_team[actor_idx].clear_target();
+                }
+            }
+        }
+    }
+
+    /// Process damage results: check defeats, fire on_kill/on_death/on_deal_damage/on_take_damage
+    /// passives, and apply damage reflect.
+    fn process_damage_results(
+        &mut self,
+        actor_idx: usize,
+        is_team_a: bool,
+        damage_dealt: &[(u32, u32)],
+    ) {
+        if damage_dealt.is_empty() {
+            return;
+        }
+
+        let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+        let actor_id = actor_team[actor_idx].id();
+
+        // Collect defeat info and reflect info before firing passives
+        let mut defeated: Vec<(u32, String, usize)> = Vec::new(); // (id, name, idx)
+        let mut reflect_sources: Vec<(u32, String, u32)> = Vec::new(); // (reflector_id, reflector_name, amount)
+        let mut any_damage = false;
+        let mut damaged_enemy_indices: Vec<usize> = Vec::new();
+
+        for (tid, dmg) in damage_dealt {
+            if *dmg > 0 {
+                any_damage = true;
+            }
+            if let Some(eidx) = enemy_team.iter().position(|c| c.id() == *tid) {
+                if *dmg > 0 {
+                    damaged_enemy_indices.push(eidx);
+                }
+                if !enemy_team[eidx].is_alive() {
+                    let ename = enemy_team[eidx].base_name().to_string();
+                    self.log.push(BattleEvent::Defeat {
+                        step: self.step,
+                        character_id: *tid,
+                        character_name: ename.clone(),
+                    });
+                    defeated.push((*tid, ename, eidx));
+                }
+                // Collect reflect info
+                let reflect = enemy_team[eidx].damage_reflect_amount();
+                if reflect > 0 && actor_team[actor_idx].is_alive() {
+                    reflect_sources.push((*tid, enemy_team[eidx].base_name().to_string(), reflect));
+                }
             }
         }
 
-        // Damage reflect from basic attack
-        let reflect = enemy_team[target_idx].damage_reflect_amount();
-        if reflect > 0 && actor_team[actor_idx].is_alive() {
-            actor_team[actor_idx].take_damage(reflect);
-            let reflector_name = enemy_team[target_idx].base_name().to_string();
+        // Apply damage reflect
+        for (reflector_id, reflector_name, reflect) in &reflect_sources {
+            let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+            if !actor_team[actor_idx].is_alive() {
+                break;
+            }
+            actor_team[actor_idx].take_damage(*reflect);
             self.log.push(BattleEvent::DamageReflect {
                 step: self.step,
-                reflector_id: target_id,
-                reflector_name,
+                reflector_id: *reflector_id,
+                reflector_name: reflector_name.clone(),
                 target_id: actor_id,
-                target_name: actor_team[actor_idx].base_name().to_string(),
-                damage: reflect,
-                target_hp_remaining: actor_team[actor_idx].current_hp(),
+                target_name: {
+                    let (at, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                    at[actor_idx].base_name().to_string()
+                },
+                damage: *reflect,
+                target_hp_remaining: {
+                    let (at, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                    at[actor_idx].current_hp()
+                },
             });
+            let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
             if !actor_team[actor_idx].is_alive() {
                 self.log.push(BattleEvent::Defeat {
                     step: self.step,
                     character_id: actor_id,
-                    character_name: actor_team[actor_idx].base_name().to_string(),
+                    character_name: {
+                        let (at, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                        at[actor_idx].base_name().to_string()
+                    },
                 });
+                break;
             }
         }
 
-        // Tick effects after basic attack
-        Self::tick_and_log_statuses(actor_team, actor_idx, &mut self.log, self.step);
+        // Fire on_deal_damage for actor (once per action, if any damage dealt)
+        if any_damage {
+            let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+            if actor_team[actor_idx].is_alive() {
+                self.try_fire_passive(actor_idx, &PassiveTrigger::OnDealDamage, is_team_a);
+            }
+        }
+
+        // Fire on_take_damage for each damaged enemy (from their perspective)
+        for eidx in damaged_enemy_indices {
+            let (_, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+            if enemy_team[eidx].is_alive() {
+                // Defender's team is the "enemy" from actor's perspective, so !is_team_a
+                self.try_fire_passive(eidx, &PassiveTrigger::OnTakeDamage, !is_team_a);
+            }
+        }
+
+        // Fire on_kill for actor, on_death for each defeated enemy
+        for (_, _, eidx) in &defeated {
+            // on_kill fires for actor
+            let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+            if actor_team[actor_idx].is_alive() {
+                self.try_fire_passive(actor_idx, &PassiveTrigger::OnKill, is_team_a);
+            }
+
+            // on_death fires for the dead character (from their perspective)
+            self.try_fire_passive(*eidx, &PassiveTrigger::OnDeath, !is_team_a);
+        }
     }
 
     /// Tick statuses on a character and log any DoT/HoT results.
@@ -1286,5 +1445,214 @@ mod tests {
             BattleEvent::AbilityUsed { ability_name, .. } if ability_name == "Crush"
         )).count();
         assert!(crush_count >= 2, "Should use Crush at least twice with cost reduction, got {}", crush_count);
+    }
+
+    // --- Passive trigger tests ---
+
+    #[test]
+    fn on_turn_start_passive_fires_each_turn() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+
+        let mut char_config = make_config("Meditator", 0, vec![
+            (Stat::CON, 20), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 5),
+        ]);
+        char_config.passive = "Meditation".to_string();
+
+        let enemy = make_config("Enemy", 0, vec![
+            (Stat::CON, 20), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("Meditation".to_string(), PassiveDef::Triggered {
+            trigger: PassiveTrigger::OnTurnStart,
+            primitives: vec![Primitive::RestoreSpi {
+                target: AbilityTarget::SelfChar,
+                amount: 1,
+            }],
+        });
+
+        let log = BattleState::new(&[char_config], &[enemy], empty_abilities(), passives, empty_statuses(), 42).run();
+        let passive_count = log.events().iter().filter(|e| matches!(e,
+            BattleEvent::PassiveTriggered { passive_name, .. } if passive_name == "Meditation"
+        )).count();
+        assert!(passive_count >= 2, "on_turn_start should fire multiple times, got {}", passive_count);
+    }
+
+    #[test]
+    fn on_deal_damage_passive_fires() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+        use crate::statuses::{StatusDef, StatusBehavior, StackType};
+
+        let mut attacker = make_config("Attacker", 0, vec![
+            (Stat::CON, 20), (Stat::STR, 8), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        attacker.passive = "Momentum".to_string();
+
+        let enemy = make_config("Enemy", 0, vec![
+            (Stat::CON, 30), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("Momentum".to_string(), PassiveDef::Triggered {
+            trigger: PassiveTrigger::OnDealDamage,
+            primitives: vec![Primitive::ApplyStatus {
+                target: AbilityTarget::SelfChar,
+                status: "Empower".to_string(),
+                stat: Some(Stat::STR),
+                stacks: 1,
+            }],
+        });
+
+        let mut statuses: StatusMap = HashMap::new();
+        statuses.insert("Empower".to_string(), StatusDef {
+            behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+            stack_type: StackType::Permanent,
+            opposes: None,
+        });
+
+        let log = BattleState::new(&[attacker], &[enemy], empty_abilities(), passives, statuses, 42).run();
+        let passive_count = log.events().iter().filter(|e| matches!(e,
+            BattleEvent::PassiveTriggered { passive_name, .. } if passive_name == "Momentum"
+        )).count();
+        assert!(passive_count >= 1, "on_deal_damage should fire when dealing damage");
+    }
+
+    #[test]
+    fn on_take_damage_passive_fires() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+        use crate::statuses::{StatusDef, StatusBehavior, StackType};
+
+        let attacker = make_config("Attacker", 0, vec![
+            (Stat::CON, 20), (Stat::STR, 8), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        let mut defender = make_config("Defender", 0, vec![
+            (Stat::CON, 30), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        defender.passive = "Vengeance".to_string();
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("Vengeance".to_string(), PassiveDef::Triggered {
+            trigger: PassiveTrigger::OnTakeDamage,
+            primitives: vec![Primitive::ApplyStatus {
+                target: AbilityTarget::SelfChar,
+                status: "Empower".to_string(),
+                stat: Some(Stat::STR),
+                stacks: 1,
+            }],
+        });
+
+        let mut statuses: StatusMap = HashMap::new();
+        statuses.insert("Empower".to_string(), StatusDef {
+            behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+            stack_type: StackType::Permanent,
+            opposes: None,
+        });
+
+        let log = BattleState::new(&[attacker], &[defender], empty_abilities(), passives, statuses, 42).run();
+        let passive_count = log.events().iter().filter(|e| matches!(e,
+            BattleEvent::PassiveTriggered { passive_name, .. } if passive_name == "Vengeance"
+        )).count();
+        assert!(passive_count >= 1, "on_take_damage should fire when taking damage");
+    }
+
+    #[test]
+    fn on_kill_passive_fires() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+
+        let mut killer = make_config("Killer", 0, vec![
+            (Stat::CON, 20), (Stat::STR, 15), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        killer.passive = "Reaper".to_string();
+
+        let weak_enemy = make_config("Weak", 0, vec![
+            (Stat::CON, 3), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 2), (Stat::WIS, 2), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("Reaper".to_string(), PassiveDef::Triggered {
+            trigger: PassiveTrigger::OnKill,
+            primitives: vec![Primitive::RestoreHp {
+                target: AbilityTarget::SelfChar,
+                amount: 5,
+            }],
+        });
+
+        let log = BattleState::new(&[killer], &[weak_enemy], empty_abilities(), passives, empty_statuses(), 42).run();
+        let passive_count = log.events().iter().filter(|e| matches!(e,
+            BattleEvent::PassiveTriggered { passive_name, .. } if passive_name == "Reaper"
+        )).count();
+        assert!(passive_count >= 1, "on_kill should fire when killing an enemy");
+    }
+
+    #[test]
+    fn on_death_passive_fires() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+
+        let strong_enemy = make_config("Strong", 0, vec![
+            (Stat::CON, 30), (Stat::STR, 15), (Stat::INT, 3),
+            (Stat::FOR, 10), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        let mut dying = make_config("Dying", 0, vec![
+            (Stat::CON, 3), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 2), (Stat::WIS, 2), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        dying.passive = "Collapse".to_string();
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("Collapse".to_string(), PassiveDef::Triggered {
+            trigger: PassiveTrigger::OnDeath,
+            primitives: vec![Primitive::DealPhysicalDamage {
+                target: AbilityTarget::AllEnemies,
+                multiplier: 1.0,
+            }],
+        });
+
+        let log = BattleState::new(&[strong_enemy], &[dying], empty_abilities(), passives, empty_statuses(), 42).run();
+        let passive_count = log.events().iter().filter(|e| matches!(e,
+            BattleEvent::PassiveTriggered { passive_name, .. } if passive_name == "Collapse"
+        )).count();
+        assert!(passive_count >= 1, "on_death should fire when character dies");
+    }
+
+    #[test]
+    fn passive_reentry_guard_prevents_cascading() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+
+        // Both sides have on_deal_damage passives that deal damage —
+        // should not cascade infinitely
+        let mut a = make_config("A", 0, vec![
+            (Stat::CON, 20), (Stat::STR, 8), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        a.passive = "Splash".to_string();
+
+        let mut b = make_config("B", 0, vec![
+            (Stat::CON, 20), (Stat::STR, 8), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        b.passive = "Splash".to_string();
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("Splash".to_string(), PassiveDef::Triggered {
+            trigger: PassiveTrigger::OnDealDamage,
+            primitives: vec![Primitive::DealPhysicalDamage {
+                target: AbilityTarget::AllEnemies,
+                multiplier: 0.5,
+            }],
+        });
+
+        // Should complete without infinite loop
+        let log = BattleState::new(&[a], &[b], empty_abilities(), passives, empty_statuses(), 42).run();
+        assert!(matches!(log.events().last().unwrap(), BattleEvent::BattleEnd { .. }));
     }
 }

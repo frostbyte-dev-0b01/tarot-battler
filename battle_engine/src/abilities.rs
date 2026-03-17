@@ -70,6 +70,11 @@ pub type AbilityMap = HashMap<String, AbilityDef>;
 #[serde(rename_all = "snake_case")]
 pub enum PassiveTrigger {
     OnBattleStart,
+    OnDeath,
+    OnKill,
+    OnDealDamage,
+    OnTakeDamage,
+    OnTurnStart,
 }
 
 /// A passive ability definition — either a triggered effect or a permanent trait.
