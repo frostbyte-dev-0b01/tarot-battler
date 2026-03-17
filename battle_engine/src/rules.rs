@@ -18,8 +18,11 @@ pub fn evaluate_rules(
             None => continue,
         };
 
-        // Check SPI cost
-        if actor.current_spi() < ability_def.spi_cost {
+        // Check SPI cost (reduced by trait, minimum 1)
+        let effective_cost = ability_def.spi_cost
+            .saturating_sub(actor.spi_cost_reduction())
+            .max(1);
+        if actor.current_spi() < effective_cost {
             continue;
         }
 
@@ -392,6 +395,43 @@ mod tests {
         // Turn 4: 3 turns since use → matches
         actor.increment_turn_count();
         assert_eq!(evaluate_rules(&actor, None, &[], &abilities).as_deref(), Some("Embolden"));
+    }
+
+    #[test]
+    fn spi_cost_reduction_allows_otherwise_unaffordable() {
+        use crate::models::TraitEffect;
+
+        let rules = vec![Rule {
+            ability: "Embolden".to_string(), // costs 3
+            conditions: Vec::new(),
+        }];
+        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        actor.spend_spi(3); // only 2 left, need 3
+        let abilities = make_abilities();
+
+        // Without trait: can't afford
+        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
+
+        // With trait: effective cost = max(3-1, 1) = 2, can afford
+        actor.add_trait(TraitEffect::SpiCostReduction { amount: 1 });
+        assert_eq!(evaluate_rules(&actor, None, &[], &abilities).as_deref(), Some("Embolden"));
+    }
+
+    #[test]
+    fn spi_cost_reduction_enforces_minimum_one() {
+        use crate::models::TraitEffect;
+
+        let rules = vec![Rule {
+            ability: "Crush".to_string(), // costs 2
+            conditions: Vec::new(),
+        }];
+        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        actor.add_trait(TraitEffect::SpiCostReduction { amount: 100 });
+        actor.spend_spi(5); // 0 SPI left
+
+        let abilities = make_abilities();
+        // Effective cost = max(2-100, 1) = 1, but 0 < 1, still can't afford
+        assert!(evaluate_rules(&actor, None, &[], &abilities).is_none());
     }
 
     #[test]

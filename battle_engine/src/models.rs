@@ -99,6 +99,19 @@ pub struct CharacterConfig {
     pub rules: Vec<Rule>,
 }
 
+/// A permanent trait that modifies engine behavior. Applied at battle start
+/// from a character's passive and stored on CharacterState for the battle's duration.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TraitEffect {
+    /// Abilities cost `amount` less SPI (minimum 1).
+    SpiCostReduction { amount: u32 },
+    /// First `count` debuffs applied to this character are negated.
+    DebuffResistance { count: u32 },
+    /// Attackers take `amount` damage when they hit this character.
+    DamageReflect { amount: u32 },
+}
+
 /// What happened when statuses ticked.
 #[derive(Debug, Clone)]
 pub enum StatusTick {
@@ -121,6 +134,7 @@ pub struct CharacterState {
     target: Option<u32>,
     companions: Vec<u32>,
     statuses: HashMap<String, StatusInstance>,
+    traits: Vec<TraitEffect>,
     rules: Vec<Rule>,
     actor_turn_count: u32,
     ability_use_counts: HashMap<String, u32>,
@@ -145,6 +159,7 @@ impl CharacterState {
             target: None,
             companions: Vec::new(),
             statuses: HashMap::new(),
+            traits: Vec::new(),
             rules: config.rules.clone(),
             actor_turn_count: 0,
             ability_use_counts: HashMap::new(),
@@ -277,6 +292,37 @@ impl CharacterState {
         self.statuses.get(key).map_or(0, |s| s.stacks)
     }
 
+    pub fn add_trait(&mut self, t: TraitEffect) {
+        self.traits.push(t);
+    }
+
+    pub fn spi_cost_reduction(&self) -> u32 {
+        self.traits.iter().filter_map(|t| match t {
+            TraitEffect::SpiCostReduction { amount } => Some(*amount),
+            _ => None,
+        }).sum()
+    }
+
+    pub fn damage_reflect_amount(&self) -> u32 {
+        self.traits.iter().filter_map(|t| match t {
+            TraitEffect::DamageReflect { amount } => Some(*amount),
+            _ => None,
+        }).sum()
+    }
+
+    /// Try to negate a debuff using DebuffResistance charges. Returns true if negated.
+    pub fn try_negate_debuff(&mut self) -> bool {
+        for t in &mut self.traits {
+            if let TraitEffect::DebuffResistance { count } = t {
+                if *count > 0 {
+                    *count -= 1;
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     pub fn rules(&self) -> &[Rule] {
         &self.rules
     }
@@ -330,6 +376,17 @@ impl CharacterState {
         def: &StatusDef,
         stat: Option<Stat>,
     ) -> bool {
+        // Check debuff resistance
+        let is_debuff = match &def.behavior {
+            StatusBehavior::DamagePerStack { .. } => true,
+            StatusBehavior::SkipTurn => true,
+            StatusBehavior::StatModPerStack { magnitude } => *magnitude < 0,
+            _ => false,
+        };
+        if is_debuff && self.try_negate_debuff() {
+            return true; // debuff negated
+        }
+
         // Reject stat mods on pool stats
         if matches!(&def.behavior, StatusBehavior::StatModPerStack { .. }) {
             if let Some(ref s) = stat {
@@ -845,5 +902,81 @@ mod tests {
         assert!(!center.is_adjacent(&Position { row: 2, col: 2 }));
         assert!(!center.is_adjacent(&Position { row: 1, col: 1 }));
         assert!(!center.is_adjacent(&Position { row: 3, col: 1 }));
+    }
+
+    // --- Permanent trait tests ---
+
+    #[test]
+    fn spi_cost_reduction_sums_amounts() {
+        let config = make_config(vec![(Stat::SPI, 5)]);
+        let mut state = CharacterState::from_config(0, &config);
+        assert_eq!(state.spi_cost_reduction(), 0);
+
+        state.add_trait(TraitEffect::SpiCostReduction { amount: 2 });
+        assert_eq!(state.spi_cost_reduction(), 2);
+    }
+
+    #[test]
+    fn damage_reflect_sums_amounts() {
+        let config = make_config(vec![(Stat::CON, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        assert_eq!(state.damage_reflect_amount(), 0);
+
+        state.add_trait(TraitEffect::DamageReflect { amount: 3 });
+        assert_eq!(state.damage_reflect_amount(), 3);
+    }
+
+    #[test]
+    fn debuff_resistance_negates_first_n_debuffs() {
+        let config = make_config(vec![(Stat::CON, 10), (Stat::STR, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_trait(TraitEffect::DebuffResistance { count: 2 });
+
+        // First debuff: negated
+        state.add_status("Bleed", 3, 99, &bleed_def(), None);
+        assert!(!state.has_status("Bleed"));
+
+        // Second debuff: negated
+        let weak_key = status_key("Weaken", Some(&Stat::STR));
+        state.add_status(&weak_key, 2, 99, &weaken_def(), Some(Stat::STR));
+        assert!(!state.has_status(&weak_key));
+
+        // Third debuff: goes through
+        state.add_status("Bleed", 3, 99, &bleed_def(), None);
+        assert_eq!(state.status_stacks("Bleed"), 3);
+    }
+
+    #[test]
+    fn debuff_resistance_allows_buffs_through() {
+        let config = make_config(vec![(Stat::CON, 10), (Stat::STR, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_trait(TraitEffect::DebuffResistance { count: 1 });
+
+        // Buff should not consume a charge
+        let emp_key = status_key("Empower", Some(&Stat::STR));
+        state.add_status(&emp_key, 3, 99, &empower_def(), Some(Stat::STR));
+        assert_eq!(state.status_stacks(&emp_key), 3);
+
+        // Heal should not consume a charge
+        state.add_status("Regen", 2, 99, &regen_def(), None);
+        assert_eq!(state.status_stacks("Regen"), 2);
+
+        // Debuff charge still available
+        state.add_status("Bleed", 1, 99, &bleed_def(), None);
+        assert!(!state.has_status("Bleed")); // negated
+
+        // Now charge is used up
+        state.add_status("Bleed", 1, 99, &bleed_def(), None);
+        assert_eq!(state.status_stacks("Bleed"), 1); // goes through
+    }
+
+    #[test]
+    fn debuff_resistance_blocks_stun() {
+        let config = make_config(vec![(Stat::CON, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_trait(TraitEffect::DebuffResistance { count: 1 });
+
+        state.add_status("Stun", 2, 99, &stun_def(), None);
+        assert!(!state.is_incapacitated()); // negated
     }
 }

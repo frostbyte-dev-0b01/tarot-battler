@@ -1,20 +1,35 @@
 {
   "Authority": {
+    "type": "triggered",
     "trigger": "on_battle_start",
     "primitives": [
       { "kind": "apply_status", "target": "all_enemies", "status": "Weaken", "stat": "STR", "stacks": 1 }
     ]
   },
   "Hope": {
+    "type": "triggered",
     "trigger": "on_battle_start",
     "primitives": [
       { "kind": "apply_status", "target": "all_allies", "status": "Empower", "stat": "RES", "stacks": 1 }
     ]
   },
   "Inner Fire": {
+    "type": "triggered",
     "trigger": "on_battle_start",
     "primitives": [
       { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 2 }
     ]
+  },
+  "Resourcefulness": {
+    "type": "trait",
+    "effect": { "kind": "spi_cost_reduction", "amount": 1 }
+  },
+  "Innocence": {
+    "type": "trait",
+    "effect": { "kind": "debuff_resistance", "count": 3 }
+  },
+  "Thorns": {
+    "type": "trait",
+    "effect": { "kind": "damage_reflect", "amount": 2 }
   }
 }

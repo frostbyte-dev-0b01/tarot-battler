@@ -25,19 +25,19 @@ All cargo commands should be run from `battle_engine/`.
 
 ### Battle Engine (`battle_engine/`)
 
-- `src/models.rs` — Core data types: `Stat`, `Position`, `CharacterConfig`, `CharacterState`, `StatusTick`, rule/condition types (`Rule`, `Condition`, `ConditionSubject`, `QueryValue`, `Comparator`).
+- `src/models.rs` — Core data types: `Stat`, `Position`, `CharacterConfig`, `CharacterState`, `StatusTick`, `TraitEffect`, rule/condition types (`Rule`, `Condition`, `ConditionSubject`, `QueryValue`, `Comparator`).
 - `src/statuses.rs` — Named status effect system: `StackType` (TickDown, NoStack, Permanent), `StatusBehavior` (DamagePerStack, HealPerStack, StatModPerStack, SkipTurn), `StatusDef`, `StatusInstance`, `StatusMap`. Helper functions `status_key()` and `opposite_key()` for key construction.
 - `src/engine.rs` — `BattleState` drives the simulation loop: speed ticking, turn execution, rule evaluation → ability or basic attack, status ticking (batch-resolve), incapacitate check, on_battle_start passives, SPI regen, win conditions.
-- `src/abilities.rs` — `AbilityDef`, `Primitive` (6 types: `DealPhysicalDamage`, `DealMagicalDamage`, `RestoreHp`, `RestoreSpi`, `ApplyStatus`, `RemoveStatus`), `AbilityMap`, `PassiveDef`, `PassiveMap`, `execute_ability()`, `execute_primitives()`. `ApplyStatus` auto-determines targeting by behavior (damage/negative stat-mod → enemies; heal/positive stat-mod → allies). Targets: `CurrentTarget`, `SelfChar`, `Companions`, `AllEnemies`, `AllAllies`.
-- `src/rules.rs` — `evaluate_rules()` iterates a character's ordered rules, checking conditions and SPI cost. Returns first matching ability or None (basic attack fallback).
+- `src/abilities.rs` — `AbilityDef`, `Primitive` (6 types: `DealPhysicalDamage`, `DealMagicalDamage`, `RestoreHp`, `RestoreSpi`, `ApplyStatus`, `RemoveStatus`), `AbilityMap`, `PassiveDef` (tagged enum: `Triggered` or `Trait`), `PassiveMap`, `execute_ability()`, `execute_primitives()`. `ApplyStatus` auto-determines targeting by behavior (damage/negative stat-mod → enemies; heal/positive stat-mod → allies). Targets: `CurrentTarget`, `SelfChar`, `Companions`, `AllEnemies`, `AllAllies`.
+- `src/rules.rs` — `evaluate_rules()` iterates a character's ordered rules, checking conditions and SPI cost (reduced by `SpiCostReduction` trait, minimum 1). Returns first matching ability or None (basic attack fallback).
 - `src/damage.rs` — Physical/magical damage calculation, basic attack type resolution.
 - `src/targeting.rs` — Offensive/defensive type computation, front-row target selection with weakness preference.
 - `src/loader.rs` — `load_characters()`, `load_abilities()`, `load_passives()`, and `load_statuses()` from JSON.
-- `src/logger.rs` — `BattleEvent` enum (`BattleStart`, `BasicAttack`, `AbilityUsed`, `AbilityDamage`, `StatusDamage`, `StatusHeal`, `TurnSkipped`, `PassiveTriggered`, `Defeat`, `BattleEnd`) and `BattleLog` with JSON serialization.
+- `src/logger.rs` — `BattleEvent` enum (`BattleStart`, `BasicAttack`, `AbilityUsed`, `AbilityDamage`, `StatusDamage`, `StatusHeal`, `TurnSkipped`, `PassiveTriggered`, `DamageReflect`, `Defeat`, `BattleEnd`) and `BattleLog` with JSON serialization.
 - `src/main.rs` — Entry point: loads JSON data (characters, abilities, passives, statuses), splits teams, runs battle, prints log.
 - `src/data/characters.json` — Character configs (The Emperor has rules, others basic-attack only). 10 characters with passives assigned.
 - `src/data/abilities.json` — Ability definitions (Crush, Embolden).
-- `src/data/passives.json` — Passive definitions (Authority, Hope, Inner Fire) using `ApplyStatus` primitives with `on_battle_start` trigger.
+- `src/data/passives.json` — Passive definitions: triggered (Authority, Hope, Inner Fire) and permanent traits (Resourcefulness, Innocence, Thorns).
 - `src/data/statuses.json` — Named status effect definitions (Bleed, Poison, Regen, Empower/Weaken, Fortify/Enfeeble, Stun).
 
 ### Key Design Decisions
@@ -55,7 +55,7 @@ All cargo commands should be run from `battle_engine/`.
 - **Speed system:** DEX counter starts at DEX, decrements each step; character acts at counter=0. Reset escalates: DEX+2, DEX+4, DEX+6, etc. (`spd_max` tracks this), softening high-DEX dominance over time.
 - **Rule system:** Each character has up to 5 ordered rules. A rule fires if all conditions are met (AND) AND current SPI >= ability cost. Falls back to basic attack if no rule matches. Available condition subjects: `SelfChar`, `Target`, `Companion` (adjacent), `Ally` (any teammate). Query values: `Stat`, `Hp`, `Spi`, `UseCount` (total ability uses), `TurnsSinceUse` (actor turns since last use, u32::MAX if never used). Comparators: `Gte`, `Lte`.
 - **Abilities:** Tier 1 composed from JSON-defined primitives (`DealPhysicalDamage`, `DealMagicalDamage`, `RestoreHp`, `RestoreSpi`, `ApplyStatus`, `RemoveStatus`). `ApplyStatus` auto-determines targeting by behavior. Tier 2 (custom Rust handlers) planned but not yet implemented.
-- **Passives:** Each character has an optional passive ability. Passives fire at battle start (`on_battle_start` trigger) and execute the same primitives as abilities. Defined in `passives.json`.
+- **Passives:** Each character has an optional passive ability. Two kinds: **triggered** passives fire at battle start (`on_battle_start`) and execute primitives like abilities; **permanent traits** are applied at battle start and modify engine rules for the duration of the battle. Trait types: `SpiCostReduction` (reduces ability SPI cost, minimum 1), `DebuffResistance` (negates first N debuffs — DamagePerStack, SkipTurn, or negative StatModPerStack), `DamageReflect` (flat damage back to attackers, can kill). Defined in `passives.json` as a tagged enum (`"type": "triggered"` or `"type": "trait"`).
 - **Damage formulas:** Physical: `max(STR - FOR, 1)`, Magical: `max(INT - WIS, 1)`.
 - **Named status effects:** Data-driven definitions in `statuses.json`. Each status has a `behavior` (DamagePerStack, HealPerStack, StatModPerStack, SkipTurn), a `stack_type` (TickDown, NoStack, Permanent), and an optional `opposes` field for cancellation. Status keys include the stat for stat-mod statuses (e.g. `"Empower:STR"`), plain name otherwise (e.g. `"Bleed"`).
   - **TickDown:** All stacks fire each turn, then one stack falls off (3 Bleed = 3+2+1 = 6 total damage over 3 turns).

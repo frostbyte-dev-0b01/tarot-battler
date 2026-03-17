@@ -67,6 +67,15 @@ pub enum BattleEvent {
         character_name: String,
         passive_name: String,
     },
+    DamageReflect {
+        step: u32,
+        reflector_id: u32,
+        reflector_name: String,
+        target_id: u32,
+        target_name: String,
+        damage: u32,
+        target_hp_remaining: u32,
+    },
     BattleEnd {
         step: u32,
         winner: String,

@@ -65,18 +65,24 @@ pub struct AbilityDef {
 
 pub type AbilityMap = HashMap<String, AbilityDef>;
 
-/// When a passive triggers.
+/// When a triggered passive fires.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PassiveTrigger {
     OnBattleStart,
 }
 
-/// A passive ability definition.
+/// A passive ability definition — either a triggered effect or a permanent trait.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct PassiveDef {
-    pub trigger: PassiveTrigger,
-    pub primitives: Vec<Primitive>,
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum PassiveDef {
+    Triggered {
+        trigger: PassiveTrigger,
+        primitives: Vec<Primitive>,
+    },
+    Trait {
+        effect: crate::models::TraitEffect,
+    },
 }
 
 pub type PassiveMap = HashMap<String, PassiveDef>;

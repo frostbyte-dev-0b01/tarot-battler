@@ -3,7 +3,7 @@
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
-use crate::abilities::{execute_ability, execute_primitives, AbilityMap, PassiveMap, PassiveTrigger};
+use crate::abilities::{execute_ability, execute_primitives, AbilityMap, PassiveDef, PassiveMap, PassiveTrigger};
 use crate::damage::calc_basic_attack_damage;
 use crate::logger::{BattleEvent, BattleLog};
 use crate::models::{CharacterConfig, CharacterState, StatusTick, Stat};
@@ -118,7 +118,7 @@ impl BattleState {
         self.log
     }
 
-    /// Fire on_battle_start passives for all characters.
+    /// Fire on_battle_start passives and apply permanent traits for all characters.
     fn execute_battle_start_passives(&mut self) {
         // Collect passive info first to avoid borrow issues
         let team_a_passives: Vec<(usize, String)> = self.team_a.iter().enumerate()
@@ -132,41 +132,62 @@ impl BattleState {
 
         for (idx, passive_name) in team_a_passives {
             if let Some(passive_def) = self.passives.get(&passive_name).cloned() {
-                if matches!(passive_def.trigger, PassiveTrigger::OnBattleStart) {
-                    let char_id = self.team_a[idx].id();
-                    let char_name = self.team_a[idx].base_name().to_string();
-                    self.log.push(BattleEvent::PassiveTriggered {
-                        step: 0,
-                        character_id: char_id,
-                        character_name: char_name,
-                        passive_name: passive_name.clone(),
-                    });
-                    execute_primitives(
-                        idx, &passive_name, &passive_def.primitives,
-                        &mut self.team_a, &mut self.team_b,
-                        &mut self.rng, &mut self.log, 0, &self.status_defs,
-                    );
-                }
+                Self::apply_passive(
+                    idx, &passive_name, &passive_def,
+                    &mut self.team_a, &mut self.team_b,
+                    &mut self.rng, &mut self.log, &self.status_defs,
+                );
             }
         }
 
         for (idx, passive_name) in team_b_passives {
             if let Some(passive_def) = self.passives.get(&passive_name).cloned() {
-                if matches!(passive_def.trigger, PassiveTrigger::OnBattleStart) {
-                    let char_id = self.team_b[idx].id();
-                    let char_name = self.team_b[idx].base_name().to_string();
-                    self.log.push(BattleEvent::PassiveTriggered {
+                Self::apply_passive(
+                    idx, &passive_name, &passive_def,
+                    &mut self.team_b, &mut self.team_a,
+                    &mut self.rng, &mut self.log, &self.status_defs,
+                );
+            }
+        }
+    }
+
+    fn apply_passive(
+        idx: usize,
+        passive_name: &str,
+        passive_def: &PassiveDef,
+        actor_team: &mut [CharacterState],
+        enemy_team: &mut [CharacterState],
+        rng: &mut StdRng,
+        log: &mut BattleLog,
+        status_defs: &StatusMap,
+    ) {
+        let char_id = actor_team[idx].id();
+        let char_name = actor_team[idx].base_name().to_string();
+
+        match passive_def {
+            PassiveDef::Triggered { trigger, primitives } => {
+                if matches!(trigger, PassiveTrigger::OnBattleStart) {
+                    log.push(BattleEvent::PassiveTriggered {
                         step: 0,
                         character_id: char_id,
                         character_name: char_name,
-                        passive_name: passive_name.clone(),
+                        passive_name: passive_name.to_string(),
                     });
                     execute_primitives(
-                        idx, &passive_name, &passive_def.primitives,
-                        &mut self.team_b, &mut self.team_a,
-                        &mut self.rng, &mut self.log, 0, &self.status_defs,
+                        idx, passive_name, primitives,
+                        actor_team, enemy_team,
+                        rng, log, 0, status_defs,
                     );
                 }
+            }
+            PassiveDef::Trait { effect } => {
+                log.push(BattleEvent::PassiveTriggered {
+                    step: 0,
+                    character_id: char_id,
+                    character_name: char_name,
+                    passive_name: passive_name.to_string(),
+                });
+                actor_team[idx].add_trait(effect.clone());
             }
         }
     }
@@ -292,8 +313,11 @@ impl BattleState {
 
         if let Some(ref name) = ability_name {
             if let Some(ability_def) = self.abilities.get(name).cloned() {
-                // Spend SPI and record usage
-                actor_team[actor_idx].spend_spi(ability_def.spi_cost);
+                // Spend SPI (reduced by trait) and record usage
+                let effective_cost = ability_def.spi_cost
+                    .saturating_sub(actor_team[actor_idx].spi_cost_reduction())
+                    .max(1);
+                actor_team[actor_idx].spend_spi(effective_cost);
                 actor_team[actor_idx].record_ability_use(name);
 
                 // Execute ability
@@ -309,7 +333,7 @@ impl BattleState {
                     &self.status_defs,
                 );
 
-                // Check for defeats from ability damage
+                // Check for defeats and damage reflect from ability damage
                 for (tid, _) in &damage_dealt {
                     if let Some(eidx) = enemy_team.iter().position(|c| c.id() == *tid) {
                         if !enemy_team[eidx].is_alive() {
@@ -319,6 +343,28 @@ impl BattleState {
                                 character_id: *tid,
                                 character_name: ename,
                             });
+                        }
+                        // Damage reflect
+                        let reflect = enemy_team[eidx].damage_reflect_amount();
+                        if reflect > 0 && actor_team[actor_idx].is_alive() {
+                            actor_team[actor_idx].take_damage(reflect);
+                            let reflector_name = enemy_team[eidx].base_name().to_string();
+                            self.log.push(BattleEvent::DamageReflect {
+                                step: self.step,
+                                reflector_id: *tid,
+                                reflector_name,
+                                target_id: actor_id,
+                                target_name: actor_team[actor_idx].base_name().to_string(),
+                                damage: reflect,
+                                target_hp_remaining: actor_team[actor_idx].current_hp(),
+                            });
+                            if !actor_team[actor_idx].is_alive() {
+                                self.log.push(BattleEvent::Defeat {
+                                    step: self.step,
+                                    character_id: actor_id,
+                                    character_name: actor_team[actor_idx].base_name().to_string(),
+                                });
+                            }
                         }
                     }
                 }
@@ -375,6 +421,29 @@ impl BattleState {
                 actor_team[actor_idx].set_target(tid);
             } else {
                 actor_team[actor_idx].clear_target();
+            }
+        }
+
+        // Damage reflect from basic attack
+        let reflect = enemy_team[target_idx].damage_reflect_amount();
+        if reflect > 0 && actor_team[actor_idx].is_alive() {
+            actor_team[actor_idx].take_damage(reflect);
+            let reflector_name = enemy_team[target_idx].base_name().to_string();
+            self.log.push(BattleEvent::DamageReflect {
+                step: self.step,
+                reflector_id: target_id,
+                reflector_name,
+                target_id: actor_id,
+                target_name: actor_team[actor_idx].base_name().to_string(),
+                damage: reflect,
+                target_hp_remaining: actor_team[actor_idx].current_hp(),
+            });
+            if !actor_team[actor_idx].is_alive() {
+                self.log.push(BattleEvent::Defeat {
+                    step: self.step,
+                    character_id: actor_id,
+                    character_name: actor_team[actor_idx].base_name().to_string(),
+                });
             }
         }
 
@@ -1012,7 +1081,7 @@ mod tests {
         ]);
 
         let mut passives: PassiveMap = HashMap::new();
-        passives.insert("TestPassive".to_string(), PassiveDef {
+        passives.insert("TestPassive".to_string(), PassiveDef::Triggered {
             trigger: PassiveTrigger::OnBattleStart,
             primitives: vec![Primitive::ApplyStatus {
                 target: AbilityTarget::SelfChar,
@@ -1053,7 +1122,7 @@ mod tests {
         ]);
 
         let mut passives: PassiveMap = HashMap::new();
-        passives.insert("PowerUp".to_string(), PassiveDef {
+        passives.insert("PowerUp".to_string(), PassiveDef::Triggered {
             trigger: PassiveTrigger::OnBattleStart,
             primitives: vec![Primitive::ApplyStatus {
                 target: AbilityTarget::SelfChar,
@@ -1094,5 +1163,128 @@ mod tests {
         // Should complete without panicking
         let log = BattleState::new(&[char_config], &[enemy], empty_abilities(), empty_passives(), empty_statuses(), 42).run();
         assert!(matches!(log.events().last().unwrap(), BattleEvent::BattleEnd { .. }));
+    }
+
+    // --- Permanent trait tests ---
+
+    #[test]
+    fn trait_passive_applied_at_battle_start() {
+        use crate::abilities::PassiveDef;
+        use crate::models::TraitEffect;
+
+        let mut char_config = make_config("Warrior", 0, vec![
+            (Stat::CON, 10), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 5),
+        ]);
+        char_config.passive = "Thorns".to_string();
+
+        let enemy = make_config("Enemy", 0, vec![
+            (Stat::CON, 10), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("Thorns".to_string(), PassiveDef::Trait {
+            effect: TraitEffect::DamageReflect { amount: 2 },
+        });
+
+        let log = BattleState::new(&[char_config], &[enemy], empty_abilities(), passives, empty_statuses(), 42).run();
+        let has_passive = log.events().iter().any(|e| matches!(e,
+            BattleEvent::PassiveTriggered { passive_name, .. } if passive_name == "Thorns"
+        ));
+        assert!(has_passive, "Trait passive should log PassiveTriggered");
+    }
+
+    #[test]
+    fn damage_reflect_hurts_attacker() {
+        use crate::abilities::PassiveDef;
+        use crate::models::TraitEffect;
+
+        // Defender has DamageReflect, attacker should take reflect damage
+        let attacker = make_config("Attacker", 0, vec![
+            (Stat::CON, 20), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        let mut defender = make_config("Defender", 0, vec![
+            (Stat::CON, 20), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        defender.passive = "Thorns".to_string();
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("Thorns".to_string(), PassiveDef::Trait {
+            effect: TraitEffect::DamageReflect { amount: 2 },
+        });
+
+        let log = BattleState::new(&[attacker], &[defender], empty_abilities(), passives, empty_statuses(), 42).run();
+        let has_reflect = log.events().iter().any(|e| matches!(e, BattleEvent::DamageReflect { .. }));
+        assert!(has_reflect, "Should have DamageReflect events");
+    }
+
+    #[test]
+    fn damage_reflect_can_kill_attacker() {
+        use crate::abilities::PassiveDef;
+        use crate::models::TraitEffect;
+
+        // Attacker has very low HP, defender has high reflect
+        let attacker = make_config("Attacker", 0, vec![
+            (Stat::CON, 2), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+
+        let mut defender = make_config("Defender", 0, vec![
+            (Stat::CON, 50), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 4),
+        ]);
+        defender.passive = "Thorns".to_string();
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("Thorns".to_string(), PassiveDef::Trait {
+            effect: TraitEffect::DamageReflect { amount: 50 },
+        });
+
+        let log = BattleState::new(&[attacker], &[defender], empty_abilities(), passives, empty_statuses(), 42).run();
+
+        // Attacker should die from reflect
+        let attacker_defeated = log.events().iter().any(|e| matches!(e,
+            BattleEvent::Defeat { character_name, .. } if character_name == "Attacker"
+        ));
+        assert!(attacker_defeated, "Attacker should die from reflect damage");
+
+        // Defender should win
+        match log.events().last().unwrap() {
+            BattleEvent::BattleEnd { winner, .. } => assert_eq!(winner, "team_b"),
+            _ => panic!("Expected BattleEnd"),
+        }
+    }
+
+    #[test]
+    fn spi_cost_reduction_in_battle() {
+        use crate::abilities::PassiveDef;
+        use crate::models::TraitEffect;
+
+        // Emperor with SPI cost reduction — should be able to use Crush more
+        let mut emperor = emperor_config();
+        emperor.passive = "Thrift".to_string();
+        emperor.stats.insert(Stat::SPI, 3); // barely enough for Crush(2) without reduction
+
+        let enemy = make_config("Enemy", 0, vec![
+            (Stat::CON, 30), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 3), (Stat::WIS, 3), (Stat::DEX, 4), (Stat::SPI, 4),
+        ]);
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("Thrift".to_string(), PassiveDef::Trait {
+            effect: TraitEffect::SpiCostReduction { amount: 1 },
+        });
+
+        let log = BattleState::new(&[emperor], &[enemy], test_abilities(), passives, empty_statuses(), 42).run();
+
+        // With reduction, Crush costs 1 instead of 2, so should use it more times
+        let crush_count = log.events().iter().filter(|e| matches!(e,
+            BattleEvent::AbilityUsed { ability_name, .. } if ability_name == "Crush"
+        )).count();
+        assert!(crush_count >= 2, "Should use Crush at least twice with cost reduction, got {}", crush_count);
     }
 }

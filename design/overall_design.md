@@ -157,6 +157,49 @@ heal over time
 behavior override
 
 
+Passive System
+Each character has 1 passive chosen from a character-specific list of 4-5 options. Passives define a character's reactive identity — how they behave beyond their active ability choices. A passive has a trigger and a list of primitives that execute when the trigger fires.
+
+Passive triggers:
+
+on_battle_start — fires once at the start of battle. Opening buffs, debuffs, status application. Example: Authority (Emperor) weakens all enemies' STR.
+on_death — fires when this character dies. Example: Collapse (Tower) deals damage to all enemies.
+on_ally_death — fires when any ally (or specifically a companion) dies. Example: Grief (Lovers) gains Empower when a companion falls.
+on_kill — fires when this character kills an enemy. Example: Transformation (Death) gains permanent Fortify on kill.
+on_deal_damage — fires when this character deals damage (basic attack or ability). Example: Venom (Moon) applies 1 Poison on hit.
+on_take_damage — fires when this character takes damage. Example: Fury (Chariot) gains 1 Empower:STR when hit.
+on_turn_start — fires at the start of each of this character's turns, before action selection. Example: Fortune's Wheel (Wheel of Fortune) randomly buffs or debuffs self.
+permanent_trait — always active, modifies character behavior rather than executing primitives. These are not trigger-based; they modify engine rules directly. Example: Resourcefulness (Magician) reduces ability SPI costs by 1.
+
+Permanent traits are the exception — they don't execute primitives on a trigger, they alter how the engine processes the character. Each trait is a named behavior recognized by the engine, stored as an enum variant on CharacterState. Adding a new trait requires engine code at the relevant code path.
+
+Trait categories and examples:
+
+Resource modification:
+- spi_cost_reduction { amount } — abilities cost less SPI (minimum 1). Magician's Resourcefulness.
+- spi_regen_bonus { amount } — recovers extra SPI each regen tick. Hierophant's devotion.
+
+Status modification:
+- status_tick_bonus { status, extra_stacks } — named status ticks extra stacks per turn on targets afflicted by this character. "Bleed applied by this character ticks 2 stacks instead of 1."
+- debuff_resistance { count } — first N debuffs applied to this character are negated. Fool's Innocence.
+- status_potency { extra_stacks } — statuses applied by this character gain extra stacks.
+
+Companion/formation override:
+- universal_companion — this character counts as a companion to all allies regardless of position. Lovers' bond.
+- row_bypass — can target any row, ignoring formation protection. Hermit sees through illusions.
+
+Targeting override:
+- taunt_aura — enemies must target this character while it lives (or while it's in the frontmost row). Can coexist with the targeting system.
+
+Speed/turn modification:
+- no_speed_escalation — speed reset is always base DEX, doesn't escalate with +2 per turn. Chariot's relentless pace.
+- first_strike — acts before anyone else on the first step regardless of DEX. Star's foresight.
+
+Damage modification:
+- damage_floor { amount } — basic attacks and ability damage deal at least this much, overriding the max(ATK - DEF, 1) floor.
+- damage_reflect { amount } — attackers take fixed damage when they hit this character.
+
+
 Ability Architecture
 Two tier system:
 
@@ -169,18 +212,14 @@ deal_physical_damage
 deal_magical_damage
 restore_hp
 restore_spi
-apply_buff
-apply_debuff
+apply_status
+remove_status
 modify_targeting
 
 Ability triggers:
 
-on_turn — normal rule based activation
-on_death — Tower collapse etc
-on_hit — reactive abilities
-on_round_start — passive regeneration
-on_battle_start — opening effects like Authority
-on_row_cleared — formation reactive abilities
+on_turn — normal rule based activation via the rule system
+on_round_start — passive regeneration or start-of-round effects
 
 
 Tech Stack
