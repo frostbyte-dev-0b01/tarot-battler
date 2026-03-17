@@ -7,6 +7,10 @@ const replayDemoButton = document.querySelector("#replay-demo-button");
 const replayValidationOutput = document.querySelector("#replay-validation-output");
 const teamABoard = document.querySelector("#team-a-board");
 const teamBBoard = document.querySelector("#team-b-board");
+const appState = {
+  replay: null,
+  selectedEventIndex: -1,
+};
 const metadataFields = {
   seed: document.querySelector('[data-meta-field="seed"]'),
   winner: document.querySelector('[data-meta-field="winner"]'),
@@ -74,7 +78,46 @@ const demoReplay = {
   },
   events: [
     { tick: 0, type: "battle_start" },
-    { tick: 3, type: "ability_used", actor_id: "the_emperor", ability: "Crush", mp_cost: 2 },
+    { tick: 2, type: "turn_start", actor_id: "the_emperor", current_hp: 14, current_mp: 4 },
+    { tick: 2, type: "ability_used", actor_id: "the_emperor", ability: "Crush", mp_cost: 2 },
+    {
+      tick: 2,
+      type: "damage",
+      source_id: "the_emperor",
+      target_id: "the_fool",
+      amount: 4,
+      damage_kind: "physical",
+      source_kind: "ability",
+      source_name: "Crush",
+      target_hp_after: 8,
+    },
+    {
+      tick: 3,
+      type: "status_applied",
+      source_id: "the_star",
+      target_id: "the_hermit",
+      status: "Regen",
+      stacks_added: 1,
+      stacks_after: 1,
+    },
+    {
+      tick: 4,
+      type: "resource_changed",
+      actor_id: "the_emperor",
+      resource: "mp",
+      delta: 2,
+      value_after: 4,
+      reason: "turn_regen",
+    },
+    {
+      tick: 5,
+      type: "status_tick",
+      target_id: "the_hermit",
+      status: "Regen",
+      amount: 2,
+      kind: "heal",
+      target_hp_after: 12,
+    },
     { tick: 7, type: "battle_end", winner: "team_a" },
   ],
 };
@@ -110,9 +153,13 @@ replayLoadButton.addEventListener("click", () => {
     const validation = validateReplay(parsedReplay);
     renderReplayValidation(validation);
     if (validation.ok) {
+      appState.replay = parsedReplay;
+      appState.selectedEventIndex = -1;
       renderReplayMetadata(parsedReplay);
-      renderBoards(parsedReplay);
+      renderCurrentReplay();
     } else {
+      appState.replay = null;
+      appState.selectedEventIndex = -1;
       resetMetadata();
       resetBoards();
     }
@@ -121,6 +168,8 @@ replayLoadButton.addEventListener("click", () => {
       ok: false,
       errors: [`Could not parse replay JSON: ${error.message}`],
     });
+    appState.replay = null;
+    appState.selectedEventIndex = -1;
     resetMetadata();
     resetBoards();
   }
@@ -146,6 +195,8 @@ replayFileInput.addEventListener("change", async (event) => {
       ok: false,
       errors: [`Could not read replay file: ${error.message}`],
     });
+    appState.replay = null;
+    appState.selectedEventIndex = -1;
     resetMetadata();
     resetBoards();
   }
@@ -226,9 +277,19 @@ function resetMetadata() {
   }
 }
 
-function renderBoards(replay) {
-  renderTeamBoard(teamABoard, replay.teams.team_a.characters, "team_a");
-  renderTeamBoard(teamBBoard, replay.teams.team_b.characters, "team_b");
+function renderCurrentReplay() {
+  if (!appState.replay) {
+    resetBoards();
+    return;
+  }
+
+  const replayState = buildReplayState(appState.replay, appState.selectedEventIndex);
+  renderBoards(replayState);
+}
+
+function renderBoards(replayState) {
+  renderTeamBoard(teamABoard, replayState.teams.team_a.characters, "team_a");
+  renderTeamBoard(teamBBoard, replayState.teams.team_b.characters, "team_b");
 }
 
 function resetBoards() {
@@ -253,7 +314,9 @@ function renderTeamBoard(container, characters, teamKey) {
   const rowsMarkup = rowLabels.map((label, rowIndex) => {
     const cellsMarkup = Array.from({ length: 4 }, (_, colIndex) => {
       const character = occupantMap.get(`${rowIndex}:${colIndex}`);
-      return `<div class="grid-cell ${character ? "grid-cell-occupied" : ""}">${
+      return `<div class="grid-cell ${character ? "grid-cell-occupied" : ""} ${
+        character && !character.alive ? "grid-cell-defeated" : ""
+      }">${
         character ? renderUnitCard(character) : ""
       }</div>`;
     }).join("");
@@ -272,8 +335,9 @@ function renderTeamBoard(container, characters, teamKey) {
 }
 
 function renderUnitCard(character) {
-  const hpValue = Number(character.max_hp) || 0;
-  const mpValue = Number(character.max_mp) || 0;
+  const hpValue = Number(character.current_hp) || 0;
+  const mpValue = Number(character.current_mp) || 0;
+  const statusesText = formatStatuses(character.statuses);
 
   return `
     <article class="unit-card">
@@ -282,10 +346,11 @@ function renderUnitCard(character) {
         <span class="unit-card-position">r${character.position.row} c${character.position.col}</span>
       </div>
       <div class="unit-card-bars">
-        ${renderBar("HP", hpValue, hpValue, "hp")}
-        ${renderBar("MP", mpValue, mpValue, "mp")}
+        ${renderBar("HP", hpValue, character.max_hp, "hp")}
+        ${renderBar("MP", mpValue, character.max_mp, "mp")}
       </div>
       <div class="unit-card-passive">${escapeHtml(character.passive || "No passive")}</div>
+      <div class="unit-card-statuses">${escapeHtml(statusesText)}</div>
     </article>
   `;
 }
@@ -328,6 +393,248 @@ function renderReplayValidation(result) {
 
 function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function buildReplayState(replay, selectedEventIndex) {
+  const state = {
+    teams: {
+      team_a: {
+        name: replay.teams.team_a.name,
+        characters: replay.teams.team_a.characters.map(createCharacterState),
+      },
+      team_b: {
+        name: replay.teams.team_b.name,
+        characters: replay.teams.team_b.characters.map(createCharacterState),
+      },
+    },
+  };
+
+  const characterIndex = indexReplayCharacters(state);
+  const cappedEventIndex = Math.min(selectedEventIndex, replay.events.length - 1);
+
+  for (let index = 0; index <= cappedEventIndex; index += 1) {
+    applyReplayEvent(characterIndex, replay.events[index]);
+  }
+
+  return state;
+}
+
+function createCharacterState(character) {
+  return {
+    ...character,
+    current_hp: Number(character.max_hp) || 0,
+    current_mp: Number(character.max_mp) || 0,
+    alive: true,
+    statuses: {},
+  };
+}
+
+function indexReplayCharacters(state) {
+  const characterIndex = new Map();
+
+  for (const team of Object.values(state.teams)) {
+    for (const character of team.characters) {
+      characterIndex.set(character.id, character);
+    }
+  }
+
+  return characterIndex;
+}
+
+function applyReplayEvent(characterIndex, event) {
+  switch (event.type) {
+    case "battle_start":
+    case "basic_attack":
+    case "passive_triggered":
+    case "turn_skipped":
+    case "battle_end":
+      return;
+    case "turn_start":
+      syncTurnStart(characterIndex, event);
+      return;
+    case "ability_used":
+      spendEventMp(characterIndex, event);
+      return;
+    case "damage":
+      applyDamageEvent(characterIndex, event);
+      return;
+    case "healing":
+      applyHealingEvent(characterIndex, event);
+      return;
+    case "status_applied":
+      applyStatusEvent(characterIndex, event);
+      return;
+    case "status_removed":
+      removeStatusEvent(characterIndex, event);
+      return;
+    case "status_tick":
+      applyStatusTickEvent(characterIndex, event);
+      return;
+    case "resource_changed":
+      applyResourceChangeEvent(characterIndex, event);
+      return;
+    case "defeat":
+      applyDefeatEvent(characterIndex, event);
+      return;
+    default:
+      return;
+  }
+}
+
+function syncTurnStart(characterIndex, event) {
+  const character = characterIndex.get(event.actor_id);
+  if (!character) {
+    return;
+  }
+
+  if (typeof event.current_hp === "number") {
+    character.current_hp = clampValue(event.current_hp, 0, character.max_hp);
+  }
+
+  if (typeof event.current_mp === "number") {
+    character.current_mp = clampValue(event.current_mp, 0, character.max_mp);
+  }
+}
+
+function spendEventMp(characterIndex, event) {
+  const character = characterIndex.get(event.actor_id);
+  if (!character || typeof event.mp_cost !== "number") {
+    return;
+  }
+
+  character.current_mp = clampValue(character.current_mp - event.mp_cost, 0, character.max_mp);
+}
+
+function applyDamageEvent(characterIndex, event) {
+  const target = characterIndex.get(event.target_id);
+  if (!target) {
+    return;
+  }
+
+  if (typeof event.target_hp_after === "number") {
+    target.current_hp = clampValue(event.target_hp_after, 0, target.max_hp);
+  } else if (typeof event.amount === "number") {
+    target.current_hp = clampValue(target.current_hp - event.amount, 0, target.max_hp);
+  }
+
+  if (target.current_hp <= 0) {
+    target.alive = false;
+  }
+}
+
+function applyHealingEvent(characterIndex, event) {
+  const target = characterIndex.get(event.target_id);
+  if (!target) {
+    return;
+  }
+
+  if (typeof event.target_hp_after === "number") {
+    target.current_hp = clampValue(event.target_hp_after, 0, target.max_hp);
+  } else if (typeof event.amount === "number") {
+    target.current_hp = clampValue(target.current_hp + event.amount, 0, target.max_hp);
+  }
+
+  if (target.current_hp > 0) {
+    target.alive = true;
+  }
+}
+
+function applyStatusEvent(characterIndex, event) {
+  const target = characterIndex.get(event.target_id);
+  if (!target || typeof event.status !== "string") {
+    return;
+  }
+
+  if (typeof event.stacks_after === "number") {
+    target.statuses[event.status] = Math.max(event.stacks_after, 0);
+    return;
+  }
+
+  const currentStacks = target.statuses[event.status] ?? 0;
+  const stacksAdded = typeof event.stacks_added === "number" ? event.stacks_added : 0;
+  target.statuses[event.status] = Math.max(currentStacks + stacksAdded, 0);
+}
+
+function removeStatusEvent(characterIndex, event) {
+  const target = characterIndex.get(event.target_id);
+  if (!target || typeof event.status !== "string") {
+    return;
+  }
+
+  if (typeof event.stacks_after === "number") {
+    if (event.stacks_after <= 0) {
+      delete target.statuses[event.status];
+    } else {
+      target.statuses[event.status] = event.stacks_after;
+    }
+    return;
+  }
+
+  const currentStacks = target.statuses[event.status] ?? 0;
+  const removed = typeof event.stacks_removed === "number" ? event.stacks_removed : currentStacks;
+  const nextStacks = Math.max(currentStacks - removed, 0);
+  if (nextStacks <= 0) {
+    delete target.statuses[event.status];
+  } else {
+    target.statuses[event.status] = nextStacks;
+  }
+}
+
+function applyStatusTickEvent(characterIndex, event) {
+  const target = characterIndex.get(event.target_id);
+  if (!target) {
+    return;
+  }
+
+  if (event.kind === "heal") {
+    applyHealingEvent(characterIndex, event);
+    return;
+  }
+
+  applyDamageEvent(characterIndex, event);
+}
+
+function applyResourceChangeEvent(characterIndex, event) {
+  if (event.resource !== "mp") {
+    return;
+  }
+
+  const target = characterIndex.get(event.actor_id);
+  if (!target) {
+    return;
+  }
+
+  if (typeof event.value_after === "number") {
+    target.current_mp = clampValue(event.value_after, 0, target.max_mp);
+    return;
+  }
+
+  if (typeof event.delta === "number") {
+    target.current_mp = clampValue(target.current_mp + event.delta, 0, target.max_mp);
+  }
+}
+
+function applyDefeatEvent(characterIndex, event) {
+  const character = characterIndex.get(event.actor_id);
+  if (!character) {
+    return;
+  }
+
+  character.alive = false;
+  character.current_hp = 0;
+}
+
+function clampValue(value, minValue, maxValue) {
+  return Math.max(minValue, Math.min(maxValue, value));
+}
+
+function formatStatuses(statuses) {
+  const entries = Object.entries(statuses ?? {}).filter(([, stacks]) => stacks > 0);
+  if (entries.length === 0) {
+    return "No statuses";
+  }
+
+  return entries.map(([status, stacks]) => `${status} x${stacks}`).join(" • ");
 }
 
 function escapeHtml(value) {

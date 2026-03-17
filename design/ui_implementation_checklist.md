@@ -137,34 +137,38 @@ Goal:
 
 Tasks:
 
-- [ ] define in-memory replay state initialized from the replay snapshot
-- [ ] track per-character:
-  - [ ] current HP
-  - [ ] current MP
-  - [ ] alive or defeated
-  - [ ] statuses and stacks
-- [ ] add event application logic for the minimum event set:
-  - [ ] `battle_start`
-  - [ ] `turn_start`
-  - [ ] `basic_attack`
-  - [ ] `ability_used`
-  - [ ] `damage`
-  - [ ] `healing`
-  - [ ] `status_applied`
-  - [ ] `status_removed`
-  - [ ] `status_tick`
-  - [ ] `passive_triggered`
-  - [ ] `turn_skipped`
-  - [ ] `resource_changed`
-  - [ ] `defeat`
-  - [ ] `battle_end`
-- [ ] rebuild board state from event index `0..N`
+- [x] define in-memory replay state initialized from the replay snapshot
+- [x] track per-character:
+  - [x] current HP
+  - [x] current MP
+  - [x] alive or defeated
+  - [x] statuses and stacks
+- [x] add event application logic for the minimum event set:
+  - [x] `battle_start`
+  - [x] `turn_start`
+  - [x] `basic_attack`
+  - [x] `ability_used`
+  - [x] `damage`
+  - [x] `healing`
+  - [x] `status_applied`
+  - [x] `status_removed`
+  - [x] `status_tick`
+  - [x] `passive_triggered`
+  - [x] `turn_skipped`
+  - [x] `resource_changed`
+  - [x] `defeat`
+  - [x] `battle_end`
+- [x] rebuild board state from event index `0..N`
 
 Acceptance criteria:
 
 - replay state can be initialized and advanced deterministically
 - current HP, MP, and defeat state match the selected event index
 - the UI does not rely only on raw log text to describe state
+
+Status:
+
+- completed with an in-memory replay state model and event application pipeline feeding board rendering
 
 ## Phase 5: Playback Controls
 

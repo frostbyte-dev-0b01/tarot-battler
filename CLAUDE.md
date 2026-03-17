@@ -38,7 +38,7 @@ All cargo commands should be run from `battle_engine/`.
 
 - `index.html` — static shell for Team Builder and Replay Viewer tabs
 - `styles.css` — responsive layout and placeholder styling for the dev tool
-- `app.js` — lightweight UI bootstrapping, currently tab switching plus replay loading, validation, metadata rendering, and snapshot-based board rendering
+- `app.js` — lightweight UI bootstrapping, currently tab switching plus replay loading, validation, metadata rendering, snapshot board rendering, and in-memory replay state application
 - `sample-data/` — placeholder location for replay and team JSON fixtures
 
 ### Battle Engine (`battle_engine/`)

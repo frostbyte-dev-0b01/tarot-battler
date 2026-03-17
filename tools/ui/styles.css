@@ -410,6 +410,11 @@ select {
   padding: 10px;
 }
 
+.grid-cell-defeated {
+  opacity: 0.5;
+  filter: saturate(0.65);
+}
+
 .team-board-a .grid-cell-occupied {
   background:
     linear-gradient(180deg, rgba(162, 59, 42, 0.14), rgba(162, 59, 42, 0.04)),
@@ -444,9 +449,18 @@ select {
 
 .unit-card-position,
 .unit-card-passive,
-.unit-card-placeholder {
+.unit-card-placeholder,
+.unit-card-statuses {
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.unit-card-statuses {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
 }
 
 .unit-card-bars {
