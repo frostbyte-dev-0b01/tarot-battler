@@ -104,13 +104,77 @@
         <section class="workspace" id="replay-viewer" aria-labelledby="replay-viewer-heading">
           <div class="workspace-header">
             <div>
-              <p class="eyebrow">Phase 1</p>
+              <p class="eyebrow">Phase 2</p>
               <h2 id="replay-viewer-heading">Replay Viewer</h2>
             </div>
             <p class="workspace-summary">
-              Placeholder layout for inspector, battle board, playback controls, and timeline.
+              Replay loading, validation, and metadata display are now wired before board playback.
             </p>
           </div>
+
+          <section class="panel panel-replay-loader" aria-labelledby="replay-loader-heading">
+            <div class="panel-header">
+              <p class="panel-kicker">Replay Input</p>
+              <h3 id="replay-loader-heading">Load Replay JSON</h3>
+            </div>
+            <div class="panel-body replay-loader-body">
+              <div class="replay-loader-controls">
+                <label class="field-group">
+                  <span>Replay file</span>
+                  <input id="replay-file-input" type="file" accept=".json,application/json">
+                </label>
+                <div class="button-row">
+                  <button id="replay-load-button" type="button">Load Pasted Replay</button>
+                  <button id="replay-demo-button" type="button" class="button-secondary">Load Demo Replay</button>
+                </div>
+              </div>
+
+              <label class="field-group field-group-textarea" for="replay-json-input">
+                <span>Replay JSON</span>
+                <textarea
+                  id="replay-json-input"
+                  rows="10"
+                  spellcheck="false"
+                  placeholder='Paste replay JSON here, then click "Load Pasted Replay".'
+                ></textarea>
+              </label>
+
+              <div class="status-panels">
+                <section class="status-panel" aria-labelledby="replay-metadata-heading">
+                  <h4 id="replay-metadata-heading">Replay Metadata</h4>
+                  <dl id="replay-metadata" class="metadata-grid">
+                    <div>
+                      <dt>Seed</dt>
+                      <dd data-meta-field="seed">-</dd>
+                    </div>
+                    <div>
+                      <dt>Winner</dt>
+                      <dd data-meta-field="winner">-</dd>
+                    </div>
+                    <div>
+                      <dt>Final Tick</dt>
+                      <dd data-meta-field="tick_count">-</dd>
+                    </div>
+                    <div>
+                      <dt>Team A</dt>
+                      <dd data-meta-field="team_a">-</dd>
+                    </div>
+                    <div>
+                      <dt>Team B</dt>
+                      <dd data-meta-field="team_b">-</dd>
+                    </div>
+                  </dl>
+                </section>
+
+                <section class="status-panel" aria-labelledby="replay-validation-heading">
+                  <h4 id="replay-validation-heading">Validation</h4>
+                  <div id="replay-validation-output" class="message-panel message-panel-idle">
+                    Load a replay JSON file or paste JSON to validate it.
+                  </div>
+                </section>
+              </div>
+            </div>
+          </section>
 
           <div class="replay-layout">
             <aside class="panel panel-inspector" aria-labelledby="inspector-heading">

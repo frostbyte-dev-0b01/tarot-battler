@@ -81,21 +81,25 @@ Goal:
 
 Tasks:
 
-- [ ] add replay file input
-- [ ] add replay JSON paste area or sample replay loader
-- [ ] parse replay JSON safely with user-visible error messages
-- [ ] validate required top-level fields from `design/replay_schema.md`
-- [ ] render metadata summary:
-  - [ ] seed
-  - [ ] winner
-  - [ ] final tick count
-  - [ ] team names
+- [x] add replay file input
+- [x] add replay JSON paste area or sample replay loader
+- [x] parse replay JSON safely with user-visible error messages
+- [x] validate required top-level fields from `design/replay_schema.md`
+- [x] render metadata summary:
+  - [x] seed
+  - [x] winner
+  - [x] final tick count
+  - [x] team names
 
 Acceptance criteria:
 
 - invalid replay JSON shows readable validation errors
 - valid replay JSON loads without console-only debugging
 - metadata appears in the UI after load
+
+Status:
+
+- completed with replay input, demo replay loading, top-level validation, and metadata rendering
 
 ## Phase 3: Initial Board Rendering
 
