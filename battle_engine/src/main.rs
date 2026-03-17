@@ -20,6 +20,8 @@ fn main() {
         .expect("Failed to load passives");
     let statuses = loader::load_statuses(&data_dir.join("statuses.json"))
         .expect("Failed to load statuses");
+    loader::validate_content(&characters, &abilities, &passives, &statuses)
+        .expect("Invalid battle content");
 
     // First 5 characters = Team A, last 5 = Team B
     let (team_a, team_b) = characters.split_at(characters.len() / 2);

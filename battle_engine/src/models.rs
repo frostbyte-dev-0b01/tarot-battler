@@ -125,6 +125,7 @@ pub struct CharacterState {
     id: u32,
     base_name: String,
     passive: String,
+    actives: Vec<String>,
     base_stats: HashMap<Stat, u32>,
     position: Position,
     curr_hp: u32,
@@ -150,6 +151,7 @@ impl CharacterState {
             id,
             base_name: config.base_name.clone(),
             passive: config.passive.clone(),
+            actives: config.actives.clone(),
             base_stats: config.stats.clone(),
             position: config.position.clone(),
             curr_hp: hp,
@@ -177,6 +179,10 @@ impl CharacterState {
 
     pub fn passive(&self) -> &str {
         &self.passive
+    }
+
+    pub fn has_active(&self, ability_name: &str) -> bool {
+        self.actives.iter().any(|active| active == ability_name)
     }
 
     pub fn is_incapacitated(&self) -> bool {
@@ -336,10 +342,6 @@ impl CharacterState {
             QueryValue::Spi => self.curr_spi,
             QueryValue::UseCount | QueryValue::TurnsSinceUse => 0,
         }
-    }
-
-    pub fn actor_turn_count(&self) -> u32 {
-        self.actor_turn_count
     }
 
     pub fn increment_turn_count(&mut self) {

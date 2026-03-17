@@ -128,7 +128,7 @@ pub fn execute_ability(
 /// Returns a list of (target_id, damage) pairs for defeat checking.
 pub fn execute_primitives(
     actor_idx: usize,
-    source_name: &str,
+    _source_name: &str,
     primitives: &[Primitive],
     actor_team: &mut [CharacterState],
     enemy_team: &mut [CharacterState],
@@ -213,28 +213,22 @@ pub fn execute_primitives(
             } => {
                 if let Some(def) = status_defs.get(status) {
                     let key = status_key(status, stat.as_ref());
-                    // Determine targeting based on behavior:
-                    // stat-mod with negative magnitude or damage → enemy
-                    // stat-mod with positive magnitude or heal/skip → ally
-                    let targets_enemy = match &def.behavior {
-                        crate::statuses::StatusBehavior::DamagePerStack { .. } => true,
-                        crate::statuses::StatusBehavior::StatModPerStack { magnitude } => *magnitude < 0,
-                        _ => false,
-                    };
-
-                    if targets_enemy {
+                    match target {
+                        AbilityTarget::CurrentTarget | AbilityTarget::AllEnemies => {
                         let target_indices = resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
                         for tidx in target_indices {
                             if enemy_team[tidx].is_alive() {
                                 enemy_team[tidx].add_status(&key, *stacks, actor_id, def, stat.clone());
                             }
                         }
-                    } else {
+                        }
+                        AbilityTarget::SelfChar | AbilityTarget::Companions | AbilityTarget::AllAllies => {
                         let target_indices = resolve_ally_targets(target, actor_idx, actor_team);
                         for tidx in target_indices {
                             if actor_team[tidx].is_alive() {
                                 actor_team[tidx].add_status(&key, *stacks, actor_id, def, stat.clone());
                             }
+                        }
                         }
                     }
                 }
@@ -246,10 +240,20 @@ pub fn execute_primitives(
                 stacks,
             } => {
                 let key = status_key(status, stat.as_ref());
-                // RemoveStatus can target either team — use ally targets
-                let target_indices = resolve_ally_targets(target, actor_idx, actor_team);
-                for tidx in target_indices {
-                    actor_team[tidx].remove_status(&key, *stacks);
+                match target {
+                    AbilityTarget::CurrentTarget | AbilityTarget::AllEnemies => {
+                        let target_indices =
+                            resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
+                        for tidx in target_indices {
+                            enemy_team[tidx].remove_status(&key, *stacks);
+                        }
+                    }
+                    AbilityTarget::SelfChar | AbilityTarget::Companions | AbilityTarget::AllAllies => {
+                        let target_indices = resolve_ally_targets(target, actor_idx, actor_team);
+                        for tidx in target_indices {
+                            actor_team[tidx].remove_status(&key, *stacks);
+                        }
+                    }
                 }
             }
         }
@@ -491,6 +495,87 @@ mod tests {
 
         execute_ability(0, "Curse", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &statuses);
         assert_eq!(enemy_team[0].get_eff_stat(&Stat::STR), 8); // 10 - 2
+    }
+
+    #[test]
+    fn remove_status_clears_self_status() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::CON, 10)])];
+
+        let bleed = statuses.get("Bleed").unwrap();
+        actor_team[0].add_status("Bleed", 2, 99, bleed, None);
+
+        let ability = AbilityDef {
+            spi_cost: 1,
+            primitives: vec![Primitive::RemoveStatus {
+                target: AbilityTarget::SelfChar,
+                status: "Bleed".to_string(),
+                stat: None,
+                stacks: 1,
+            }],
+        };
+
+        execute_ability(0, "Cleanse", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &statuses);
+        assert_eq!(actor_team[0].status_stacks("Bleed"), 1);
+    }
+
+    #[test]
+    fn remove_status_clears_current_target_status() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::CON, 10)])];
+        actor_team[0].set_target(1);
+
+        let bleed = statuses.get("Bleed").unwrap();
+        enemy_team[0].add_status("Bleed", 3, 99, bleed, None);
+
+        let ability = AbilityDef {
+            spi_cost: 1,
+            primitives: vec![Primitive::RemoveStatus {
+                target: AbilityTarget::CurrentTarget,
+                status: "Bleed".to_string(),
+                stat: None,
+                stacks: 2,
+            }],
+        };
+
+        execute_ability(0, "Dispel", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &statuses);
+        assert_eq!(enemy_team[0].status_stacks("Bleed"), 1);
+    }
+
+    #[test]
+    fn remove_status_clears_all_enemy_statuses() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5)])];
+        let mut enemy_team = vec![
+            make_char(1, vec![(Stat::CON, 10)]),
+            make_char(2, vec![(Stat::CON, 10)]),
+        ];
+
+        let bleed = statuses.get("Bleed").unwrap();
+        enemy_team[0].add_status("Bleed", 1, 99, bleed, None);
+        enemy_team[1].add_status("Bleed", 1, 99, bleed, None);
+
+        let ability = AbilityDef {
+            spi_cost: 1,
+            primitives: vec![Primitive::RemoveStatus {
+                target: AbilityTarget::AllEnemies,
+                status: "Bleed".to_string(),
+                stat: None,
+                stacks: 1,
+            }],
+        };
+
+        execute_ability(0, "MassDispel", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &statuses);
+        assert_eq!(enemy_team[0].status_stacks("Bleed"), 0);
+        assert_eq!(enemy_team[1].status_stacks("Bleed"), 0);
     }
 
     #[test]

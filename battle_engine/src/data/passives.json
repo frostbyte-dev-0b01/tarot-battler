@@ -1,9 +1,24 @@
 {
+  "As Above So Below": {
+    "type": "trait",
+    "effect": { "kind": "spi_cost_reduction", "amount": 1 }
+  },
   "Authority": {
     "type": "triggered",
     "trigger": "on_battle_start",
     "primitives": [
       { "kind": "apply_status", "target": "all_enemies", "status": "Weaken", "stat": "STR", "stacks": 1 }
+    ]
+  },
+  "Beginner's Luck": {
+    "type": "trait",
+    "effect": { "kind": "debuff_resistance", "count": 2 }
+  },
+  "Collapse": {
+    "type": "triggered",
+    "trigger": "on_death",
+    "primitives": [
+      { "kind": "deal_physical_damage", "target": "all_enemies", "multiplier": 2.0 }
     ]
   },
   "Hope": {
@@ -13,6 +28,13 @@
       { "kind": "apply_status", "target": "all_allies", "status": "Empower", "stat": "RES", "stacks": 1 }
     ]
   },
+  "Illusion": {
+    "type": "triggered",
+    "trigger": "on_take_damage",
+    "primitives": [
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "WIS", "stacks": 1 }
+    ]
+  },
   "Inner Fire": {
     "type": "triggered",
     "trigger": "on_battle_start",
@@ -20,35 +42,16 @@
       { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 2 }
     ]
   },
-  "Resourcefulness": {
-    "type": "trait",
-    "effect": { "kind": "spi_cost_reduction", "amount": 1 }
-  },
-  "Innocence": {
-    "type": "trait",
-    "effect": { "kind": "debuff_resistance", "count": 3 }
-  },
-  "Thorns": {
-    "type": "trait",
-    "effect": { "kind": "damage_reflect", "amount": 2 }
+  "Meditation": {
+    "type": "triggered",
+    "trigger": "on_turn_start",
+    "primitives": [
+      { "kind": "restore_spi", "target": "self", "amount": 1 }
+    ]
   },
   "Momentum": {
     "type": "triggered",
     "trigger": "on_deal_damage",
-    "primitives": [
-      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 1 }
-    ]
-  },
-  "Collapse": {
-    "type": "triggered",
-    "trigger": "on_death",
-    "primitives": [
-      { "kind": "deal_physical_damage", "target": "all_enemies", "multiplier": 2.0 }
-    ]
-  },
-  "Vengeance": {
-    "type": "triggered",
-    "trigger": "on_take_damage",
     "primitives": [
       { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 1 }
     ]
@@ -60,11 +63,33 @@
       { "kind": "restore_hp", "target": "self", "amount": 5 }
     ]
   },
-  "Meditation": {
+  "Resourcefulness": {
+    "type": "trait",
+    "effect": { "kind": "spi_cost_reduction", "amount": 1 }
+  },
+  "Solitude": {
     "type": "triggered",
     "trigger": "on_turn_start",
     "primitives": [
-      { "kind": "restore_spi", "target": "self", "amount": 1 }
+      { "kind": "restore_hp", "target": "self", "amount": 2 }
+    ]
+  },
+  "Thorns": {
+    "type": "trait",
+    "effect": { "kind": "damage_reflect", "amount": 2 }
+  },
+  "Vengeance": {
+    "type": "triggered",
+    "trigger": "on_take_damage",
+    "primitives": [
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 1 }
+    ]
+  },
+  "Veil of Mystery": {
+    "type": "triggered",
+    "trigger": "on_battle_start",
+    "primitives": [
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "WIS", "stacks": 1 }
     ]
   }
 }

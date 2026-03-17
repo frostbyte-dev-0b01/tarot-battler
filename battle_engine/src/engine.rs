@@ -1065,6 +1065,7 @@ mod tests {
             (Stat::FOR, 3), (Stat::WIS, 2), (Stat::DEX, 4), (Stat::SPI, 5),
             (Stat::FOC, 5), (Stat::RES, 3),
         ]);
+        config.actives = vec!["Crush".to_string(), "Embolden".to_string()];
         config.rules = vec![
             Rule {
                 ability: "Crush".to_string(),
@@ -1163,6 +1164,7 @@ mod tests {
             (Stat::CON, 20), (Stat::STR, 6), (Stat::INT, 3),
             (Stat::FOR, 5), (Stat::WIS, 3), (Stat::DEX, 5), (Stat::SPI, 5),
         ]);
+        attacker.actives = vec!["Poison".to_string()];
         attacker.rules = vec![Rule {
             ability: "Poison".to_string(),
             conditions: Vec::new(),

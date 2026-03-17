@@ -13,6 +13,10 @@ pub fn evaluate_rules(
     abilities: &AbilityMap,
 ) -> Option<String> {
     for rule in actor.rules() {
+        if !actor.has_active(&rule.ability) {
+            continue;
+        }
+
         let ability_def = match abilities.get(&rule.ability) {
             Some(def) => def,
             None => continue,
@@ -120,7 +124,7 @@ mod tests {
         let config = CharacterConfig {
             base_name: format!("Char{}", id),
             passive: String::new(),
-            actives: Vec::new(),
+            actives: rules.iter().map(|r| r.ability.clone()).collect(),
             item: None,
             position: Position { row: 0, col: 0 },
             stats: stats.into_iter().collect(),
@@ -273,6 +277,25 @@ mod tests {
         let mut target_low = make_char(1, vec![(Stat::CON, 10)]);
         target_low.take_damage(18); // HP=2
         assert_eq!(evaluate_rules(&actor, Some(&target_low), &[], &abilities).as_deref(), Some("Crush"));
+    }
+
+    #[test]
+    fn unequipped_rule_ability_is_skipped() {
+        let actor = CharacterState::from_config(0, &CharacterConfig {
+            base_name: "Char0".to_string(),
+            passive: String::new(),
+            actives: vec!["Embolden".to_string()],
+            item: None,
+            position: Position { row: 0, col: 0 },
+            stats: vec![(Stat::SPI, 5)].into_iter().collect(),
+            rules: vec![Rule {
+                ability: "Crush".to_string(),
+                conditions: Vec::new(),
+            }],
+        });
+        let abilities = make_abilities();
+        let result = evaluate_rules(&actor, None, &[], &abilities);
+        assert_eq!(result, None);
     }
 
     #[test]
