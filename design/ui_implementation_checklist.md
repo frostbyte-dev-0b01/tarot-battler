@@ -360,17 +360,21 @@ Goal:
 
 Tasks:
 
-- [ ] make board tiles visually distinct by team
-- [ ] mute defeated units clearly
-- [ ] improve HP and MP bar readability
-- [ ] make status summaries compact and scannable
-- [ ] improve responsive layout for narrower windows
-- [ ] ensure keyboard focus works reasonably for core controls
+- [x] make board tiles visually distinct by team
+- [x] mute defeated units clearly
+- [x] improve HP and MP bar readability
+- [x] make status summaries compact and scannable
+- [x] improve responsive layout for narrower windows
+- [x] ensure keyboard focus works reasonably for core controls
 
 Acceptance criteria:
 
 - tool feels intentionally usable, not only technically functional
 - replay analysis is faster than reading raw JSON
+
+Status:
+
+- completed with responsive editor improvements, better focus treatment, clearer disabled states, and readability polish across replay and builder views
 
 ## Recommended Build Order
 

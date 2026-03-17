@@ -41,6 +41,7 @@ const replayEventLabel = document.querySelector("#replay-event-label");
 const replayTickDisplay = document.querySelector("#replay-tick-display");
 const timelineMajorOnlyInput = document.querySelector("#timeline-major-only");
 const timelineSelectedOnlyInput = document.querySelector("#timeline-selected-only");
+const timelineSelectedOnlyLabel = timelineSelectedOnlyInput.closest(".toggle-pill");
 const timelineList = document.querySelector("#timeline-list");
 const inspectorPanel = document.querySelector("#inspector-panel");
 const teamABoard = document.querySelector("#team-a-board");
@@ -527,6 +528,11 @@ function renderPlaybackControls() {
   replayPauseButton.disabled = appState.playbackTimerId === null;
   replayEventSlider.max = String(sliderMax);
   replayEventSlider.value = String(sliderValue);
+  timelineSelectedOnlyInput.disabled = !appState.selectedCharacterId;
+  timelineSelectedOnlyLabel?.classList.toggle("is-disabled", !appState.selectedCharacterId);
+  if (!appState.selectedCharacterId) {
+    timelineSelectedOnlyInput.checked = false;
+  }
 }
 
 function renderTimeline() {
