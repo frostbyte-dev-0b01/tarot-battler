@@ -16,6 +16,7 @@ const replayTickDisplay = document.querySelector("#replay-tick-display");
 const timelineMajorOnlyInput = document.querySelector("#timeline-major-only");
 const timelineSelectedOnlyInput = document.querySelector("#timeline-selected-only");
 const timelineList = document.querySelector("#timeline-list");
+const inspectorPanel = document.querySelector("#inspector-panel");
 const teamABoard = document.querySelector("#team-a-board");
 const teamBBoard = document.querySelector("#team-b-board");
 const appState = {
@@ -168,16 +169,19 @@ replayLoadButton.addEventListener("click", () => {
     if (validation.ok) {
       appState.replay = parsedReplay;
       appState.selectedEventIndex = -1;
+      appState.selectedCharacterId = null;
       renderReplayMetadata(parsedReplay);
       renderCurrentReplay();
       renderPlaybackControls();
     } else {
       appState.replay = null;
       appState.selectedEventIndex = -1;
+      appState.selectedCharacterId = null;
       stopPlayback();
       resetMetadata();
       resetBoards();
       renderPlaybackControls();
+      renderInspector(null);
     }
   } catch (error) {
     renderReplayValidation({
@@ -186,10 +190,12 @@ replayLoadButton.addEventListener("click", () => {
     });
     appState.replay = null;
     appState.selectedEventIndex = -1;
+    appState.selectedCharacterId = null;
     stopPlayback();
     resetMetadata();
     resetBoards();
     renderPlaybackControls();
+    renderInspector(null);
   }
 });
 
@@ -215,10 +221,12 @@ replayFileInput.addEventListener("change", async (event) => {
     });
     appState.replay = null;
     appState.selectedEventIndex = -1;
+    appState.selectedCharacterId = null;
     stopPlayback();
     resetMetadata();
     resetBoards();
     renderPlaybackControls();
+    renderInspector(null);
   }
 });
 
@@ -274,6 +282,7 @@ resetMetadata();
 resetBoards();
 renderPlaybackControls();
 renderTimeline();
+renderInspector(null);
 
 function validateReplay(candidate) {
   const errors = [];
@@ -353,6 +362,7 @@ function renderCurrentReplay() {
     replayTickDisplay.textContent = "0";
     replayEventLabel.textContent = "Event Index · Start";
     renderTimeline();
+    renderInspector(null);
     return;
   }
 
@@ -361,6 +371,7 @@ function renderCurrentReplay() {
   replayTickDisplay.textContent = String(getCurrentTick());
   replayEventLabel.textContent = `Event Index · ${formatEventIndexLabel()}`;
   renderTimeline();
+  renderInspector(getSelectedCharacter(replayState));
 }
 
 function renderBoards(replayState) {
@@ -434,6 +445,7 @@ function bindTimelineEvents() {
   for (const button of eventButtons) {
     button.addEventListener("click", () => {
       const index = Number(button.dataset.eventIndex);
+      setSelectedCharacterId(getPrimaryEventCharacter(appState.replay.events[index]));
       setSelectedEventIndex(index);
     });
   }
@@ -446,6 +458,12 @@ function setSelectedEventIndex(nextEventIndex) {
 
   const clampedIndex = clampValue(nextEventIndex, -1, getMaxEventIndex());
   appState.selectedEventIndex = clampedIndex;
+  renderCurrentReplay();
+  renderPlaybackControls();
+}
+
+function setSelectedCharacterId(characterId) {
+  appState.selectedCharacterId = characterId ?? null;
   renderCurrentReplay();
   renderPlaybackControls();
 }
@@ -476,6 +494,9 @@ function stopPlayback() {
 
 function renderTeamBoard(container, characters, teamKey) {
   const occupantMap = new Map();
+  const currentEvent = appState.replay && appState.selectedEventIndex >= 0
+    ? appState.replay.events[appState.selectedEventIndex]
+    : null;
 
   for (const character of characters) {
     if (
@@ -491,8 +512,13 @@ function renderTeamBoard(container, characters, teamKey) {
   const rowsMarkup = rowLabels.map((label, rowIndex) => {
     const cellsMarkup = Array.from({ length: 4 }, (_, colIndex) => {
       const character = occupantMap.get(`${rowIndex}:${colIndex}`);
+      const isSelected = character && character.id === appState.selectedCharacterId;
+      const isSource = character && currentEvent && [currentEvent.actor_id, currentEvent.source_id].includes(character.id);
+      const isTarget = character && currentEvent && currentEvent.target_id === character.id;
       return `<div class="grid-cell ${character ? "grid-cell-occupied" : ""} ${
         character && !character.alive ? "grid-cell-defeated" : ""
+      } ${isSelected ? "grid-cell-selected" : ""} ${isSource ? "grid-cell-source" : ""} ${
+        isTarget ? "grid-cell-target" : ""
       }">${
         character ? renderUnitCard(character) : ""
       }</div>`;
@@ -509,6 +535,7 @@ function renderTeamBoard(container, characters, teamKey) {
     : "";
 
   container.innerHTML = `${emptyState}${rowsMarkup}`;
+  bindBoardSelection(container);
 }
 
 function renderUnitCard(character) {
@@ -517,7 +544,8 @@ function renderUnitCard(character) {
   const statusesText = formatStatuses(character.statuses);
 
   return `
-    <article class="unit-card">
+    <button class="grid-cell-button" type="button" data-character-id="${escapeHtml(character.id)}">
+      <article class="unit-card">
       <div class="unit-card-header">
         <h5 class="unit-card-name">${escapeHtml(character.display_name || character.id || "Unknown")}</h5>
         <span class="unit-card-position">r${character.position.row} c${character.position.col}</span>
@@ -528,7 +556,8 @@ function renderUnitCard(character) {
       </div>
       <div class="unit-card-passive">${escapeHtml(character.passive || "No passive")}</div>
       <div class="unit-card-statuses">${escapeHtml(statusesText)}</div>
-    </article>
+      </article>
+    </button>
   `;
 }
 
@@ -547,6 +576,15 @@ function renderBar(label, currentValue, maxValue, type) {
       </div>
     </div>
   `;
+}
+
+function bindBoardSelection(container) {
+  const characterButtons = container.querySelectorAll("[data-character-id]");
+  for (const button of characterButtons) {
+    button.addEventListener("click", () => {
+      setSelectedCharacterId(button.dataset.characterId);
+    });
+  }
 }
 
 function renderReplayValidation(result) {
@@ -577,11 +615,11 @@ function buildReplayState(replay, selectedEventIndex) {
     teams: {
       team_a: {
         name: replay.teams.team_a.name,
-        characters: replay.teams.team_a.characters.map(createCharacterState),
+        characters: replay.teams.team_a.characters.map((character) => createCharacterState(character, "team_a")),
       },
       team_b: {
         name: replay.teams.team_b.name,
-        characters: replay.teams.team_b.characters.map(createCharacterState),
+        characters: replay.teams.team_b.characters.map((character) => createCharacterState(character, "team_b")),
       },
     },
   };
@@ -596,9 +634,10 @@ function buildReplayState(replay, selectedEventIndex) {
   return state;
 }
 
-function createCharacterState(character) {
+function createCharacterState(character, teamKey) {
   return {
     ...character,
+    team_key: teamKey,
     current_hp: Number(character.max_hp) || 0,
     current_mp: Number(character.max_mp) || 0,
     alive: true,
@@ -814,6 +853,109 @@ function formatStatuses(statuses) {
   return entries.map(([status, stacks]) => `${status} x${stacks}`).join(" • ");
 }
 
+function renderInspector(character) {
+  if (!character) {
+    inspectorPanel.innerHTML = '<div class="board-empty-state">Select a unit on the board or load a replay event that references one.</div>';
+    return;
+  }
+
+  const effectiveStats = calculateEffectiveStats(character);
+  const statusMarkup = renderStatusList(character.statuses);
+  const activeMarkup = (character.actives ?? []).map((active) => `<span>${escapeHtml(active)}</span>`).join("");
+  const aliveLabel = character.alive ? "Alive" : "Defeated";
+
+  inspectorPanel.innerHTML = `
+    <div class="inspector-header">
+      <div>
+        <h4>${escapeHtml(character.display_name || character.id)}</h4>
+        <div class="inspector-subtle">${escapeHtml(character.team_key === "team_a" ? "Team A" : "Team B")} · row ${character.position.row}, col ${character.position.col}</div>
+      </div>
+      <div class="inspector-status-line">
+        <span class="status-chip">${aliveLabel}</span>
+      </div>
+    </div>
+    <div class="unit-card-bars">
+      ${renderBar("HP", character.current_hp, character.max_hp, "hp")}
+      ${renderBar("MP", character.current_mp, character.max_mp, "mp")}
+    </div>
+    <section class="inspector-section">
+      <h5>Passive</h5>
+      <div class="pill-list"><span>${escapeHtml(character.passive || "No passive")}</span></div>
+    </section>
+    <section class="inspector-section">
+      <h5>Actives</h5>
+      <div class="pill-list">${activeMarkup || "<span>No actives</span>"}</div>
+    </section>
+    <section class="inspector-section">
+      <h5>Statuses</h5>
+      <div class="status-list">${statusMarkup}</div>
+    </section>
+    <section class="inspector-section">
+      <h5>Stats</h5>
+      <div class="stats-grid">
+        ${renderStatsBlock("Base", character.stats)}
+        ${renderStatsBlock("Effective", effectiveStats)}
+      </div>
+    </section>
+  `;
+}
+
+function renderStatsBlock(label, stats) {
+  const statOrder = ["con", "str", "int", "for", "wis", "dex", "spi"];
+  const markup = statOrder.map((statKey) => `
+    <dt>${statKey.toUpperCase()}</dt>
+    <dd>${stats?.[statKey] ?? "-"}</dd>
+  `).join("");
+
+  return `
+    <section class="stats-block">
+      <h6>${label}</h6>
+      <dl>${markup}</dl>
+    </section>
+  `;
+}
+
+function renderStatusList(statuses) {
+  const entries = Object.entries(statuses ?? {}).filter(([, stacks]) => stacks > 0);
+  if (entries.length === 0) {
+    return "<span>No statuses</span>";
+  }
+
+  return entries.map(([status, stacks]) => `<span>${escapeHtml(status)} x${stacks}</span>`).join("");
+}
+
+function calculateEffectiveStats(character) {
+  const baseStats = { ...(character.stats ?? {}) };
+  const effectiveStats = { ...baseStats };
+
+  for (const [status, stacks] of Object.entries(character.statuses ?? {})) {
+    if (stacks <= 0) {
+      continue;
+    }
+
+    if (status.startsWith("Empower:")) {
+      applyStatusModifier(effectiveStats, status.slice("Empower:".length), stacks);
+    } else if (status.startsWith("Fortify:")) {
+      applyStatusModifier(effectiveStats, status.slice("Fortify:".length), stacks);
+    } else if (status.startsWith("Weaken:")) {
+      applyStatusModifier(effectiveStats, status.slice("Weaken:".length), -stacks);
+    } else if (status.startsWith("Enfeeble:")) {
+      applyStatusModifier(effectiveStats, status.slice("Enfeeble:".length), -stacks);
+    }
+  }
+
+  return effectiveStats;
+}
+
+function applyStatusModifier(stats, rawStatKey, delta) {
+  const statKey = rawStatKey.toLowerCase();
+  if (!(statKey in stats)) {
+    return;
+  }
+
+  stats[statKey] += delta;
+}
+
 function shouldRenderTimelineEvent(event) {
   if (timelineMajorOnlyInput.checked && !isMajorEvent(event.type)) {
     return false;
@@ -885,6 +1027,25 @@ function formatTimelineText(event) {
     default:
       return JSON.stringify(event);
   }
+}
+
+function getPrimaryEventCharacter(event) {
+  return event?.actor_id ?? event?.source_id ?? event?.target_id ?? null;
+}
+
+function getSelectedCharacter(replayState) {
+  if (!appState.selectedCharacterId) {
+    return null;
+  }
+
+  for (const team of Object.values(replayState.teams)) {
+    const match = team.characters.find((character) => character.id === appState.selectedCharacterId);
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
 }
 
 function escapeHtml(value) {

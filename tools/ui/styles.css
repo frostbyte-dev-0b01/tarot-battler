@@ -403,6 +403,113 @@ select {
   background: rgba(162, 59, 42, 0.12);
 }
 
+.inspector-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.inspector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.inspector-header h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.inspector-subtle {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.inspector-status-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(33, 25, 16, 0.07);
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.inspector-section {
+  display: grid;
+  gap: 10px;
+}
+
+.inspector-section h5 {
+  margin: 0;
+  font-size: 0.88rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.pill-list,
+.status-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill-list span,
+.status-list span {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(33, 25, 16, 0.05);
+  font-size: 0.84rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stats-block {
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(33, 25, 16, 0.04);
+}
+
+.stats-block h6 {
+  margin: 0 0 10px;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stats-block dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.stats-block dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.stats-block dd {
+  margin: 0;
+  font-weight: 700;
+}
+
 .timeline-event-meta {
   display: flex;
   justify-content: space-between;
@@ -496,6 +603,19 @@ select {
   filter: saturate(0.65);
 }
 
+.grid-cell-selected {
+  outline: 2px solid rgba(33, 25, 16, 0.75);
+  outline-offset: -3px;
+}
+
+.grid-cell-source {
+  box-shadow: inset 0 0 0 2px rgba(38, 70, 83, 0.68);
+}
+
+.grid-cell-target {
+  box-shadow: inset 0 0 0 2px rgba(162, 59, 42, 0.7);
+}
+
 .team-board-a .grid-cell-occupied {
   background:
     linear-gradient(180deg, rgba(162, 59, 42, 0.14), rgba(162, 59, 42, 0.04)),
@@ -512,6 +632,22 @@ select {
   display: grid;
   gap: 8px;
   height: 100%;
+}
+
+.grid-cell-button {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.grid-cell-button:focus-visible {
+  outline: 2px solid rgba(33, 25, 16, 0.82);
+  outline-offset: 3px;
 }
 
 .unit-card-header {

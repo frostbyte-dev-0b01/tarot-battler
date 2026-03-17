@@ -235,28 +235,32 @@ Goal:
 
 Tasks:
 
-- [ ] support selecting a character tile
-- [ ] support selecting a character from the timeline
-- [ ] display:
-  - [ ] display name
-  - [ ] team
-  - [ ] position
-  - [ ] current HP / max HP
-  - [ ] current MP / max MP
-  - [ ] alive or defeated state
-  - [ ] passive
-  - [ ] actives
-  - [ ] statuses with stacks
-  - [ ] base stats
-  - [ ] effective stats
-- [ ] highlight selected unit on the board
-- [ ] highlight current event source or target on the board when applicable
+- [x] support selecting a character tile
+- [x] support selecting a character from the timeline
+- [x] display:
+  - [x] display name
+  - [x] team
+  - [x] position
+  - [x] current HP / max HP
+  - [x] current MP / max MP
+  - [x] alive or defeated state
+  - [x] passive
+  - [x] actives
+  - [x] statuses with stacks
+  - [x] base stats
+  - [x] effective stats
+- [x] highlight selected unit on the board
+- [x] highlight current event source or target on the board when applicable
 
 Acceptance criteria:
 
 - clicking a unit reveals useful debugging state
 - inspector updates as replay position changes
 - source/target highlighting makes event context easier to follow
+
+Status:
+
+- completed with board selection, timeline-driven focus, inspector rendering, and event source/target highlights
 
 ## Phase 8: Team Builder Loader and Validation
 
