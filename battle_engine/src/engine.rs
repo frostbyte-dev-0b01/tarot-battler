@@ -6,7 +6,8 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use crate::abilities::{
-    AbilityMap, PassiveDef, PassiveMap, PassiveTrigger, execute_ability, execute_primitives,
+    AbilityMap, PassiveDef, PassiveMap, PassiveTrigger, SimpleAbilityTarget, execute_ability,
+    execute_primitives,
 };
 use crate::damage::calc_basic_attack_damage;
 use crate::logger::{BattleEvent, BattleLog};
@@ -782,7 +783,7 @@ impl BattleState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::abilities::{AbilityDef, AbilityTarget, PassiveMap, Primitive};
+    use crate::abilities::{AbilityDef, PassiveMap, Primitive};
     use crate::logger::BattleEvent;
     use crate::models::{
         Comparator, Condition, ConditionSubject, Position, QueryValue, Rule, Stat,
@@ -1451,7 +1452,7 @@ mod tests {
             AbilityDef {
                 mp_cost: 1,
                 primitives: vec![Primitive::RestoreMp {
-                    target: AbilityTarget::SelfChar,
+                    target: SimpleAbilityTarget::SelfChar.into(),
                     amount: 3,
                 }],
             },
@@ -1480,7 +1481,7 @@ mod tests {
         AbilityDef {
             mp_cost: 2,
             primitives: vec![Primitive::DealPhysicalDamage {
-                target: AbilityTarget::CurrentTarget,
+                target: SimpleAbilityTarget::CurrentTarget.into(),
                 multiplier: 1.5,
             }],
         }
@@ -1490,7 +1491,7 @@ mod tests {
         AbilityDef {
             mp_cost: 3,
             primitives: vec![Primitive::RestoreMp {
-                target: AbilityTarget::Companions,
+                target: SimpleAbilityTarget::Companions.into(),
                 amount: 1,
             }],
         }
@@ -1735,7 +1736,7 @@ mod tests {
             AbilityDef {
                 mp_cost: 1,
                 primitives: vec![Primitive::ApplyStatus {
-                    target: AbilityTarget::CurrentTarget,
+                    target: SimpleAbilityTarget::CurrentTarget.into(),
                     status: "Poison".to_string(),
                     stat: None,
                     stacks: 3,
@@ -1948,7 +1949,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnTurnStart,
                 primitives: vec![Primitive::RestoreMp {
-                    target: AbilityTarget::SelfChar,
+                    target: SimpleAbilityTarget::SelfChar.into(),
                     amount: 1,
                 }],
             },
@@ -2038,7 +2039,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnBattleStart,
                 primitives: vec![Primitive::ApplyStatus {
-                    target: AbilityTarget::SelfChar,
+                    target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
                     stat: Some(Stat::STR),
                     stacks: 5,
@@ -2116,7 +2117,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnBattleStart,
                 primitives: vec![Primitive::ApplyStatus {
-                    target: AbilityTarget::SelfChar,
+                    target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
                     stat: Some(Stat::STR),
                     stacks: 100,
@@ -2426,7 +2427,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
                 primitives: vec![Primitive::DealPhysicalDamage {
-                    target: AbilityTarget::AllEnemies,
+                    target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
                 }],
             },
@@ -2572,7 +2573,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnTurnStart,
                 primitives: vec![Primitive::RestoreMp {
-                    target: AbilityTarget::SelfChar,
+                    target: SimpleAbilityTarget::SelfChar.into(),
                     amount: 1,
                 }],
             },
@@ -2637,7 +2638,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDealDamage,
                 primitives: vec![Primitive::ApplyStatus {
-                    target: AbilityTarget::SelfChar,
+                    target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
                     stat: Some(Stat::STR),
                     stacks: 1,
@@ -2719,7 +2720,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnTakeDamage,
                 primitives: vec![Primitive::ApplyStatus {
-                    target: AbilityTarget::SelfChar,
+                    target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
                     stat: Some(Stat::STR),
                     stacks: 1,
@@ -2794,7 +2795,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnKill,
                 primitives: vec![Primitive::RestoreHp {
-                    target: AbilityTarget::SelfChar,
+                    target: SimpleAbilityTarget::SelfChar.into(),
                     amount: 5,
                 }],
             },
@@ -2863,7 +2864,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
                 primitives: vec![Primitive::DealPhysicalDamage {
-                    target: AbilityTarget::AllEnemies,
+                    target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
                 }],
             },
@@ -2933,7 +2934,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
                 primitives: vec![Primitive::DealPhysicalDamage {
-                    target: AbilityTarget::AllEnemies,
+                    target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
                 }],
             },
@@ -3022,7 +3023,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
                 primitives: vec![Primitive::DealPhysicalDamage {
-                    target: AbilityTarget::AllEnemies,
+                    target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
                 }],
             },
@@ -3108,7 +3109,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDealDamage,
                 primitives: vec![Primitive::DealPhysicalDamage {
-                    target: AbilityTarget::AllEnemies,
+                    target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 0.5,
                 }],
             },

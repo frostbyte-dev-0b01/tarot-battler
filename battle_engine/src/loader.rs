@@ -3,7 +3,10 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use crate::abilities::{AbilityMap, AbilityTarget, PassiveDef, PassiveMap, Primitive};
+use crate::abilities::{
+    AbilityMap, AbilityTarget, PassiveDef, PassiveMap, Primitive, SimpleAbilityTarget,
+    TargetCategory,
+};
 use crate::models::CharacterConfig;
 use crate::statuses::{StatusBehavior, StatusDef, StatusMap};
 
@@ -223,14 +226,26 @@ fn remove_status_target_is_valid(target: &AbilityTarget, def: &StatusDef) -> boo
 fn is_enemy_target(target: &AbilityTarget) -> bool {
     matches!(
         target,
-        AbilityTarget::CurrentTarget | AbilityTarget::AllEnemies
+        AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget)
+            | AbilityTarget::Simple(SimpleAbilityTarget::FrontRow)
+            | AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies)
+            | AbilityTarget::Detailed(crate::abilities::TargetSpec {
+                category: TargetCategory::Enemy,
+                ..
+            })
     )
 }
 
 fn is_ally_target(target: &AbilityTarget) -> bool {
     matches!(
         target,
-        AbilityTarget::SelfChar | AbilityTarget::Companions | AbilityTarget::AllAllies
+        AbilityTarget::Simple(SimpleAbilityTarget::SelfChar)
+            | AbilityTarget::Simple(SimpleAbilityTarget::Companions)
+            | AbilityTarget::Simple(SimpleAbilityTarget::AllAllies)
+            | AbilityTarget::Detailed(crate::abilities::TargetSpec {
+                category: TargetCategory::Ally | TargetCategory::Companion,
+                ..
+            })
     )
 }
 
@@ -256,11 +271,17 @@ fn status_requires_stat(def: &StatusDef) -> bool {
 
 fn target_label(target: &AbilityTarget) -> &'static str {
     match target {
-        AbilityTarget::CurrentTarget => "current_target",
-        AbilityTarget::SelfChar => "self",
-        AbilityTarget::Companions => "companions",
-        AbilityTarget::AllEnemies => "all_enemies",
-        AbilityTarget::AllAllies => "all_allies",
+        AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget) => "current_target",
+        AbilityTarget::Simple(SimpleAbilityTarget::SelfChar) => "self",
+        AbilityTarget::Simple(SimpleAbilityTarget::Companions) => "companions",
+        AbilityTarget::Simple(SimpleAbilityTarget::FrontRow) => "front_row",
+        AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies) => "all_enemies",
+        AbilityTarget::Simple(SimpleAbilityTarget::AllAllies) => "all_allies",
+        AbilityTarget::Detailed(spec) => match spec.category {
+            TargetCategory::Companion => "companion",
+            TargetCategory::Ally => "ally",
+            TargetCategory::Enemy => "enemy",
+        },
     }
 }
 
@@ -447,7 +468,7 @@ mod tests {
             crate::abilities::AbilityDef {
                 mp_cost: 1,
                 primitives: vec![Primitive::ApplyStatus {
-                    target: AbilityTarget::CurrentTarget,
+                    target: SimpleAbilityTarget::CurrentTarget.into(),
                     status: "Empower".to_string(),
                     stat: Some(Stat::STR),
                     stacks: 1,
@@ -479,7 +500,7 @@ mod tests {
             crate::abilities::AbilityDef {
                 mp_cost: 1,
                 primitives: vec![Primitive::RemoveStatus {
-                    target: AbilityTarget::CurrentTarget,
+                    target: SimpleAbilityTarget::CurrentTarget.into(),
                     status: "Bleed".to_string(),
                     stat: None,
                     stacks: 1,
@@ -511,7 +532,7 @@ mod tests {
             crate::abilities::AbilityDef {
                 mp_cost: 1,
                 primitives: vec![Primitive::ApplyStatus {
-                    target: AbilityTarget::SelfChar,
+                    target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
                     stat: None,
                     stacks: 1,
@@ -543,7 +564,7 @@ mod tests {
             crate::abilities::AbilityDef {
                 mp_cost: 1,
                 primitives: vec![Primitive::ApplyStatus {
-                    target: AbilityTarget::CurrentTarget,
+                    target: SimpleAbilityTarget::CurrentTarget.into(),
                     status: "Bleed".to_string(),
                     stat: Some(Stat::STR),
                     stacks: 1,

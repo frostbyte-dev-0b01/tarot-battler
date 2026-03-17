@@ -57,14 +57,14 @@ This checklist tracks the work required to align the Rust battle engine with the
 
 ## Phase 6: Targeting Model Expansion
 
-- [ ] Add single-target `ally` and `enemy` selectors
-- [ ] Add selector conditions for single-target ability resolution
-- [ ] Add positional enemy conditions: `frontmost`, `backmost`, `same_row`, `same_column`
-- [ ] Preserve sticky targeting for `current_target`
-- [ ] Add deterministic tests for new targeting resolution
-- [ ] Update docs to reflect completed engine alignment
-- [ ] Run test suite
-- [ ] Commit Phase 6
+- [x] Add single-target `ally` and `enemy` selectors
+- [x] Add selector conditions for single-target ability resolution
+- [x] Add positional enemy conditions: `frontmost`, `backmost`, `same_row`, `same_column`
+- [x] Preserve sticky targeting for `current_target`
+- [x] Add deterministic tests for new targeting resolution
+- [x] Update docs to reflect completed engine alignment
+- [x] Run test suite
+- [x] Commit Phase 6
 
 ## Phase 7: Sample Data Cleanup
 

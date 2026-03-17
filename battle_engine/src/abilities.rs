@@ -3,21 +3,101 @@
 use std::collections::HashMap;
 
 use rand::rngs::StdRng;
+use rand::seq::SliceRandom;
 
 use crate::logger::{BattleEvent, BattleLog};
 use crate::models::{CharacterState, Stat};
 use crate::statuses::{StatusMap, status_key};
 
-/// Who the ability primitive targets.
+/// Simple target categories used by existing sample data.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AbilityTarget {
+pub enum SimpleAbilityTarget {
     CurrentTarget,
     #[serde(rename = "self")]
     SelfChar,
     Companions,
+    FrontRow,
     AllEnemies,
     AllAllies,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TargetCategory {
+    Companion,
+    Ally,
+    Enemy,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PositionalCondition {
+    Frontmost,
+    Backmost,
+    SameRow,
+    SameColumn,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TargetSelector {
+    HighestStat {
+        stat: Stat,
+    },
+    LowestStat {
+        stat: Stat,
+    },
+    HighestHp,
+    LowestHp,
+    HighestMp,
+    LowestMp,
+    MostStacks {
+        status: String,
+        #[serde(default)]
+        stat: Option<Stat>,
+    },
+    FewestStacks {
+        status: String,
+        #[serde(default)]
+        stat: Option<Stat>,
+    },
+    HasStatus {
+        status: String,
+        #[serde(default)]
+        stat: Option<Stat>,
+    },
+    LacksStatus {
+        status: String,
+        #[serde(default)]
+        stat: Option<Stat>,
+    },
+    Random,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct TargetSpec {
+    pub category: TargetCategory,
+    #[serde(default)]
+    pub selector: Option<TargetSelector>,
+    #[serde(default)]
+    pub position: Option<PositionalCondition>,
+    #[serde(default)]
+    pub bypass_row_protection: bool,
+}
+
+/// Who the ability primitive targets.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(untagged)]
+pub enum AbilityTarget {
+    Simple(SimpleAbilityTarget),
+    Detailed(TargetSpec),
+}
+
+impl From<SimpleAbilityTarget> for AbilityTarget {
+    fn from(value: SimpleAbilityTarget) -> Self {
+        Self::Simple(value)
+    }
 }
 
 /// A single primitive effect composing an ability.
@@ -156,7 +236,7 @@ pub fn execute_primitives(
         match primitive {
             Primitive::DealPhysicalDamage { target, multiplier } => {
                 let target_indices =
-                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
+                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
                 for tidx in target_indices {
                     let defender_for = enemy_team[tidx].get_eff_stat(&Stat::FOR);
                     let base = (actor_str as i32 - defender_for as i32).max(1) as u32;
@@ -178,7 +258,7 @@ pub fn execute_primitives(
             }
             Primitive::DealMagicalDamage { target, multiplier } => {
                 let target_indices =
-                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
+                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
                 for tidx in target_indices {
                     let defender_wis = enemy_team[tidx].get_eff_stat(&Stat::WIS);
                     let base = (actor_int as i32 - defender_wis as i32).max(1) as u32;
@@ -199,7 +279,7 @@ pub fn execute_primitives(
                 }
             }
             Primitive::RestoreHp { target, amount } => {
-                let target_indices = resolve_ally_targets(target, actor_idx, actor_team);
+                let target_indices = resolve_ally_targets(target, actor_idx, actor_team, _rng);
                 for tidx in target_indices {
                     if actor_team[tidx].is_alive() {
                         actor_team[tidx].heal(*amount);
@@ -207,7 +287,7 @@ pub fn execute_primitives(
                 }
             }
             Primitive::RestoreMp { target, amount } => {
-                let target_indices = resolve_ally_targets(target, actor_idx, actor_team);
+                let target_indices = resolve_ally_targets(target, actor_idx, actor_team, _rng);
                 for tidx in target_indices {
                     if actor_team[tidx].is_alive() {
                         actor_team[tidx].restore_mp(*amount);
@@ -222,37 +302,32 @@ pub fn execute_primitives(
             } => {
                 if let Some(def) = status_defs.get(status) {
                     let key = status_key(status, stat.as_ref());
-                    match target {
-                        AbilityTarget::CurrentTarget | AbilityTarget::AllEnemies => {
-                            let target_indices =
-                                resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
-                            for tidx in target_indices {
-                                if enemy_team[tidx].is_alive() {
-                                    enemy_team[tidx].add_status(
-                                        &key,
-                                        *stacks,
-                                        actor_id,
-                                        def,
-                                        stat.clone(),
-                                    );
-                                }
+                    if target_is_enemy_side(target) {
+                        let target_indices =
+                            resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
+                        for tidx in target_indices {
+                            if enemy_team[tidx].is_alive() {
+                                enemy_team[tidx].add_status(
+                                    &key,
+                                    *stacks,
+                                    actor_id,
+                                    def,
+                                    stat.clone(),
+                                );
                             }
                         }
-                        AbilityTarget::SelfChar
-                        | AbilityTarget::Companions
-                        | AbilityTarget::AllAllies => {
-                            let target_indices =
-                                resolve_ally_targets(target, actor_idx, actor_team);
-                            for tidx in target_indices {
-                                if actor_team[tidx].is_alive() {
-                                    actor_team[tidx].add_status(
-                                        &key,
-                                        *stacks,
-                                        actor_id,
-                                        def,
-                                        stat.clone(),
-                                    );
-                                }
+                    } else {
+                        let target_indices =
+                            resolve_ally_targets(target, actor_idx, actor_team, _rng);
+                        for tidx in target_indices {
+                            if actor_team[tidx].is_alive() {
+                                actor_team[tidx].add_status(
+                                    &key,
+                                    *stacks,
+                                    actor_id,
+                                    def,
+                                    stat.clone(),
+                                );
                             }
                         }
                     }
@@ -265,21 +340,16 @@ pub fn execute_primitives(
                 stacks,
             } => {
                 let key = status_key(status, stat.as_ref());
-                match target {
-                    AbilityTarget::CurrentTarget | AbilityTarget::AllEnemies => {
-                        let target_indices =
-                            resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
-                        for tidx in target_indices {
-                            enemy_team[tidx].remove_status(&key, *stacks);
-                        }
+                if target_is_enemy_side(target) {
+                    let target_indices =
+                        resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
+                    for tidx in target_indices {
+                        enemy_team[tidx].remove_status(&key, *stacks);
                     }
-                    AbilityTarget::SelfChar
-                    | AbilityTarget::Companions
-                    | AbilityTarget::AllAllies => {
-                        let target_indices = resolve_ally_targets(target, actor_idx, actor_team);
-                        for tidx in target_indices {
-                            actor_team[tidx].remove_status(&key, *stacks);
-                        }
+                } else {
+                    let target_indices = resolve_ally_targets(target, actor_idx, actor_team, _rng);
+                    for tidx in target_indices {
+                        actor_team[tidx].remove_status(&key, *stacks);
                     }
                 }
             }
@@ -295,9 +365,10 @@ fn resolve_enemy_targets(
     actor_idx: usize,
     actor_team: &[CharacterState],
     enemy_team: &[CharacterState],
+    rng: &mut StdRng,
 ) -> Vec<usize> {
     match target {
-        AbilityTarget::CurrentTarget => {
+        AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget) => {
             if let Some(target_id) = actor_team[actor_idx].target() {
                 if let Some(idx) = enemy_team.iter().position(|c| c.id() == target_id) {
                     return vec![idx];
@@ -305,15 +376,26 @@ fn resolve_enemy_targets(
             }
             Vec::new()
         }
-        AbilityTarget::AllEnemies => enemy_team
+        AbilityTarget::Simple(SimpleAbilityTarget::FrontRow) => front_row_enemy_indices(enemy_team),
+        AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies) => enemy_team
             .iter()
             .enumerate()
             .filter(|(_, c)| c.is_alive())
             .map(|(i, _)| i)
             .collect(),
-        AbilityTarget::SelfChar | AbilityTarget::Companions | AbilityTarget::AllAllies => {
-            Vec::new()
+        AbilityTarget::Detailed(spec) if matches!(spec.category, TargetCategory::Enemy) => {
+            let mut candidates = enemy_candidates(
+                actor_idx,
+                actor_team,
+                enemy_team,
+                spec.position.as_ref(),
+                spec.bypass_row_protection,
+            );
+            select_single_target(&mut candidates, enemy_team, spec.selector.as_ref(), rng)
+                .into_iter()
+                .collect()
         }
+        AbilityTarget::Simple(_) | AbilityTarget::Detailed(_) => Vec::new(),
     }
 }
 
@@ -322,24 +404,237 @@ fn resolve_ally_targets(
     target: &AbilityTarget,
     actor_idx: usize,
     actor_team: &[CharacterState],
+    rng: &mut StdRng,
 ) -> Vec<usize> {
     match target {
-        AbilityTarget::SelfChar => vec![actor_idx],
-        AbilityTarget::Companions => {
+        AbilityTarget::Simple(SimpleAbilityTarget::SelfChar) => vec![actor_idx],
+        AbilityTarget::Simple(SimpleAbilityTarget::Companions) => {
             let comp_ids = actor_team[actor_idx].companions().to_vec();
             comp_ids
                 .iter()
                 .filter_map(|id| actor_team.iter().position(|c| c.id() == *id))
                 .collect()
         }
-        AbilityTarget::AllAllies => actor_team
+        AbilityTarget::Simple(SimpleAbilityTarget::AllAllies) => actor_team
             .iter()
             .enumerate()
             .filter(|(i, c)| *i != actor_idx && c.is_alive())
             .map(|(i, _)| i)
             .collect(),
-        AbilityTarget::CurrentTarget | AbilityTarget::AllEnemies => Vec::new(),
+        AbilityTarget::Detailed(spec) if matches!(spec.category, TargetCategory::Ally) => {
+            let mut candidates: Vec<usize> = actor_team
+                .iter()
+                .enumerate()
+                .filter(|(i, c)| *i != actor_idx && c.is_alive())
+                .map(|(i, _)| i)
+                .collect();
+            select_single_target(&mut candidates, actor_team, spec.selector.as_ref(), rng)
+                .into_iter()
+                .collect()
+        }
+        AbilityTarget::Detailed(spec) if matches!(spec.category, TargetCategory::Companion) => {
+            let comp_ids = actor_team[actor_idx].companions().to_vec();
+            let mut candidates: Vec<usize> = comp_ids
+                .iter()
+                .filter_map(|id| {
+                    actor_team
+                        .iter()
+                        .position(|c| c.id() == *id && c.is_alive())
+                })
+                .collect();
+            select_single_target(&mut candidates, actor_team, spec.selector.as_ref(), rng)
+                .into_iter()
+                .collect()
+        }
+        AbilityTarget::Simple(_) | AbilityTarget::Detailed(_) => Vec::new(),
     }
+}
+
+fn target_is_enemy_side(target: &AbilityTarget) -> bool {
+    matches!(
+        target,
+        AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget)
+            | AbilityTarget::Simple(SimpleAbilityTarget::FrontRow)
+            | AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies)
+            | AbilityTarget::Detailed(TargetSpec {
+                category: TargetCategory::Enemy,
+                ..
+            })
+    )
+}
+
+fn front_row_enemy_indices(enemy_team: &[CharacterState]) -> Vec<usize> {
+    let Some(front_row) = enemy_team
+        .iter()
+        .filter(|c| c.is_alive())
+        .map(|c| c.position().row)
+        .min()
+    else {
+        return Vec::new();
+    };
+
+    enemy_team
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.is_alive() && c.position().row == front_row)
+        .map(|(i, _)| i)
+        .collect()
+}
+
+fn enemy_candidates(
+    actor_idx: usize,
+    actor_team: &[CharacterState],
+    enemy_team: &[CharacterState],
+    position: Option<&PositionalCondition>,
+    bypass_row_protection: bool,
+) -> Vec<usize> {
+    let mut candidates: Vec<usize> = if bypass_row_protection {
+        enemy_team
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.is_alive())
+            .map(|(i, _)| i)
+            .collect()
+    } else {
+        front_row_enemy_indices(enemy_team)
+    };
+
+    if let Some(position) = position {
+        candidates = filter_by_position(candidates, actor_idx, actor_team, enemy_team, position);
+    }
+
+    candidates
+}
+
+fn filter_by_position(
+    candidates: Vec<usize>,
+    actor_idx: usize,
+    actor_team: &[CharacterState],
+    enemy_team: &[CharacterState],
+    position: &PositionalCondition,
+) -> Vec<usize> {
+    if candidates.is_empty() {
+        return candidates;
+    }
+
+    match position {
+        PositionalCondition::Frontmost => {
+            let row = candidates
+                .iter()
+                .map(|idx| enemy_team[*idx].position().row)
+                .min()
+                .unwrap();
+            candidates
+                .into_iter()
+                .filter(|idx| enemy_team[*idx].position().row == row)
+                .collect()
+        }
+        PositionalCondition::Backmost => {
+            let row = candidates
+                .iter()
+                .map(|idx| enemy_team[*idx].position().row)
+                .max()
+                .unwrap();
+            candidates
+                .into_iter()
+                .filter(|idx| enemy_team[*idx].position().row == row)
+                .collect()
+        }
+        PositionalCondition::SameRow => {
+            let row = actor_team[actor_idx].position().row;
+            candidates
+                .into_iter()
+                .filter(|idx| enemy_team[*idx].position().row == row)
+                .collect()
+        }
+        PositionalCondition::SameColumn => {
+            let col = actor_team[actor_idx].position().col;
+            candidates
+                .into_iter()
+                .filter(|idx| enemy_team[*idx].position().col == col)
+                .collect()
+        }
+    }
+}
+
+fn select_single_target(
+    candidates: &mut Vec<usize>,
+    team: &[CharacterState],
+    selector: Option<&TargetSelector>,
+    rng: &mut StdRng,
+) -> Option<usize> {
+    if candidates.is_empty() {
+        return None;
+    }
+
+    let selector = selector.unwrap_or(&TargetSelector::Random);
+    let chosen = match selector {
+        TargetSelector::HighestStat { stat } => {
+            extrema_indices(candidates, |idx| team[*idx].get_eff_stat(stat), true)
+        }
+        TargetSelector::LowestStat { stat } => {
+            extrema_indices(candidates, |idx| team[*idx].get_eff_stat(stat), false)
+        }
+        TargetSelector::HighestHp => {
+            extrema_indices(candidates, |idx| team[*idx].current_hp(), true)
+        }
+        TargetSelector::LowestHp => {
+            extrema_indices(candidates, |idx| team[*idx].current_hp(), false)
+        }
+        TargetSelector::HighestMp => {
+            extrema_indices(candidates, |idx| team[*idx].current_mp(), true)
+        }
+        TargetSelector::LowestMp => {
+            extrema_indices(candidates, |idx| team[*idx].current_mp(), false)
+        }
+        TargetSelector::MostStacks { status, stat } => {
+            let key = status_key(status, stat.as_ref());
+            extrema_indices(candidates, |idx| team[*idx].status_stacks(&key), true)
+        }
+        TargetSelector::FewestStacks { status, stat } => {
+            let key = status_key(status, stat.as_ref());
+            extrema_indices(candidates, |idx| team[*idx].status_stacks(&key), false)
+        }
+        TargetSelector::HasStatus { status, stat } => {
+            let key = status_key(status, stat.as_ref());
+            candidates
+                .iter()
+                .copied()
+                .filter(|idx| team[*idx].has_status(&key))
+                .collect()
+        }
+        TargetSelector::LacksStatus { status, stat } => {
+            let key = status_key(status, stat.as_ref());
+            candidates
+                .iter()
+                .copied()
+                .filter(|idx| !team[*idx].has_status(&key))
+                .collect()
+        }
+        TargetSelector::Random => candidates.clone(),
+    };
+
+    chosen.choose(rng).copied()
+}
+
+fn extrema_indices(
+    candidates: &[usize],
+    value_fn: impl Fn(&usize) -> u32,
+    want_max: bool,
+) -> Vec<usize> {
+    let Some(best) = candidates
+        .iter()
+        .map(&value_fn)
+        .reduce(|a, b| if want_max { a.max(b) } else { a.min(b) })
+    else {
+        return Vec::new();
+    };
+
+    candidates
+        .iter()
+        .copied()
+        .filter(|idx| value_fn(idx) == best)
+        .collect()
 }
 
 #[cfg(test)]
@@ -430,7 +725,7 @@ mod tests {
         let ability = AbilityDef {
             mp_cost: 2,
             primitives: vec![Primitive::DealPhysicalDamage {
-                target: AbilityTarget::CurrentTarget,
+                target: SimpleAbilityTarget::CurrentTarget.into(),
                 multiplier: 1.5,
             }],
         };
@@ -470,7 +765,7 @@ mod tests {
         let ability = AbilityDef {
             mp_cost: 3,
             primitives: vec![Primitive::RestoreMp {
-                target: AbilityTarget::Companions,
+                target: SimpleAbilityTarget::Companions.into(),
                 amount: 2,
             }],
         };
@@ -503,7 +798,7 @@ mod tests {
         let ability = AbilityDef {
             mp_cost: 2,
             primitives: vec![Primitive::ApplyStatus {
-                target: AbilityTarget::CurrentTarget,
+                target: SimpleAbilityTarget::CurrentTarget.into(),
                 status: "Bleed".to_string(),
                 stat: None,
                 stacks: 3,
@@ -538,7 +833,7 @@ mod tests {
         let ability = AbilityDef {
             mp_cost: 2,
             primitives: vec![Primitive::ApplyStatus {
-                target: AbilityTarget::SelfChar,
+                target: SimpleAbilityTarget::SelfChar.into(),
                 status: "Empower".to_string(),
                 stat: Some(Stat::STR),
                 stacks: 3,
@@ -571,7 +866,7 @@ mod tests {
         let ability = AbilityDef {
             mp_cost: 1,
             primitives: vec![Primitive::ApplyStatus {
-                target: AbilityTarget::CurrentTarget,
+                target: SimpleAbilityTarget::CurrentTarget.into(),
                 status: "Weaken".to_string(),
                 stat: Some(Stat::STR),
                 stacks: 2,
@@ -606,7 +901,7 @@ mod tests {
         let ability = AbilityDef {
             mp_cost: 1,
             primitives: vec![Primitive::RemoveStatus {
-                target: AbilityTarget::SelfChar,
+                target: SimpleAbilityTarget::SelfChar.into(),
                 status: "Bleed".to_string(),
                 stat: None,
                 stacks: 1,
@@ -642,7 +937,7 @@ mod tests {
         let ability = AbilityDef {
             mp_cost: 1,
             primitives: vec![Primitive::RemoveStatus {
-                target: AbilityTarget::CurrentTarget,
+                target: SimpleAbilityTarget::CurrentTarget.into(),
                 status: "Bleed".to_string(),
                 stat: None,
                 stacks: 2,
@@ -681,7 +976,7 @@ mod tests {
         let ability = AbilityDef {
             mp_cost: 1,
             primitives: vec![Primitive::RemoveStatus {
-                target: AbilityTarget::AllEnemies,
+                target: SimpleAbilityTarget::AllEnemies.into(),
                 status: "Bleed".to_string(),
                 stat: None,
                 stacks: 1,
@@ -721,7 +1016,7 @@ mod tests {
         let ability = AbilityDef {
             mp_cost: 1,
             primitives: vec![Primitive::DealPhysicalDamage {
-                target: AbilityTarget::AllEnemies,
+                target: SimpleAbilityTarget::AllEnemies.into(),
                 multiplier: 1.0,
             }],
         };
@@ -758,7 +1053,7 @@ mod tests {
         let ability = AbilityDef {
             mp_cost: 1,
             primitives: vec![Primitive::RestoreMp {
-                target: AbilityTarget::AllAllies,
+                target: SimpleAbilityTarget::AllAllies.into(),
                 amount: 5,
             }],
         };
@@ -777,5 +1072,134 @@ mod tests {
         assert_eq!(actor_team[0].current_mp(), 5);
         assert_eq!(actor_team[1].current_mp(), 3);
         assert_eq!(actor_team[2].current_mp(), 3);
+    }
+
+    #[test]
+    fn ally_selector_targets_lowest_hp_ally() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![
+            make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5)]),
+            make_char(1, vec![(Stat::CON, 10)]),
+            make_char(2, vec![(Stat::CON, 10)]),
+        ];
+        actor_team[1].take_damage(3);
+        actor_team[2].take_damage(8);
+        let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::RestoreHp {
+                target: AbilityTarget::Detailed(TargetSpec {
+                    category: TargetCategory::Ally,
+                    selector: Some(TargetSelector::LowestHp),
+                    position: None,
+                    bypass_row_protection: false,
+                }),
+                amount: 4,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "Rescue",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+        assert_eq!(actor_team[1].current_hp(), 17);
+        assert_eq!(actor_team[2].current_hp(), 16);
+    }
+
+    #[test]
+    fn enemy_selector_can_target_backmost_with_row_bypass() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![make_adjacent_char(
+            0,
+            0,
+            0,
+            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+        )];
+        let mut enemy_team = vec![
+            make_adjacent_char(1, 0, 0, vec![(Stat::FOR, 3), (Stat::CON, 10)]),
+            make_adjacent_char(2, 2, 0, vec![(Stat::FOR, 3), (Stat::CON, 10)]),
+        ];
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::DealPhysicalDamage {
+                target: AbilityTarget::Detailed(TargetSpec {
+                    category: TargetCategory::Enemy,
+                    selector: Some(TargetSelector::Random),
+                    position: Some(PositionalCondition::Backmost),
+                    bypass_row_protection: true,
+                }),
+                multiplier: 1.0,
+            }],
+        };
+
+        let dealt = execute_ability(
+            0,
+            "Snipe",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert_eq!(dealt.len(), 1);
+        assert_eq!(dealt[0].0, 2);
+    }
+
+    #[test]
+    fn enemy_selector_can_target_same_column_enemy() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![make_adjacent_char(
+            0,
+            0,
+            1,
+            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+        )];
+        let mut enemy_team = vec![
+            make_adjacent_char(1, 0, 0, vec![(Stat::FOR, 3), (Stat::CON, 10)]),
+            make_adjacent_char(2, 0, 1, vec![(Stat::FOR, 3), (Stat::CON, 10)]),
+        ];
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::DealPhysicalDamage {
+                target: AbilityTarget::Detailed(TargetSpec {
+                    category: TargetCategory::Enemy,
+                    selector: Some(TargetSelector::Random),
+                    position: Some(PositionalCondition::SameColumn),
+                    bypass_row_protection: false,
+                }),
+                multiplier: 1.0,
+            }],
+        };
+
+        let dealt = execute_ability(
+            0,
+            "LineStrike",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert_eq!(dealt.len(), 1);
+        assert_eq!(dealt[0].0, 2);
     }
 }

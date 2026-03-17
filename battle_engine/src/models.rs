@@ -303,12 +303,10 @@ impl CharacterState {
         &self.statuses
     }
 
-    #[cfg(test)]
     pub fn has_status(&self, key: &str) -> bool {
         self.statuses.contains_key(key)
     }
 
-    #[cfg(test)]
     pub fn status_stacks(&self, key: &str) -> u32 {
         self.statuses.get(key).map_or(0, |s| s.stacks)
     }
