@@ -12,6 +12,7 @@ const teamConfigs = {
     loadButton: document.querySelector("#team-a-load-button"),
     demoButton: document.querySelector("#team-a-demo-button"),
     validationOutput: document.querySelector("#team-a-validation-output"),
+    editor: document.querySelector("#team-a-editor"),
     metaName: document.querySelector('[data-team-meta="team_a_name"]'),
     metaCount: document.querySelector('[data-team-meta="team_a_count"]'),
   },
@@ -21,6 +22,7 @@ const teamConfigs = {
     loadButton: document.querySelector("#team-b-load-button"),
     demoButton: document.querySelector("#team-b-demo-button"),
     validationOutput: document.querySelector("#team-b-validation-output"),
+    editor: document.querySelector("#team-b-editor"),
     metaName: document.querySelector('[data-team-meta="team_b_name"]'),
     metaCount: document.querySelector('[data-team-meta="team_b_count"]'),
   },
@@ -375,6 +377,18 @@ for (const [teamKey, teamConfig] of Object.entries(teamConfigs)) {
       resetTeamSummary(teamKey);
     }
   });
+
+  teamConfig.editor.addEventListener("input", (event) => {
+    handleTeamEditorInput(teamKey, event);
+  });
+
+  teamConfig.editor.addEventListener("change", (event) => {
+    handleTeamEditorInput(teamKey, event);
+  });
+
+  teamConfig.editor.addEventListener("click", (event) => {
+    handleTeamEditorAction(teamKey, event);
+  });
 }
 
 resetMetadata();
@@ -384,6 +398,8 @@ renderTimeline();
 renderInspector(null);
 resetTeamSummary("team_a");
 resetTeamSummary("team_b");
+renderTeamEditor("team_a");
+renderTeamEditor("team_b");
 
 function validateReplay(candidate) {
   const errors = [];
@@ -725,10 +741,11 @@ function loadTeamFromText(teamKey, sourceText) {
 
     if (validation.ok) {
       appState.teamConfigs[teamKey] = parsedTeam;
-      renderTeamSummary(teamKey, parsedTeam);
+      syncTeamUI(teamKey);
     } else {
       appState.teamConfigs[teamKey] = null;
       resetTeamSummary(teamKey);
+      renderTeamEditor(teamKey);
     }
   } catch (error) {
     renderTeamValidation(teamKey, {
@@ -737,6 +754,7 @@ function loadTeamFromText(teamKey, sourceText) {
     });
     appState.teamConfigs[teamKey] = null;
     resetTeamSummary(teamKey);
+    renderTeamEditor(teamKey);
   }
 }
 
@@ -846,6 +864,20 @@ function resetTeamSummary(teamKey) {
   config.metaCount.textContent = "-";
 }
 
+function syncTeamUI(teamKey) {
+  const teamConfig = appState.teamConfigs[teamKey];
+  if (!teamConfig) {
+    resetTeamSummary(teamKey);
+    renderTeamEditor(teamKey);
+    return;
+  }
+
+  teamConfigs[teamKey].jsonInput.value = JSON.stringify(teamConfig, null, 2);
+  renderTeamSummary(teamKey, teamConfig);
+  renderTeamValidation(teamKey, validateTeamConfig(teamConfig));
+  renderTeamEditor(teamKey);
+}
+
 function renderTeamValidation(teamKey, result) {
   const output = teamConfigs[teamKey].validationOutput;
   output.className = "message-panel";
@@ -864,6 +896,338 @@ function renderTeamValidation(teamKey, result) {
 
   output.classList.add("message-panel-error");
   output.textContent = result.errors.map((error) => `- ${error}`).join("\n");
+}
+
+function renderTeamEditor(teamKey) {
+  const editor = teamConfigs[teamKey].editor;
+  const team = appState.teamConfigs[teamKey];
+  if (!team) {
+    editor.innerHTML = '<div class="board-empty-state">Load a team to edit it here.</div>';
+    return;
+  }
+
+  const characterMarkup = team.characters.map((character, characterIndex) => renderCharacterEditor(teamKey, character, characterIndex)).join("");
+
+  editor.innerHTML = `
+    <div class="editor-toolbar">
+      <button type="button" class="button-secondary" data-team-action="add-character">Add Character</button>
+    </div>
+    <label class="field-group">
+      <span>Team Name</span>
+      <input type="text" data-team-field="name" value="${escapeHtml(team.name)}">
+    </label>
+    <div class="character-editor-list">${characterMarkup}</div>
+  `;
+}
+
+function renderCharacterEditor(teamKey, character, characterIndex) {
+  const activeValue = Array.isArray(character.actives) ? character.actives.join(", ") : "";
+  const rulesMarkup = (character.rules ?? []).map((rule, ruleIndex) => renderRuleEditor(teamKey, characterIndex, rule, ruleIndex)).join("");
+
+  return `
+    <article class="editor-card">
+      <div class="editor-card-header">
+        <h5>${escapeHtml(character.display_name || character.id || `Character ${characterIndex + 1}`)}</h5>
+        <div class="editor-card-actions">
+          <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Remove</button>
+        </div>
+      </div>
+      <div class="editor-grid">
+        <label class="field-group">
+          <span>ID</span>
+          <input type="text" data-character-field="id" data-character-index="${characterIndex}" value="${escapeHtml(character.id ?? "")}">
+        </label>
+        <label class="field-group">
+          <span>Display Name</span>
+          <input type="text" data-character-field="display_name" data-character-index="${characterIndex}" value="${escapeHtml(character.display_name ?? "")}">
+        </label>
+        <label class="field-group">
+          <span>Passive</span>
+          <input type="text" data-character-field="passive" data-character-index="${characterIndex}" value="${escapeHtml(character.passive ?? "")}">
+        </label>
+        <label class="field-group">
+          <span>Item</span>
+          <input type="text" data-character-field="item" data-character-index="${characterIndex}" value="${escapeHtml(character.item ?? "")}">
+        </label>
+        <label class="field-group">
+          <span>Row</span>
+          <input type="number" min="0" max="2" data-position-field="row" data-character-index="${characterIndex}" value="${character.position?.row ?? 0}">
+        </label>
+        <label class="field-group">
+          <span>Col</span>
+          <input type="number" min="0" max="3" data-position-field="col" data-character-index="${characterIndex}" value="${character.position?.col ?? 0}">
+        </label>
+        <label class="field-group editor-grid-wide">
+          <span>Actives</span>
+          <input type="text" data-character-field="actives" data-character-index="${characterIndex}" value="${escapeHtml(activeValue)}">
+        </label>
+      </div>
+      <div class="editor-inline-grid">
+        ${["con", "str", "int", "for", "wis", "dex", "spi"].map((statKey) => `
+          <label class="field-group">
+            <span>${statKey.toUpperCase()}</span>
+            <input type="number" data-stat-field="${statKey}" data-character-index="${characterIndex}" value="${character.stats?.[statKey] ?? 0}">
+          </label>
+        `).join("")}
+      </div>
+      <section class="editor-rule-section">
+        <div class="editor-card-header">
+          <span class="editor-subsection-label">Rules</span>
+          <div class="editor-card-actions">
+            <button type="button" class="button-secondary" data-team-action="add-rule" data-character-index="${characterIndex}">Add Rule</button>
+          </div>
+        </div>
+        <div class="rule-editor-list">${rulesMarkup || '<div class="board-empty-state">No rules yet.</div>'}</div>
+      </section>
+    </article>
+  `;
+}
+
+function renderRuleEditor(teamKey, characterIndex, rule, ruleIndex) {
+  const conditionsMarkup = (rule.when ?? []).map((condition, conditionIndex) => renderConditionEditor(characterIndex, ruleIndex, condition, conditionIndex)).join("");
+
+  return `
+    <article class="editor-card">
+      <div class="editor-card-header">
+        <h6>Rule ${ruleIndex + 1}</h6>
+        <div class="editor-card-actions">
+          <button type="button" class="button-quiet" data-team-action="move-rule-up" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Up</button>
+          <button type="button" class="button-quiet" data-team-action="move-rule-down" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Down</button>
+          <button type="button" class="button-quiet" data-team-action="remove-rule" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Remove</button>
+        </div>
+      </div>
+      <label class="field-group">
+        <span>Ability</span>
+        <input type="text" data-rule-field="ability" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" value="${escapeHtml(rule.ability ?? "")}">
+      </label>
+      <div class="editor-card-header">
+        <span class="editor-subsection-label">Conditions</span>
+        <div class="editor-card-actions">
+          <button type="button" class="button-secondary" data-team-action="add-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Add Condition</button>
+        </div>
+      </div>
+      <div class="condition-editor-list">${conditionsMarkup || '<div class="board-empty-state">No conditions yet.</div>'}</div>
+    </article>
+  `;
+}
+
+function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIndex) {
+  const value = condition.value;
+  const valueType = isPlainObject(value) && typeof value.stat === "string" ? "stat" : String(value ?? "hp");
+  const statValue = valueType === "stat" ? value.stat : "con";
+
+  return `
+    <div class="editor-card">
+      <div class="editor-card-header">
+        <h6>Condition ${conditionIndex + 1}</h6>
+        <div class="editor-card-actions">
+          <button type="button" class="button-quiet" data-team-action="remove-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">Remove</button>
+        </div>
+      </div>
+      <div class="editor-grid">
+        <label class="field-group">
+          <span>Subject</span>
+          <select data-condition-field="subject" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
+            ${["self", "target", "companion", "world"].map((option) => `<option value="${option}" ${condition.subject === option ? "selected" : ""}>${option}</option>`).join("")}
+          </select>
+        </label>
+        <label class="field-group">
+          <span>Value</span>
+          <select data-condition-field="value_type" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
+            ${["hp", "mp", "use_count", "turns_since_use", "tick_count", "ally_count", "enemy_count", "stat"].map((option) => `<option value="${option}" ${valueType === option ? "selected" : ""}>${option}</option>`).join("")}
+          </select>
+        </label>
+        <label class="field-group">
+          <span>Stat</span>
+          <select data-condition-field="value_stat" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
+            ${["con", "str", "int", "for", "wis", "dex", "spi"].map((option) => `<option value="${option}" ${statValue === option ? "selected" : ""}>${option}</option>`).join("")}
+          </select>
+        </label>
+        <label class="field-group">
+          <span>Operator</span>
+          <select data-condition-field="op" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
+            ${["gte", "lte"].map((option) => `<option value="${option}" ${(condition.op ?? condition.comparator) === option ? "selected" : ""}>${option}</option>`).join("")}
+          </select>
+        </label>
+        <label class="field-group">
+          <span>Threshold</span>
+          <input type="number" data-condition-field="threshold" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}" value="${condition.threshold ?? 0}">
+        </label>
+      </div>
+    </div>
+  `;
+}
+
+function handleTeamEditorInput(teamKey, event) {
+  const team = appState.teamConfigs[teamKey];
+  if (!team) {
+    return;
+  }
+
+  const target = event.target;
+  const characterIndex = Number(target.dataset.characterIndex);
+  const ruleIndex = Number(target.dataset.ruleIndex);
+  const conditionIndex = Number(target.dataset.conditionIndex);
+
+  if (target.dataset.teamField === "name") {
+    team.name = target.value;
+    syncTeamUI(teamKey);
+    return;
+  }
+
+  if (target.dataset.characterField) {
+    const character = team.characters[characterIndex];
+    if (!character) {
+      return;
+    }
+
+    if (target.dataset.characterField === "actives") {
+      character.actives = target.value.split(",").map((value) => value.trim()).filter(Boolean);
+    } else if (target.dataset.characterField === "item") {
+      character.item = target.value.trim() === "" ? null : target.value;
+    } else {
+      character[target.dataset.characterField] = target.value;
+    }
+
+    syncTeamUI(teamKey);
+    return;
+  }
+
+  if (target.dataset.positionField) {
+    const character = team.characters[characterIndex];
+    if (!character) {
+      return;
+    }
+    character.position[target.dataset.positionField] = Number(target.value);
+    syncTeamUI(teamKey);
+    return;
+  }
+
+  if (target.dataset.statField) {
+    const character = team.characters[characterIndex];
+    if (!character) {
+      return;
+    }
+    character.stats[target.dataset.statField] = Number(target.value);
+    syncTeamUI(teamKey);
+    return;
+  }
+
+  if (target.dataset.ruleField === "ability") {
+    const rule = team.characters[characterIndex]?.rules?.[ruleIndex];
+    if (!rule) {
+      return;
+    }
+    rule.ability = target.value;
+    syncTeamUI(teamKey);
+    return;
+  }
+
+  if (target.dataset.conditionField) {
+    const condition = team.characters[characterIndex]?.rules?.[ruleIndex]?.when?.[conditionIndex];
+    if (!condition) {
+      return;
+    }
+
+    if (target.dataset.conditionField === "subject") {
+      condition.subject = target.value;
+    } else if (target.dataset.conditionField === "value_type") {
+      condition.value = target.value === "stat" ? { stat: "con" } : target.value;
+    } else if (target.dataset.conditionField === "value_stat") {
+      condition.value = { stat: target.value };
+    } else if (target.dataset.conditionField === "op") {
+      condition.op = target.value;
+      delete condition.comparator;
+    } else if (target.dataset.conditionField === "threshold") {
+      condition.threshold = Number(target.value);
+    }
+
+    syncTeamUI(teamKey);
+  }
+}
+
+function handleTeamEditorAction(teamKey, event) {
+  const action = event.target.dataset.teamAction;
+  if (!action) {
+    return;
+  }
+
+  const team = appState.teamConfigs[teamKey];
+  if (!team) {
+    return;
+  }
+
+  const characterIndex = Number(event.target.dataset.characterIndex);
+  const ruleIndex = Number(event.target.dataset.ruleIndex);
+  const conditionIndex = Number(event.target.dataset.conditionIndex);
+
+  switch (action) {
+    case "add-character":
+      team.characters.push(createEmptyCharacter(team.characters.length));
+      break;
+    case "remove-character":
+      team.characters.splice(characterIndex, 1);
+      break;
+    case "add-rule":
+      team.characters[characterIndex]?.rules.push(createEmptyRule());
+      break;
+    case "remove-rule":
+      team.characters[characterIndex]?.rules.splice(ruleIndex, 1);
+      break;
+    case "move-rule-up":
+      moveArrayItem(team.characters[characterIndex]?.rules, ruleIndex, ruleIndex - 1);
+      break;
+    case "move-rule-down":
+      moveArrayItem(team.characters[characterIndex]?.rules, ruleIndex, ruleIndex + 1);
+      break;
+    case "add-condition":
+      team.characters[characterIndex]?.rules[ruleIndex]?.when.push(createEmptyCondition());
+      break;
+    case "remove-condition":
+      team.characters[characterIndex]?.rules[ruleIndex]?.when.splice(conditionIndex, 1);
+      break;
+    default:
+      return;
+  }
+
+  syncTeamUI(teamKey);
+}
+
+function createEmptyCharacter(index) {
+  return {
+    id: `new_character_${index + 1}`,
+    display_name: "",
+    position: { row: 0, col: 0 },
+    stats: { con: 5, str: 5, int: 5, for: 5, wis: 5, dex: 5, spi: 5 },
+    passive: "",
+    actives: [],
+    item: null,
+    rules: [],
+  };
+}
+
+function createEmptyRule() {
+  return {
+    ability: "",
+    when: [createEmptyCondition()],
+  };
+}
+
+function createEmptyCondition() {
+  return {
+    subject: "self",
+    value: "hp",
+    op: "gte",
+    threshold: 1,
+  };
+}
+
+function moveArrayItem(array, fromIndex, toIndex) {
+  if (!Array.isArray(array) || toIndex < 0 || toIndex >= array.length) {
+    return;
+  }
+  const [item] = array.splice(fromIndex, 1);
+  array.splice(toIndex, 0, item);
 }
 
 function isPlainObject(value) {

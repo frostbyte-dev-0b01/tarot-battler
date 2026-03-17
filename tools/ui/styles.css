@@ -250,6 +250,84 @@ select {
   grid-template-columns: repeat(2, minmax(0, max-content));
 }
 
+.team-editor-shell,
+.character-editor-list,
+.rule-editor-list,
+.condition-editor-list {
+  display: grid;
+  gap: 14px;
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.editor-grid-wide {
+  grid-column: 1 / -1;
+}
+
+.editor-card {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(33, 25, 16, 0.08);
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.editor-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.editor-card-header h5,
+.editor-card-header h6 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.editor-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.button-quiet {
+  background: rgba(33, 25, 16, 0.08);
+  color: var(--ink);
+}
+
+.editor-inline-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.editor-rule-section {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(33, 25, 16, 0.12);
+}
+
+.editor-subsection-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .button-row button,
 .panel-controls button {
   border: 0;

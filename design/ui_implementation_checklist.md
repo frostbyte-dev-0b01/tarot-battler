@@ -295,34 +295,38 @@ Goal:
 
 Tasks:
 
-- [ ] edit team name
-- [ ] add character
-- [ ] remove character
-- [ ] edit character identity fields
-- [ ] edit position
-- [ ] edit stats
-- [ ] edit passive
-- [ ] edit actives
-- [ ] edit item
-- [ ] edit rules
+- [x] edit team name
+- [x] add character
+- [x] remove character
+- [x] edit character identity fields
+- [x] edit position
+- [x] edit stats
+- [x] edit passive
+- [x] edit actives
+- [x] edit item
+- [x] edit rules
 
 Rules editor tasks:
 
-- [ ] add rule
-- [ ] remove rule
-- [ ] move rule up
-- [ ] move rule down
-- [ ] edit rule ability
-- [ ] add condition
-- [ ] remove condition
-- [ ] edit subject, value type, operator, threshold
-- [ ] support stat selector when `value` is stat-based
+- [x] add rule
+- [x] remove rule
+- [x] move rule up
+- [x] move rule down
+- [x] edit rule ability
+- [x] add condition
+- [x] remove condition
+- [x] edit subject, value type, operator, threshold
+- [x] support stat selector when `value` is stat-based
 
 Acceptance criteria:
 
 - a user can build a valid team entirely in the UI
 - edits round-trip cleanly to JSON
 - rule editing is explicit and readable
+
+Status:
+
+- completed with live structured editing for team name, characters, stats, actives, items, rules, and conditions
 
 ## Phase 10: Import and Export Helpers
 
