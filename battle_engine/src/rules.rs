@@ -124,7 +124,9 @@ mod tests {
 
     fn make_char_with_rules(id: u32, stats: Vec<(Stat, u32)>, rules: Vec<Rule>) -> CharacterState {
         let config = CharacterConfig {
+            id: None,
             base_name: format!("Char{}", id),
+            display_name: None,
             passive: String::new(),
             actives: rules.iter().map(|r| r.ability.clone()).collect(),
             item: None,
@@ -305,7 +307,9 @@ mod tests {
         let actor = CharacterState::from_config(
             0,
             &CharacterConfig {
+                id: None,
                 base_name: "Char0".to_string(),
+                display_name: None,
                 passive: String::new(),
                 actives: vec!["Embolden".to_string()],
                 item: None,

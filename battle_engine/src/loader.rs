@@ -10,7 +10,34 @@ use crate::abilities::{
 use crate::models::CharacterConfig;
 use crate::statuses::{StatusBehavior, StatusDef, StatusMap};
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct TeamConfig {
+    pub version: u32,
+    pub name: String,
+    pub characters: Vec<TeamCharacterLoadout>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct TeamCharacterLoadout {
+    pub id: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
+    pub position: crate::models::Position,
+    pub stats: std::collections::HashMap<crate::models::Stat, u32>,
+    pub passive: String,
+    pub actives: Vec<String>,
+    pub item: Option<String>,
+    #[serde(default)]
+    pub rules: Vec<crate::models::Rule>,
+}
+
 pub fn load_characters(path: &Path) -> Result<Vec<CharacterConfig>, String> {
+    let data = std::fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+    serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
+}
+
+pub fn load_team_config(path: &Path) -> Result<TeamConfig, String> {
     let data = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
     serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
@@ -40,9 +67,157 @@ pub fn validate_content(
     passives: &PassiveMap,
     statuses: &StatusMap,
 ) -> Result<(), String> {
+    let (team_a, team_b) = characters.split_at(characters.len() / 2);
+    validate_teams(team_a, team_b, abilities, passives, statuses)
+}
+
+pub fn validate_teams(
+    team_a: &[CharacterConfig],
+    team_b: &[CharacterConfig],
+    abilities: &AbilityMap,
+    passives: &PassiveMap,
+    statuses: &StatusMap,
+) -> Result<(), String> {
     let mut errors = Vec::new();
 
-    for character in characters {
+    for (team_name, team) in [("team_a", team_a), ("team_b", team_b)] {
+        validate_team(team_name, team, abilities, passives, &mut errors);
+    }
+
+    for (team_name, team) in [("team_a", team_a), ("team_b", team_b)] {
+        let mut seen_positions = HashSet::new();
+        for character in team {
+            if !seen_positions.insert((character.position.row, character.position.col)) {
+                errors.push(format!(
+                    "{} has duplicate position ({}, {}) in {}",
+                    character.base_name, character.position.row, character.position.col, team_name
+                ));
+            }
+        }
+    }
+
+    for (ability_name, ability) in abilities {
+        validate_primitives(
+            &format!("ability '{}'", ability_name),
+            &ability.primitives,
+            statuses,
+            &mut errors,
+        );
+    }
+
+    for (passive_name, passive) in passives {
+        if let PassiveDef::Triggered { primitives, .. } = passive {
+            validate_primitives(
+                &format!("passive '{}'", passive_name),
+                primitives,
+                statuses,
+                &mut errors,
+            );
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("\n"))
+    }
+}
+
+pub fn validate_team_config(
+    team: &TeamConfig,
+    abilities: &AbilityMap,
+    passives: &PassiveMap,
+    statuses: &StatusMap,
+) -> Result<Vec<CharacterConfig>, String> {
+    let mut errors = Vec::new();
+    let mut seen_ids = HashSet::new();
+
+    if team.version != 1 {
+        errors.push(format!(
+            "team '{}' uses unsupported schema version {}",
+            team.name, team.version
+        ));
+    }
+
+    if team.characters.is_empty() {
+        errors.push(format!("team '{}' must contain at least 1 character", team.name));
+    }
+
+    for character in &team.characters {
+        if !seen_ids.insert(character.id.as_str()) {
+            errors.push(format!(
+                "team '{}' has duplicate character id '{}'",
+                team.name, character.id
+            ));
+        }
+    }
+
+    let characters: Vec<CharacterConfig> = team
+        .characters
+        .iter()
+        .map(|character| CharacterConfig {
+            id: Some(character.id.clone()),
+            base_name: character
+                .display_name
+                .clone()
+                .unwrap_or_else(|| character.id.clone()),
+            display_name: character.display_name.clone(),
+            passive: character.passive.clone(),
+            actives: character.actives.clone(),
+            item: character.item.clone(),
+            position: character.position.clone(),
+            stats: character.stats.clone(),
+            rules: character.rules.clone(),
+        })
+        .collect();
+
+    validate_team(&team.name, &characters, abilities, passives, &mut errors);
+
+    let mut seen_positions = HashSet::new();
+    for character in &characters {
+        if !seen_positions.insert((character.position.row, character.position.col)) {
+            errors.push(format!(
+                "{} has duplicate position ({}, {}) in team '{}'",
+                character.base_name, character.position.row, character.position.col, team.name
+            ));
+        }
+    }
+
+    for (ability_name, ability) in abilities {
+        validate_primitives(
+            &format!("ability '{}'", ability_name),
+            &ability.primitives,
+            statuses,
+            &mut errors,
+        );
+    }
+
+    for (passive_name, passive) in passives {
+        if let PassiveDef::Triggered { primitives, .. } = passive {
+            validate_primitives(
+                &format!("passive '{}'", passive_name),
+                primitives,
+                statuses,
+                &mut errors,
+            );
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(characters)
+    } else {
+        Err(errors.join("\n"))
+    }
+}
+
+fn validate_team(
+    team_name: &str,
+    team: &[CharacterConfig],
+    abilities: &AbilityMap,
+    passives: &PassiveMap,
+    errors: &mut Vec<String>,
+) {
+    for character in team {
         if !character.position.is_valid() {
             errors.push(format!(
                 "{} has invalid position ({}, {})",
@@ -81,47 +256,11 @@ pub fn validate_content(
                 ));
             }
         }
-    }
-
-    for (team_name, team) in [
-        ("team_a", &characters[..characters.len() / 2]),
-        ("team_b", &characters[characters.len() / 2..]),
-    ] {
-        let mut seen_positions = HashSet::new();
-        for character in team {
-            if !seen_positions.insert((character.position.row, character.position.col)) {
-                errors.push(format!(
-                    "{} has duplicate position ({}, {}) in {}",
-                    character.base_name, character.position.row, character.position.col, team_name
-                ));
+        if let Some(id) = &character.id {
+            if id.trim().is_empty() {
+                errors.push(format!("{} in team '{}' has an empty id", character.base_name, team_name));
             }
         }
-    }
-
-    for (ability_name, ability) in abilities {
-        validate_primitives(
-            &format!("ability '{}'", ability_name),
-            &ability.primitives,
-            statuses,
-            &mut errors,
-        );
-    }
-
-    for (passive_name, passive) in passives {
-        if let PassiveDef::Triggered { primitives, .. } = passive {
-            validate_primitives(
-                &format!("passive '{}'", passive_name),
-                primitives,
-                statuses,
-                &mut errors,
-            );
-        }
-    }
-
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors.join("\n"))
     }
 }
 
@@ -289,6 +428,7 @@ fn target_label(target: &AbilityTarget) -> &'static str {
 mod tests {
     use super::*;
     use crate::models::Stat;
+    use std::collections::HashMap;
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -313,6 +453,120 @@ mod tests {
         write!(tmp, "not valid json").unwrap();
         let result = load_characters(tmp.path());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn load_team_config_from_ui_schema() {
+        let mut tmp = NamedTempFile::new().unwrap();
+        write!(
+            tmp,
+            r#"{{
+                "version": 1,
+                "name": "Test Team",
+                "characters": [
+                    {{
+                        "id": "the_emperor",
+                        "display_name": "The Emperor",
+                        "position": {{ "row": 0, "col": 0 }},
+                        "stats": {{
+                            "con": 10,
+                            "str": 6,
+                            "int": 4,
+                            "for": 3,
+                            "wis": 2,
+                            "dex": 4,
+                            "spi": 5
+                        }},
+                        "passive": "Authority",
+                        "actives": ["Crush", "Embolden"],
+                        "item": null,
+                        "rules": [
+                            {{
+                                "ability": "Crush",
+                                "when": [
+                                    {{
+                                        "subject": "self",
+                                        "value": "mp",
+                                        "op": "gte",
+                                        "threshold": 2
+                                    }}
+                                ]
+                            }}
+                        ]
+                    }}
+                ]
+            }}"#
+        )
+        .unwrap();
+
+        let team = load_team_config(tmp.path()).unwrap();
+        assert_eq!(team.name, "Test Team");
+        assert_eq!(team.characters.len(), 1);
+        assert_eq!(team.characters[0].id, "the_emperor");
+        assert_eq!(team.characters[0].display_name.as_deref(), Some("The Emperor"));
+        assert_eq!(team.characters[0].rules[0].conditions.len(), 1);
+    }
+
+    #[test]
+    fn validate_team_config_rejects_duplicate_ids() {
+        let abilities = load_abilities(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/abilities.json"),
+        )
+        .unwrap();
+        let passives = load_passives(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/passives.json"),
+        )
+        .unwrap();
+        let statuses = load_statuses(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/statuses.json"),
+        )
+        .unwrap();
+
+        let team = TeamConfig {
+            version: 1,
+            name: "Bad Team".to_string(),
+            characters: vec![
+                TeamCharacterLoadout {
+                    id: "dup".to_string(),
+                    display_name: Some("One".to_string()),
+                    position: crate::models::Position { row: 0, col: 0 },
+                    stats: HashMap::from([
+                        (Stat::CON, 8),
+                        (Stat::STR, 4),
+                        (Stat::INT, 4),
+                        (Stat::FOR, 3),
+                        (Stat::WIS, 3),
+                        (Stat::DEX, 4),
+                        (Stat::SPI, 4),
+                    ]),
+                    passive: "Authority".to_string(),
+                    actives: vec!["Crush".to_string()],
+                    item: None,
+                    rules: vec![],
+                },
+                TeamCharacterLoadout {
+                    id: "dup".to_string(),
+                    display_name: Some("Two".to_string()),
+                    position: crate::models::Position { row: 0, col: 1 },
+                    stats: HashMap::from([
+                        (Stat::CON, 8),
+                        (Stat::STR, 4),
+                        (Stat::INT, 4),
+                        (Stat::FOR, 3),
+                        (Stat::WIS, 3),
+                        (Stat::DEX, 4),
+                        (Stat::SPI, 4),
+                    ]),
+                    passive: "Collapse".to_string(),
+                    actives: vec!["Shatter".to_string()],
+                    item: None,
+                    rules: vec![],
+                },
+            ],
+        };
+
+        let err = validate_team_config(&team, &abilities, &passives, &statuses).unwrap_err();
+        assert!(err.contains("duplicate character id 'dup'"));
     }
 
     #[test]
@@ -342,7 +596,9 @@ mod tests {
     #[test]
     fn validate_content_rejects_unknown_passives_and_abilities() {
         let chars = vec![CharacterConfig {
+            id: None,
             base_name: "Tester".to_string(),
+            display_name: None,
             passive: "UnknownPassive".to_string(),
             actives: vec!["KnownAbility".to_string(), "MissingAbility".to_string()],
             item: None,
@@ -373,7 +629,9 @@ mod tests {
     #[test]
     fn validate_content_rejects_rules_for_unequipped_abilities() {
         let chars = vec![CharacterConfig {
+            id: None,
             base_name: "Tester".to_string(),
+            display_name: None,
             passive: String::new(),
             actives: vec!["KnownAbility".to_string()],
             item: None,
@@ -412,7 +670,9 @@ mod tests {
     fn validate_content_rejects_invalid_and_duplicate_positions() {
         let chars = vec![
             CharacterConfig {
+                id: None,
                 base_name: "A".to_string(),
+                display_name: None,
                 passive: String::new(),
                 actives: Vec::new(),
                 item: None,
@@ -421,7 +681,9 @@ mod tests {
                 rules: Vec::new(),
             },
             CharacterConfig {
+                id: None,
                 base_name: "B".to_string(),
+                display_name: None,
                 passive: String::new(),
                 actives: Vec::new(),
                 item: None,
@@ -430,7 +692,9 @@ mod tests {
                 rules: Vec::new(),
             },
             CharacterConfig {
+                id: None,
                 base_name: "C".to_string(),
+                display_name: None,
                 passive: String::new(),
                 actives: Vec::new(),
                 item: None,
@@ -439,7 +703,9 @@ mod tests {
                 rules: Vec::new(),
             },
             CharacterConfig {
+                id: None,
                 base_name: "D".to_string(),
+                display_name: None,
                 passive: String::new(),
                 actives: Vec::new(),
                 item: None,

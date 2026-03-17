@@ -646,7 +646,9 @@ mod tests {
 
     fn make_char(id: u32, stats: Vec<(Stat, u32)>) -> CharacterState {
         let config = CharacterConfig {
+            id: None,
             base_name: format!("Char{}", id),
+            display_name: None,
             passive: String::new(),
             actives: Vec::new(),
             item: None,
@@ -659,7 +661,9 @@ mod tests {
 
     fn make_adjacent_char(id: u32, row: u8, col: u8, stats: Vec<(Stat, u32)>) -> CharacterState {
         let config = CharacterConfig {
+            id: None,
             base_name: format!("Char{}", id),
+            display_name: None,
             passive: String::new(),
             actives: Vec::new(),
             item: None,

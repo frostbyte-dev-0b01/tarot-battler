@@ -15,6 +15,12 @@ This is a temporary builder-facing format. The intended long-term direction is:
 - predefined roster entries keyed by `character_id`
 - team files that store `character_id + overrides`
 
+The current engine can load this format directly with:
+
+```bash
+cargo run -- --team-a path/to/team_a.json --team-b path/to/team_b.json
+```
+
 For now, full loadouts are easier to edit by hand and simpler to support in dev tooling.
 
 ## Top-Level Shape

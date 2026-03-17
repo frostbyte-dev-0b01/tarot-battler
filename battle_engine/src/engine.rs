@@ -809,7 +809,9 @@ mod tests {
 
     fn make_config_at(name: &str, row: u8, col: u8, stats: Vec<(Stat, u32)>) -> CharacterConfig {
         CharacterConfig {
+            id: None,
             base_name: name.to_string(),
+            display_name: None,
             passive: String::new(),
             actives: Vec::new(),
             item: None,

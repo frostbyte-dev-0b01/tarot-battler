@@ -7,12 +7,19 @@ use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusInstance, oppo
 /// The current character attributes.
 #[derive(Hash, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Stat {
+    #[serde(rename = "CON", alias = "con")]
     CON, // Max HP = 2 * CON
+    #[serde(rename = "STR", alias = "str")]
     STR, // Base physical damage
+    #[serde(rename = "INT", alias = "int")]
     INT, // Base magical damage
+    #[serde(rename = "FOR", alias = "for")]
     FOR, // Physical resistance
+    #[serde(rename = "WIS", alias = "wis")]
     WIS, // Magical resistance
+    #[serde(rename = "DEX", alias = "dex")]
     DEX, // Determines how often to act
+    #[serde(rename = "SPI", alias = "spi")]
     SPI, // Spirit stat: max MP and MP regen
 }
 
@@ -76,6 +83,7 @@ pub enum Comparator {
 pub struct Condition {
     pub subject: ConditionSubject,
     pub value: QueryValue,
+    #[serde(alias = "op")]
     pub comparator: Comparator,
     pub threshold: u32,
 }
@@ -84,13 +92,18 @@ pub struct Condition {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Rule {
     pub ability: String,
+    #[serde(alias = "when")]
     pub conditions: Vec<Condition>,
 }
 
 /// Static character definition loaded from JSON (archetype + loadout).
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct CharacterConfig {
+    #[serde(default)]
+    pub id: Option<String>,
     pub base_name: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
     pub passive: String,
     pub actives: Vec<String>,
     pub item: Option<String>,
@@ -576,7 +589,9 @@ mod tests {
 
     fn make_config(stats: Vec<(Stat, u32)>) -> CharacterConfig {
         CharacterConfig {
+            id: None,
             base_name: "Test".to_string(),
+            display_name: None,
             passive: String::new(),
             actives: Vec::new(),
             item: None,
