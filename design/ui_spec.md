@@ -248,6 +248,12 @@ The board state is the primary visualization.
 4. tool applies events up to the selected event index
 5. tool renders board, inspector, and timeline
 
+Current engine loop:
+
+1. run the engine
+2. engine writes `tools/ui/sample-data/latest_replay.json`
+3. load that file in the replay viewer
+
 ## Recommended File Structure
 
 The first implementation can stay very small:

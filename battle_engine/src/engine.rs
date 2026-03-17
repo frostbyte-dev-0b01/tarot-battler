@@ -6,9 +6,10 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use crate::abilities::{
-    AbilityMap, PassiveDef, PassiveMap, PassiveTrigger, SimpleAbilityTarget, execute_ability,
-    execute_primitives,
+    AbilityMap, PassiveDef, PassiveMap, PassiveTrigger, execute_ability, execute_primitives,
 };
+#[cfg(test)]
+use crate::abilities::SimpleAbilityTarget;
 use crate::damage::calc_basic_attack_damage;
 use crate::logger::{BattleEvent, BattleLog};
 use crate::models::{CharacterConfig, CharacterState, Stat, StatusTick};
@@ -434,6 +435,14 @@ impl BattleState {
         let actor_id = actor_team[actor_idx].id();
         let actor_name = actor_team[actor_idx].base_name().to_string();
 
+        self.log.push(BattleEvent::TurnStart {
+            tick_count: self.step,
+            actor_id,
+            actor_name: actor_name.clone(),
+            current_hp: actor_team[actor_idx].current_hp(),
+            current_mp: actor_team[actor_idx].current_mp(),
+        });
+
         // Incapacitate check happens after start-of-turn passives and status ticks.
         if actor_team[actor_idx].is_incapacitated() {
             self.log.push(BattleEvent::TurnSkipped {
@@ -556,7 +565,20 @@ impl BattleState {
         }
 
         let regen = actor_team[actor_idx].get_base_stat(&Stat::SPI) / 2;
+        let actor_id = actor_team[actor_idx].id();
+        let actor_name = actor_team[actor_idx].base_name().to_string();
         actor_team[actor_idx].restore_mp(regen);
+        if regen > 0 {
+            self.log.push(BattleEvent::ResourceChanged {
+                tick_count: self.step,
+                actor_id,
+                actor_name,
+                resource: "mp".to_string(),
+                delta: regen as i32,
+                value_after: actor_team[actor_idx].current_mp(),
+                reason: "turn_regen".to_string(),
+            });
+        }
         actor_team[actor_idx].reset_speed();
     }
 

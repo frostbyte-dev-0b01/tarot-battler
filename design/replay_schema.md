@@ -13,6 +13,20 @@ The replay viewer should be able to render:
 
 The schema is designed to be frontend-friendly. It should not require the UI to reimplement battle logic in order to display HP, MP, statuses, defeats, or event causes.
 
+The current engine writes replay JSON to:
+
+```text
+tools/ui/sample-data/latest_replay.json
+```
+
+You can also override the output path with:
+
+```bash
+cargo run -- --json-out path/to/replay.json
+```
+
+`cargo run -- --json` prints the same replay-schema JSON to stdout.
+
 ## Top-Level Shape
 
 ```json
@@ -326,6 +340,32 @@ The replay format should support at least these event families:
 - `resource_changed`
 - `defeat`
 - `battle_end`
+
+## Current Engine Coverage
+
+The current engine writes this replay schema directly, but it does not yet emit every event family listed above.
+
+Currently emitted:
+
+- `battle_start`
+- `turn_start`
+- `basic_attack`
+- `ability_used`
+- `damage`
+- `status_tick`
+- `passive_triggered`
+- `turn_skipped`
+- `resource_changed`
+- `defeat`
+- `battle_end`
+
+Still missing from engine output:
+
+- `healing` as a standalone event
+- `status_applied`
+- `status_removed`
+
+Those gaps should be filled later so the replay viewer can show status state with full fidelity without reconstructing hidden engine details.
 
 This is enough for:
 
