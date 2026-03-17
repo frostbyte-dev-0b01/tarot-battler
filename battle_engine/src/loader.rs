@@ -10,29 +10,25 @@ use crate::statuses::{StatusBehavior, StatusDef, StatusMap};
 pub fn load_characters(path: &Path) -> Result<Vec<CharacterConfig>, String> {
     let data = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
-    serde_json::from_str(&data)
-        .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
+    serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
 }
 
 pub fn load_abilities(path: &Path) -> Result<AbilityMap, String> {
     let data = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
-    serde_json::from_str(&data)
-        .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
+    serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
 }
 
 pub fn load_passives(path: &Path) -> Result<PassiveMap, String> {
     let data = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
-    serde_json::from_str(&data)
-        .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
+    serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
 }
 
 pub fn load_statuses(path: &Path) -> Result<StatusMap, String> {
     let data = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
-    serde_json::from_str(&data)
-        .map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
+    serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
 }
 
 pub fn validate_content(
@@ -84,7 +80,10 @@ pub fn validate_content(
         }
     }
 
-    for (team_name, team) in [("team_a", &characters[..characters.len() / 2]), ("team_b", &characters[characters.len() / 2..])] {
+    for (team_name, team) in [
+        ("team_a", &characters[..characters.len() / 2]),
+        ("team_b", &characters[characters.len() / 2..]),
+    ] {
         let mut seen_positions = HashSet::new();
         for character in team {
             if !seen_positions.insert((character.position.row, character.position.col)) {
@@ -131,7 +130,12 @@ fn validate_primitives(
 ) {
     for primitive in primitives {
         match primitive {
-            Primitive::ApplyStatus { target, status, stat, .. } => {
+            Primitive::ApplyStatus {
+                target,
+                status,
+                stat,
+                ..
+            } => {
                 let Some(def) = statuses.get(status) else {
                     errors.push(format!(
                         "{} references unknown status '{}'",
@@ -151,7 +155,12 @@ fn validate_primitives(
                     ));
                 }
             }
-            Primitive::RemoveStatus { target, status, stat, .. } => {
+            Primitive::RemoveStatus {
+                target,
+                status,
+                stat,
+                ..
+            } => {
                 let Some(def) = statuses.get(status) else {
                     errors.push(format!(
                         "{} references unknown status '{}'",
@@ -212,11 +221,17 @@ fn remove_status_target_is_valid(target: &AbilityTarget, def: &StatusDef) -> boo
 }
 
 fn is_enemy_target(target: &AbilityTarget) -> bool {
-    matches!(target, AbilityTarget::CurrentTarget | AbilityTarget::AllEnemies)
+    matches!(
+        target,
+        AbilityTarget::CurrentTarget | AbilityTarget::AllEnemies
+    )
 }
 
 fn is_ally_target(target: &AbilityTarget) -> bool {
-    matches!(target, AbilityTarget::SelfChar | AbilityTarget::Companions | AbilityTarget::AllAllies)
+    matches!(
+        target,
+        AbilityTarget::SelfChar | AbilityTarget::Companions | AbilityTarget::AllAllies
+    )
 }
 
 #[derive(Clone, Copy)]
@@ -320,10 +335,12 @@ mod tests {
         let abilities = [(
             "KnownAbility".to_string(),
             crate::abilities::AbilityDef {
-                spi_cost: 1,
+                mp_cost: 1,
                 primitives: Vec::new(),
             },
-        )].into_iter().collect();
+        )]
+        .into_iter()
+        .collect();
         let passives = PassiveMap::new();
 
         let err = validate_content(&chars, &abilities, &passives, &StatusMap::new()).unwrap_err();
@@ -350,20 +367,23 @@ mod tests {
             (
                 "KnownAbility".to_string(),
                 crate::abilities::AbilityDef {
-                    spi_cost: 1,
+                    mp_cost: 1,
                     primitives: Vec::new(),
                 },
             ),
             (
                 "OtherAbility".to_string(),
                 crate::abilities::AbilityDef {
-                    spi_cost: 1,
+                    mp_cost: 1,
                     primitives: Vec::new(),
                 },
             ),
-        ].into_iter().collect();
+        ]
+        .into_iter()
+        .collect();
 
-        let err = validate_content(&chars, &abilities, &PassiveMap::new(), &StatusMap::new()).unwrap_err();
+        let err = validate_content(&chars, &abilities, &PassiveMap::new(), &StatusMap::new())
+            .unwrap_err();
         assert!(err.contains("unequipped ability"));
     }
 
@@ -408,7 +428,13 @@ mod tests {
             },
         ];
 
-        let err = validate_content(&chars, &AbilityMap::new(), &PassiveMap::new(), &StatusMap::new()).unwrap_err();
+        let err = validate_content(
+            &chars,
+            &AbilityMap::new(),
+            &PassiveMap::new(),
+            &StatusMap::new(),
+        )
+        .unwrap_err();
         assert!(err.contains("invalid position"));
         assert!(err.contains("duplicate position"));
     }
@@ -419,7 +445,7 @@ mod tests {
         let abilities = [(
             "BadBuff".to_string(),
             crate::abilities::AbilityDef {
-                spi_cost: 1,
+                mp_cost: 1,
                 primitives: vec![Primitive::ApplyStatus {
                     target: AbilityTarget::CurrentTarget,
                     status: "Empower".to_string(),
@@ -427,7 +453,9 @@ mod tests {
                     stacks: 1,
                 }],
             },
-        )].into_iter().collect();
+        )]
+        .into_iter()
+        .collect();
         let statuses = [(
             "Empower".to_string(),
             StatusDef {
@@ -435,7 +463,9 @@ mod tests {
                 stack_type: crate::statuses::StackType::TickDown,
                 opposes: None,
             },
-        )].into_iter().collect();
+        )]
+        .into_iter()
+        .collect();
 
         let err = validate_content(&chars, &abilities, &PassiveMap::new(), &statuses).unwrap_err();
         assert!(err.contains("applies status 'Empower'"));
@@ -447,7 +477,7 @@ mod tests {
         let abilities = [(
             "BadCleanse".to_string(),
             crate::abilities::AbilityDef {
-                spi_cost: 1,
+                mp_cost: 1,
                 primitives: vec![Primitive::RemoveStatus {
                     target: AbilityTarget::CurrentTarget,
                     status: "Bleed".to_string(),
@@ -455,7 +485,9 @@ mod tests {
                     stacks: 1,
                 }],
             },
-        )].into_iter().collect();
+        )]
+        .into_iter()
+        .collect();
         let statuses = [(
             "Bleed".to_string(),
             StatusDef {
@@ -463,7 +495,9 @@ mod tests {
                 stack_type: crate::statuses::StackType::TickDown,
                 opposes: None,
             },
-        )].into_iter().collect();
+        )]
+        .into_iter()
+        .collect();
 
         let err = validate_content(&chars, &abilities, &PassiveMap::new(), &statuses).unwrap_err();
         assert!(err.contains("removes status 'Bleed'"));
@@ -475,7 +509,7 @@ mod tests {
         let abilities = [(
             "BadEmpower".to_string(),
             crate::abilities::AbilityDef {
-                spi_cost: 1,
+                mp_cost: 1,
                 primitives: vec![Primitive::ApplyStatus {
                     target: AbilityTarget::SelfChar,
                     status: "Empower".to_string(),
@@ -483,7 +517,9 @@ mod tests {
                     stacks: 1,
                 }],
             },
-        )].into_iter().collect();
+        )]
+        .into_iter()
+        .collect();
         let statuses = [(
             "Empower".to_string(),
             StatusDef {
@@ -491,7 +527,9 @@ mod tests {
                 stack_type: crate::statuses::StackType::TickDown,
                 opposes: None,
             },
-        )].into_iter().collect();
+        )]
+        .into_iter()
+        .collect();
 
         let err = validate_content(&chars, &abilities, &PassiveMap::new(), &statuses).unwrap_err();
         assert!(err.contains("without required stat field"));
@@ -503,7 +541,7 @@ mod tests {
         let abilities = [(
             "BadBleed".to_string(),
             crate::abilities::AbilityDef {
-                spi_cost: 1,
+                mp_cost: 1,
                 primitives: vec![Primitive::ApplyStatus {
                     target: AbilityTarget::CurrentTarget,
                     status: "Bleed".to_string(),
@@ -511,7 +549,9 @@ mod tests {
                     stacks: 1,
                 }],
             },
-        )].into_iter().collect();
+        )]
+        .into_iter()
+        .collect();
         let statuses = [(
             "Bleed".to_string(),
             StatusDef {
@@ -519,7 +559,9 @@ mod tests {
                 stack_type: crate::statuses::StackType::TickDown,
                 opposes: None,
             },
-        )].into_iter().collect();
+        )]
+        .into_iter()
+        .collect();
 
         let err = validate_content(&chars, &abilities, &PassiveMap::new(), &statuses).unwrap_err();
         assert!(err.contains("with unexpected stat field"));

@@ -2,9 +2,9 @@
 
 use std::collections::HashMap;
 
-use crate::statuses::{opposite_key, StackType, StatusBehavior, StatusDef, StatusInstance};
+use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusInstance, opposite_key};
 
-/// The nine character attributes.
+/// The current character attributes.
 #[derive(Hash, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Stat {
     CON, // Max HP = 2 * CON
@@ -13,9 +13,7 @@ pub enum Stat {
     FOR, // Physical resistance
     WIS, // Magical resistance
     DEX, // Determines how often to act
-    SPI, // Max Spirit pool and Spirit regen
-    FOC, // Debuff chance modifier
-    RES, // Debuff resist chance modifier
+    SPI, // Spirit stat: max MP and MP regen
 }
 
 /// Cell on the battle grid (rows 0-2, cols 0-3).
@@ -55,7 +53,7 @@ pub enum ConditionSubject {
 pub enum QueryValue {
     Stat(Stat),
     Hp,
-    Spi,
+    Mp,
     UseCount,
     TurnsSinceUse,
     // TODO: StatusStacks(String) and HasStatus(String) for rule conditions
@@ -104,8 +102,8 @@ pub struct CharacterConfig {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TraitEffect {
-    /// Abilities cost `amount` less SPI (minimum 1).
-    SpiCostReduction { amount: u32 },
+    /// Abilities cost `amount` less MP (minimum 1).
+    MpCostReduction { amount: u32 },
     /// First `count` debuffs applied to this character are negated.
     DebuffResistance { count: u32 },
     /// Attackers take `amount` damage when they hit this character.
@@ -129,7 +127,7 @@ pub struct CharacterState {
     base_stats: HashMap<Stat, u32>,
     position: Position,
     curr_hp: u32,
-    curr_spi: u32,
+    curr_mp: u32,
     spd_counter: u32,
     spd_max: u32,
     target: Option<u32>,
@@ -146,7 +144,7 @@ pub struct CharacterState {
 impl CharacterState {
     pub fn from_config(id: u32, config: &CharacterConfig) -> Self {
         let hp = config.stats.get(&Stat::CON).copied().unwrap_or(0) * 2;
-        let spi = config.stats.get(&Stat::SPI).copied().unwrap_or(0);
+        let mp = config.stats.get(&Stat::SPI).copied().unwrap_or(0);
         let dex = config.stats.get(&Stat::DEX).copied().unwrap_or(0);
         Self {
             id,
@@ -156,7 +154,7 @@ impl CharacterState {
             base_stats: config.stats.clone(),
             position: config.position.clone(),
             curr_hp: hp,
-            curr_spi: spi,
+            curr_mp: mp,
             spd_counter: dex,
             spd_max: dex,
             target: None,
@@ -196,7 +194,9 @@ impl CharacterState {
     }
 
     pub fn is_incapacitated(&self) -> bool {
-        self.statuses.values().any(|s| matches!(s.behavior, StatusBehavior::SkipTurn))
+        self.statuses
+            .values()
+            .any(|s| matches!(s.behavior, StatusBehavior::SkipTurn))
     }
 
     pub fn position(&self) -> &Position {
@@ -214,9 +214,7 @@ impl CharacterState {
             .statuses
             .values()
             .filter_map(|s| match &s.behavior {
-                StatusBehavior::StatModPerStack { magnitude }
-                    if s.stat.as_ref() == Some(stat) =>
-                {
+                StatusBehavior::StatModPerStack { magnitude } if s.stat.as_ref() == Some(stat) => {
                     Some(*magnitude * s.stacks as i32)
                 }
                 _ => None,
@@ -243,24 +241,24 @@ impl CharacterState {
         self.curr_hp = (self.curr_hp + amount).min(max_hp);
     }
 
-    pub fn current_spi(&self) -> u32 {
-        self.curr_spi
+    pub fn current_mp(&self) -> u32 {
+        self.curr_mp
     }
 
-    /// Returns false and does nothing if SPI is insufficient.
-    pub fn spend_spi(&mut self, cost: u32) -> bool {
-        if self.curr_spi >= cost {
-            self.curr_spi -= cost;
+    /// Returns false and does nothing if MP is insufficient.
+    pub fn spend_mp(&mut self, cost: u32) -> bool {
+        if self.curr_mp >= cost {
+            self.curr_mp -= cost;
             true
         } else {
             false
         }
     }
 
-    /// Restores up to base SPI.
-    pub fn restore_spi(&mut self, amount: u32) {
-        let max_spi = self.get_base_stat(&Stat::SPI);
-        self.curr_spi = (self.curr_spi + amount).min(max_spi);
+    /// Restores up to base SPI, which determines max MP.
+    pub fn restore_mp(&mut self, amount: u32) {
+        let max_mp = self.get_base_stat(&Stat::SPI);
+        self.curr_mp = (self.curr_mp + amount).min(max_mp);
     }
 
     /// Decrements speed counter. Returns true when the character is ready to act.
@@ -315,18 +313,24 @@ impl CharacterState {
         self.traits.push(t);
     }
 
-    pub fn spi_cost_reduction(&self) -> u32 {
-        self.traits.iter().filter_map(|t| match t {
-            TraitEffect::SpiCostReduction { amount } => Some(*amount),
-            _ => None,
-        }).sum()
+    pub fn mp_cost_reduction(&self) -> u32 {
+        self.traits
+            .iter()
+            .filter_map(|t| match t {
+                TraitEffect::MpCostReduction { amount } => Some(*amount),
+                _ => None,
+            })
+            .sum()
     }
 
     pub fn damage_reflect_amount(&self) -> u32 {
-        self.traits.iter().filter_map(|t| match t {
-            TraitEffect::DamageReflect { amount } => Some(*amount),
-            _ => None,
-        }).sum()
+        self.traits
+            .iter()
+            .filter_map(|t| match t {
+                TraitEffect::DamageReflect { amount } => Some(*amount),
+                _ => None,
+            })
+            .sum()
     }
 
     /// Try to negate a debuff using DebuffResistance charges. Returns true if negated.
@@ -346,13 +350,13 @@ impl CharacterState {
         &self.rules
     }
 
-    /// Returns the value of a query (stat, HP, or SPI) for condition evaluation.
+    /// Returns the value of a query (stat, HP, or MP) for condition evaluation.
     /// UseCount and TurnsSinceUse are not handled here — they require ability context.
     pub fn query_value(&self, qv: &QueryValue) -> u32 {
         match qv {
             QueryValue::Stat(stat) => self.get_eff_stat(stat),
             QueryValue::Hp => self.curr_hp,
-            QueryValue::Spi => self.curr_spi,
+            QueryValue::Mp => self.curr_mp,
             QueryValue::UseCount | QueryValue::TurnsSinceUse => 0,
         }
     }
@@ -363,12 +367,19 @@ impl CharacterState {
 
     /// Record that the actor used an ability on their current turn.
     pub fn record_ability_use(&mut self, ability_name: &str) {
-        *self.ability_use_counts.entry(ability_name.to_string()).or_insert(0) += 1;
-        self.ability_last_used_turn.insert(ability_name.to_string(), self.actor_turn_count);
+        *self
+            .ability_use_counts
+            .entry(ability_name.to_string())
+            .or_insert(0) += 1;
+        self.ability_last_used_turn
+            .insert(ability_name.to_string(), self.actor_turn_count);
     }
 
     pub fn ability_use_count(&self, ability_name: &str) -> u32 {
-        self.ability_use_counts.get(ability_name).copied().unwrap_or(0)
+        self.ability_use_counts
+            .get(ability_name)
+            .copied()
+            .unwrap_or(0)
     }
 
     /// Returns actor turns elapsed since this ability was last used.
@@ -435,13 +446,16 @@ impl CharacterState {
                     existing.stacks += stacks;
                     existing.source_id = source_id;
                 } else {
-                    self.statuses.insert(key.to_string(), StatusInstance {
-                        stacks,
-                        source_id,
-                        behavior: def.behavior.clone(),
-                        stack_type: def.stack_type.clone(),
-                        stat,
-                    });
+                    self.statuses.insert(
+                        key.to_string(),
+                        StatusInstance {
+                            stacks,
+                            source_id,
+                            behavior: def.behavior.clone(),
+                            stack_type: def.stack_type.clone(),
+                            stat,
+                        },
+                    );
                 }
             }
             StackType::NoStack => {
@@ -451,13 +465,16 @@ impl CharacterState {
                     }
                     existing.source_id = source_id;
                 } else {
-                    self.statuses.insert(key.to_string(), StatusInstance {
-                        stacks,
-                        source_id,
-                        behavior: def.behavior.clone(),
-                        stack_type: def.stack_type.clone(),
-                        stat,
-                    });
+                    self.statuses.insert(
+                        key.to_string(),
+                        StatusInstance {
+                            stacks,
+                            source_id,
+                            behavior: def.behavior.clone(),
+                            stack_type: def.stack_type.clone(),
+                            stat,
+                        },
+                    );
                 }
             }
         }
@@ -516,14 +533,12 @@ impl CharacterState {
         }
 
         // Decrement stacks for TickDown and NoStack
-        self.statuses.retain(|_, inst| {
-            match inst.stack_type {
-                StackType::TickDown | StackType::NoStack => {
-                    inst.stacks = inst.stacks.saturating_sub(1);
-                    inst.stacks > 0
-                }
-                StackType::Permanent => true,
+        self.statuses.retain(|_, inst| match inst.stack_type {
+            StackType::TickDown | StackType::NoStack => {
+                inst.stacks = inst.stacks.saturating_sub(1);
+                inst.stacks > 0
             }
+            StackType::Permanent => true,
         });
 
         ticks
@@ -533,7 +548,7 @@ impl CharacterState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::statuses::{status_key, StatusDef};
+    use crate::statuses::{StatusDef, status_key};
 
     fn make_config(stats: Vec<(Stat, u32)>) -> CharacterConfig {
         CharacterConfig {
@@ -632,22 +647,22 @@ mod tests {
     }
 
     #[test]
-    fn spend_spi_fails_when_insufficient() {
+    fn spend_mp_fails_when_insufficient() {
         let config = make_config(vec![(Stat::SPI, 5)]);
         let mut state = CharacterState::from_config(0, &config);
-        assert!(state.spend_spi(3));
-        assert_eq!(state.current_spi(), 2);
-        assert!(!state.spend_spi(3));
-        assert_eq!(state.current_spi(), 2);
+        assert!(state.spend_mp(3));
+        assert_eq!(state.current_mp(), 2);
+        assert!(!state.spend_mp(3));
+        assert_eq!(state.current_mp(), 2);
     }
 
     #[test]
-    fn restore_spi_caps_at_base() {
+    fn restore_mp_caps_at_base() {
         let config = make_config(vec![(Stat::SPI, 10)]);
         let mut state = CharacterState::from_config(0, &config);
-        state.spend_spi(8);
-        state.restore_spi(100);
-        assert_eq!(state.current_spi(), 10);
+        state.spend_mp(8);
+        state.restore_mp(100);
+        assert_eq!(state.current_mp(), 10);
     }
 
     #[test]
@@ -720,7 +735,10 @@ mod tests {
         // Turn 1: 3 stacks fire (3 dmg), then 3→2
         let ticks = state.tick_statuses();
         assert_eq!(ticks.len(), 1);
-        assert!(matches!(&ticks[0], StatusTick::DamageDealt { damage: 3, .. }));
+        assert!(matches!(
+            &ticks[0],
+            StatusTick::DamageDealt { damage: 3, .. }
+        ));
         assert_eq!(state.current_hp(), 37); // 40 - 3
         assert_eq!(state.status_stacks("Bleed"), 2);
 
@@ -922,13 +940,13 @@ mod tests {
     // --- Permanent trait tests ---
 
     #[test]
-    fn spi_cost_reduction_sums_amounts() {
+    fn mp_cost_reduction_sums_amounts() {
         let config = make_config(vec![(Stat::SPI, 5)]);
         let mut state = CharacterState::from_config(0, &config);
-        assert_eq!(state.spi_cost_reduction(), 0);
+        assert_eq!(state.mp_cost_reduction(), 0);
 
-        state.add_trait(TraitEffect::SpiCostReduction { amount: 2 });
-        assert_eq!(state.spi_cost_reduction(), 2);
+        state.add_trait(TraitEffect::MpCostReduction { amount: 2 });
+        assert_eq!(state.mp_cost_reduction(), 2);
     }
 
     #[test]

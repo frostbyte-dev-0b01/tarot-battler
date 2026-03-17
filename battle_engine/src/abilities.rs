@@ -6,7 +6,7 @@ use rand::rngs::StdRng;
 
 use crate::logger::{BattleEvent, BattleLog};
 use crate::models::{CharacterState, Stat};
-use crate::statuses::{status_key, StatusMap};
+use crate::statuses::{StatusMap, status_key};
 
 /// Who the ability primitive targets.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -36,7 +36,7 @@ pub enum Primitive {
         target: AbilityTarget,
         amount: u32,
     },
-    RestoreSpi {
+    RestoreMp {
         target: AbilityTarget,
         amount: u32,
     },
@@ -59,7 +59,7 @@ pub enum Primitive {
 /// A complete ability definition.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct AbilityDef {
-    pub spi_cost: u32,
+    pub mp_cost: u32,
     pub primitives: Vec<Primitive>,
 }
 
@@ -114,12 +114,19 @@ pub fn execute_ability(
         actor_id,
         actor_name,
         ability_name: ability_name.to_string(),
-        spi_cost: ability.spi_cost,
+        mp_cost: ability.mp_cost,
     });
 
     execute_primitives(
-        actor_idx, ability_name, &ability.primitives,
-        actor_team, enemy_team, rng, log, step, status_defs,
+        actor_idx,
+        ability_name,
+        &ability.primitives,
+        actor_team,
+        enemy_team,
+        rng,
+        log,
+        step,
+        status_defs,
     )
 }
 
@@ -148,7 +155,8 @@ pub fn execute_primitives(
     for primitive in primitives {
         match primitive {
             Primitive::DealPhysicalDamage { target, multiplier } => {
-                let target_indices = resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
+                let target_indices =
+                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
                 for tidx in target_indices {
                     let defender_for = enemy_team[tidx].get_eff_stat(&Stat::FOR);
                     let base = (actor_str as i32 - defender_for as i32).max(1) as u32;
@@ -169,7 +177,8 @@ pub fn execute_primitives(
                 }
             }
             Primitive::DealMagicalDamage { target, multiplier } => {
-                let target_indices = resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
+                let target_indices =
+                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
                 for tidx in target_indices {
                     let defender_wis = enemy_team[tidx].get_eff_stat(&Stat::WIS);
                     let base = (actor_int as i32 - defender_wis as i32).max(1) as u32;
@@ -197,11 +206,11 @@ pub fn execute_primitives(
                     }
                 }
             }
-            Primitive::RestoreSpi { target, amount } => {
+            Primitive::RestoreMp { target, amount } => {
                 let target_indices = resolve_ally_targets(target, actor_idx, actor_team);
                 for tidx in target_indices {
                     if actor_team[tidx].is_alive() {
-                        actor_team[tidx].restore_spi(*amount);
+                        actor_team[tidx].restore_mp(*amount);
                     }
                 }
             }
@@ -215,20 +224,36 @@ pub fn execute_primitives(
                     let key = status_key(status, stat.as_ref());
                     match target {
                         AbilityTarget::CurrentTarget | AbilityTarget::AllEnemies => {
-                        let target_indices = resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
-                        for tidx in target_indices {
-                            if enemy_team[tidx].is_alive() {
-                                enemy_team[tidx].add_status(&key, *stacks, actor_id, def, stat.clone());
+                            let target_indices =
+                                resolve_enemy_targets(target, actor_idx, actor_team, enemy_team);
+                            for tidx in target_indices {
+                                if enemy_team[tidx].is_alive() {
+                                    enemy_team[tidx].add_status(
+                                        &key,
+                                        *stacks,
+                                        actor_id,
+                                        def,
+                                        stat.clone(),
+                                    );
+                                }
                             }
                         }
-                        }
-                        AbilityTarget::SelfChar | AbilityTarget::Companions | AbilityTarget::AllAllies => {
-                        let target_indices = resolve_ally_targets(target, actor_idx, actor_team);
-                        for tidx in target_indices {
-                            if actor_team[tidx].is_alive() {
-                                actor_team[tidx].add_status(&key, *stacks, actor_id, def, stat.clone());
+                        AbilityTarget::SelfChar
+                        | AbilityTarget::Companions
+                        | AbilityTarget::AllAllies => {
+                            let target_indices =
+                                resolve_ally_targets(target, actor_idx, actor_team);
+                            for tidx in target_indices {
+                                if actor_team[tidx].is_alive() {
+                                    actor_team[tidx].add_status(
+                                        &key,
+                                        *stacks,
+                                        actor_id,
+                                        def,
+                                        stat.clone(),
+                                    );
+                                }
                             }
-                        }
                         }
                     }
                 }
@@ -248,7 +273,9 @@ pub fn execute_primitives(
                             enemy_team[tidx].remove_status(&key, *stacks);
                         }
                     }
-                    AbilityTarget::SelfChar | AbilityTarget::Companions | AbilityTarget::AllAllies => {
+                    AbilityTarget::SelfChar
+                    | AbilityTarget::Companions
+                    | AbilityTarget::AllAllies => {
                         let target_indices = resolve_ally_targets(target, actor_idx, actor_team);
                         for tidx in target_indices {
                             actor_team[tidx].remove_status(&key, *stacks);
@@ -278,13 +305,15 @@ fn resolve_enemy_targets(
             }
             Vec::new()
         }
-        AbilityTarget::AllEnemies => {
-            enemy_team.iter().enumerate()
-                .filter(|(_, c)| c.is_alive())
-                .map(|(i, _)| i)
-                .collect()
+        AbilityTarget::AllEnemies => enemy_team
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.is_alive())
+            .map(|(i, _)| i)
+            .collect(),
+        AbilityTarget::SelfChar | AbilityTarget::Companions | AbilityTarget::AllAllies => {
+            Vec::new()
         }
-        AbilityTarget::SelfChar | AbilityTarget::Companions | AbilityTarget::AllAllies => Vec::new(),
     }
 }
 
@@ -303,12 +332,12 @@ fn resolve_ally_targets(
                 .filter_map(|id| actor_team.iter().position(|c| c.id() == *id))
                 .collect()
         }
-        AbilityTarget::AllAllies => {
-            actor_team.iter().enumerate()
-                .filter(|(i, c)| *i != actor_idx && c.is_alive())
-                .map(|(i, _)| i)
-                .collect()
-        }
+        AbilityTarget::AllAllies => actor_team
+            .iter()
+            .enumerate()
+            .filter(|(i, c)| *i != actor_idx && c.is_alive())
+            .map(|(i, _)| i)
+            .collect(),
         AbilityTarget::CurrentTarget | AbilityTarget::AllEnemies => Vec::new(),
     }
 }
@@ -317,7 +346,7 @@ fn resolve_ally_targets(
 mod tests {
     use super::*;
     use crate::models::{CharacterConfig, Position};
-    use crate::statuses::{StatusDef, StatusBehavior, StackType};
+    use crate::statuses::{StackType, StatusBehavior, StatusDef};
     use rand::SeedableRng;
 
     fn make_char(id: u32, stats: Vec<(Stat, u32)>) -> CharacterState {
@@ -352,26 +381,38 @@ mod tests {
 
     fn test_statuses() -> StatusMap {
         let mut map = HashMap::new();
-        map.insert("Bleed".to_string(), StatusDef {
-            behavior: StatusBehavior::DamagePerStack { value: 1 },
-            stack_type: StackType::TickDown,
-            opposes: None,
-        });
-        map.insert("Regen".to_string(), StatusDef {
-            behavior: StatusBehavior::HealPerStack { value: 2 },
-            stack_type: StackType::TickDown,
-            opposes: None,
-        });
-        map.insert("Empower".to_string(), StatusDef {
-            behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
-            stack_type: StackType::TickDown,
-            opposes: Some("Weaken".to_string()),
-        });
-        map.insert("Weaken".to_string(), StatusDef {
-            behavior: StatusBehavior::StatModPerStack { magnitude: -1 },
-            stack_type: StackType::TickDown,
-            opposes: Some("Empower".to_string()),
-        });
+        map.insert(
+            "Bleed".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::DamagePerStack { value: 1 },
+                stack_type: StackType::TickDown,
+                opposes: None,
+            },
+        );
+        map.insert(
+            "Regen".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::HealPerStack { value: 2 },
+                stack_type: StackType::TickDown,
+                opposes: None,
+            },
+        );
+        map.insert(
+            "Empower".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+                stack_type: StackType::TickDown,
+                opposes: Some("Weaken".to_string()),
+            },
+        );
+        map.insert(
+            "Weaken".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::StatModPerStack { magnitude: -1 },
+                stack_type: StackType::TickDown,
+                opposes: Some("Empower".to_string()),
+            },
+        );
         map
     }
 
@@ -379,19 +420,32 @@ mod tests {
     fn deal_physical_damage_with_multiplier() {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
-        let mut actor_team = vec![make_char(0, vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)])];
+        let mut actor_team = vec![make_char(
+            0,
+            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+        )];
         let mut enemy_team = vec![make_char(1, vec![(Stat::FOR, 4), (Stat::CON, 20)])];
         actor_team[0].set_target(1);
 
         let ability = AbilityDef {
-            spi_cost: 2,
+            mp_cost: 2,
             primitives: vec![Primitive::DealPhysicalDamage {
                 target: AbilityTarget::CurrentTarget,
                 multiplier: 1.5,
             }],
         };
 
-        let dealt = execute_ability(0, "Crush", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &empty_statuses());
+        let dealt = execute_ability(
+            0,
+            "Crush",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
         assert_eq!(dealt.len(), 1);
         assert_eq!(dealt[0].0, 1);
         assert_eq!(dealt[0].1, 9);
@@ -399,7 +453,7 @@ mod tests {
     }
 
     #[test]
-    fn restore_spi_to_companions() {
+    fn restore_mp_to_companions() {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
 
@@ -410,21 +464,31 @@ mod tests {
             make_adjacent_char(2, 0, 2, stats.clone()),
         ];
         actor_team[0].set_companions(vec![1]);
-        actor_team[1].spend_spi(4);
-        assert_eq!(actor_team[1].current_spi(), 1);
+        actor_team[1].spend_mp(4);
+        assert_eq!(actor_team[1].current_mp(), 1);
 
         let ability = AbilityDef {
-            spi_cost: 3,
-            primitives: vec![Primitive::RestoreSpi {
+            mp_cost: 3,
+            primitives: vec![Primitive::RestoreMp {
                 target: AbilityTarget::Companions,
                 amount: 2,
             }],
         };
 
         let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
-        execute_ability(0, "Embolden", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &empty_statuses());
-        assert_eq!(actor_team[1].current_spi(), 3);
-        assert_eq!(actor_team[2].current_spi(), 5);
+        execute_ability(
+            0,
+            "Embolden",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+        assert_eq!(actor_team[1].current_mp(), 3);
+        assert_eq!(actor_team[2].current_mp(), 5);
     }
 
     #[test]
@@ -437,7 +501,7 @@ mod tests {
         actor_team[0].set_target(1);
 
         let ability = AbilityDef {
-            spi_cost: 2,
+            mp_cost: 2,
             primitives: vec![Primitive::ApplyStatus {
                 target: AbilityTarget::CurrentTarget,
                 status: "Bleed".to_string(),
@@ -446,7 +510,17 @@ mod tests {
             }],
         };
 
-        execute_ability(0, "Slash", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &statuses);
+        execute_ability(
+            0,
+            "Slash",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
         assert_eq!(enemy_team[0].status_stacks("Bleed"), 3);
     }
 
@@ -455,13 +529,14 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let statuses = test_statuses();
-        let mut actor_team = vec![
-            make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5), (Stat::STR, 8)]),
-        ];
+        let mut actor_team = vec![make_char(
+            0,
+            vec![(Stat::CON, 10), (Stat::SPI, 5), (Stat::STR, 8)],
+        )];
         let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
 
         let ability = AbilityDef {
-            spi_cost: 2,
+            mp_cost: 2,
             primitives: vec![Primitive::ApplyStatus {
                 target: AbilityTarget::SelfChar,
                 status: "Empower".to_string(),
@@ -470,7 +545,17 @@ mod tests {
             }],
         };
 
-        execute_ability(0, "Rage", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &statuses);
+        execute_ability(
+            0,
+            "Rage",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
         assert_eq!(actor_team[0].get_eff_stat(&Stat::STR), 11); // 8 + 3
     }
 
@@ -484,7 +569,7 @@ mod tests {
         actor_team[0].set_target(1);
 
         let ability = AbilityDef {
-            spi_cost: 1,
+            mp_cost: 1,
             primitives: vec![Primitive::ApplyStatus {
                 target: AbilityTarget::CurrentTarget,
                 status: "Weaken".to_string(),
@@ -493,7 +578,17 @@ mod tests {
             }],
         };
 
-        execute_ability(0, "Curse", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &statuses);
+        execute_ability(
+            0,
+            "Curse",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
         assert_eq!(enemy_team[0].get_eff_stat(&Stat::STR), 8); // 10 - 2
     }
 
@@ -509,7 +604,7 @@ mod tests {
         actor_team[0].add_status("Bleed", 2, 99, bleed, None);
 
         let ability = AbilityDef {
-            spi_cost: 1,
+            mp_cost: 1,
             primitives: vec![Primitive::RemoveStatus {
                 target: AbilityTarget::SelfChar,
                 status: "Bleed".to_string(),
@@ -518,7 +613,17 @@ mod tests {
             }],
         };
 
-        execute_ability(0, "Cleanse", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &statuses);
+        execute_ability(
+            0,
+            "Cleanse",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
         assert_eq!(actor_team[0].status_stacks("Bleed"), 1);
     }
 
@@ -535,7 +640,7 @@ mod tests {
         enemy_team[0].add_status("Bleed", 3, 99, bleed, None);
 
         let ability = AbilityDef {
-            spi_cost: 1,
+            mp_cost: 1,
             primitives: vec![Primitive::RemoveStatus {
                 target: AbilityTarget::CurrentTarget,
                 status: "Bleed".to_string(),
@@ -544,7 +649,17 @@ mod tests {
             }],
         };
 
-        execute_ability(0, "Dispel", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &statuses);
+        execute_ability(
+            0,
+            "Dispel",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
         assert_eq!(enemy_team[0].status_stacks("Bleed"), 1);
     }
 
@@ -564,7 +679,7 @@ mod tests {
         enemy_team[1].add_status("Bleed", 1, 99, bleed, None);
 
         let ability = AbilityDef {
-            spi_cost: 1,
+            mp_cost: 1,
             primitives: vec![Primitive::RemoveStatus {
                 target: AbilityTarget::AllEnemies,
                 status: "Bleed".to_string(),
@@ -573,7 +688,17 @@ mod tests {
             }],
         };
 
-        execute_ability(0, "MassDispel", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &statuses);
+        execute_ability(
+            0,
+            "MassDispel",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
         assert_eq!(enemy_team[0].status_stacks("Bleed"), 0);
         assert_eq!(enemy_team[1].status_stacks("Bleed"), 0);
     }
@@ -582,7 +707,10 @@ mod tests {
     fn all_enemies_target_resolves_to_all_living() {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
-        let mut actor_team = vec![make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5), (Stat::STR, 10)])];
+        let mut actor_team = vec![make_char(
+            0,
+            vec![(Stat::CON, 10), (Stat::SPI, 5), (Stat::STR, 10)],
+        )];
         let mut enemy_team = vec![
             make_char(1, vec![(Stat::CON, 10), (Stat::FOR, 3)]),
             make_char(2, vec![(Stat::CON, 10), (Stat::FOR, 3)]),
@@ -591,14 +719,24 @@ mod tests {
         enemy_team[1].take_damage(100);
 
         let ability = AbilityDef {
-            spi_cost: 1,
+            mp_cost: 1,
             primitives: vec![Primitive::DealPhysicalDamage {
                 target: AbilityTarget::AllEnemies,
                 multiplier: 1.0,
             }],
         };
 
-        let dealt = execute_ability(0, "Sweep", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &empty_statuses());
+        let dealt = execute_ability(
+            0,
+            "Sweep",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
         assert_eq!(dealt.len(), 2);
         assert!(dealt.iter().any(|(id, _)| *id == 1));
         assert!(dealt.iter().any(|(id, _)| *id == 3));
@@ -613,21 +751,31 @@ mod tests {
             make_char(1, vec![(Stat::CON, 10), (Stat::SPI, 3)]),
             make_char(2, vec![(Stat::CON, 10), (Stat::SPI, 3)]),
         ];
-        actor_team[1].spend_spi(2);
-        actor_team[2].spend_spi(2);
+        actor_team[1].spend_mp(2);
+        actor_team[2].spend_mp(2);
         let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
 
         let ability = AbilityDef {
-            spi_cost: 1,
-            primitives: vec![Primitive::RestoreSpi {
+            mp_cost: 1,
+            primitives: vec![Primitive::RestoreMp {
                 target: AbilityTarget::AllAllies,
                 amount: 5,
             }],
         };
 
-        execute_ability(0, "Rally", &ability, &mut actor_team, &mut enemy_team, &mut rng, &mut log, 1, &empty_statuses());
-        assert_eq!(actor_team[0].current_spi(), 5);
-        assert_eq!(actor_team[1].current_spi(), 3);
-        assert_eq!(actor_team[2].current_spi(), 3);
+        execute_ability(
+            0,
+            "Rally",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+        assert_eq!(actor_team[0].current_mp(), 5);
+        assert_eq!(actor_team[1].current_mp(), 3);
+        assert_eq!(actor_team[2].current_mp(), 3);
     }
 }

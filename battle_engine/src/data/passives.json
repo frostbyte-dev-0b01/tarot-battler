@@ -1,7 +1,7 @@
 {
   "As Above So Below": {
     "type": "trait",
-    "effect": { "kind": "spi_cost_reduction", "amount": 1 }
+    "effect": { "kind": "mp_cost_reduction", "amount": 1 }
   },
   "Authority": {
     "type": "triggered",
@@ -25,7 +25,7 @@
     "type": "triggered",
     "trigger": "on_battle_start",
     "primitives": [
-      { "kind": "apply_status", "target": "all_allies", "status": "Empower", "stat": "RES", "stacks": 1 }
+      { "kind": "apply_status", "target": "all_allies", "status": "Empower", "stat": "WIS", "stacks": 1 }
     ]
   },
   "Illusion": {
@@ -46,7 +46,7 @@
     "type": "triggered",
     "trigger": "on_turn_start",
     "primitives": [
-      { "kind": "restore_spi", "target": "self", "amount": 1 }
+      { "kind": "restore_mp", "target": "self", "amount": 1 }
     ]
   },
   "Momentum": {
@@ -65,7 +65,7 @@
   },
   "Resourcefulness": {
     "type": "trait",
-    "effect": { "kind": "spi_cost_reduction", "amount": 1 }
+    "effect": { "kind": "mp_cost_reduction", "amount": 1 }
   },
   "Solitude": {
     "type": "triggered",

@@ -48,7 +48,7 @@ The design now distinguishes:
 - `SPI` as the base spirit stat
 - `MP` as the spendable runtime resource
 
-The code and data should be updated toward this naming to avoid ambiguity.
+The code and sample data now use this terminology. Remaining references should be treated as cleanup bugs.
 
 ## Engine Alignment Tasks
 
@@ -56,11 +56,9 @@ These design decisions are now settled and should be reflected in the engine bef
 
 - speed counters should start at `10 - DEX`
 - post-turn speed reset should be `(10 - DEX) + escalation`
-- `FOC` and `RES` should be removed from the current spec and prototype-facing docs
 - rules should be limited to `self`, `companion`, `target`, and `world`
 - `companion` in rules means any companion, not a specific targeting handoff
 - `ally_count` and `enemy_count` should be live only after death resolution is complete
-- `SPI` should refer to the stat and `MP` to the resource
 - `round_count` in code and data should be renamed to `tick_count` to match the design spec
 
 ## Open Balance and Tuning Questions

@@ -1,83 +1,83 @@
 {
   "Absolve": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "STR", "stacks": 1 },
       { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "WIS", "stacks": 1 },
-      { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "RES", "stacks": 1 },
+      { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "WIS", "stacks": 1 },
       { "kind": "remove_status", "target": "current_target", "status": "Fortify", "stat": "FOR", "stacks": 1 }
     ]
   },
   "Channel": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
-      { "kind": "restore_spi", "target": "self", "amount": 2 }
+      { "kind": "restore_mp", "target": "self", "amount": 2 }
     ]
   },
   "Charge": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "deal_physical_damage", "target": "current_target", "multiplier": 1.4 }
     ]
   },
   "Crush": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "deal_physical_damage", "target": "current_target", "multiplier": 1.5 }
     ]
   },
   "Dread Spiral": {
-    "spi_cost": 3,
+    "mp_cost": 3,
     "primitives": [
       { "kind": "deal_magical_damage", "target": "current_target", "multiplier": 1.1 },
       { "kind": "apply_status", "target": "current_target", "status": "Poison", "stacks": 1 }
     ]
   },
   "Ebb": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "apply_status", "target": "current_target", "status": "Weaken", "stat": "STR", "stacks": 1 }
     ]
   },
   "Embolden": {
-    "spi_cost": 3,
+    "mp_cost": 3,
     "primitives": [
-      { "kind": "restore_spi", "target": "companions", "amount": 1 }
+      { "kind": "restore_mp", "target": "companions", "amount": 1 }
     ]
   },
   "Inner Sight": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "WIS", "stacks": 1 }
     ]
   },
   "Lantern": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "restore_hp", "target": "self", "amount": 4 }
     ]
   },
   "Leap of Faith": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "deal_physical_damage", "target": "current_target", "multiplier": 1.2 },
       { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 1 }
     ]
   },
   "Moonbeam": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "deal_magical_damage", "target": "current_target", "multiplier": 1.4 }
     ]
   },
   "Nightmare": {
-    "spi_cost": 3,
+    "mp_cost": 3,
     "primitives": [
       { "kind": "apply_status", "target": "current_target", "status": "Poison", "stacks": 2 }
     ]
   },
   "Purify": {
-    "spi_cost": 3,
+    "mp_cost": 3,
     "primitives": [
       { "kind": "remove_status", "target": "all_allies", "status": "Bleed", "stacks": 1 },
       { "kind": "remove_status", "target": "all_allies", "status": "Poison", "stacks": 1 },
@@ -86,65 +86,65 @@
     ]
   },
   "Rally": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "apply_status", "target": "companions", "status": "Empower", "stat": "STR", "stacks": 1 }
     ]
   },
   "Restore": {
-    "spi_cost": 3,
+    "mp_cost": 3,
     "primitives": [
       { "kind": "restore_hp", "target": "all_allies", "amount": 3 }
     ]
   },
   "Roar": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "apply_status", "target": "all_enemies", "status": "Weaken", "stat": "STR", "stacks": 1 }
     ]
   },
   "Rubble": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "apply_status", "target": "current_target", "status": "Bleed", "stacks": 2 }
     ]
   },
   "Shatter": {
-    "spi_cost": 3,
+    "mp_cost": 3,
     "primitives": [
       { "kind": "deal_physical_damage", "target": "all_enemies", "multiplier": 0.8 }
     ]
   },
   "Stumble": {
-    "spi_cost": 1,
+    "mp_cost": 1,
     "primitives": [
       { "kind": "apply_status", "target": "current_target", "status": "Weaken", "stat": "STR", "stacks": 1 },
-      { "kind": "restore_spi", "target": "self", "amount": 2 }
+      { "kind": "restore_mp", "target": "self", "amount": 2 }
     ]
   },
   "Tame": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "deal_physical_damage", "target": "current_target", "multiplier": 1.2 },
       { "kind": "apply_status", "target": "self", "status": "Fortify", "stat": "FOR", "stacks": 1 }
     ]
   },
   "Transmute": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "deal_magical_damage", "target": "current_target", "multiplier": 1.3 }
     ]
   },
   "Wish": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
       { "kind": "restore_hp", "target": "self", "amount": 5 }
     ]
   },
   "Withdraw": {
-    "spi_cost": 2,
+    "mp_cost": 2,
     "primitives": [
-      { "kind": "restore_spi", "target": "self", "amount": 3 }
+      { "kind": "restore_mp", "target": "self", "amount": 3 }
     ]
   }
 }

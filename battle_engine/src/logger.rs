@@ -26,7 +26,7 @@ pub enum BattleEvent {
         actor_id: u32,
         actor_name: String,
         ability_name: String,
-        spi_cost: u32,
+        mp_cost: u32,
     },
     AbilityDamage {
         step: u32,
@@ -135,12 +135,12 @@ impl BattleLog {
                 BattleEvent::AbilityUsed {
                     actor_name,
                     ability_name,
-                    spi_cost,
+                    mp_cost,
                     ..
                 } => {
                     let _ = writeln!(
                         out,
-                        "  {actor_name} uses {ability_name} (costs {spi_cost} SPI)"
+                        "  {actor_name} uses {ability_name} (costs {mp_cost} MP)"
                     );
                 }
                 BattleEvent::AbilityDamage {

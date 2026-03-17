@@ -1,8 +1,8 @@
 //! Target selection based on offensive/defensive type matching and row constraints.
 
+use rand::Rng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::Rng;
 
 use crate::models::{CharacterState, Stat};
 
@@ -115,7 +115,10 @@ mod tests {
     fn offensive_type_physical_when_str_higher() {
         let c = make_char(0, 0, vec![(Stat::STR, 15), (Stat::INT, 5)]);
         let mut rng = StdRng::seed_from_u64(0);
-        assert_eq!(compute_offensive_type(&c, &mut rng), OffensiveType::Physical);
+        assert_eq!(
+            compute_offensive_type(&c, &mut rng),
+            OffensiveType::Physical
+        );
     }
 
     #[test]
@@ -129,7 +132,10 @@ mod tests {
     fn defensive_type_physical_when_for_higher() {
         let c = make_char(0, 0, vec![(Stat::FOR, 12), (Stat::WIS, 5)]);
         let mut rng = StdRng::seed_from_u64(0);
-        assert_eq!(compute_defensive_type(&c, &mut rng), DefensiveType::Physical);
+        assert_eq!(
+            compute_defensive_type(&c, &mut rng),
+            DefensiveType::Physical
+        );
     }
 
     #[test]
@@ -160,8 +166,16 @@ mod tests {
         // Physical attacker (STR > INT)
         let attacker = make_char(0, 0, vec![(Stat::STR, 15), (Stat::INT, 5)]);
         // Enemy in row 1 and row 2 — should only consider row 1
-        let front = make_char(10, 1, vec![(Stat::CON, 10), (Stat::FOR, 5), (Stat::WIS, 12)]);
-        let back = make_char(11, 2, vec![(Stat::CON, 10), (Stat::FOR, 5), (Stat::WIS, 12)]);
+        let front = make_char(
+            10,
+            1,
+            vec![(Stat::CON, 10), (Stat::FOR, 5), (Stat::WIS, 12)],
+        );
+        let back = make_char(
+            11,
+            2,
+            vec![(Stat::CON, 10), (Stat::FOR, 5), (Stat::WIS, 12)],
+        );
         let mut rng = StdRng::seed_from_u64(0);
         let target = select_target(&attacker, &[front, back], &mut rng);
         assert_eq!(target, Some(10)); // must be front row
@@ -183,9 +197,17 @@ mod tests {
         // Physical attacker should prefer magical defenders (weak to physical)
         let attacker = make_char(0, 0, vec![(Stat::STR, 15), (Stat::INT, 5)]);
         // Physical defender (FOR > WIS)
-        let phys_def = make_char(10, 0, vec![(Stat::CON, 10), (Stat::FOR, 15), (Stat::WIS, 3)]);
+        let phys_def = make_char(
+            10,
+            0,
+            vec![(Stat::CON, 10), (Stat::FOR, 15), (Stat::WIS, 3)],
+        );
         // Magical defender (WIS > FOR) — weak to physical
-        let mag_def = make_char(11, 0, vec![(Stat::CON, 10), (Stat::FOR, 3), (Stat::WIS, 15)]);
+        let mag_def = make_char(
+            11,
+            0,
+            vec![(Stat::CON, 10), (Stat::FOR, 3), (Stat::WIS, 15)],
+        );
 
         // Run many times to verify preference (with different seeds)
         let mut targeted_mag = 0;
@@ -197,6 +219,10 @@ mod tests {
             }
         }
         // Physical attacker should prefer magical defender most of the time
-        assert!(targeted_mag > 25, "Expected to prefer magical defender, got {}/50", targeted_mag);
+        assert!(
+            targeted_mag > 25,
+            "Expected to prefer magical defender, got {}/50",
+            targeted_mag
+        );
     }
 }

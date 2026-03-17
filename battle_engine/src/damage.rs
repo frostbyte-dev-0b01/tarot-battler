@@ -3,7 +3,7 @@
 use rand::rngs::StdRng;
 
 use crate::models::{CharacterState, Stat};
-use crate::targeting::{compute_offensive_type, OffensiveType};
+use crate::targeting::{OffensiveType, compute_offensive_type};
 
 /// Physical damage: max(STR - FOR, 1)
 pub fn calc_physical_damage(attacker: &CharacterState, defender: &CharacterState) -> u32 {

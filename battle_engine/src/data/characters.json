@@ -7,14 +7,14 @@
     "position": { "row": 0, "col": 0 },
     "stats": {
       "CON": 10, "STR": 6, "INT": 4, "FOR": 3, "WIS": 2,
-      "DEX": 4, "SPI": 5, "FOC": 5, "RES": 3
+      "DEX": 4, "SPI": 5
     },
     "rules": [
       { "ability": "Crush", "conditions": [
         { "subject": "target", "value": "hp", "comparator": "lte", "threshold": 3 }
       ]},
       { "ability": "Embolden", "conditions": [
-        { "subject": "companion", "value": "spi", "comparator": "lte", "threshold": 1 }
+        { "subject": "companion", "value": "mp", "comparator": "lte", "threshold": 1 }
       ]},
       { "ability": "Crush", "conditions": [] }
     ]
@@ -27,7 +27,7 @@
     "position": { "row": 0, "col": 1 },
     "stats": {
       "CON": 8, "STR": 8, "INT": 3, "FOR": 5, "WIS": 2,
-      "DEX": 3, "SPI": 4, "FOC": 3, "RES": 2
+      "DEX": 3, "SPI": 4
     },
     "rules": [
       { "ability": "Shatter", "conditions": [
@@ -44,7 +44,7 @@
     "position": { "row": 0, "col": 2 },
     "stats": {
       "CON": 9, "STR": 7, "INT": 3, "FOR": 4, "WIS": 2,
-      "DEX": 5, "SPI": 4, "FOC": 4, "RES": 3
+      "DEX": 5, "SPI": 4
     },
     "rules": [
       { "ability": "Rally", "conditions": [
@@ -61,7 +61,7 @@
     "position": { "row": 1, "col": 1 },
     "stats": {
       "CON": 6, "STR": 2, "INT": 8, "FOR": 2, "WIS": 7,
-      "DEX": 5, "SPI": 7, "FOC": 6, "RES": 4
+      "DEX": 5, "SPI": 7
     },
     "rules": [
       { "ability": "Inner Sight", "conditions": [
@@ -78,7 +78,7 @@
     "position": { "row": 2, "col": 1 },
     "stats": {
       "CON": 7, "STR": 2, "INT": 7, "FOR": 3, "WIS": 6,
-      "DEX": 4, "SPI": 8, "FOC": 5, "RES": 5
+      "DEX": 4, "SPI": 8
     },
     "rules": [
       { "ability": "Absolve", "conditions": [
@@ -88,7 +88,7 @@
         { "subject": "self", "value": "hp", "comparator": "lte", "threshold": 10 }
       ]},
       { "ability": "Withdraw", "conditions": [
-        { "subject": "self", "value": "spi", "comparator": "lte", "threshold": 2 }
+        { "subject": "self", "value": "mp", "comparator": "lte", "threshold": 2 }
       ]}
     ]
   },
@@ -100,11 +100,11 @@
     "position": { "row": 0, "col": 0 },
     "stats": {
       "CON": 7, "STR": 4, "INT": 4, "FOR": 3, "WIS": 3,
-      "DEX": 7, "SPI": 6, "FOC": 4, "RES": 4
+      "DEX": 7, "SPI": 6
     },
     "rules": [
       { "ability": "Stumble", "conditions": [
-        { "subject": "self", "value": "spi", "comparator": "lte", "threshold": 2 }
+        { "subject": "self", "value": "mp", "comparator": "lte", "threshold": 2 }
       ]},
       { "ability": "Leap of Faith", "conditions": [] }
     ]
@@ -117,11 +117,11 @@
     "position": { "row": 0, "col": 1 },
     "stats": {
       "CON": 5, "STR": 3, "INT": 9, "FOR": 2, "WIS": 5,
-      "DEX": 6, "SPI": 6, "FOC": 7, "RES": 3
+      "DEX": 6, "SPI": 6
     },
     "rules": [
       { "ability": "Channel", "conditions": [
-        { "subject": "self", "value": "spi", "comparator": "lte", "threshold": 2 }
+        { "subject": "self", "value": "mp", "comparator": "lte", "threshold": 2 }
       ]},
       { "ability": "Transmute", "conditions": [] }
     ]
@@ -134,7 +134,7 @@
     "position": { "row": 0, "col": 2 },
     "stats": {
       "CON": 9, "STR": 7, "INT": 3, "FOR": 6, "WIS": 3,
-      "DEX": 4, "SPI": 5, "FOC": 3, "RES": 4
+      "DEX": 4, "SPI": 5
     },
     "rules": [
       { "ability": "Roar", "conditions": [
@@ -151,7 +151,7 @@
     "position": { "row": 1, "col": 1 },
     "stats": {
       "CON": 5, "STR": 2, "INT": 8, "FOR": 2, "WIS": 6,
-      "DEX": 5, "SPI": 8, "FOC": 7, "RES": 4
+      "DEX": 5, "SPI": 8
     },
     "rules": [
       { "ability": "Nightmare", "conditions": [
@@ -171,7 +171,7 @@
     "position": { "row": 2, "col": 1 },
     "stats": {
       "CON": 6, "STR": 2, "INT": 6, "FOR": 3, "WIS": 7,
-      "DEX": 4, "SPI": 9, "FOC": 5, "RES": 5
+      "DEX": 4, "SPI": 9
     },
     "rules": [
       { "ability": "Purify", "conditions": [
