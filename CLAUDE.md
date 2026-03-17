@@ -12,6 +12,8 @@ Primary design references:
 - `design/game_spec.md` — primary gameplay spec and source of truth
 - `design/character_design.md` — tactical archetypes, role types, and pivot unit guidance
 - `design/implementation_notes.md` — prototype alignment notes, future ideas, and open design items
+- `design/team_builder_schema.md` — interim JSON contract for team builder and replay tooling
+- `design/replay_schema.md` — proposed replay JSON contract for battle viewer tooling
 
 ## Build Commands
 
