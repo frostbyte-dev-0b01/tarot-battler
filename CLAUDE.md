@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Note: `AGENTS.md` is a symlink to this file so the same instructions are shared by both Claude and Codex.
+
 ## Project Overview
 
 Tarot Battler is an asynchronous autobattler where players build teams of Tarot characters (22 Major Arcana) within a point budget. Battles run automatically via a rule-based AI system. The complete game design spec lives in `design/overall_design.md`.
