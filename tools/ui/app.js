@@ -11,6 +11,8 @@ const teamConfigs = {
     jsonInput: document.querySelector("#team-a-json-input"),
     loadButton: document.querySelector("#team-a-load-button"),
     demoButton: document.querySelector("#team-a-demo-button"),
+    copyButton: document.querySelector("#team-a-copy-button"),
+    downloadButton: document.querySelector("#team-a-download-button"),
     validationOutput: document.querySelector("#team-a-validation-output"),
     editor: document.querySelector("#team-a-editor"),
     metaName: document.querySelector('[data-team-meta="team_a_name"]'),
@@ -21,6 +23,8 @@ const teamConfigs = {
     jsonInput: document.querySelector("#team-b-json-input"),
     loadButton: document.querySelector("#team-b-load-button"),
     demoButton: document.querySelector("#team-b-demo-button"),
+    copyButton: document.querySelector("#team-b-copy-button"),
+    downloadButton: document.querySelector("#team-b-download-button"),
     validationOutput: document.querySelector("#team-b-validation-output"),
     editor: document.querySelector("#team-b-editor"),
     metaName: document.querySelector('[data-team-meta="team_b_name"]'),
@@ -376,6 +380,14 @@ for (const [teamKey, teamConfig] of Object.entries(teamConfigs)) {
       });
       resetTeamSummary(teamKey);
     }
+  });
+
+  teamConfig.copyButton.addEventListener("click", async () => {
+    await copyTeamJson(teamKey);
+  });
+
+  teamConfig.downloadButton.addEventListener("click", () => {
+    downloadTeamJson(teamKey);
   });
 
   teamConfig.editor.addEventListener("input", (event) => {
@@ -896,6 +908,51 @@ function renderTeamValidation(teamKey, result) {
 
   output.classList.add("message-panel-error");
   output.textContent = result.errors.map((error) => `- ${error}`).join("\n");
+}
+
+async function copyTeamJson(teamKey) {
+  const team = appState.teamConfigs[teamKey];
+  if (!team) {
+    renderTeamValidation(teamKey, { ok: false, errors: ["No team is loaded to copy."] });
+    return;
+  }
+
+  const jsonText = JSON.stringify(team, null, 2);
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(jsonText);
+      renderTeamValidation(teamKey, { ok: true, errors: [] });
+      teamConfigs[teamKey].validationOutput.textContent = "Team JSON copied to clipboard.";
+      return;
+    }
+  } catch (error) {
+    renderTeamValidation(teamKey, { ok: false, errors: [`Could not copy team JSON: ${error.message}`] });
+    return;
+  }
+
+  renderTeamValidation(teamKey, { ok: false, errors: ["Clipboard access is not available in this browser context."] });
+}
+
+function downloadTeamJson(teamKey) {
+  const team = appState.teamConfigs[teamKey];
+  if (!team) {
+    renderTeamValidation(teamKey, { ok: false, errors: ["No team is loaded to download."] });
+    return;
+  }
+
+  const jsonText = JSON.stringify(team, null, 2);
+  const blob = new Blob([jsonText], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${team.name || teamKey}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  renderTeamValidation(teamKey, { ok: true, errors: [] });
+  teamConfigs[teamKey].validationOutput.textContent = "Team JSON downloaded.";
 }
 
 function renderTeamEditor(teamKey) {

@@ -336,17 +336,21 @@ Goal:
 
 Tasks:
 
-- [ ] export Team A JSON
-- [ ] export Team B JSON
-- [ ] copy team JSON to clipboard
-- [ ] import from pasted JSON
-- [ ] add sample team loader
-- [ ] add sample replay loader
+- [x] export Team A JSON
+- [x] export Team B JSON
+- [x] copy team JSON to clipboard
+- [x] import from pasted JSON
+- [x] add sample team loader
+- [x] add sample replay loader
 
 Acceptance criteria:
 
 - common dev-tool loops do not require editing files by hand every time
 - loading and exporting schemas is easy and predictable
+
+Status:
+
+- completed with copy and download helpers on top of the existing paste/file/demo import paths
 
 ## Phase 11: Polish Pass
 
