@@ -109,21 +109,25 @@ Goal:
 
 Tasks:
 
-- [ ] build board rendering from replay `teams`
-- [ ] preserve 4-column by 3-row layout
-- [ ] render empty spaces explicitly
-- [ ] render character tiles with:
-  - [ ] display name
-  - [ ] HP bar based on `max_hp`
-  - [ ] MP bar based on `max_mp`
-  - [ ] passive name or placeholder
-- [ ] distinguish Team A and Team B clearly
+- [x] build board rendering from replay `teams`
+- [x] preserve 4-column by 3-row layout
+- [x] render empty spaces explicitly
+- [x] render character tiles with:
+  - [x] display name
+  - [x] HP bar based on `max_hp`
+  - [x] MP bar based on `max_mp`
+  - [x] passive name or placeholder
+- [x] distinguish Team A and Team B clearly
 
 Acceptance criteria:
 
 - both teams render in correct positions
 - empty grid cells remain visible
 - defeated styling is not needed yet, but tile states are ready for it
+
+Status:
+
+- completed with snapshot-driven board rendering and a richer built-in demo replay
 
 ## Phase 4: Replay State Model
 
