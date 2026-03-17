@@ -107,8 +107,12 @@ impl BattleState {
     pub fn run(mut self) -> BattleLog {
         self.log.push(BattleEvent::BattleStart {
             step: 0,
-            team_a: self.team_a.iter().map(|c| c.base_name().to_string()).collect(),
-            team_b: self.team_b.iter().map(|c| c.base_name().to_string()).collect(),
+            team_a: self.team_a.iter().map(|c| {
+                format!("{} (r{}, c{})", c.base_name(), c.position().row, c.position().col)
+            }).collect(),
+            team_b: self.team_b.iter().map(|c| {
+                format!("{} (r{}, c{})", c.base_name(), c.position().row, c.position().col)
+            }).collect(),
         });
 
         self.execute_battle_start_passives();

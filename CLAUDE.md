@@ -52,7 +52,7 @@ All cargo commands should be run from `battle_engine/`.
 
 ### Key Game Mechanics
 
-- **Formation:** 4x4 grid with front/middle/back rows. Row-based protection: must clear front before targeting middle. Companions = cardinal-adjacent teammates (set at battle start). Allies = all living teammates.
+- **Formation:** 4-column by 3-row grid with front/middle/back rows. Row-based protection: must clear front before targeting middle, and middle before targeting back. Companions = cardinal-adjacent teammates (set at battle start). Allies = all living teammates.
 - **Targeting:** Offensive type (STR vs INT) and defensive type (FOR vs WIS) determine matchups. Physical attackers prefer magical defenders (weak to physical) and vice versa. Targets selected from frontmost occupied enemy row; random tiebreak.
 - **Speed system:** DEX counter starts at DEX, decrements each step; character acts at counter=0. Reset escalates: DEX+2, DEX+4, DEX+6, etc. (`spd_max` tracks this), softening high-DEX dominance over time.
 - **Rule system:** Each character has up to 5 ordered rules. A rule fires if all conditions are met (AND) AND current SPI >= ability cost. Falls back to basic attack if no rule matches. Available condition subjects: `SelfChar`, `Target`, `Companion` (adjacent), `Ally` (any teammate). Query values: `Stat`, `Hp`, `Spi`, `UseCount` (total ability uses), `TurnsSinceUse` (actor turns since last use, u32::MAX if never used). Comparators: `Gte`, `Lte`.

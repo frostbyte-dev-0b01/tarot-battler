@@ -58,7 +58,7 @@
     "passive": "Veil of Mystery",
     "actives": ["Moonbeam", "Inner Sight"],
     "item": null,
-    "position": { "row": 1, "col": 0 },
+    "position": { "row": 1, "col": 1 },
     "stats": {
       "CON": 6, "STR": 2, "INT": 8, "FOR": 2, "WIS": 7,
       "DEX": 5, "SPI": 7, "FOC": 6, "RES": 4
@@ -75,7 +75,7 @@
     "passive": "Solitude",
     "actives": ["Lantern", "Withdraw"],
     "item": null,
-    "position": { "row": 1, "col": 1 },
+    "position": { "row": 2, "col": 1 },
     "stats": {
       "CON": 7, "STR": 2, "INT": 7, "FOR": 3, "WIS": 6,
       "DEX": 4, "SPI": 8, "FOC": 5, "RES": 5
@@ -145,7 +145,7 @@
     "passive": "Illusion",
     "actives": ["Nightmare", "Ebb"],
     "item": null,
-    "position": { "row": 1, "col": 0 },
+    "position": { "row": 1, "col": 1 },
     "stats": {
       "CON": 5, "STR": 2, "INT": 8, "FOR": 2, "WIS": 6,
       "DEX": 5, "SPI": 8, "FOC": 7, "RES": 4
@@ -162,7 +162,7 @@
     "passive": "Hope",
     "actives": ["Wish", "Restore"],
     "item": null,
-    "position": { "row": 1, "col": 1 },
+    "position": { "row": 2, "col": 1 },
     "stats": {
       "CON": 6, "STR": 2, "INT": 6, "FOR": 3, "WIS": 7,
       "DEX": 4, "SPI": 9, "FOC": 5, "RES": 5

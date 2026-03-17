@@ -18,7 +18,7 @@ pub enum Stat {
     RES, // Debuff resist chance modifier
 }
 
-/// Cell on the 4x4 battle grid (rows 0-3, cols 0-3).
+/// Cell on the battle grid (rows 0-2, cols 0-3).
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Position {
     pub row: u8,
@@ -27,7 +27,7 @@ pub struct Position {
 
 impl Position {
     pub fn is_valid(&self) -> bool {
-        self.row < 4 && self.col < 4
+        self.row < 3 && self.col < 4
     }
 
     /// Cardinal adjacency (up/down/left/right, no diagonals).
@@ -296,14 +296,17 @@ impl CharacterState {
         self.companions = ids;
     }
 
+    #[cfg(test)]
     pub fn statuses(&self) -> &HashMap<String, StatusInstance> {
         &self.statuses
     }
 
+    #[cfg(test)]
     pub fn has_status(&self, key: &str) -> bool {
         self.statuses.contains_key(key)
     }
 
+    #[cfg(test)]
     pub fn status_stacks(&self, key: &str) -> u32 {
         self.statuses.get(key).map_or(0, |s| s.stacks)
     }
@@ -898,8 +901,8 @@ mod tests {
     #[test]
     fn position_validity() {
         assert!(Position { row: 0, col: 0 }.is_valid());
-        assert!(Position { row: 3, col: 3 }.is_valid());
-        assert!(!Position { row: 4, col: 0 }.is_valid());
+        assert!(Position { row: 2, col: 3 }.is_valid());
+        assert!(!Position { row: 3, col: 0 }.is_valid());
         assert!(!Position { row: 0, col: 4 }.is_valid());
     }
 

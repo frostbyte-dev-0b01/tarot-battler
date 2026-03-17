@@ -82,7 +82,7 @@ Ability cost must be met for a rule to be satisfied
 
 Formation
 
-4x4 grid, three rows — front, middle, back
+4-column by 3-row grid — front, middle, back
 Characters placed before battle, positions locked in
 Front row must be fully defeated before middle can be targeted
 Middle row must be fully defeated before back can be targeted
@@ -302,7 +302,7 @@ Pen and paper — verify math and rule system feel right
 Rust battle engine — two hardcoded characters, basic attacks only, text log output
 Add rule system and abilities
 Add passives and buff/debuff system
-Add full 4x4 grid, formation and targeting
+Add full 4-column by 3-row grid, formation and targeting
 Add saves and items
 Stress test with full teams
 Python FastAPI wrapper

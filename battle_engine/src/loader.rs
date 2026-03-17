@@ -44,6 +44,13 @@ pub fn validate_content(
     let mut errors = Vec::new();
 
     for character in characters {
+        if !character.position.is_valid() {
+            errors.push(format!(
+                "{} has invalid position ({}, {})",
+                character.base_name, character.position.row, character.position.col
+            ));
+        }
+
         if !character.passive.is_empty() && !passives.contains_key(&character.passive) {
             errors.push(format!(
                 "{} references unknown passive '{}'",
@@ -72,6 +79,18 @@ pub fn validate_content(
                 errors.push(format!(
                     "{} has rule for unequipped ability '{}'",
                     character.base_name, rule.ability
+                ));
+            }
+        }
+    }
+
+    for (team_name, team) in [("team_a", &characters[..characters.len() / 2]), ("team_b", &characters[characters.len() / 2..])] {
+        let mut seen_positions = HashSet::new();
+        for character in team {
+            if !seen_positions.insert((character.position.row, character.position.col)) {
+                errors.push(format!(
+                    "{} has duplicate position ({}, {}) in {}",
+                    character.base_name, character.position.row, character.position.col, team_name
                 ));
             }
         }
@@ -346,6 +365,52 @@ mod tests {
 
         let err = validate_content(&chars, &abilities, &PassiveMap::new(), &StatusMap::new()).unwrap_err();
         assert!(err.contains("unequipped ability"));
+    }
+
+    #[test]
+    fn validate_content_rejects_invalid_and_duplicate_positions() {
+        let chars = vec![
+            CharacterConfig {
+                base_name: "A".to_string(),
+                passive: String::new(),
+                actives: Vec::new(),
+                item: None,
+                position: crate::models::Position { row: 3, col: 0 },
+                stats: [(Stat::CON, 10)].into_iter().collect(),
+                rules: Vec::new(),
+            },
+            CharacterConfig {
+                base_name: "B".to_string(),
+                passive: String::new(),
+                actives: Vec::new(),
+                item: None,
+                position: crate::models::Position { row: 0, col: 0 },
+                stats: [(Stat::CON, 10)].into_iter().collect(),
+                rules: Vec::new(),
+            },
+            CharacterConfig {
+                base_name: "C".to_string(),
+                passive: String::new(),
+                actives: Vec::new(),
+                item: None,
+                position: crate::models::Position { row: 1, col: 1 },
+                stats: [(Stat::CON, 10)].into_iter().collect(),
+                rules: Vec::new(),
+            },
+            CharacterConfig {
+                base_name: "D".to_string(),
+                passive: String::new(),
+                actives: Vec::new(),
+                item: None,
+                position: crate::models::Position { row: 1, col: 1 },
+                stats: [(Stat::CON, 10)].into_iter().collect(),
+                rules: Vec::new(),
+            },
+        ];
+
+        let err = validate_content(&chars, &AbilityMap::new(), &PassiveMap::new(), &StatusMap::new()).unwrap_err();
+        assert!(err.contains("invalid position"));
+        assert!(err.contains("duplicate position"));
     }
 
     #[test]

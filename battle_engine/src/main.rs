@@ -11,6 +11,9 @@ mod targeting;
 use std::path::Path;
 
 fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let json_output = args.iter().any(|arg| arg == "--json");
+
     let data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data");
     let characters = loader::load_characters(&data_dir.join("characters.json"))
         .expect("Failed to load characters");
@@ -26,22 +29,25 @@ fn main() {
     // First 5 characters = Team A, last 5 = Team B
     let (team_a, team_b) = characters.split_at(characters.len() / 2);
 
-    let seed: u64 = std::env::args()
-        .nth(1)
-        .and_then(|s| s.parse().ok())
+    let seed: u64 = args.iter()
+        .find_map(|s| s.parse().ok())
         .unwrap_or(42);
 
     eprintln!("=== Team A ===");
     for c in team_a {
-        eprintln!("  {} (row {})", c.base_name, c.position.row);
+        eprintln!("  {} (row {}, col {})", c.base_name, c.position.row, c.position.col);
     }
     eprintln!("=== Team B ===");
     for c in team_b {
-        eprintln!("  {} (row {})", c.base_name, c.position.row);
+        eprintln!("  {} (row {}, col {})", c.base_name, c.position.row, c.position.col);
     }
     eprintln!("Seed: {}\n", seed);
 
     let battle = engine::BattleState::new(team_a, team_b, abilities, passives, statuses, seed);
     let log = battle.run();
-    println!("{}", log.to_json());
+    if json_output {
+        println!("{}", log.to_json());
+    } else {
+        println!("{}", log.to_text());
+    }
 }
