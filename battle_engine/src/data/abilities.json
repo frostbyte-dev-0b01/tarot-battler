@@ -1,4 +1,13 @@
 {
+  "Absolve": {
+    "spi_cost": 2,
+    "primitives": [
+      { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "STR", "stacks": 1 },
+      { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "WIS", "stacks": 1 },
+      { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "RES", "stacks": 1 },
+      { "kind": "remove_status", "target": "current_target", "status": "Fortify", "stat": "FOR", "stacks": 1 }
+    ]
+  },
   "Channel": {
     "spi_cost": 2,
     "primitives": [
@@ -15,6 +24,13 @@
     "spi_cost": 2,
     "primitives": [
       { "kind": "deal_physical_damage", "target": "current_target", "multiplier": 1.5 }
+    ]
+  },
+  "Dread Spiral": {
+    "spi_cost": 3,
+    "primitives": [
+      { "kind": "deal_magical_damage", "target": "current_target", "multiplier": 1.1 },
+      { "kind": "apply_status", "target": "current_target", "status": "Poison", "stacks": 1 }
     ]
   },
   "Ebb": {
@@ -58,6 +74,15 @@
     "spi_cost": 3,
     "primitives": [
       { "kind": "apply_status", "target": "current_target", "status": "Poison", "stacks": 2 }
+    ]
+  },
+  "Purify": {
+    "spi_cost": 3,
+    "primitives": [
+      { "kind": "remove_status", "target": "all_allies", "status": "Bleed", "stacks": 1 },
+      { "kind": "remove_status", "target": "all_allies", "status": "Poison", "stacks": 1 },
+      { "kind": "remove_status", "target": "all_allies", "status": "Weaken", "stat": "STR", "stacks": 1 },
+      { "kind": "restore_hp", "target": "all_allies", "amount": 2 }
     ]
   },
   "Rally": {
