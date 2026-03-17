@@ -530,11 +530,9 @@ select {
   flex: 1 1 280px;
 }
 
-.slider-track {
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  opacity: 0.45;
+.slider-shell input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
 }
 
 .tick-placeholder {

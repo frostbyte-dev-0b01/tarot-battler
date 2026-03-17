@@ -242,17 +242,18 @@
               <h3 id="playback-heading">Controls</h3>
             </div>
             <div class="panel-body control-placeholder">
-              <button type="button" disabled>Previous</button>
-              <button type="button" disabled>Play</button>
-              <button type="button" disabled>Pause</button>
-              <button type="button" disabled>Next</button>
-              <div class="slider-shell" aria-hidden="true">
-                <span>Event Index</span>
-                <div class="slider-track"></div>
-              </div>
+              <button id="replay-previous-button" type="button" disabled>Previous</button>
+              <button id="replay-play-button" type="button" disabled>Play</button>
+              <button id="replay-pause-button" type="button" disabled>Pause</button>
+              <button id="replay-next-button" type="button" disabled>Next</button>
+              <button id="replay-restart-button" type="button" disabled>Restart</button>
+              <label class="slider-shell" for="replay-event-slider">
+                <span id="replay-event-label">Event Index · Start</span>
+                <input id="replay-event-slider" type="range" min="0" max="0" value="0" disabled>
+              </label>
               <div class="tick-placeholder">
                 <span>Tick</span>
-                <strong>0</strong>
+                <strong id="replay-tick-display">0</strong>
               </div>
             </div>
           </section>

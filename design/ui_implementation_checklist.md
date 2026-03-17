@@ -178,18 +178,18 @@ Goal:
 
 Tasks:
 
-- [ ] add previous-event button
-- [ ] add next-event button
-- [ ] add restart button
-- [ ] add event-index slider
-- [ ] show current event index
-- [ ] show current tick
-- [ ] ensure board re-renders from selected event state
+- [x] add previous-event button
+- [x] add next-event button
+- [x] add restart button
+- [x] add event-index slider
+- [x] show current event index
+- [x] show current tick
+- [x] ensure board re-renders from selected event state
 
 Optional in this phase:
 
-- [ ] play
-- [ ] pause
+- [x] play
+- [x] pause
 - [ ] playback speed selector
 
 Acceptance criteria:
@@ -197,6 +197,10 @@ Acceptance criteria:
 - user can move event by event through the replay
 - the board updates correctly at each step
 - current tick and selected event are always visible
+
+Status:
+
+- completed with event-index scrubbing and lightweight autoplay controls
 
 ## Phase 6: Timeline Panel
 

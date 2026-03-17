@@ -5,11 +5,20 @@ const replayJsonInput = document.querySelector("#replay-json-input");
 const replayLoadButton = document.querySelector("#replay-load-button");
 const replayDemoButton = document.querySelector("#replay-demo-button");
 const replayValidationOutput = document.querySelector("#replay-validation-output");
+const replayPreviousButton = document.querySelector("#replay-previous-button");
+const replayPlayButton = document.querySelector("#replay-play-button");
+const replayPauseButton = document.querySelector("#replay-pause-button");
+const replayNextButton = document.querySelector("#replay-next-button");
+const replayRestartButton = document.querySelector("#replay-restart-button");
+const replayEventSlider = document.querySelector("#replay-event-slider");
+const replayEventLabel = document.querySelector("#replay-event-label");
+const replayTickDisplay = document.querySelector("#replay-tick-display");
 const teamABoard = document.querySelector("#team-a-board");
 const teamBBoard = document.querySelector("#team-b-board");
 const appState = {
   replay: null,
   selectedEventIndex: -1,
+  playbackTimerId: null,
 };
 const metadataFields = {
   seed: document.querySelector('[data-meta-field="seed"]'),
@@ -157,11 +166,14 @@ replayLoadButton.addEventListener("click", () => {
       appState.selectedEventIndex = -1;
       renderReplayMetadata(parsedReplay);
       renderCurrentReplay();
+      renderPlaybackControls();
     } else {
       appState.replay = null;
       appState.selectedEventIndex = -1;
+      stopPlayback();
       resetMetadata();
       resetBoards();
+      renderPlaybackControls();
     }
   } catch (error) {
     renderReplayValidation({
@@ -170,8 +182,10 @@ replayLoadButton.addEventListener("click", () => {
     });
     appState.replay = null;
     appState.selectedEventIndex = -1;
+    stopPlayback();
     resetMetadata();
     resetBoards();
+    renderPlaybackControls();
   }
 });
 
@@ -197,13 +211,56 @@ replayFileInput.addEventListener("change", async (event) => {
     });
     appState.replay = null;
     appState.selectedEventIndex = -1;
+    stopPlayback();
     resetMetadata();
     resetBoards();
+    renderPlaybackControls();
   }
+});
+
+replayPreviousButton.addEventListener("click", () => {
+  setSelectedEventIndex(appState.selectedEventIndex - 1);
+});
+
+replayNextButton.addEventListener("click", () => {
+  setSelectedEventIndex(appState.selectedEventIndex + 1);
+});
+
+replayRestartButton.addEventListener("click", () => {
+  setSelectedEventIndex(-1);
+});
+
+replayPlayButton.addEventListener("click", () => {
+  if (!appState.replay || appState.playbackTimerId !== null) {
+    return;
+  }
+
+  appState.playbackTimerId = window.setInterval(() => {
+    const maxEventIndex = getMaxEventIndex();
+    if (appState.selectedEventIndex >= maxEventIndex) {
+      stopPlayback();
+      return;
+    }
+
+    setSelectedEventIndex(appState.selectedEventIndex + 1);
+  }, 700);
+
+  renderPlaybackControls();
+});
+
+replayPauseButton.addEventListener("click", () => {
+  stopPlayback();
+  renderPlaybackControls();
+});
+
+replayEventSlider.addEventListener("input", (event) => {
+  const sliderValue = Number(event.target.value);
+  setSelectedEventIndex(sliderValue - 1);
 });
 
 resetMetadata();
 resetBoards();
+renderPlaybackControls();
 
 function validateReplay(candidate) {
   const errors = [];
@@ -280,11 +337,15 @@ function resetMetadata() {
 function renderCurrentReplay() {
   if (!appState.replay) {
     resetBoards();
+    replayTickDisplay.textContent = "0";
+    replayEventLabel.textContent = "Event Index · Start";
     return;
   }
 
   const replayState = buildReplayState(appState.replay, appState.selectedEventIndex);
   renderBoards(replayState);
+  replayTickDisplay.textContent = String(getCurrentTick());
+  replayEventLabel.textContent = `Event Index · ${formatEventIndexLabel()}`;
 }
 
 function renderBoards(replayState) {
@@ -295,6 +356,57 @@ function renderBoards(replayState) {
 function resetBoards() {
   renderTeamBoard(teamABoard, [], "team_a");
   renderTeamBoard(teamBBoard, [], "team_b");
+}
+
+function renderPlaybackControls() {
+  const hasReplay = Boolean(appState.replay);
+  const maxEventIndex = hasReplay ? getMaxEventIndex() : -1;
+  const sliderValue = hasReplay ? appState.selectedEventIndex + 1 : 0;
+  const sliderMax = hasReplay ? appState.replay.events.length : 0;
+
+  replayEventSlider.disabled = !hasReplay;
+  replayPreviousButton.disabled = !hasReplay || appState.selectedEventIndex < 0;
+  replayNextButton.disabled = !hasReplay || appState.selectedEventIndex >= maxEventIndex;
+  replayRestartButton.disabled = !hasReplay || appState.selectedEventIndex < 0;
+  replayPlayButton.disabled = !hasReplay || appState.playbackTimerId !== null || appState.selectedEventIndex >= maxEventIndex;
+  replayPauseButton.disabled = appState.playbackTimerId === null;
+  replayEventSlider.max = String(sliderMax);
+  replayEventSlider.value = String(sliderValue);
+}
+
+function setSelectedEventIndex(nextEventIndex) {
+  if (!appState.replay) {
+    return;
+  }
+
+  const clampedIndex = clampValue(nextEventIndex, -1, getMaxEventIndex());
+  appState.selectedEventIndex = clampedIndex;
+  renderCurrentReplay();
+  renderPlaybackControls();
+}
+
+function getMaxEventIndex() {
+  return appState.replay ? appState.replay.events.length - 1 : -1;
+}
+
+function getCurrentTick() {
+  if (!appState.replay || appState.selectedEventIndex < 0) {
+    return 0;
+  }
+
+  const currentEvent = appState.replay.events[appState.selectedEventIndex];
+  return typeof currentEvent?.tick === "number" ? currentEvent.tick : 0;
+}
+
+function formatEventIndexLabel() {
+  return appState.selectedEventIndex < 0 ? "Start" : `${appState.selectedEventIndex + 1} / ${appState.replay.events.length}`;
+}
+
+function stopPlayback() {
+  if (appState.playbackTimerId !== null) {
+    window.clearInterval(appState.playbackTimerId);
+    appState.playbackTimerId = null;
+  }
 }
 
 function renderTeamBoard(container, characters, teamKey) {
