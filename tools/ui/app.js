@@ -39,6 +39,9 @@ const replayRestartButton = document.querySelector("#replay-restart-button");
 const replayEventSlider = document.querySelector("#replay-event-slider");
 const replayEventLabel = document.querySelector("#replay-event-label");
 const replayTickDisplay = document.querySelector("#replay-tick-display");
+const currentEventTick = document.querySelector("#current-event-tick");
+const currentEventIndex = document.querySelector("#current-event-index");
+const currentEventText = document.querySelector("#current-event-text");
 const timelineMajorOnlyInput = document.querySelector("#timeline-major-only");
 const timelineSelectedOnlyInput = document.querySelector("#timeline-selected-only");
 const timelineSelectedOnlyLabel = timelineSelectedOnlyInput.closest(".toggle-pill");
@@ -359,10 +362,10 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (event.key === "ArrowLeft") {
+  if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") {
     event.preventDefault();
     setSelectedEventIndex(appState.selectedEventIndex - 1);
-  } else if (event.key === "ArrowRight") {
+  } else if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") {
     event.preventDefault();
     setSelectedEventIndex(appState.selectedEventIndex + 1);
   }
@@ -505,6 +508,9 @@ function renderCurrentReplay() {
     resetBoards();
     replayTickDisplay.textContent = "0";
     replayEventLabel.textContent = "Event Index · Start";
+    currentEventTick.textContent = "Tick 0";
+    currentEventIndex.textContent = "Start";
+    currentEventText.textContent = "Load a replay and move through events to see a compact summary here.";
     renderTimeline();
     renderInspector(null);
     return;
@@ -514,6 +520,7 @@ function renderCurrentReplay() {
   renderBoards(replayState);
   replayTickDisplay.textContent = String(getCurrentTick());
   replayEventLabel.textContent = `Event Index · ${formatEventIndexLabel()}`;
+  renderCurrentEventSummary();
   renderTimeline();
   renderInspector(getSelectedCharacter(replayState));
 }
@@ -634,6 +641,20 @@ function formatEventIndexLabel() {
   return appState.selectedEventIndex < 0 ? "Start" : `${appState.selectedEventIndex + 1} / ${appState.replay.events.length}`;
 }
 
+function renderCurrentEventSummary() {
+  if (!appState.replay || appState.selectedEventIndex < 0) {
+    currentEventTick.textContent = "Tick 0";
+    currentEventIndex.textContent = "Start";
+    currentEventText.textContent = "Battle state before the first logged event.";
+    return;
+  }
+
+  const event = appState.replay.events[appState.selectedEventIndex];
+  currentEventTick.textContent = `Tick ${event.tick ?? 0}`;
+  currentEventIndex.textContent = `Event ${appState.selectedEventIndex + 1}/${appState.replay.events.length}`;
+  currentEventText.textContent = formatTimelineText(event);
+}
+
 function stopPlayback() {
   if (appState.playbackTimerId !== null) {
     window.clearInterval(appState.playbackTimerId);
@@ -657,8 +678,7 @@ function renderTeamBoard(container, characters, teamKey) {
     }
   }
 
-  const rowLabels = ["Front", "Middle", "Back"];
-  const rowsMarkup = rowLabels.map((label, rowIndex) => {
+  const rowsMarkup = Array.from({ length: 3 }, (_, rowIndex) => {
     const cellsMarkup = Array.from({ length: 4 }, (_, colIndex) => {
       const character = occupantMap.get(`${rowIndex}:${colIndex}`);
       const isSelected = character && character.id === appState.selectedCharacterId;
@@ -674,7 +694,6 @@ function renderTeamBoard(container, characters, teamKey) {
     }).join("");
 
     return `
-      <span class="grid-label">${label}</span>
       <div class="grid-row">${cellsMarkup}</div>
     `;
   }).join("");
