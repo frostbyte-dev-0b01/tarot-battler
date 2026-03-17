@@ -40,7 +40,7 @@ All cargo commands should be run from `battle_engine/`.
 - `src/damage.rs` — Physical/magical damage calculation, basic attack type resolution.
 - `src/targeting.rs` — Offensive/defensive type computation, front-row target selection with weakness preference.
 - `src/loader.rs` — `load_characters()`, `load_abilities()`, `load_passives()`, and `load_statuses()` from JSON, plus content validation for references, positions, target legality, and status-shape correctness.
-- `src/logger.rs` — `BattleEvent` enum (`BattleStart`, `BasicAttack`, `AbilityUsed`, `AbilityDamage`, `StatusDamage`, `StatusHeal`, `TurnSkipped`, `PassiveTriggered`, `DamageReflect`, `Defeat`, `BattleEnd`) and `BattleLog` with JSON and human-readable replay formatting.
+- `src/logger.rs` — `BattleEvent` enum (`BattleStart`, `BasicAttack`, `AbilityUsed`, `AbilityDamage`, `StatusDamage`, `StatusHeal`, `TurnSkipped`, `PassiveTriggered`, `DamageReflect`, `Defeat`, `BattleEnd`) and `BattleLog` with JSON and human-readable replay formatting grouped by `tick_count`.
 - `src/main.rs` — Entry point: loads JSON data (characters, abilities, passives, statuses), validates content, splits teams, runs battle, prints readable text replay by default or JSON with `--json`.
 - `src/data/characters.json` — Sample 5v5 roster with themed rules for trial battles.
 - `src/data/abilities.json` — Ability definitions including direct attacks, buffs, healing, SPI support, cleanse/dispel, and status payoff tools.

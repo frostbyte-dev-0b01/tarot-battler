@@ -8,12 +8,12 @@ use serde::Serialize;
 #[serde(tag = "event_type")]
 pub enum BattleEvent {
     BattleStart {
-        step: u32,
+        tick_count: u32,
         team_a: Vec<String>,
         team_b: Vec<String>,
     },
     BasicAttack {
-        step: u32,
+        tick_count: u32,
         actor_id: u32,
         actor_name: String,
         target_id: u32,
@@ -22,14 +22,14 @@ pub enum BattleEvent {
         target_hp_remaining: u32,
     },
     AbilityUsed {
-        step: u32,
+        tick_count: u32,
         actor_id: u32,
         actor_name: String,
         ability_name: String,
         mp_cost: u32,
     },
     AbilityDamage {
-        step: u32,
+        tick_count: u32,
         actor_id: u32,
         target_id: u32,
         target_name: String,
@@ -37,12 +37,12 @@ pub enum BattleEvent {
         target_hp_remaining: u32,
     },
     Defeat {
-        step: u32,
+        tick_count: u32,
         character_id: u32,
         character_name: String,
     },
     StatusDamage {
-        step: u32,
+        tick_count: u32,
         character_id: u32,
         character_name: String,
         status_name: String,
@@ -50,7 +50,7 @@ pub enum BattleEvent {
         hp_remaining: u32,
     },
     StatusHeal {
-        step: u32,
+        tick_count: u32,
         character_id: u32,
         character_name: String,
         status_name: String,
@@ -58,19 +58,19 @@ pub enum BattleEvent {
         hp_remaining: u32,
     },
     TurnSkipped {
-        step: u32,
+        tick_count: u32,
         character_id: u32,
         character_name: String,
         reason: String,
     },
     PassiveTriggered {
-        step: u32,
+        tick_count: u32,
         character_id: u32,
         character_name: String,
         passive_name: String,
     },
     DamageReflect {
-        step: u32,
+        tick_count: u32,
         reflector_id: u32,
         reflector_name: String,
         target_id: u32,
@@ -79,7 +79,7 @@ pub enum BattleEvent {
         target_hp_remaining: u32,
     },
     BattleEnd {
-        step: u32,
+        tick_count: u32,
         winner: String,
     },
 }
@@ -103,16 +103,16 @@ impl BattleLog {
 
     pub fn to_text(&self) -> String {
         let mut out = String::new();
-        let mut current_step: Option<u32> = None;
+        let mut current_tick: Option<u32> = None;
 
         for event in &self.events {
-            let step = event.step();
-            if current_step != Some(step) {
+            let tick_count = event.tick_count();
+            if current_tick != Some(tick_count) {
                 if !out.is_empty() {
                     out.push('\n');
                 }
-                let _ = writeln!(out, "Step {step}");
-                current_step = Some(step);
+                let _ = writeln!(out, "Tick {tick_count}");
+                current_tick = Some(tick_count);
             }
 
             match event {
@@ -223,19 +223,19 @@ impl BattleLog {
 }
 
 impl BattleEvent {
-    fn step(&self) -> u32 {
+    fn tick_count(&self) -> u32 {
         match self {
-            BattleEvent::BattleStart { step, .. }
-            | BattleEvent::BasicAttack { step, .. }
-            | BattleEvent::AbilityUsed { step, .. }
-            | BattleEvent::AbilityDamage { step, .. }
-            | BattleEvent::Defeat { step, .. }
-            | BattleEvent::StatusDamage { step, .. }
-            | BattleEvent::StatusHeal { step, .. }
-            | BattleEvent::TurnSkipped { step, .. }
-            | BattleEvent::PassiveTriggered { step, .. }
-            | BattleEvent::DamageReflect { step, .. }
-            | BattleEvent::BattleEnd { step, .. } => *step,
+            BattleEvent::BattleStart { tick_count, .. }
+            | BattleEvent::BasicAttack { tick_count, .. }
+            | BattleEvent::AbilityUsed { tick_count, .. }
+            | BattleEvent::AbilityDamage { tick_count, .. }
+            | BattleEvent::Defeat { tick_count, .. }
+            | BattleEvent::StatusDamage { tick_count, .. }
+            | BattleEvent::StatusHeal { tick_count, .. }
+            | BattleEvent::TurnSkipped { tick_count, .. }
+            | BattleEvent::PassiveTriggered { tick_count, .. }
+            | BattleEvent::DamageReflect { tick_count, .. }
+            | BattleEvent::BattleEnd { tick_count, .. } => *tick_count,
         }
     }
 }

@@ -49,11 +49,11 @@ This checklist tracks the work required to align the Rust battle engine with the
 ## Phase 5: MP Regen and Tick Semantics
 
 - [x] Replace global step-based resource regen with per-character end-of-turn MP regen
-- [ ] Align logs and exposed names with `tick_count`
-- [ ] Add tests for per-turn MP regen behavior
-- [ ] Update docs to reflect completed engine alignment
-- [ ] Run test suite
-- [ ] Commit Phase 5
+- [x] Align logs and exposed names with `tick_count`
+- [x] Add tests for per-turn MP regen behavior
+- [x] Update docs to reflect completed engine alignment
+- [x] Run test suite
+- [x] Commit Phase 5
 
 ## Phase 6: Targeting Model Expansion
 

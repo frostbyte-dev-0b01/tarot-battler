@@ -110,7 +110,7 @@ pub fn execute_ability(
     let actor_name = actor_team[actor_idx].base_name().to_string();
 
     log.push(BattleEvent::AbilityUsed {
-        step,
+        tick_count: step,
         actor_id,
         actor_name,
         ability_name: ability_name.to_string(),
@@ -166,7 +166,7 @@ pub fn execute_primitives(
                     let tname = enemy_team[tidx].base_name().to_string();
                     let hp = enemy_team[tidx].current_hp();
                     log.push(BattleEvent::AbilityDamage {
-                        step,
+                        tick_count: step,
                         actor_id,
                         target_id: tid,
                         target_name: tname,
@@ -188,7 +188,7 @@ pub fn execute_primitives(
                     let tname = enemy_team[tidx].base_name().to_string();
                     let hp = enemy_team[tidx].current_hp();
                     log.push(BattleEvent::AbilityDamage {
-                        step,
+                        tick_count: step,
                         actor_id,
                         target_id: tid,
                         target_name: tname,

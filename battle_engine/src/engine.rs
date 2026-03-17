@@ -106,7 +106,7 @@ impl BattleState {
 
     pub fn run(mut self) -> BattleLog {
         self.log.push(BattleEvent::BattleStart {
-            step: 0,
+            tick_count: 0,
             team_a: self
                 .team_a
                 .iter()
@@ -222,7 +222,7 @@ impl BattleState {
                 let char_id = actor_team[idx].id();
                 let char_name = actor_team[idx].base_name().to_string();
                 log.push(BattleEvent::PassiveTriggered {
-                    step,
+                    tick_count: step,
                     character_id: char_id,
                     character_name: char_name,
                     passive_name: passive_name.to_string(),
@@ -243,7 +243,7 @@ impl BattleState {
                 let char_id = actor_team[idx].id();
                 let char_name = actor_team[idx].base_name().to_string();
                 log.push(BattleEvent::PassiveTriggered {
-                    step,
+                    tick_count: step,
                     character_id: char_id,
                     character_name: char_name,
                     passive_name: passive_name.to_string(),
@@ -353,7 +353,7 @@ impl BattleState {
 
         if self.step > MAX_STEPS {
             self.log.push(BattleEvent::BattleEnd {
-                step: self.step,
+                tick_count: self.step,
                 winner: "draw".to_string(),
             });
             return true;
@@ -391,19 +391,19 @@ impl BattleState {
 
         if !a_alive && !b_alive {
             self.log.push(BattleEvent::BattleEnd {
-                step: self.step,
+                tick_count: self.step,
                 winner: "draw".to_string(),
             });
             true
         } else if !b_alive {
             self.log.push(BattleEvent::BattleEnd {
-                step: self.step,
+                tick_count: self.step,
                 winner: "team_a".to_string(),
             });
             true
         } else if !a_alive {
             self.log.push(BattleEvent::BattleEnd {
-                step: self.step,
+                tick_count: self.step,
                 winner: "team_b".to_string(),
             });
             true
@@ -436,7 +436,7 @@ impl BattleState {
         // Incapacitate check happens after start-of-turn passives and status ticks.
         if actor_team[actor_idx].is_incapacitated() {
             self.log.push(BattleEvent::TurnSkipped {
-                step: self.step,
+                tick_count: self.step,
                 character_id: actor_id,
                 character_name: actor_name,
                 reason: "incapacitated".to_string(),
@@ -527,7 +527,7 @@ impl BattleState {
         let hp_remaining = enemy_team[target_idx].current_hp();
 
         self.log.push(BattleEvent::BasicAttack {
-            step: self.step,
+            tick_count: self.step,
             actor_id,
             actor_name,
             target_id,
@@ -644,7 +644,7 @@ impl BattleState {
             }
             actor_team[actor_idx].take_damage(*reflect);
             self.log.push(BattleEvent::DamageReflect {
-                step: self.step,
+                tick_count: self.step,
                 reflector_id: *reflector_id,
                 reflector_name: reflector_name.clone(),
                 target_id: actor_id,
@@ -704,7 +704,7 @@ impl BattleState {
             match tick {
                 StatusTick::DamageDealt { name, damage } => {
                     log.push(BattleEvent::StatusDamage {
-                        step,
+                        tick_count: step,
                         character_id: team[idx].id(),
                         character_name: team[idx].base_name().to_string(),
                         status_name: name,
@@ -714,7 +714,7 @@ impl BattleState {
                 }
                 StatusTick::HealApplied { name, amount } => {
                     log.push(BattleEvent::StatusHeal {
-                        step,
+                        tick_count: step,
                         character_id: team[idx].id(),
                         character_name: team[idx].base_name().to_string(),
                         status_name: name,
@@ -742,7 +742,7 @@ impl BattleState {
         let (team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         team[char_idx].mark_defeat_resolved();
         self.log.push(BattleEvent::Defeat {
-            step: self.step,
+            tick_count: self.step,
             character_id: team[char_idx].id(),
             character_name: team[char_idx].base_name().to_string(),
         });
