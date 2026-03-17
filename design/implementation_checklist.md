@@ -28,12 +28,12 @@ This checklist tracks the work required to align the Rust battle engine with the
 
 ## Phase 3: Turn Resolution Ordering
 
-- [ ] Enforce turn order: on-turn-start passives, status ticks, action or stun skip, death resolution, end-of-turn effects, MP regen, speed reset
-- [ ] Ensure stunned characters still receive all non-action turn processing
-- [ ] Add regression tests for stunned-turn behavior
-- [ ] Update docs to reflect completed engine alignment
-- [ ] Run test suite
-- [ ] Commit Phase 3
+- [x] Enforce turn order: on-turn-start passives, status ticks, action or stun skip, death resolution, end-of-turn effects, MP regen, speed reset
+- [x] Ensure stunned characters still receive all non-action turn processing
+- [x] Add regression tests for stunned-turn behavior
+- [x] Update docs to reflect completed engine alignment
+- [x] Run test suite
+- [x] Commit Phase 3
 
 ## Phase 4: Rule System Alignment
 
@@ -48,7 +48,7 @@ This checklist tracks the work required to align the Rust battle engine with the
 
 ## Phase 5: MP Regen and Tick Semantics
 
-- [ ] Replace global step-based resource regen with per-character end-of-turn MP regen
+- [x] Replace global step-based resource regen with per-character end-of-turn MP regen
 - [ ] Align logs and exposed names with `tick_count`
 - [ ] Add tests for per-turn MP regen behavior
 - [ ] Update docs to reflect completed engine alignment

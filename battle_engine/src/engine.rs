@@ -16,8 +16,6 @@ use crate::statuses::StatusMap;
 use crate::targeting::select_target;
 
 const MAX_STEPS: u32 = 1000;
-const SPI_REGEN_INTERVAL: u32 = 10;
-
 pub struct BattleState {
     team_a: Vec<CharacterState>,
     team_b: Vec<CharacterState>,
@@ -387,16 +385,6 @@ impl BattleState {
             }
         }
 
-        // MP regen every N steps
-        if self.step % SPI_REGEN_INTERVAL == 0 {
-            for c in self.team_a.iter_mut().chain(self.team_b.iter_mut()) {
-                if c.is_alive() {
-                    let regen = c.get_base_stat(&Stat::SPI) / 2;
-                    c.restore_mp(regen);
-                }
-            }
-        }
-
         // Check win conditions
         let a_alive = self.team_a.iter().any(|c| c.is_alive());
         let b_alive = self.team_b.iter().any(|c| c.is_alive());
@@ -428,12 +416,14 @@ impl BattleState {
     fn execute_turn(&mut self, actor_idx: usize, is_team_a: bool) {
         {
             let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            actor_team[actor_idx].reset_speed();
             actor_team[actor_idx].increment_turn_count();
         }
 
-        // on_turn_start fires before incapacitate check (fires even when stunned)
+        // on_turn_start fires before status ticks and action resolution.
         self.try_fire_passive(actor_idx, &PassiveTrigger::OnTurnStart, is_team_a);
+
+        // Start-of-turn statuses tick even when the actor is stunned.
+        self.tick_and_log_statuses(actor_idx, is_team_a);
 
         let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         if !actor_team[actor_idx].is_alive() {
@@ -443,7 +433,7 @@ impl BattleState {
         let actor_id = actor_team[actor_idx].id();
         let actor_name = actor_team[actor_idx].base_name().to_string();
 
-        // Incapacitate check: skip action but still tick effects
+        // Incapacitate check happens after start-of-turn passives and status ticks.
         if actor_team[actor_idx].is_incapacitated() {
             self.log.push(BattleEvent::TurnSkipped {
                 step: self.step,
@@ -451,7 +441,8 @@ impl BattleState {
                 character_name: actor_name,
                 reason: "incapacitated".to_string(),
             });
-            self.tick_and_log_statuses(actor_idx, is_team_a);
+            actor_team[actor_idx].consume_skip_turn_statuses();
+            self.finish_turn(actor_idx, is_team_a);
             return;
         }
 
@@ -461,7 +452,10 @@ impl BattleState {
         let target_id = match Self::resolve_target(actor_idx, actor_team, enemy_team, &mut self.rng)
         {
             Some(tid) => tid,
-            None => return,
+            None => {
+                self.finish_turn(actor_idx, is_team_a);
+                return;
+            }
         };
 
         let target_idx = enemy_team.iter().position(|c| c.id() == target_id).unwrap();
@@ -503,14 +497,12 @@ impl BattleState {
                 // Process damage results: defeats, reflect, and passive triggers
                 self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
 
-                // Tick effects after action
-                self.tick_and_log_statuses(actor_idx, is_team_a);
-
                 // Reassign target if current target is dead
                 let (actor_team, enemy_team) =
                     Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
                 Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng);
 
+                self.finish_turn(actor_idx, is_team_a);
                 return;
             }
         }
@@ -547,8 +539,18 @@ impl BattleState {
             Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng);
 
-        // Tick effects after basic attack
-        self.tick_and_log_statuses(actor_idx, is_team_a);
+        self.finish_turn(actor_idx, is_team_a);
+    }
+
+    fn finish_turn(&mut self, actor_idx: usize, is_team_a: bool) {
+        let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+        if !actor_team[actor_idx].is_alive() {
+            return;
+        }
+
+        let regen = actor_team[actor_idx].get_base_stat(&Stat::SPI) / 2;
+        actor_team[actor_idx].restore_mp(regen);
+        actor_team[actor_idx].reset_speed();
     }
 
     /// Split teams into (actor_team, enemy_team) based on which team the actor is on.
@@ -1750,6 +1752,172 @@ mod tests {
             skip_count > 0,
             "Stunned character should have TurnSkipped events"
         );
+    }
+
+    #[test]
+    fn stunned_turn_still_ticks_statuses_and_regens_mp() {
+        use crate::statuses::{StackType, StatusBehavior, StatusDef};
+
+        let actor = make_config(
+            "Actor",
+            0,
+            vec![
+                (Stat::CON, 20),
+                (Stat::STR, 6),
+                (Stat::INT, 3),
+                (Stat::FOR, 5),
+                (Stat::WIS, 3),
+                (Stat::DEX, 10),
+                (Stat::SPI, 4),
+            ],
+        );
+        let enemy = make_config(
+            "Enemy",
+            0,
+            vec![
+                (Stat::CON, 20),
+                (Stat::STR, 4),
+                (Stat::INT, 3),
+                (Stat::FOR, 3),
+                (Stat::WIS, 3),
+                (Stat::DEX, 1),
+                (Stat::SPI, 4),
+            ],
+        );
+
+        let stun_def = StatusDef {
+            behavior: StatusBehavior::SkipTurn,
+            stack_type: StackType::NoStack,
+            opposes: None,
+        };
+        let bleed_def = StatusDef {
+            behavior: StatusBehavior::DamagePerStack { value: 1 },
+            stack_type: StackType::TickDown,
+            opposes: None,
+        };
+
+        let mut battle = BattleState::new(
+            &[actor],
+            &[enemy],
+            empty_abilities(),
+            empty_passives(),
+            empty_statuses(),
+            42,
+        );
+        battle.team_a[0].add_status("Stun", 1, 99, &stun_def, None);
+        battle.team_a[0].add_status("Bleed", 1, 99, &bleed_def, None);
+        battle.team_a[0].spend_mp(4);
+
+        battle.step_once();
+
+        assert_eq!(battle.team_a[0].current_hp(), 39);
+        assert_eq!(battle.team_a[0].current_mp(), 2);
+        assert!(!battle.team_a[0].is_incapacitated());
+
+        let has_skip = battle.log.events().iter().any(|e| {
+            matches!(
+                e,
+                BattleEvent::TurnSkipped { character_name, .. } if character_name == "Actor"
+            )
+        });
+        let has_status_damage = battle.log.events().iter().any(|e| {
+            matches!(
+                e,
+                BattleEvent::StatusDamage { character_name, .. } if character_name == "Actor"
+            )
+        });
+        assert!(has_skip);
+        assert!(has_status_damage);
+    }
+
+    #[test]
+    fn on_turn_start_passive_logs_before_status_tick() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+        use crate::statuses::{StackType, StatusBehavior, StatusDef};
+
+        let mut actor = make_config(
+            "Actor",
+            0,
+            vec![
+                (Stat::CON, 20),
+                (Stat::STR, 6),
+                (Stat::INT, 3),
+                (Stat::FOR, 5),
+                (Stat::WIS, 3),
+                (Stat::DEX, 10),
+                (Stat::SPI, 4),
+            ],
+        );
+        actor.passive = "Meditation".to_string();
+
+        let enemy = make_config(
+            "Enemy",
+            0,
+            vec![
+                (Stat::CON, 20),
+                (Stat::STR, 4),
+                (Stat::INT, 3),
+                (Stat::FOR, 3),
+                (Stat::WIS, 3),
+                (Stat::DEX, 1),
+                (Stat::SPI, 4),
+            ],
+        );
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert(
+            "Meditation".to_string(),
+            PassiveDef::Triggered {
+                trigger: PassiveTrigger::OnTurnStart,
+                primitives: vec![Primitive::RestoreMp {
+                    target: AbilityTarget::SelfChar,
+                    amount: 1,
+                }],
+            },
+        );
+
+        let bleed_def = StatusDef {
+            behavior: StatusBehavior::DamagePerStack { value: 1 },
+            stack_type: StackType::TickDown,
+            opposes: None,
+        };
+
+        let mut battle = BattleState::new(
+            &[actor],
+            &[enemy],
+            empty_abilities(),
+            passives,
+            empty_statuses(),
+            42,
+        );
+        battle.team_a[0].add_status("Bleed", 1, 99, &bleed_def, None);
+
+        battle.step_once();
+
+        let passive_idx = battle
+            .log
+            .events()
+            .iter()
+            .position(|e| {
+                matches!(
+                    e,
+                    BattleEvent::PassiveTriggered { passive_name, .. } if passive_name == "Meditation"
+                )
+            })
+            .expect("passive should trigger");
+        let tick_idx = battle
+            .log
+            .events()
+            .iter()
+            .position(|e| {
+                matches!(
+                    e,
+                    BattleEvent::StatusDamage { character_name, .. } if character_name == "Actor"
+                )
+            })
+            .expect("status tick should log");
+
+        assert!(passive_idx < tick_idx);
     }
 
     #[test]

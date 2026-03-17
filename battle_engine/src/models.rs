@@ -493,6 +493,17 @@ impl CharacterState {
         }
     }
 
+    /// Consume one stack of each skip-turn status after it actually prevents an action.
+    pub fn consume_skip_turn_statuses(&mut self) {
+        self.statuses.retain(|_, inst| match inst.behavior {
+            StatusBehavior::SkipTurn => {
+                inst.stacks = inst.stacks.saturating_sub(1);
+                inst.stacks > 0
+            }
+            _ => true,
+        });
+    }
+
     /// Tick all statuses: collect damage/heal events, apply net HP change,
     /// then decrement stacks. Order of evaluation never matters — death is
     /// only checked after all effects resolve.
@@ -533,14 +544,21 @@ impl CharacterState {
             self.take_damage((-net) as u32);
         }
 
-        // Decrement stacks for TickDown and NoStack
-        self.statuses.retain(|_, inst| match inst.stack_type {
-            StackType::TickDown | StackType::NoStack => {
-                inst.stacks = inst.stacks.saturating_sub(1);
-                inst.stacks > 0
-            }
-            StackType::Permanent => true,
-        });
+        // Decrement stacks for TickDown and non-skip NoStack effects.
+        // SkipTurn statuses are consumed only when they actually deny an action.
+        self.statuses
+            .retain(|_, inst| match (&inst.stack_type, &inst.behavior) {
+                (StackType::TickDown, _) => {
+                    inst.stacks = inst.stacks.saturating_sub(1);
+                    inst.stacks > 0
+                }
+                (StackType::NoStack, StatusBehavior::SkipTurn) => true,
+                (StackType::NoStack, _) => {
+                    inst.stacks = inst.stacks.saturating_sub(1);
+                    inst.stacks > 0
+                }
+                (StackType::Permanent, _) => true,
+            });
 
         ticks
     }
@@ -887,13 +905,16 @@ mod tests {
     }
 
     #[test]
-    fn stun_expires_after_ticks() {
+    fn stun_is_consumed_when_action_is_skipped() {
         let config = make_config(vec![(Stat::CON, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_status("Stun", 1, 99, &stun_def(), None);
         assert!(state.is_incapacitated());
 
-        state.tick_statuses(); // 1→0, removed
+        state.tick_statuses(); // should not remove stun on its own
+        assert!(state.is_incapacitated());
+
+        state.consume_skip_turn_statuses();
         assert!(!state.is_incapacitated());
     }
 
