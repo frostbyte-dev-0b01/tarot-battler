@@ -28,7 +28,13 @@
     "stats": {
       "CON": 8, "STR": 8, "INT": 3, "FOR": 5, "WIS": 2,
       "DEX": 3, "SPI": 4, "FOC": 3, "RES": 2
-    }
+    },
+    "rules": [
+      { "ability": "Shatter", "conditions": [
+        { "subject": "self", "value": "use_count", "comparator": "lte", "threshold": 0 }
+      ]},
+      { "ability": "Rubble", "conditions": [] }
+    ]
   },
   {
     "base_name": "The Chariot",
@@ -39,7 +45,13 @@
     "stats": {
       "CON": 9, "STR": 7, "INT": 3, "FOR": 4, "WIS": 2,
       "DEX": 5, "SPI": 4, "FOC": 4, "RES": 3
-    }
+    },
+    "rules": [
+      { "ability": "Rally", "conditions": [
+        { "subject": "self", "value": "use_count", "comparator": "lte", "threshold": 0 }
+      ]},
+      { "ability": "Charge", "conditions": [] }
+    ]
   },
   {
     "base_name": "The High Priestess",
@@ -50,7 +62,13 @@
     "stats": {
       "CON": 6, "STR": 2, "INT": 8, "FOR": 2, "WIS": 7,
       "DEX": 5, "SPI": 7, "FOC": 6, "RES": 4
-    }
+    },
+    "rules": [
+      { "ability": "Inner Sight", "conditions": [
+        { "subject": "self", "value": "use_count", "comparator": "lte", "threshold": 0 }
+      ]},
+      { "ability": "Moonbeam", "conditions": [] }
+    ]
   },
   {
     "base_name": "The Hermit",
@@ -61,7 +79,15 @@
     "stats": {
       "CON": 7, "STR": 2, "INT": 7, "FOR": 3, "WIS": 6,
       "DEX": 4, "SPI": 8, "FOC": 5, "RES": 5
-    }
+    },
+    "rules": [
+      { "ability": "Lantern", "conditions": [
+        { "subject": "self", "value": "hp", "comparator": "lte", "threshold": 10 }
+      ]},
+      { "ability": "Withdraw", "conditions": [
+        { "subject": "self", "value": "spi", "comparator": "lte", "threshold": 2 }
+      ]}
+    ]
   },
   {
     "base_name": "The Fool",
@@ -72,7 +98,13 @@
     "stats": {
       "CON": 7, "STR": 4, "INT": 4, "FOR": 3, "WIS": 3,
       "DEX": 7, "SPI": 6, "FOC": 4, "RES": 4
-    }
+    },
+    "rules": [
+      { "ability": "Stumble", "conditions": [
+        { "subject": "self", "value": "spi", "comparator": "lte", "threshold": 2 }
+      ]},
+      { "ability": "Leap of Faith", "conditions": [] }
+    ]
   },
   {
     "base_name": "The Magician",
@@ -83,7 +115,13 @@
     "stats": {
       "CON": 5, "STR": 3, "INT": 9, "FOR": 2, "WIS": 5,
       "DEX": 6, "SPI": 6, "FOC": 7, "RES": 3
-    }
+    },
+    "rules": [
+      { "ability": "Channel", "conditions": [
+        { "subject": "self", "value": "spi", "comparator": "lte", "threshold": 2 }
+      ]},
+      { "ability": "Transmute", "conditions": [] }
+    ]
   },
   {
     "base_name": "Strength",
@@ -94,7 +132,13 @@
     "stats": {
       "CON": 9, "STR": 7, "INT": 3, "FOR": 6, "WIS": 3,
       "DEX": 4, "SPI": 5, "FOC": 3, "RES": 4
-    }
+    },
+    "rules": [
+      { "ability": "Roar", "conditions": [
+        { "subject": "self", "value": "use_count", "comparator": "lte", "threshold": 0 }
+      ]},
+      { "ability": "Tame", "conditions": [] }
+    ]
   },
   {
     "base_name": "The Moon",
@@ -105,7 +149,13 @@
     "stats": {
       "CON": 5, "STR": 2, "INT": 8, "FOR": 2, "WIS": 6,
       "DEX": 5, "SPI": 8, "FOC": 7, "RES": 4
-    }
+    },
+    "rules": [
+      { "ability": "Nightmare", "conditions": [
+        { "subject": "target", "value": "hp", "comparator": "gte", "threshold": 10 }
+      ]},
+      { "ability": "Ebb", "conditions": [] }
+    ]
   },
   {
     "base_name": "The Star",
@@ -116,6 +166,14 @@
     "stats": {
       "CON": 6, "STR": 2, "INT": 6, "FOR": 3, "WIS": 7,
       "DEX": 4, "SPI": 9, "FOC": 5, "RES": 5
-    }
+    },
+    "rules": [
+      { "ability": "Restore", "conditions": [
+        { "subject": "ally", "value": "hp", "comparator": "lte", "threshold": 8 }
+      ]},
+      { "ability": "Wish", "conditions": [
+        { "subject": "self", "value": "hp", "comparator": "lte", "threshold": 8 }
+      ]}
+    ]
   }
 ]

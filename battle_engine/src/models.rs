@@ -137,6 +137,7 @@ pub struct CharacterState {
     statuses: HashMap<String, StatusInstance>,
     traits: Vec<TraitEffect>,
     rules: Vec<Rule>,
+    defeat_resolved: bool,
     actor_turn_count: u32,
     ability_use_counts: HashMap<String, u32>,
     ability_last_used_turn: HashMap<String, u32>,
@@ -163,6 +164,7 @@ impl CharacterState {
             statuses: HashMap::new(),
             traits: Vec::new(),
             rules: config.rules.clone(),
+            defeat_resolved: false,
             actor_turn_count: 0,
             ability_use_counts: HashMap::new(),
             ability_last_used_turn: HashMap::new(),
@@ -183,6 +185,14 @@ impl CharacterState {
 
     pub fn has_active(&self, ability_name: &str) -> bool {
         self.actives.iter().any(|active| active == ability_name)
+    }
+
+    pub fn is_defeat_resolved(&self) -> bool {
+        self.defeat_resolved
+    }
+
+    pub fn mark_defeat_resolved(&mut self) {
+        self.defeat_resolved = true;
     }
 
     pub fn is_incapacitated(&self) -> bool {

@@ -143,7 +143,7 @@ impl BattleState {
                     &mut self.team_a, &mut self.team_b,
                     &mut self.rng, &mut self.log, 0, &self.status_defs,
                 );
-                Self::log_defeats_from_damage(&damage_dealt, &self.team_b, &mut self.log, 0);
+                self.resolve_defeats_from_damage(&damage_dealt, false);
             }
         }
 
@@ -154,7 +154,7 @@ impl BattleState {
                     &mut self.team_b, &mut self.team_a,
                     &mut self.rng, &mut self.log, 0, &self.status_defs,
                 );
-                Self::log_defeats_from_damage(&damage_dealt, &self.team_a, &mut self.log, 0);
+                self.resolve_defeats_from_damage(&damage_dealt, true);
             }
         }
     }
@@ -208,26 +208,6 @@ impl BattleState {
         }
     }
 
-    /// Log defeats from damage dealt (used after passive execution — no further passives fire).
-    fn log_defeats_from_damage(
-        damage_dealt: &[(u32, u32)],
-        team: &[CharacterState],
-        log: &mut BattleLog,
-        step: u32,
-    ) {
-        for (tid, _) in damage_dealt {
-            if let Some(c) = team.iter().find(|c| c.id() == *tid) {
-                if !c.is_alive() {
-                    log.push(BattleEvent::Defeat {
-                        step,
-                        character_id: *tid,
-                        character_name: c.base_name().to_string(),
-                    });
-                }
-            }
-        }
-    }
-
     /// Look up a character's passive and fire it if it matches the trigger.
     /// Sets in_passive_phase during execution. Returns damage dealt.
     fn try_fire_passive(
@@ -240,13 +220,14 @@ impl BattleState {
             return Vec::new();
         }
 
-        let (actor_team, enemy_team) = if actor_team_is_a {
-            (&mut self.team_a as &mut [CharacterState], &mut self.team_b as &mut [CharacterState])
-        } else {
-            (&mut self.team_b as &mut [CharacterState], &mut self.team_a as &mut [CharacterState])
+        let passive_name = {
+            let (actor_team, _) = if actor_team_is_a {
+                (&mut self.team_a as &mut [CharacterState], &mut self.team_b as &mut [CharacterState])
+            } else {
+                (&mut self.team_b as &mut [CharacterState], &mut self.team_a as &mut [CharacterState])
+            };
+            actor_team[char_idx].passive().to_string()
         };
-
-        let passive_name = actor_team[char_idx].passive().to_string();
         if passive_name.is_empty() {
             return Vec::new();
         }
@@ -257,17 +238,43 @@ impl BattleState {
         };
 
         self.in_passive_phase = true;
-        let damage_dealt = Self::fire_passive_if_matches(
-            char_idx, &passive_name, &passive_def, trigger,
-            actor_team, enemy_team,
-            &mut self.rng, &mut self.log, self.step, &self.status_defs,
-        );
+        let damage_dealt = {
+            let (actor_team, enemy_team) = if actor_team_is_a {
+                (&mut self.team_a as &mut [CharacterState], &mut self.team_b as &mut [CharacterState])
+            } else {
+                (&mut self.team_b as &mut [CharacterState], &mut self.team_a as &mut [CharacterState])
+            };
 
-        // Log defeats from passive damage (no further passives fire)
-        Self::log_defeats_from_damage(&damage_dealt, enemy_team, &mut self.log, self.step);
+            Self::fire_passive_if_matches(
+                char_idx, &passive_name, &passive_def, trigger,
+                actor_team, enemy_team,
+                &mut self.rng, &mut self.log, self.step, &self.status_defs,
+            )
+        };
 
+        self.resolve_defeats_from_damage(&damage_dealt, !actor_team_is_a);
         self.in_passive_phase = false;
         damage_dealt
+    }
+
+    /// Resolve deaths caused by passive damage while respecting the passive re-entry guard.
+    fn resolve_defeats_from_damage(&mut self, damage_dealt: &[(u32, u32)], team_is_a: bool) {
+        let mut seen = HashSet::new();
+        for (tid, _) in damage_dealt {
+            if !seen.insert(*tid) {
+                continue;
+            }
+
+            let idx_opt = if team_is_a {
+                self.team_a.iter().position(|c| c.id() == *tid && !c.is_alive())
+            } else {
+                self.team_b.iter().position(|c| c.id() == *tid && !c.is_alive())
+            };
+
+            if let Some(idx) = idx_opt {
+                self.resolve_character_death(idx, team_is_a);
+            }
+        }
     }
 
     /// Advance one step. Returns true if the battle is over.
@@ -639,13 +646,14 @@ impl BattleState {
     /// Run death-side effects for a character exactly when they reach 0 HP.
     fn resolve_character_death(&mut self, char_idx: usize, is_team_a: bool) {
         let (team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        if team[char_idx].is_alive() {
+        if team[char_idx].is_alive() || team[char_idx].is_defeat_resolved() {
             return;
         }
 
         self.try_fire_passive(char_idx, &PassiveTrigger::OnDeath, is_team_a);
 
         let (team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+        team[char_idx].mark_defeat_resolved();
         self.log.push(BattleEvent::Defeat {
             step: self.step,
             character_id: team[char_idx].id(),
@@ -1710,6 +1718,47 @@ mod tests {
         )).expect("on_death passive should trigger on status death");
 
         assert!(collapse_idx < dying_defeat_idx, "on_death should resolve before Defeat is logged");
+    }
+
+    #[test]
+    fn resolve_character_death_only_logs_defeat_once() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+
+        let enemy = make_config("Enemy", 0, vec![
+            (Stat::CON, 20), (Stat::STR, 6), (Stat::INT, 3),
+            (Stat::FOR, 4), (Stat::WIS, 3), (Stat::DEX, 4), (Stat::SPI, 4),
+        ]);
+
+        let mut dying = make_config("Dying", 0, vec![
+            (Stat::CON, 2), (Stat::STR, 4), (Stat::INT, 3),
+            (Stat::FOR, 2), (Stat::WIS, 2), (Stat::DEX, 4), (Stat::SPI, 4),
+        ]);
+        dying.passive = "Collapse".to_string();
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert("Collapse".to_string(), PassiveDef::Triggered {
+            trigger: PassiveTrigger::OnDeath,
+            primitives: vec![Primitive::DealPhysicalDamage {
+                target: AbilityTarget::AllEnemies,
+                multiplier: 1.0,
+            }],
+        });
+
+        let mut battle = BattleState::new(&[enemy], &[dying], empty_abilities(), passives, empty_statuses(), 0);
+        battle.team_b[0].take_damage(999);
+
+        battle.resolve_character_death(0, false);
+        battle.resolve_character_death(0, false);
+
+        let defeat_count = battle.log.events().iter().filter(|e| matches!(e,
+            BattleEvent::Defeat { character_name, .. } if character_name == "Dying"
+        )).count();
+        let passive_count = battle.log.events().iter().filter(|e| matches!(e,
+            BattleEvent::PassiveTriggered { passive_name, .. } if passive_name == "Collapse"
+        )).count();
+
+        assert_eq!(defeat_count, 1, "Defeat should only be logged once");
+        assert_eq!(passive_count, 1, "on_death should only resolve once");
     }
 
     #[test]
