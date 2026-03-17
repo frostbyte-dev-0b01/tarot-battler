@@ -43,7 +43,7 @@ All cargo commands should be run from `battle_engine/`.
 - `src/logger.rs` — `BattleEvent` enum (`BattleStart`, `BasicAttack`, `AbilityUsed`, `AbilityDamage`, `StatusDamage`, `StatusHeal`, `TurnSkipped`, `PassiveTriggered`, `DamageReflect`, `Defeat`, `BattleEnd`) and `BattleLog` with JSON and human-readable replay formatting grouped by `tick_count`.
 - `src/main.rs` — Entry point: loads JSON data (characters, abilities, passives, statuses), validates content, splits teams, runs battle, prints readable text replay by default or JSON with `--json`.
 - `src/data/characters.json` — Sample 5v5 roster with themed rules for trial battles.
-- `src/data/abilities.json` — Ability definitions including direct attacks, buffs, healing, SPI support, cleanse/dispel, and status payoff tools.
+- `src/data/abilities.json` — Ability definitions including direct attacks, buffs, healing, MP support, cleanse/dispel, and status payoff tools.
 - `src/data/passives.json` — Passive definitions: triggered passives and permanent traits used by the sample roster.
 - `src/data/statuses.json` — Named status effect definitions (Bleed, Poison, Regen, Empower/Weaken, Fortify/Enfeeble, Stun).
 
@@ -51,7 +51,7 @@ All cargo commands should be run from `battle_engine/`.
 
 - **HP = 2 * CON.** Healing caps at this value.
 - **Pool stats (CON, DEX, SPI) cannot be modified by status effects.** `add_status()` rejects `StatModPerStack` targeting these. Other current prototype stats are freely moddable.
-- **CharacterState is fully encapsulated.** All fields are private; mutation happens through purpose-driven methods (`take_damage`, `heal`, `spend_spi`, `tick_speed`, `add_status`, etc.) that enforce invariants like HP/SPI caps.
+- **CharacterState is fully encapsulated.** All fields are private; mutation happens through purpose-driven methods (`take_damage`, `heal`, `spend_mp`, `restore_mp`, `tick_speed`, `add_status`, etc.) that enforce invariants like HP/MP caps.
 - **Two identity systems:** `base_name` is the archetype (e.g. "The Emperor"), `id` is a numeric runtime identifier assigned at battle setup. Players may later name custom loadouts separately.
 - **Effective stats** are computed dynamically: `get_eff_stat()` sums `StatModPerStack` status magnitudes × stacks over the base. `get_base_stat()` returns the unmodified value.
 
@@ -61,7 +61,7 @@ All cargo commands should be run from `battle_engine/`.
 - **Targeting:** The intended design uses sticky targets for basic attacks and `current_target` abilities, with ability-side targeting kept separate from rule evaluation. See `design/game_spec.md`.
 - **Speed system:** The engine uses `max_ticks = 10 - DEX`, clamps `ticks_until_turn` to at least `1`, then adds `+2` to `max_ticks` after each turn before resetting the countdown. This preserves fast openers while softening high-DEX advantage over time.
 - **Rule system:** Rule groups are `SelfChar`, `Companion`, `Target`, and `World`. `Companion` means any adjacent ally and does not imply that same companion becomes the ability target. World queries currently support live `ally_count`, `enemy_count`, and step-based `tick_count`.
-- **Abilities:** Tier 1 composed from JSON-defined primitives (`DealPhysicalDamage`, `DealMagicalDamage`, `RestoreHp`, `RestoreSpi`, `ApplyStatus`, `RemoveStatus`). Target enums define side explicitly, and content validation enforces legal buff/debuff targeting. Tier 2 (custom Rust handlers) planned but not yet implemented.
+- **Abilities:** Tier 1 composed from JSON-defined primitives (`DealPhysicalDamage`, `DealMagicalDamage`, `RestoreHp`, `RestoreMp`, `ApplyStatus`, `RemoveStatus`). Target definitions support both simple categories and detailed selector-based targeting, and content validation enforces legal buff/debuff targeting. Tier 2 (custom Rust handlers) planned but not yet implemented.
 - **Passives:** Each character has an optional passive ability. Two kinds: **triggered** passives fire on specific game events and execute primitives like abilities; **permanent traits** are applied at battle start and modify engine rules for the duration of the battle. Six triggers: `on_battle_start` (step 0), `on_turn_start` (each turn, even when stunned), `on_deal_damage` (once per action if any damage dealt), `on_take_damage` (from defender's perspective), `on_kill` (for the killer), `on_death` (from dead character's perspective). Re-entrancy guard prevents passive cascading — passives triggered during passive execution only log defeats, no further passives fire. Trait types: `MpCostReduction` (reduces ability MP cost, minimum 1), `DebuffResistance` (negates first N debuffs — DamagePerStack, SkipTurn, or negative StatModPerStack), `DamageReflect` (flat damage back to attackers, can kill). Defined in `passives.json` as a tagged enum (`"type": "triggered"` or `"type": "trait"`).
 - **Damage formulas:** Physical: `max(STR - FOR, 1)`, Magical: `max(INT - WIS, 1)`.
 - **Named status effects:** Data-driven definitions in `statuses.json`. Each status has a `behavior` (DamagePerStack, HealPerStack, StatModPerStack, SkipTurn), a `stack_type` (TickDown, NoStack, Permanent), and an optional `opposes` field for cancellation. Status keys include the stat for stat-mod statuses (e.g. `"Empower:STR"`), plain name otherwise (e.g. `"Bleed"`).

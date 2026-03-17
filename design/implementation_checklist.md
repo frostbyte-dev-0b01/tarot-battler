@@ -68,8 +68,8 @@ This checklist tracks the work required to align the Rust battle engine with the
 
 ## Phase 7: Sample Data Cleanup
 
-- [ ] Remove obsolete stat/resource references from sample data
-- [ ] Update sample characters, abilities, and passives to valid post-alignment shapes
-- [ ] Final documentation sync
-- [ ] Run test suite
-- [ ] Commit Phase 7
+- [x] Remove obsolete stat/resource references from sample data
+- [x] Update sample characters, abilities, and passives to valid post-alignment shapes
+- [x] Final documentation sync
+- [x] Run test suite
+- [x] Commit Phase 7

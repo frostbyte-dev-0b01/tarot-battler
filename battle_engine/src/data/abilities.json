@@ -4,7 +4,6 @@
     "primitives": [
       { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "STR", "stacks": 1 },
       { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "WIS", "stacks": 1 },
-      { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "WIS", "stacks": 1 },
       { "kind": "remove_status", "target": "current_target", "status": "Fortify", "stat": "FOR", "stacks": 1 }
     ]
   },
@@ -94,7 +93,15 @@
   "Restore": {
     "mp_cost": 3,
     "primitives": [
-      { "kind": "restore_hp", "target": "all_allies", "amount": 3 }
+      {
+        "kind": "restore_hp",
+        "target": {
+          "category": "ally",
+          "selector": { "kind": "lowest_hp" },
+          "bypass_row_protection": false
+        },
+        "amount": 3
+      }
     ]
   },
   "Roar": {
