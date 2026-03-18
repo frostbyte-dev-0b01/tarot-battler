@@ -179,6 +179,8 @@ Allowed values:
 - `"ally_count"`
 - `"enemy_count"`
 - `{ "stat": "con" | "str" | "int" | "for" | "wis" | "dex" | "spi" }`
+- `{ "has_status": "Ward" }`
+- `{ "status_stacks": "Empower:STR" }`
 
 ## Example Team
 

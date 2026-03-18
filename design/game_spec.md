@@ -239,8 +239,8 @@ This triggers if any companion is below 4 HP. The ability still picks its own ta
 - any effective stat
 - current HP
 - current MP
-- stack count of a named effect
-- whether a named effect is present or absent
+- stack count of a named effect using a status key such as `Empower:STR`
+- whether a named effect is present or absent using a key such as `Ward`
 
 `world` can inspect:
 

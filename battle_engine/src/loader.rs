@@ -7,7 +7,7 @@ use crate::abilities::{
     AbilityMap, AbilityTarget, PassiveDef, PassiveMap, Primitive, SimpleAbilityTarget,
     TargetCategory,
 };
-use crate::models::CharacterConfig;
+use crate::models::{CharacterConfig, QueryValue, Stat};
 use crate::statuses::{StatusBehavior, StatusDef, StatusMap};
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -81,7 +81,7 @@ pub fn validate_teams(
     let mut errors = Vec::new();
 
     for (team_name, team) in [("team_a", team_a), ("team_b", team_b)] {
-        validate_team(team_name, team, abilities, passives, &mut errors);
+        validate_team(team_name, team, abilities, passives, statuses, &mut errors);
     }
 
     for (team_name, team) in [("team_a", team_a), ("team_b", team_b)] {
@@ -171,7 +171,7 @@ pub fn validate_team_config(
         })
         .collect();
 
-    validate_team(&team.name, &characters, abilities, passives, &mut errors);
+    validate_team(&team.name, &characters, abilities, passives, statuses, &mut errors);
 
     let mut seen_positions = HashSet::new();
     for character in &characters {
@@ -215,6 +215,7 @@ fn validate_team(
     team: &[CharacterConfig],
     abilities: &AbilityMap,
     passives: &PassiveMap,
+    statuses: &StatusMap,
     errors: &mut Vec<String>,
 ) {
     for character in team {
@@ -255,12 +256,89 @@ fn validate_team(
                     character.base_name, rule.ability
                 ));
             }
+
+            for condition in &rule.conditions {
+                validate_rule_query_value(
+                    &character.base_name,
+                    &condition.value,
+                    statuses,
+                    errors,
+                );
+            }
         }
         if let Some(id) = &character.id {
             if id.trim().is_empty() {
                 errors.push(format!("{} in team '{}' has an empty id", character.base_name, team_name));
             }
         }
+    }
+}
+
+fn validate_rule_query_value(
+    character_name: &str,
+    value: &QueryValue,
+    statuses: &StatusMap,
+    errors: &mut Vec<String>,
+) {
+    match value {
+        QueryValue::HasStatus(key) | QueryValue::StatusStacks(key) => {
+            validate_status_query_key(character_name, key, statuses, errors);
+        }
+        _ => {}
+    }
+}
+
+fn validate_status_query_key(
+    character_name: &str,
+    key: &str,
+    statuses: &StatusMap,
+    errors: &mut Vec<String>,
+) {
+    let (status_name, stat) = match key.split_once(':') {
+        Some((name, suffix)) => (name, parse_status_query_stat(suffix)),
+        None => (key, None),
+    };
+
+    let Some(def) = statuses.get(status_name) else {
+        errors.push(format!(
+            "{} references unknown status '{}' in rule query",
+            character_name, status_name
+        ));
+        return;
+    };
+
+    if key.contains(':') && stat.is_none() {
+        errors.push(format!(
+            "{} uses invalid stat suffix in rule query '{}'",
+            character_name, key
+        ));
+        return;
+    }
+
+    let requires_stat = status_requires_stat(def);
+    if requires_stat && stat.is_none() {
+        errors.push(format!(
+            "{} uses status query '{}' without required stat suffix",
+            character_name, key
+        ));
+    } else if !requires_stat && stat.is_some() {
+        errors.push(format!(
+            "{} uses status query '{}' with unexpected stat suffix",
+            character_name, key
+        ));
+    }
+}
+
+fn parse_status_query_stat(value: &str) -> Option<Stat> {
+    match value {
+        "CON" => Some(Stat::CON),
+        "STR" => Some(Stat::STR),
+        "INT" => Some(Stat::INT),
+        "FOR" => Some(Stat::FOR),
+        "WIS" => Some(Stat::WIS),
+        "DEX" => Some(Stat::DEX),
+        "SPI" => Some(Stat::SPI),
+        _ => None,
     }
 }
 
@@ -894,5 +972,118 @@ mod tests {
 
         let err = validate_content(&chars, &abilities, &PassiveMap::new(), &statuses).unwrap_err();
         assert!(err.contains("with unexpected stat field"));
+    }
+
+    #[test]
+    fn validate_content_rejects_unknown_status_rule_queries() {
+        let chars = vec![CharacterConfig {
+            id: None,
+            base_name: "Tester".to_string(),
+            display_name: None,
+            passive: String::new(),
+            actives: vec!["Crush".to_string()],
+            item: None,
+            position: crate::models::Position { row: 0, col: 0 },
+            stats: [(Stat::CON, 10), (Stat::SPI, 5)].into_iter().collect(),
+            rules: vec![crate::models::Rule {
+                ability: "Crush".to_string(),
+                conditions: vec![crate::models::Condition {
+                    subject: crate::models::ConditionSubject::SelfChar,
+                    value: crate::models::QueryValue::HasStatus("Ward".to_string()),
+                    comparator: crate::models::Comparator::Gte,
+                    threshold: 1,
+                }],
+            }],
+        }];
+        let abilities = [(
+            "Crush".to_string(),
+            crate::abilities::AbilityDef {
+                mp_cost: 1,
+                primitives: Vec::new(),
+            },
+        )]
+        .into_iter()
+        .collect();
+
+        let err = validate_content(&chars, &abilities, &PassiveMap::new(), &StatusMap::new())
+            .unwrap_err();
+        assert!(err.contains("unknown status 'Ward' in rule query"));
+    }
+
+    #[test]
+    fn validate_content_rejects_invalid_status_query_suffixes() {
+        let chars = vec![CharacterConfig {
+            id: None,
+            base_name: "Tester".to_string(),
+            display_name: None,
+            passive: String::new(),
+            actives: vec!["Crush".to_string()],
+            item: None,
+            position: crate::models::Position { row: 0, col: 0 },
+            stats: [(Stat::CON, 10), (Stat::SPI, 5)].into_iter().collect(),
+            rules: vec![
+                crate::models::Rule {
+                    ability: "Crush".to_string(),
+                    conditions: vec![crate::models::Condition {
+                        subject: crate::models::ConditionSubject::SelfChar,
+                        value: crate::models::QueryValue::StatusStacks("Empower".to_string()),
+                        comparator: crate::models::Comparator::Gte,
+                        threshold: 2,
+                    }],
+                },
+                crate::models::Rule {
+                    ability: "Crush".to_string(),
+                    conditions: vec![crate::models::Condition {
+                        subject: crate::models::ConditionSubject::SelfChar,
+                        value: crate::models::QueryValue::HasStatus("Ward:STR".to_string()),
+                        comparator: crate::models::Comparator::Gte,
+                        threshold: 1,
+                    }],
+                },
+                crate::models::Rule {
+                    ability: "Crush".to_string(),
+                    conditions: vec![crate::models::Condition {
+                        subject: crate::models::ConditionSubject::SelfChar,
+                        value: crate::models::QueryValue::HasStatus("Ward:BAD".to_string()),
+                        comparator: crate::models::Comparator::Gte,
+                        threshold: 1,
+                    }],
+                },
+            ],
+        }];
+        let abilities = [(
+            "Crush".to_string(),
+            crate::abilities::AbilityDef {
+                mp_cost: 1,
+                primitives: Vec::new(),
+            },
+        )]
+        .into_iter()
+        .collect();
+        let statuses = [
+            (
+                "Empower".to_string(),
+                StatusDef {
+                    behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+                    stack_type: crate::statuses::StackType::TickDown,
+                    opposes: None,
+                },
+            ),
+            (
+                "Ward".to_string(),
+                StatusDef {
+                    behavior: StatusBehavior::Ward,
+                    stack_type: crate::statuses::StackType::Permanent,
+                    opposes: None,
+                },
+            ),
+        ]
+        .into_iter()
+        .collect();
+
+        let err = validate_content(&chars, &abilities, &PassiveMap::new(), &statuses).unwrap_err();
+        assert!(err.contains("without required stat suffix"));
+        assert!(err.contains("with unexpected stat suffix"));
+        assert!(err.contains("invalid stat suffix"));
     }
 }

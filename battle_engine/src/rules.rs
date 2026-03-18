@@ -561,4 +561,100 @@ mod tests {
         actor.increment_turn_count();
         assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
     }
+
+    #[test]
+    fn self_has_status_condition_matches() {
+        let rules = vec![Rule {
+            ability: "Crush".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::SelfChar,
+                value: QueryValue::HasStatus("Ward".to_string()),
+                comparator: Comparator::Gte,
+                threshold: 1,
+            }],
+        }];
+        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5), (Stat::CON, 10)], rules);
+        actor.add_status(
+            "Ward",
+            1,
+            99,
+            &crate::statuses::StatusDef {
+                behavior: crate::statuses::StatusBehavior::Ward,
+                stack_type: crate::statuses::StackType::Permanent,
+                opposes: None,
+            },
+            None,
+        );
+        let abilities = make_abilities();
+
+        assert_eq!(
+            evaluate_rules(&actor, None, &[], world(), &abilities).as_deref(),
+            Some("Crush")
+        );
+    }
+
+    #[test]
+    fn target_status_stacks_condition_matches() {
+        let rules = vec![Rule {
+            ability: "Crush".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::Target,
+                value: QueryValue::StatusStacks("Bleed".to_string()),
+                comparator: Comparator::Gte,
+                threshold: 2,
+            }],
+        }];
+        let actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        let mut target = make_char(1, vec![(Stat::CON, 10)]);
+        target.add_status(
+            "Bleed",
+            2,
+            99,
+            &crate::statuses::StatusDef {
+                behavior: crate::statuses::StatusBehavior::DamagePerStack { value: 1 },
+                stack_type: crate::statuses::StackType::TickDown,
+                opposes: None,
+            },
+            None,
+        );
+        let abilities = make_abilities();
+
+        assert_eq!(
+            evaluate_rules(&actor, Some(&target), &[], world(), &abilities).as_deref(),
+            Some("Crush")
+        );
+    }
+
+    #[test]
+    fn companion_status_query_supports_stat_keyed_statuses() {
+        let rules = vec![Rule {
+            ability: "Embolden".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::Companion,
+                value: QueryValue::StatusStacks("Empower:STR".to_string()),
+                comparator: Comparator::Gte,
+                threshold: 2,
+            }],
+        }];
+        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        actor.set_companions(vec![1]);
+        let mut companion = make_char(1, vec![(Stat::CON, 5), (Stat::STR, 5)]);
+        companion.add_status(
+            &crate::statuses::status_key("Empower", Some(&Stat::STR)),
+            2,
+            99,
+            &crate::statuses::StatusDef {
+                behavior: crate::statuses::StatusBehavior::StatModPerStack { magnitude: 1 },
+                stack_type: crate::statuses::StackType::TickDown,
+                opposes: Some("Weaken".to_string()),
+            },
+            Some(Stat::STR),
+        );
+        let abilities = make_abilities();
+
+        assert_eq!(
+            evaluate_rules(&actor, None, &[companion], world(), &abilities).as_deref(),
+            Some("Embolden")
+        );
+    }
 }

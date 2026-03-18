@@ -61,13 +61,13 @@ pub enum QueryValue {
     Stat(Stat),
     Hp,
     Mp,
+    HasStatus(String),
+    StatusStacks(String),
     TickCount,
     AllyCount,
     EnemyCount,
     UseCount,
     TurnsSinceUse,
-    // TODO: StatusStacks(String) and HasStatus(String) for rule conditions
-    // e.g., { "value": { "status_stacks": "Bleed" }, "op": "gte", "threshold": 3 }
 }
 
 /// Comparison operator for conditions.
@@ -383,13 +383,16 @@ impl CharacterState {
         &self.rules
     }
 
-    /// Returns the value of a query (effective stat, HP, or MP) for condition evaluation.
+    /// Returns the value of a query (effective stat, HP, MP, or status state) for
+    /// condition evaluation.
     /// UseCount and TurnsSinceUse are not handled here — they require ability context.
     pub fn query_value(&self, qv: &QueryValue) -> u32 {
         match qv {
             QueryValue::Stat(stat) => self.get_eff_stat(stat),
             QueryValue::Hp => self.curr_hp,
             QueryValue::Mp => self.curr_mp,
+            QueryValue::HasStatus(key) => u32::from(self.has_status(key)),
+            QueryValue::StatusStacks(key) => self.status_stacks(key),
             QueryValue::TickCount
             | QueryValue::AllyCount
             | QueryValue::EnemyCount

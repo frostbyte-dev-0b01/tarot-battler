@@ -373,6 +373,10 @@ Chariot's intended scripted loop depends on whether he actually absorbed a Ward-
 
 ## Phase 6: Status-Aware Rule Conditions
 
+Status:
+
+- implemented
+
 ### Goal
 
 Allow rules to react to statuses and stacks directly.
@@ -399,7 +403,7 @@ Example:
 or
 
 ```json
-{ "subject": "self", "value": { "status_stacks": "Empower", "stat": "str" }, "op": "gte", "threshold": 2 }
+{ "subject": "self", "value": { "status_stacks": "Empower:STR" }, "op": "gte", "threshold": 2 }
 ```
 
 ### Recommendation
