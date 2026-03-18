@@ -608,8 +608,8 @@ fn build_team_snapshot(
     json!({
         "name": name,
         "characters": configs.iter().enumerate().map(|(idx, config)| {
-            let max_hp = config.stats.get(&Stat::CON).copied().unwrap_or(0) * 2;
-            let max_mp = config.stats.get(&Stat::SPI).copied().unwrap_or(0);
+            let max_hp = config.stats.get(&Stat::VIT).copied().unwrap_or(0) * 2;
+            let max_mp = config.stats.get(&Stat::WIL).copied().unwrap_or(0);
             json!({
                 "id": replay_character_id(config, team_key, idx),
                 "display_name": replay_display_name(config),

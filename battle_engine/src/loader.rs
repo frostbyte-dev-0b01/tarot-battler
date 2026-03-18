@@ -331,13 +331,13 @@ fn validate_status_query_key(
 
 fn parse_status_query_stat(value: &str) -> Option<Stat> {
     match value {
-        "CON" => Some(Stat::CON),
-        "STR" => Some(Stat::STR),
-        "INT" => Some(Stat::INT),
-        "FOR" => Some(Stat::FOR),
-        "WIS" => Some(Stat::WIS),
-        "DEX" => Some(Stat::DEX),
-        "SPI" => Some(Stat::SPI),
+        "VIT" => Some(Stat::VIT),
+        "MGT" => Some(Stat::MGT),
+        "MAG" => Some(Stat::MAG),
+        "ARM" => Some(Stat::ARM),
+        "RES" => Some(Stat::RES),
+        "SPD" => Some(Stat::SPD),
+        "WIL" => Some(Stat::WIL),
         _ => None,
     }
 }
@@ -529,7 +529,7 @@ mod tests {
         let chars = load_characters(&path).unwrap();
         assert!(chars.len() >= 2);
         assert_eq!(chars[0].base_name, "The Emperor");
-        assert_eq!(*chars[0].stats.get(&Stat::CON).unwrap(), 10);
+        assert_eq!(*chars[0].stats.get(&Stat::VIT).unwrap(), 10);
     }
 
     #[test]
@@ -560,13 +560,13 @@ mod tests {
                         "display_name": "The Emperor",
                         "position": {{ "row": 0, "col": 0 }},
                         "stats": {{
-                            "con": 10,
-                            "str": 6,
-                            "int": 4,
-                            "for": 3,
-                            "wis": 2,
-                            "dex": 4,
-                            "spi": 5
+                            "vit": 10,
+                            "mgt": 6,
+                            "mag": 4,
+                            "arm": 3,
+                            "res": 2,
+                            "spd": 4,
+                            "wil": 5
                         }},
                         "passive": "Authority",
                         "actives": ["Crush", "Embolden"],
@@ -622,13 +622,13 @@ mod tests {
                     display_name: Some("One".to_string()),
                     position: crate::models::Position { row: 0, col: 0 },
                     stats: HashMap::from([
-                        (Stat::CON, 8),
-                        (Stat::STR, 4),
-                        (Stat::INT, 4),
-                        (Stat::FOR, 3),
-                        (Stat::WIS, 3),
-                        (Stat::DEX, 4),
-                        (Stat::SPI, 4),
+                        (Stat::VIT, 8),
+                        (Stat::MGT, 4),
+                        (Stat::MAG, 4),
+                        (Stat::ARM, 3),
+                        (Stat::RES, 3),
+                        (Stat::SPD, 4),
+                        (Stat::WIL, 4),
                     ]),
                     passive: "Authority".to_string(),
                     actives: vec!["Crush".to_string()],
@@ -640,13 +640,13 @@ mod tests {
                     display_name: Some("Two".to_string()),
                     position: crate::models::Position { row: 0, col: 1 },
                     stats: HashMap::from([
-                        (Stat::CON, 8),
-                        (Stat::STR, 4),
-                        (Stat::INT, 4),
-                        (Stat::FOR, 3),
-                        (Stat::WIS, 3),
-                        (Stat::DEX, 4),
-                        (Stat::SPI, 4),
+                        (Stat::VIT, 8),
+                        (Stat::MGT, 4),
+                        (Stat::MAG, 4),
+                        (Stat::ARM, 3),
+                        (Stat::RES, 3),
+                        (Stat::SPD, 4),
+                        (Stat::WIL, 4),
                     ]),
                     passive: "Collapse".to_string(),
                     actives: vec!["Shatter".to_string()],
@@ -694,7 +694,7 @@ mod tests {
             actives: vec!["KnownAbility".to_string(), "MissingAbility".to_string()],
             item: None,
             position: crate::models::Position { row: 0, col: 0 },
-            stats: [(Stat::CON, 10)].into_iter().collect(),
+            stats: [(Stat::VIT, 10)].into_iter().collect(),
             rules: vec![crate::models::Rule {
                 ability: "MissingAbility".to_string(),
                 conditions: Vec::new(),
@@ -727,7 +727,7 @@ mod tests {
             actives: vec!["KnownAbility".to_string()],
             item: None,
             position: crate::models::Position { row: 0, col: 0 },
-            stats: [(Stat::CON, 10)].into_iter().collect(),
+            stats: [(Stat::VIT, 10)].into_iter().collect(),
             rules: vec![crate::models::Rule {
                 ability: "OtherAbility".to_string(),
                 conditions: Vec::new(),
@@ -768,7 +768,7 @@ mod tests {
                 actives: Vec::new(),
                 item: None,
                 position: crate::models::Position { row: 3, col: 0 },
-                stats: [(Stat::CON, 10)].into_iter().collect(),
+                stats: [(Stat::VIT, 10)].into_iter().collect(),
                 rules: Vec::new(),
             },
             CharacterConfig {
@@ -779,7 +779,7 @@ mod tests {
                 actives: Vec::new(),
                 item: None,
                 position: crate::models::Position { row: 0, col: 0 },
-                stats: [(Stat::CON, 10)].into_iter().collect(),
+                stats: [(Stat::VIT, 10)].into_iter().collect(),
                 rules: Vec::new(),
             },
             CharacterConfig {
@@ -790,7 +790,7 @@ mod tests {
                 actives: Vec::new(),
                 item: None,
                 position: crate::models::Position { row: 1, col: 1 },
-                stats: [(Stat::CON, 10)].into_iter().collect(),
+                stats: [(Stat::VIT, 10)].into_iter().collect(),
                 rules: Vec::new(),
             },
             CharacterConfig {
@@ -801,7 +801,7 @@ mod tests {
                 actives: Vec::new(),
                 item: None,
                 position: crate::models::Position { row: 1, col: 1 },
-                stats: [(Stat::CON, 10)].into_iter().collect(),
+                stats: [(Stat::VIT, 10)].into_iter().collect(),
                 rules: Vec::new(),
             },
         ];
@@ -827,7 +827,7 @@ mod tests {
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::CurrentTarget.into(),
                     status: "Empower".to_string(),
-                    stat: Some(Stat::STR),
+                    stat: Some(Stat::MGT),
                     stacks: 1,
                 }],
             },
@@ -891,7 +891,7 @@ mod tests {
             actives: vec!["BadTaunt".to_string()],
             item: None,
             position: crate::models::Position { row: 0, col: 0 },
-            stats: [(Stat::CON, 10)].into_iter().collect(),
+            stats: [(Stat::VIT, 10)].into_iter().collect(),
             rules: Vec::new(),
         }];
         let abilities = [(
@@ -955,7 +955,7 @@ mod tests {
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::CurrentTarget.into(),
                     status: "Bleed".to_string(),
-                    stat: Some(Stat::STR),
+                    stat: Some(Stat::MGT),
                     stacks: 1,
                 }],
             },
@@ -987,7 +987,7 @@ mod tests {
             actives: vec!["Crush".to_string()],
             item: None,
             position: crate::models::Position { row: 0, col: 0 },
-            stats: [(Stat::CON, 10), (Stat::SPI, 5)].into_iter().collect(),
+            stats: [(Stat::VIT, 10), (Stat::WIL, 5)].into_iter().collect(),
             rules: vec![crate::models::Rule {
                 ability: "Crush".to_string(),
                 conditions: vec![crate::models::Condition {
@@ -1023,7 +1023,7 @@ mod tests {
             actives: vec!["Crush".to_string()],
             item: None,
             position: crate::models::Position { row: 0, col: 0 },
-            stats: [(Stat::CON, 10), (Stat::SPI, 5)].into_iter().collect(),
+            stats: [(Stat::VIT, 10), (Stat::WIL, 5)].into_iter().collect(),
             rules: vec![
                 crate::models::Rule {
                     ability: "Crush".to_string(),
@@ -1038,7 +1038,7 @@ mod tests {
                     ability: "Crush".to_string(),
                     conditions: vec![crate::models::Condition {
                         subject: crate::models::ConditionSubject::SelfChar,
-                        value: crate::models::QueryValue::HasStatus("Ward:STR".to_string()),
+                        value: crate::models::QueryValue::HasStatus("Ward:MGT".to_string()),
                         comparator: crate::models::Comparator::Gte,
                         threshold: 1,
                     }],

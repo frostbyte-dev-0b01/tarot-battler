@@ -38,21 +38,21 @@ This is useful for prototyping, but the intended design direction is now:
 
 The current v1 stat set is:
 
-- `CON`
-- `STR`
-- `INT`
-- `FOR`
-- `WIS`
-- `DEX`
-- `SPI`
+- `VIT`
+- `MGT`
+- `MAG`
+- `ARM`
+- `RES`
+- `SPD`
+- `WIL`
 
-These names and exact effects are still somewhat provisional.
+These names are now the intended design direction. Numeric tuning and exact formulas may still evolve.
 
 ### MP Terminology
 
 The design now distinguishes:
 
-- `SPI` as the base spirit stat
+- `WIL` as the base will stat
 - `MP` as the spendable runtime resource
 
 The code and sample data now use this terminology. Remaining references should be treated as cleanup bugs.
@@ -67,7 +67,7 @@ These design decisions are now settled and should be reflected in the engine bef
 These are real design questions but not yet settled enough to be part of the core spec:
 
 - exact MP regeneration rate
-- final DEX curve and escalation tuning
+- final SPD curve and escalation tuning
 - exact stat point budgets and adjustment caps
 - exact team point budget size
 - season-to-season pricing formula
@@ -82,7 +82,7 @@ These are intentionally not part of the core game spec yet.
 Alternative to basic attacks as the fallback action:
 
 - if no rule fires, the character `Rests`
-- `Rest` restores `floor(SPI / 2)` MP
+- `Rest` restores `floor(WIL / 2)` MP
 
 Potential upside:
 

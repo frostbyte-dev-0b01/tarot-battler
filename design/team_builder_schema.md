@@ -55,13 +55,13 @@ For now, full loadouts are easier to edit by hand and simpler to support in dev 
   "display_name": "The Emperor",
   "position": { "row": 0, "col": 0 },
   "stats": {
-    "con": 7,
-    "str": 8,
-    "int": 3,
-    "for": 7,
-    "wis": 3,
-    "dex": 4,
-    "spi": 4
+    "vit": 7,
+    "mgt": 8,
+    "mag": 3,
+    "arm": 7,
+    "res": 3,
+    "spd": 4,
+    "wil": 4
   },
   "passive": "Authority",
   "actives": ["Crush", "Embolden"],
@@ -108,25 +108,25 @@ For now, full loadouts are easier to edit by hand and simpler to support in dev 
 
 ```json
 {
-  "con": 7,
-  "str": 8,
-  "int": 3,
-  "for": 7,
-  "wis": 3,
-  "dex": 4,
-  "spi": 4
+  "vit": 7,
+  "mgt": 8,
+  "mag": 3,
+  "arm": 7,
+  "res": 3,
+  "spd": 4,
+  "wil": 4
 }
 ```
 
 Required stats:
 
-- `con`
-- `str`
-- `int`
-- `for`
-- `wis`
-- `dex`
-- `spi`
+- `vit`
+- `mgt`
+- `mag`
+- `arm`
+- `res`
+- `spd`
+- `wil`
 
 ## Rule
 
@@ -154,7 +154,7 @@ Required stats:
 ```json
 {
   "subject": "target",
-  "value": { "stat": "for" },
+  "value": { "stat": "arm" },
   "op": "gte",
   "threshold": 6
 }
@@ -178,9 +178,9 @@ Allowed values:
 - `"tick_count"`
 - `"ally_count"`
 - `"enemy_count"`
-- `{ "stat": "con" | "str" | "int" | "for" | "wis" | "dex" | "spi" }`
+- `{ "stat": "vit" | "mgt" | "mag" | "arm" | "res" | "spd" | "wil" }`
 - `{ "has_status": "Ward" }`
-- `{ "status_stacks": "Empower:STR" }`
+- `{ "status_stacks": "Empower:MGT" }`
 
 ## Example Team
 
@@ -194,13 +194,13 @@ Allowed values:
       "display_name": "The Emperor",
       "position": { "row": 0, "col": 0 },
       "stats": {
-        "con": 7,
-        "str": 8,
-        "int": 3,
-        "for": 7,
-        "wis": 3,
-        "dex": 4,
-        "spi": 4
+        "vit": 7,
+        "mgt": 8,
+        "mag": 3,
+        "arm": 7,
+        "res": 3,
+        "spd": 4,
+        "wil": 4
       },
       "passive": "Authority",
       "actives": ["Crush", "Embolden"],
@@ -224,13 +224,13 @@ Allowed values:
       "display_name": "The Tower",
       "position": { "row": 0, "col": 1 },
       "stats": {
-        "con": 8,
-        "str": 7,
-        "int": 2,
-        "for": 8,
-        "wis": 3,
-        "dex": 2,
-        "spi": 2
+        "vit": 8,
+        "mgt": 7,
+        "mag": 2,
+        "arm": 8,
+        "res": 3,
+        "spd": 2,
+        "wil": 2
       },
       "passive": "Collapse",
       "actives": ["Rubble", "Shatter"],

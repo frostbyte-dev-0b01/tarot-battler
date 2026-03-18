@@ -53,27 +53,28 @@ Each character loadout consists of:
 
 The current intended base stat set is:
 
-- `CON` — maximum HP
-- `STR` — physical offense
-- `INT` — magical offense
-- `FOR` — physical defense
-- `WIS` — magical defense
-- `DEX` — speed
-- `SPI` — spirit stat; determines MP pool size and MP regeneration
+- `VIT` — maximum HP
+- `MGT` — physical offense
+- `MAG` — magical offense
+- `ARM` — physical defense
+- `RES` — magical defense
+- `SPD` — speed
+- `WIL` — will; determines MP pool size and MP regeneration
 
-Stat names and exact effects are still somewhat provisional, but this is the intended v1 structure.
+These are the intended v1 stat names and roles.
 
 Conceptually, the long-term design likely lands on much larger total stat budgets than the current prototype, with each character having a fixed base spread plus a smaller flexible adjustment budget. Those larger totals are a balance target, not a current engine requirement.
 
 ### Derived Resources
 
-- `HP` = `2 * CON`
+- `HP` is expected to scale as a multiple of `VIT`
+- the current prototype uses `HP = 2 * VIT` as a working model
 - `MP` = spendable battle resource used to cast abilities
-- characters begin battle with `MP = SPI`
+- characters begin battle with `MP = WIL`
 - characters regenerate MP at the end of their own turns
-- current intended regeneration rate is `floor(SPI / 2)` as a placeholder rate, though this will likely change during balance tuning
+- current intended regeneration rate is `floor(WIL / 2)` as a placeholder rate, though this will likely change during balance tuning
 
-`SPI` is the base stat. `MP` is the runtime resource.
+`WIL` is the base stat. `MP` is the runtime resource.
 
 ## Formation
 
@@ -98,9 +99,9 @@ Companion status matters for rules and ability targeting, but the specific compa
 
 ## Speed and Turn Order
 
-Each character has a speed counter derived from `DEX`.
+Each character has a speed counter derived from `SPD`.
 
-- `max_ticks = 10 - DEX`
+- `max_ticks = 10 - SPD`
 - at battle start, `ticks_until_turn = max(max_ticks, 1)`
 - battle time advances in discrete steps
 - each step reduces all living characters' counters by 1
@@ -109,7 +110,7 @@ Each character has a speed counter derived from `DEX`.
 - after each turn, increase `max_ticks` by `2`
 - after each turn, set `ticks_until_turn = max(max_ticks, 1)`
 
-This preserves the value of high `DEX` while softening the advantage over long fights.
+This preserves the value of high `SPD` while softening the advantage over long fights.
 
 Turn timing effects still happen if a character is stunned. Stun prevents the action itself, not the rest of turn processing.
 
@@ -145,9 +146,9 @@ Each character maintains a sticky target for:
 
 At battle start, each character picks an enemy from the frontmost occupied enemy row:
 
-- if `STR > INT`, prefer the enemy with the lowest `FOR`
-- if `INT > STR`, prefer the enemy with the lowest `WIS`
-- if `STR == INT`, choose randomly
+- if `MGT > MAG`, prefer the enemy with the lowest `ARM`
+- if `MAG > MGT`, prefer the enemy with the lowest `RES`
+- if `MGT == MAG`, choose randomly
 
 If multiple legal targets tie for the same best defensive stat, choose randomly among those tied targets.
 
@@ -242,7 +243,7 @@ This triggers if any companion is below 4 HP. The ability still picks its own ta
 - any effective stat
 - current HP
 - current MP
-- stack count of a named effect using a status key such as `Empower:STR`
+- stack count of a named effect using a status key such as `Empower:MGT`
 - whether a named effect is present or absent using a key such as `Ward`
 
 `world` can inspect:
@@ -275,8 +276,8 @@ Rules do not observe half-resolved action states.
 ### Basic Attacks
 
 - basic attacks use the actor's sticky target
-- physical basic attacks use `STR` against `FOR`
-- magical basic attacks use `INT` against `WIS`
+- physical basic attacks use `MGT` against `ARM`
+- magical basic attacks use `MAG` against `RES`
 - fallback action is currently a basic attack
 
 The idea of replacing basic attacks with a `Rest` action remains a future design option, not part of the current spec.
@@ -312,18 +313,18 @@ This list can expand as the game's tactical needs become clearer.
 
 Current intended formulas:
 
-- physical damage: `max(STR * multiplier - FOR, 1)`
-- magical damage: `max(INT * multiplier - WIS, 1)`
+- physical damage: `max(MGT * multiplier - ARM, 1)`
+- magical damage: `max(MAG * multiplier - RES, 1)`
 - omen damage: current stacks as true damage, with no mitigation
-- lethality: flat damage added after normal damage resolution, bypassing `FOR` and `WIS`
+- lethality: flat damage added after normal damage resolution, bypassing `ARM` and `RES`
 
 ### Damage Resolution Order
 
 For a normal physical or magical hit:
 
-1. calculate effective `STR` or `INT`, including active Fortify or Weaken stacks
+1. calculate effective `MGT` or `MAG`, including active Fortify or Weaken stacks
 2. apply the ability multiplier
-3. subtract `FOR` or `WIS`
+3. subtract `ARM` or `RES`
 4. apply the `max(result, 1)` floor
 5. add any `Lethality` stacks flat
 6. apply the result to target HP
@@ -341,7 +342,7 @@ These are intended balancing anchors, not hard-coded categories:
 - AOE per target: around `0.5x` to `0.7x`
 - execute: around `2.0x` to `2.5x`, usually conditional
 
-Multipliers apply before defense subtraction. This means offensive Fortify and Weaken effects on `STR` or `INT` naturally scale ability damage up or down.
+Multipliers apply before defense subtraction. This means offensive Fortify and Weaken effects on `MGT` or `MAG` naturally scale ability damage up or down.
 
 ## Status and Effect System
 
@@ -351,8 +352,8 @@ Statuses are a core team-building axis, and the intended vocabulary should suppo
 
 The current intended core effect families are:
 
-- `Fortify(stat)` — positive stack-based modifier to `STR`, `INT`, `FOR`, or `WIS`
-- `Weaken(stat)` — negative stack-based modifier to `STR`, `INT`, `FOR`, or `WIS`
+- `Fortify(stat)` — positive stack-based modifier to `MGT`, `MAG`, `ARM`, or `RES`
+- `Weaken(stat)` — negative stack-based modifier to `MGT`, `MAG`, `ARM`, or `RES`
 - `Lethality` — flat post-mitigation bonus damage on the attacker
 - `Omen` — true-damage setup effect that triggers at start of turn
 - `Regen` — HP restoration over time
@@ -461,10 +462,10 @@ Design rules:
 
 Examples:
 
-- `Crush`: high `CON` could add self-healing, turning it toward bruiser play
-- `Execute`: high `DEX` could grant a follow-up turn if it kills, turning it toward assassin play
-- `Taunt`: high `INT` could also Weaken enemy `INT`, turning it toward a hexblade/control angle
-- `Embolden`: high `STR` could also grant `Fortify STR`, turning it toward battle support
+- `Crush`: high `VIT` could add self-healing, turning it toward bruiser play
+- `Execute`: high `SPD` could grant a follow-up turn if it kills, turning it toward assassin play
+- `Taunt`: high `MAG` could also Weaken enemy `MAG`, turning it toward a hexblade/control angle
+- `Embolden`: high `MGT` could also grant `Fortify MGT`, turning it toward battle support
 
 ### Items
 

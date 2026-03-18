@@ -6,8 +6,8 @@
     "item": null,
     "position": { "row": 0, "col": 0 },
     "stats": {
-      "con": 10, "str": 6, "int": 4, "for": 5, "wis": 3,
-      "dex": 4, "spi": 6
+      "vit": 10, "mgt": 6, "mag": 4, "arm": 5, "res": 3,
+      "spd": 4, "wil": 6
     },
     "rules": [
       {
@@ -41,8 +41,8 @@
     "item": null,
     "position": { "row": 0, "col": 2 },
     "stats": {
-      "con": 11, "str": 3, "int": 7, "for": 4, "wis": 7,
-      "dex": 3, "spi": 7
+      "vit": 11, "mgt": 3, "mag": 7, "arm": 4, "res": 7,
+      "spd": 3, "wil": 7
     },
     "rules": [
       {
@@ -80,8 +80,8 @@
     "item": null,
     "position": { "row": 1, "col": 1 },
     "stats": {
-      "con": 9, "str": 8, "int": 3, "for": 4, "wis": 3,
-      "dex": 6, "spi": 5
+      "vit": 9, "mgt": 8, "mag": 3, "arm": 4, "res": 3,
+      "spd": 6, "wil": 5
     },
     "rules": [
       {
@@ -89,7 +89,7 @@
         "when": [
           {
             "subject": "self",
-            "value": { "status_stacks": "Empower:STR" },
+            "value": { "status_stacks": "Empower:MGT" },
             "op": "gte",
             "threshold": 3
           }
@@ -126,8 +126,8 @@
     "item": null,
     "position": { "row": 0, "col": 0 },
     "stats": {
-      "con": 7, "str": 4, "int": 4, "for": 3, "wis": 3,
-      "dex": 7, "spi": 6
+      "vit": 7, "mgt": 4, "mag": 4, "arm": 3, "res": 3,
+      "spd": 7, "wil": 6
     },
     "rules": []
   },
@@ -138,8 +138,8 @@
     "item": null,
     "position": { "row": 0, "col": 1 },
     "stats": {
-      "con": 5, "str": 3, "int": 9, "for": 2, "wis": 5,
-      "dex": 6, "spi": 6
+      "vit": 5, "mgt": 3, "mag": 9, "arm": 2, "res": 5,
+      "spd": 6, "wil": 6
     },
     "rules": []
   },
@@ -150,8 +150,8 @@
     "item": null,
     "position": { "row": 1, "col": 1 },
     "stats": {
-      "con": 10, "str": 7, "int": 2, "for": 6, "wis": 5,
-      "dex": 4, "spi": 5
+      "vit": 10, "mgt": 7, "mag": 2, "arm": 6, "res": 5,
+      "spd": 4, "wil": 5
     },
     "rules": []
   }

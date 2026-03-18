@@ -283,7 +283,7 @@ pub fn execute_primitives(
     let actor_id = actor_team[actor_idx].id();
 
     // Pre-compute actor offensive stats for damage calculation
-    let actor_int = actor_team[actor_idx].get_eff_stat(&Stat::INT);
+    let actor_int = actor_team[actor_idx].get_eff_stat(&Stat::MAG);
 
     for primitive in primitives {
         match primitive {
@@ -293,13 +293,13 @@ pub fn execute_primitives(
                 double_empower_stat,
             } => {
                 let actor_str = match double_empower_stat {
-                    Some(Stat::STR) => actor_team[actor_idx].get_eff_stat_with_doubled_empower(&Stat::STR),
-                    _ => actor_team[actor_idx].get_eff_stat(&Stat::STR),
+                    Some(Stat::MGT) => actor_team[actor_idx].get_eff_stat_with_doubled_empower(&Stat::MGT),
+                    _ => actor_team[actor_idx].get_eff_stat(&Stat::MGT),
                 };
                 let target_indices =
                     resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
                 for tidx in target_indices {
-                    let defender_for = enemy_team[tidx].get_eff_stat(&Stat::FOR);
+                    let defender_for = enemy_team[tidx].get_eff_stat(&Stat::ARM);
                     let base = (actor_str as i32 - defender_for as i32).max(1) as u32;
                     let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
                     let damage = enemy_team[tidx].take_hit(raw_damage);
@@ -325,7 +325,7 @@ pub fn execute_primitives(
                 let target_indices =
                     resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
                 for tidx in target_indices {
-                    let defender_wis = enemy_team[tidx].get_eff_stat(&Stat::WIS);
+                    let defender_wis = enemy_team[tidx].get_eff_stat(&Stat::RES);
                     let base = (actor_int as i32 - defender_wis as i32).max(1) as u32;
                     let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
                     let damage = enemy_team[tidx].take_hit(raw_damage);
@@ -493,13 +493,13 @@ pub fn execute_primitives(
                     .companions()
                     .iter()
                     .filter_map(|id| actor_team.iter().position(|c| c.id() == *id && c.is_alive()))
-                    .max_by_key(|idx| actor_team[*idx].get_eff_stat(&Stat::STR))
+                    .max_by_key(|idx| actor_team[*idx].get_eff_stat(&Stat::MGT))
                 else {
                     continue;
                 };
 
-                let attacker_str = actor_team[companion_idx].get_eff_stat(&Stat::STR);
-                let defender_for = enemy_team[target_idx].get_eff_stat(&Stat::FOR);
+                let attacker_str = actor_team[companion_idx].get_eff_stat(&Stat::MGT);
+                let defender_for = enemy_team[target_idx].get_eff_stat(&Stat::ARM);
                 let raw_damage = (attacker_str as i32 - defender_for as i32).max(1) as u32;
                 let damage = enemy_team[target_idx].take_hit(raw_damage);
                 let source_id = actor_team[companion_idx].id();
@@ -735,7 +735,7 @@ fn retarget_filter_matches(
     match filter {
         None => true,
         Some(RetargetFilter::PhysicalAttackers) => {
-            target.get_eff_stat(&Stat::STR) > target.get_eff_stat(&Stat::INT)
+            target.get_eff_stat(&Stat::MGT) > target.get_eff_stat(&Stat::MAG)
         }
     }
 }
@@ -1077,9 +1077,9 @@ mod tests {
         let mut log = BattleLog::new();
         let mut actor_team = vec![make_char(
             0,
-            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
         )];
-        let mut enemy_team = vec![make_char(1, vec![(Stat::FOR, 4), (Stat::CON, 20)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::ARM, 4), (Stat::VIT, 20)])];
         actor_team[0].set_target(1);
 
         let ability = AbilityDef {
@@ -1113,7 +1113,7 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
 
-        let stats = vec![(Stat::CON, 10), (Stat::SPI, 5), (Stat::STR, 5)];
+        let stats = vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 5)];
         let mut actor_team = vec![
             make_adjacent_char(0, 0, 0, stats.clone()),
             make_adjacent_char(1, 0, 1, stats.clone()),
@@ -1131,7 +1131,7 @@ mod tests {
             }],
         };
 
-        let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
+        let mut enemy_team = vec![make_char(10, vec![(Stat::VIT, 5)])];
         execute_ability(
             0,
             "Embolden",
@@ -1152,8 +1152,8 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let statuses = test_statuses();
-        let mut actor_team = vec![make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5)])];
-        let mut enemy_team = vec![make_char(1, vec![(Stat::CON, 10)])];
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
         actor_team[0].set_target(1);
 
         let ability = AbilityDef {
@@ -1187,16 +1187,16 @@ mod tests {
         let statuses = test_statuses();
         let mut actor_team = vec![make_char(
             0,
-            vec![(Stat::CON, 10), (Stat::SPI, 5), (Stat::STR, 8)],
+            vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 8)],
         )];
-        let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
+        let mut enemy_team = vec![make_char(10, vec![(Stat::VIT, 5)])];
 
         let ability = AbilityDef {
             mp_cost: 2,
             primitives: vec![Primitive::ApplyStatus {
                 target: SimpleAbilityTarget::SelfChar.into(),
                 status: "Empower".to_string(),
-                stat: Some(Stat::STR),
+                stat: Some(Stat::MGT),
                 stacks: 3,
             }],
         };
@@ -1212,7 +1212,7 @@ mod tests {
             1,
             &statuses,
         );
-        assert_eq!(actor_team[0].get_eff_stat(&Stat::STR), 11); // 8 + 3
+        assert_eq!(actor_team[0].get_eff_stat(&Stat::MGT), 11); // 8 + 3
     }
 
     #[test]
@@ -1220,8 +1220,8 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let statuses = test_statuses();
-        let mut actor_team = vec![make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5)])];
-        let mut enemy_team = vec![make_char(1, vec![(Stat::CON, 10), (Stat::STR, 10)])];
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::MGT, 10)])];
         actor_team[0].set_target(1);
 
         let ability = AbilityDef {
@@ -1229,7 +1229,7 @@ mod tests {
             primitives: vec![Primitive::ApplyStatus {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
                 status: "Weaken".to_string(),
-                stat: Some(Stat::STR),
+                stat: Some(Stat::MGT),
                 stacks: 2,
             }],
         };
@@ -1245,7 +1245,7 @@ mod tests {
             1,
             &statuses,
         );
-        assert_eq!(enemy_team[0].get_eff_stat(&Stat::STR), 8); // 10 - 2
+        assert_eq!(enemy_team[0].get_eff_stat(&Stat::MGT), 8); // 10 - 2
     }
 
     #[test]
@@ -1253,8 +1253,8 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let statuses = test_statuses();
-        let mut actor_team = vec![make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5)])];
-        let mut enemy_team = vec![make_char(1, vec![(Stat::CON, 10)])];
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
 
         let bleed = statuses.get("Bleed").unwrap();
         actor_team[0].add_status("Bleed", 2, 99, bleed, None);
@@ -1288,8 +1288,8 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let statuses = test_statuses();
-        let mut actor_team = vec![make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5)])];
-        let mut enemy_team = vec![make_char(1, vec![(Stat::CON, 10)])];
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
         actor_team[0].set_target(1);
 
         let bleed = statuses.get("Bleed").unwrap();
@@ -1324,10 +1324,10 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let statuses = test_statuses();
-        let mut actor_team = vec![make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5)])];
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
         let mut enemy_team = vec![
-            make_char(1, vec![(Stat::CON, 10)]),
-            make_char(2, vec![(Stat::CON, 10)]),
+            make_char(1, vec![(Stat::VIT, 10)]),
+            make_char(2, vec![(Stat::VIT, 10)]),
         ];
 
         let bleed = statuses.get("Bleed").unwrap();
@@ -1365,12 +1365,12 @@ mod tests {
         let mut log = BattleLog::new();
         let mut actor_team = vec![make_char(
             0,
-            vec![(Stat::CON, 10), (Stat::SPI, 5), (Stat::STR, 10)],
+            vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 10)],
         )];
         let mut enemy_team = vec![
-            make_char(1, vec![(Stat::CON, 10), (Stat::FOR, 3)]),
-            make_char(2, vec![(Stat::CON, 10), (Stat::FOR, 3)]),
-            make_char(3, vec![(Stat::CON, 10), (Stat::FOR, 3)]),
+            make_char(1, vec![(Stat::VIT, 10), (Stat::ARM, 3)]),
+            make_char(2, vec![(Stat::VIT, 10), (Stat::ARM, 3)]),
+            make_char(3, vec![(Stat::VIT, 10), (Stat::ARM, 3)]),
         ];
         enemy_team[1].take_damage(100);
 
@@ -1404,13 +1404,13 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let mut actor_team = vec![
-            make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5)]),
-            make_char(1, vec![(Stat::CON, 10), (Stat::SPI, 3)]),
-            make_char(2, vec![(Stat::CON, 10), (Stat::SPI, 3)]),
+            make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
+            make_char(1, vec![(Stat::VIT, 10), (Stat::WIL, 3)]),
+            make_char(2, vec![(Stat::VIT, 10), (Stat::WIL, 3)]),
         ];
         actor_team[1].spend_mp(2);
         actor_team[2].spend_mp(2);
-        let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
+        let mut enemy_team = vec![make_char(10, vec![(Stat::VIT, 5)])];
 
         let ability = AbilityDef {
             mp_cost: 1,
@@ -1441,13 +1441,13 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let mut actor_team = vec![
-            make_char(0, vec![(Stat::CON, 10), (Stat::SPI, 5)]),
-            make_char(1, vec![(Stat::CON, 10)]),
-            make_char(2, vec![(Stat::CON, 10)]),
+            make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
+            make_char(1, vec![(Stat::VIT, 10)]),
+            make_char(2, vec![(Stat::VIT, 10)]),
         ];
         actor_team[1].take_damage(3);
         actor_team[2].take_damage(8);
-        let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
+        let mut enemy_team = vec![make_char(10, vec![(Stat::VIT, 5)])];
 
         let ability = AbilityDef {
             mp_cost: 1,
@@ -1485,11 +1485,11 @@ mod tests {
             0,
             0,
             0,
-            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
         )];
         let mut enemy_team = vec![
-            make_adjacent_char(1, 0, 0, vec![(Stat::FOR, 3), (Stat::CON, 10)]),
-            make_adjacent_char(2, 2, 0, vec![(Stat::FOR, 3), (Stat::CON, 10)]),
+            make_adjacent_char(1, 0, 0, vec![(Stat::ARM, 3), (Stat::VIT, 10)]),
+            make_adjacent_char(2, 2, 0, vec![(Stat::ARM, 3), (Stat::VIT, 10)]),
         ];
 
         let ability = AbilityDef {
@@ -1530,11 +1530,11 @@ mod tests {
             0,
             0,
             1,
-            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
         )];
         let mut enemy_team = vec![
-            make_adjacent_char(1, 0, 0, vec![(Stat::FOR, 3), (Stat::CON, 10)]),
-            make_adjacent_char(2, 0, 1, vec![(Stat::FOR, 3), (Stat::CON, 10)]),
+            make_adjacent_char(1, 0, 0, vec![(Stat::ARM, 3), (Stat::VIT, 10)]),
+            make_adjacent_char(2, 0, 1, vec![(Stat::ARM, 3), (Stat::VIT, 10)]),
         ];
 
         let ability = AbilityDef {
@@ -1575,13 +1575,13 @@ mod tests {
             0,
             0,
             0,
-            vec![(Stat::INT, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MAG, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
         )];
         let mut enemy_team = vec![
-            make_adjacent_char(1, 0, 1, vec![(Stat::WIS, 3), (Stat::CON, 10)]),
-            make_adjacent_char(2, 0, 2, vec![(Stat::WIS, 3), (Stat::CON, 10)]),
-            make_adjacent_char(3, 1, 1, vec![(Stat::WIS, 3), (Stat::CON, 10)]),
-            make_adjacent_char(4, 2, 2, vec![(Stat::WIS, 3), (Stat::CON, 10)]),
+            make_adjacent_char(1, 0, 1, vec![(Stat::RES, 3), (Stat::VIT, 10)]),
+            make_adjacent_char(2, 0, 2, vec![(Stat::RES, 3), (Stat::VIT, 10)]),
+            make_adjacent_char(3, 1, 1, vec![(Stat::RES, 3), (Stat::VIT, 10)]),
+            make_adjacent_char(4, 2, 2, vec![(Stat::RES, 3), (Stat::VIT, 10)]),
         ];
         enemy_team[0].set_companions(vec![2, 3]);
         enemy_team[2].set_companions(vec![1]);
@@ -1622,9 +1622,9 @@ mod tests {
         let mut log = BattleLog::new();
         let mut actor_team = vec![make_char(
             0,
-            vec![(Stat::INT, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MAG, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
         )];
-        let mut enemy_team = vec![make_char(1, vec![(Stat::WIS, 3), (Stat::CON, 10)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::RES, 3), (Stat::VIT, 10)])];
 
         let ability = AbilityDef {
             mp_cost: 2,
@@ -1654,13 +1654,13 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let mut actor_team = vec![
-            make_adjacent_char(0, 1, 1, vec![(Stat::CON, 10), (Stat::SPI, 6)]),
-            make_adjacent_char(1, 1, 2, vec![(Stat::CON, 10), (Stat::SPI, 4)]),
-            make_adjacent_char(2, 2, 1, vec![(Stat::CON, 10), (Stat::SPI, 2)]),
+            make_adjacent_char(0, 1, 1, vec![(Stat::VIT, 10), (Stat::WIL, 6)]),
+            make_adjacent_char(1, 1, 2, vec![(Stat::VIT, 10), (Stat::WIL, 4)]),
+            make_adjacent_char(2, 2, 1, vec![(Stat::VIT, 10), (Stat::WIL, 2)]),
         ];
         actor_team[1].spend_mp(3);
         actor_team[2].spend_mp(2);
-        let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
+        let mut enemy_team = vec![make_char(10, vec![(Stat::VIT, 5)])];
 
         let ability = AbilityDef {
             mp_cost: 1,
@@ -1696,15 +1696,15 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let mut actor_team = vec![
-            make_adjacent_char(0, 1, 1, vec![(Stat::CON, 10), (Stat::SPI, 6)]),
-            make_adjacent_char(1, 1, 2, vec![(Stat::CON, 10), (Stat::SPI, 4)]),
-            make_adjacent_char(2, 1, 0, vec![(Stat::CON, 10), (Stat::SPI, 2)]),
-            make_adjacent_char(3, 2, 1, vec![(Stat::CON, 10), (Stat::SPI, 1)]),
+            make_adjacent_char(0, 1, 1, vec![(Stat::VIT, 10), (Stat::WIL, 6)]),
+            make_adjacent_char(1, 1, 2, vec![(Stat::VIT, 10), (Stat::WIL, 4)]),
+            make_adjacent_char(2, 1, 0, vec![(Stat::VIT, 10), (Stat::WIL, 2)]),
+            make_adjacent_char(3, 2, 1, vec![(Stat::VIT, 10), (Stat::WIL, 1)]),
         ];
         actor_team[1].spend_mp(3);
         actor_team[2].spend_mp(1);
         actor_team[3].spend_mp(1);
-        let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
+        let mut enemy_team = vec![make_char(10, vec![(Stat::VIT, 5)])];
 
         let ability = AbilityDef {
             mp_cost: 1,
@@ -1741,12 +1741,12 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let mut actor_team = vec![
-            make_adjacent_char(0, 1, 1, vec![(Stat::CON, 10)]),
-            make_adjacent_char(1, 1, 2, vec![(Stat::CON, 10)]),
-            make_adjacent_char(2, 2, 1, vec![(Stat::CON, 10)]),
+            make_adjacent_char(0, 1, 1, vec![(Stat::VIT, 10)]),
+            make_adjacent_char(1, 1, 2, vec![(Stat::VIT, 10)]),
+            make_adjacent_char(2, 2, 1, vec![(Stat::VIT, 10)]),
         ];
         actor_team[0].set_companions(vec![1, 2]);
-        let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
+        let mut enemy_team = vec![make_char(10, vec![(Stat::VIT, 5)])];
 
         let mut statuses = empty_statuses();
         statuses.insert(
@@ -1768,7 +1768,7 @@ mod tests {
                     bypass_row_protection: false,
                 }),
                 status: "Empower".to_string(),
-                stat: Some(Stat::STR),
+                stat: Some(Stat::MGT),
                 stacks: 1,
             }],
         };
@@ -1785,7 +1785,7 @@ mod tests {
             &statuses,
         );
 
-        let key = status_key("Empower", Some(&Stat::STR));
+        let key = status_key("Empower", Some(&Stat::MGT));
         assert_eq!(actor_team[1].status_stacks(&key), 1);
         assert_eq!(actor_team[2].status_stacks(&key), 0);
     }
@@ -1795,13 +1795,13 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let mut actor_team = vec![
-            make_adjacent_char(0, 0, 0, vec![(Stat::CON, 10)]),
-            make_adjacent_char(1, 0, 1, vec![(Stat::CON, 10)]),
+            make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10)]),
+            make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10)]),
         ];
         actor_team[0].set_companions(vec![1]);
         let mut enemy_team = vec![
-            make_adjacent_char(10, 0, 0, vec![(Stat::STR, 7), (Stat::INT, 2), (Stat::CON, 10)]),
-            make_adjacent_char(11, 0, 1, vec![(Stat::STR, 2), (Stat::INT, 7), (Stat::CON, 10)]),
+            make_adjacent_char(10, 0, 0, vec![(Stat::MGT, 7), (Stat::MAG, 2), (Stat::VIT, 10)]),
+            make_adjacent_char(11, 0, 1, vec![(Stat::MGT, 2), (Stat::MAG, 7), (Stat::VIT, 10)]),
         ];
         enemy_team[0].set_target(1);
         enemy_team[1].set_target(1);
@@ -1836,9 +1836,9 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(2);
         let mut log = BattleLog::new();
         let mut actor_team = vec![
-            make_adjacent_char(0, 0, 0, vec![(Stat::CON, 10)]),
-            make_adjacent_char(1, 0, 1, vec![(Stat::CON, 10)]),
-            make_adjacent_char(2, 1, 0, vec![(Stat::CON, 10)]),
+            make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10)]),
+            make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10)]),
+            make_adjacent_char(2, 1, 0, vec![(Stat::VIT, 10)]),
         ];
         actor_team[0].set_companions(vec![1, 2]);
         actor_team[2].take_damage(100);
@@ -1846,7 +1846,7 @@ mod tests {
             10,
             0,
             2,
-            vec![(Stat::STR, 7), (Stat::CON, 10)],
+            vec![(Stat::MGT, 7), (Stat::VIT, 10)],
         )];
         enemy_team[0].set_target(0);
 
@@ -1879,14 +1879,14 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let mut actor_team = vec![
-            make_adjacent_char(0, 0, 0, vec![(Stat::FOR, 9), (Stat::WIS, 2), (Stat::CON, 10)]),
-            make_adjacent_char(1, 0, 1, vec![(Stat::FOR, 2), (Stat::WIS, 9), (Stat::CON, 10)]),
+            make_adjacent_char(0, 0, 0, vec![(Stat::ARM, 9), (Stat::RES, 2), (Stat::VIT, 10)]),
+            make_adjacent_char(1, 0, 1, vec![(Stat::ARM, 2), (Stat::RES, 9), (Stat::VIT, 10)]),
         ];
         let mut enemy_team = vec![make_adjacent_char(
             10,
             0,
             2,
-            vec![(Stat::STR, 8), (Stat::INT, 3), (Stat::CON, 10)],
+            vec![(Stat::MGT, 8), (Stat::MAG, 3), (Stat::VIT, 10)],
         )];
         enemy_team[0].set_target(0);
 
@@ -1919,9 +1919,9 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let mut actor_team = vec![
-            make_adjacent_char(0, 0, 0, vec![(Stat::CON, 10)]),
-            make_adjacent_char(1, 0, 1, vec![(Stat::STR, 8), (Stat::CON, 10)]),
-            make_adjacent_char(2, 1, 0, vec![(Stat::STR, 5), (Stat::CON, 10)]),
+            make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10)]),
+            make_adjacent_char(1, 0, 1, vec![(Stat::MGT, 8), (Stat::VIT, 10)]),
+            make_adjacent_char(2, 1, 0, vec![(Stat::MGT, 5), (Stat::VIT, 10)]),
         ];
         actor_team[0].set_companions(vec![1, 2]);
         actor_team[0].set_target(10);
@@ -1929,7 +1929,7 @@ mod tests {
             10,
             0,
             2,
-            vec![(Stat::FOR, 3), (Stat::CON, 10)],
+            vec![(Stat::ARM, 3), (Stat::VIT, 10)],
         )];
 
         let ability = AbilityDef {
@@ -1962,9 +1962,9 @@ mod tests {
         let statuses = test_statuses();
         let mut actor_team = vec![make_char(
             0,
-            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
         )];
-        let mut enemy_team = vec![make_char(1, vec![(Stat::FOR, 4), (Stat::CON, 20)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::ARM, 4), (Stat::VIT, 20)])];
         enemy_team[0].add_status("Ward", 1, 99, statuses.get("Ward").unwrap(), None);
         actor_team[0].set_target(1);
 
@@ -2001,9 +2001,9 @@ mod tests {
         let statuses = test_statuses();
         let mut actor_team = vec![make_char(
             0,
-            vec![(Stat::INT, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MAG, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
         )];
-        let mut enemy_team = vec![make_char(1, vec![(Stat::WIS, 4), (Stat::CON, 20)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::RES, 4), (Stat::VIT, 20)])];
         enemy_team[0].add_status("Ward", 1, 99, statuses.get("Ward").unwrap(), None);
         actor_team[0].set_target(1);
 
@@ -2039,16 +2039,16 @@ mod tests {
         let statuses = test_statuses();
         let mut actor_team = vec![make_char(
             0,
-            vec![(Stat::STR, 10), (Stat::INT, 8), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MGT, 10), (Stat::MAG, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
         )];
-        let mut enemy_team = vec![make_char(1, vec![(Stat::FOR, 4), (Stat::WIS, 4), (Stat::CON, 20)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::ARM, 4), (Stat::RES, 4), (Stat::VIT, 20)])];
         actor_team[0].set_target(1);
         actor_team[0].add_status(
-            &status_key("Empower", Some(&Stat::STR)),
+            &status_key("Empower", Some(&Stat::MGT)),
             2,
             99,
             statuses.get("Empower").unwrap(),
-            Some(Stat::STR),
+            Some(Stat::MGT),
         );
 
         let normal = AbilityDef {
@@ -2064,7 +2064,7 @@ mod tests {
             primitives: vec![Primitive::DealPhysicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
                 multiplier: 1.0,
-                double_empower_stat: Some(Stat::STR),
+                double_empower_stat: Some(Stat::MGT),
             }],
         };
 
@@ -2101,14 +2101,14 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let mut actor_team = vec![
-            make_adjacent_char(0, 1, 1, vec![(Stat::CON, 10)]),
-            make_adjacent_char(1, 1, 2, vec![(Stat::CON, 10)]),
-            make_adjacent_char(2, 0, 0, vec![(Stat::CON, 10)]),
+            make_adjacent_char(0, 1, 1, vec![(Stat::VIT, 10)]),
+            make_adjacent_char(1, 1, 2, vec![(Stat::VIT, 10)]),
+            make_adjacent_char(2, 0, 0, vec![(Stat::VIT, 10)]),
         ];
         actor_team[0].set_companions(vec![1]);
         actor_team[1].set_companions(vec![0]);
         actor_team[2].set_companions(vec![]);
-        let mut enemy_team = vec![make_adjacent_char(10, 0, 3, vec![(Stat::CON, 10)])];
+        let mut enemy_team = vec![make_adjacent_char(10, 0, 3, vec![(Stat::VIT, 10)])];
 
         let ability = AbilityDef {
             mp_cost: 1,
@@ -2155,12 +2155,12 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
         let mut log = BattleLog::new();
         let mut actor_team = vec![
-            make_adjacent_char(0, 1, 1, vec![(Stat::CON, 10)]),
-            make_adjacent_char(1, 2, 1, vec![(Stat::CON, 10)]),
+            make_adjacent_char(0, 1, 1, vec![(Stat::VIT, 10)]),
+            make_adjacent_char(1, 2, 1, vec![(Stat::VIT, 10)]),
         ];
         actor_team[0].set_companions(vec![]);
         actor_team[1].set_companions(vec![]);
-        let mut enemy_team = vec![make_adjacent_char(10, 0, 0, vec![(Stat::CON, 10)])];
+        let mut enemy_team = vec![make_adjacent_char(10, 0, 0, vec![(Stat::VIT, 10)])];
 
         let ability = AbilityDef {
             mp_cost: 1,

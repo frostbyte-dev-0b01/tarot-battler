@@ -612,7 +612,7 @@ impl BattleState {
             return;
         }
 
-        let regen = actor_team[actor_idx].get_base_stat(&Stat::SPI) / 2;
+        let regen = actor_team[actor_idx].get_base_stat(&Stat::WIL) / 2;
         let actor_id = actor_team[actor_idx].id();
         let actor_name = actor_team[actor_idx].base_name().to_string();
         actor_team[actor_idx].restore_mp(regen);
@@ -928,13 +928,13 @@ mod tests {
             "Warrior",
             0,
             vec![
-                (Stat::CON, 12),
-                (Stat::STR, 15),
-                (Stat::INT, 4),
-                (Stat::FOR, 10),
-                (Stat::WIS, 5),
-                (Stat::DEX, 8),
-                (Stat::SPI, 6),
+                (Stat::VIT, 12),
+                (Stat::MGT, 15),
+                (Stat::MAG, 4),
+                (Stat::ARM, 10),
+                (Stat::RES, 5),
+                (Stat::SPD, 8),
+                (Stat::WIL, 6),
             ],
         )
     }
@@ -944,30 +944,30 @@ mod tests {
             "Mage",
             0,
             vec![
-                (Stat::CON, 8),
-                (Stat::STR, 4),
-                (Stat::INT, 16),
-                (Stat::FOR, 5),
-                (Stat::WIS, 12),
-                (Stat::DEX, 10),
-                (Stat::SPI, 10),
+                (Stat::VIT, 8),
+                (Stat::MGT, 4),
+                (Stat::MAG, 16),
+                (Stat::ARM, 5),
+                (Stat::RES, 12),
+                (Stat::SPD, 10),
+                (Stat::WIL, 10),
             ],
         )
     }
 
     #[test]
     fn row_aura_applies_to_same_row_allies() {
-        let mut emperor = make_config_at("Emperor", 0, 0, vec![(Stat::STR, 10), (Stat::CON, 10)]);
+        let mut emperor = make_config_at("Emperor", 0, 0, vec![(Stat::MGT, 10), (Stat::VIT, 10)]);
         emperor.passive = "Imperial Formation".to_string();
-        let ally = make_config_at("Ally", 0, 1, vec![(Stat::STR, 8), (Stat::CON, 10)]);
-        let other = make_config_at("Other", 1, 1, vec![(Stat::STR, 8), (Stat::CON, 10)]);
+        let ally = make_config_at("Ally", 0, 1, vec![(Stat::MGT, 8), (Stat::VIT, 10)]);
+        let other = make_config_at("Other", 1, 1, vec![(Stat::MGT, 8), (Stat::VIT, 10)]);
 
         let mut passives = PassiveMap::new();
         passives.insert(
             "Imperial Formation".to_string(),
             PassiveDef::RowAura {
                 effects: vec![AuraStatEffect {
-                    stat: Stat::STR,
+                    stat: Stat::MGT,
                     amount: 1,
                 }],
             },
@@ -984,23 +984,23 @@ mod tests {
         let mut battle = battle;
         battle.refresh_auras();
 
-        assert_eq!(battle.team_a[1].get_eff_stat(&Stat::STR), 9);
-        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::STR), 8);
+        assert_eq!(battle.team_a[1].get_eff_stat(&Stat::MGT), 9);
+        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::MGT), 8);
     }
 
     #[test]
     fn row_aura_recomputes_after_movement_and_death() {
-        let mut emperor = make_config_at("Emperor", 0, 0, vec![(Stat::STR, 10), (Stat::CON, 10)]);
+        let mut emperor = make_config_at("Emperor", 0, 0, vec![(Stat::MGT, 10), (Stat::VIT, 10)]);
         emperor.passive = "Imperial Formation".to_string();
-        let ally = make_config_at("Ally", 0, 1, vec![(Stat::STR, 8), (Stat::CON, 10)]);
-        let mover = make_config_at("Mover", 1, 1, vec![(Stat::STR, 8), (Stat::CON, 10)]);
+        let ally = make_config_at("Ally", 0, 1, vec![(Stat::MGT, 8), (Stat::VIT, 10)]);
+        let mover = make_config_at("Mover", 1, 1, vec![(Stat::MGT, 8), (Stat::VIT, 10)]);
 
         let mut passives = PassiveMap::new();
         passives.insert(
             "Imperial Formation".to_string(),
             PassiveDef::RowAura {
                 effects: vec![AuraStatEffect {
-                    stat: Stat::STR,
+                    stat: Stat::MGT,
                     amount: 1,
                 }],
             },
@@ -1015,17 +1015,17 @@ mod tests {
             42,
         );
         battle.refresh_auras();
-        assert_eq!(battle.team_a[1].get_eff_stat(&Stat::STR), 9);
-        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::STR), 8);
+        assert_eq!(battle.team_a[1].get_eff_stat(&Stat::MGT), 9);
+        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::MGT), 8);
 
         battle.team_a[2].set_position(Position { row: 0, col: 1 });
         battle.refresh_auras();
-        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::STR), 9);
+        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::MGT), 9);
 
         battle.team_a[0].take_damage(999);
         battle.resolve_character_death(0, true);
-        assert_eq!(battle.team_a[1].get_eff_stat(&Stat::STR), 8);
-        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::STR), 8);
+        assert_eq!(battle.team_a[1].get_eff_stat(&Stat::MGT), 8);
+        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::MGT), 8);
     }
 
     #[test]
@@ -1034,16 +1034,16 @@ mod tests {
             "Striker",
             0,
             0,
-            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
         );
         let mut chariot = make_config_at(
             "Chariot",
             0,
             1,
-            vec![(Stat::STR, 8), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MGT, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
         );
         chariot.passive = "Pursuit".to_string();
-        let enemy = make_config_at("Target", 0, 0, vec![(Stat::FOR, 3), (Stat::CON, 10)]);
+        let enemy = make_config_at("Target", 0, 0, vec![(Stat::ARM, 3), (Stat::VIT, 10)]);
 
         let mut passives = PassiveMap::new();
         passives.insert(
@@ -1053,7 +1053,7 @@ mod tests {
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
-                    stat: Some(Stat::STR),
+                    stat: Some(Stat::MGT),
                     stacks: 1,
                 }],
             },
@@ -1091,7 +1091,7 @@ mod tests {
         );
 
         assert_eq!(
-            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::STR))),
+            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
             1
         );
     }
@@ -1102,17 +1102,17 @@ mod tests {
             "Chariot",
             0,
             1,
-            vec![(Stat::STR, 8), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MGT, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
         );
         chariot.passive = "Pursuit".to_string();
         let ally = make_config_at(
             "Ally",
             0,
             0,
-            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+            vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
         );
-        let enemy_a = make_config_at("EnemyA", 0, 0, vec![(Stat::FOR, 3), (Stat::CON, 10)]);
-        let enemy_b = make_config_at("EnemyB", 0, 1, vec![(Stat::FOR, 3), (Stat::CON, 10)]);
+        let enemy_a = make_config_at("EnemyA", 0, 0, vec![(Stat::ARM, 3), (Stat::VIT, 10)]);
+        let enemy_b = make_config_at("EnemyB", 0, 1, vec![(Stat::ARM, 3), (Stat::VIT, 10)]);
 
         let mut passives = PassiveMap::new();
         passives.insert(
@@ -1122,7 +1122,7 @@ mod tests {
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
-                    stat: Some(Stat::STR),
+                    stat: Some(Stat::MGT),
                     stacks: 1,
                 }],
             },
@@ -1158,7 +1158,7 @@ mod tests {
             }],
         );
         assert_eq!(
-            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::STR))),
+            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
             0
         );
 
@@ -1172,7 +1172,7 @@ mod tests {
             }],
         );
         assert_eq!(
-            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::STR))),
+            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
             0
         );
     }
@@ -1280,26 +1280,26 @@ mod tests {
             "Tank",
             0,
             vec![
-                (Stat::CON, 50),
-                (Stat::STR, 8),
-                (Stat::INT, 4),
-                (Stat::FOR, 10),
-                (Stat::WIS, 10),
-                (Stat::DEX, 5),
-                (Stat::SPI, 5),
+                (Stat::VIT, 50),
+                (Stat::MGT, 8),
+                (Stat::MAG, 4),
+                (Stat::ARM, 10),
+                (Stat::RES, 10),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
             ],
         );
         let glass = make_config(
             "Glass",
             0,
             vec![
-                (Stat::CON, 3),
-                (Stat::STR, 20),
-                (Stat::INT, 4),
-                (Stat::FOR, 2),
-                (Stat::WIS, 2),
-                (Stat::DEX, 5),
-                (Stat::SPI, 5),
+                (Stat::VIT, 3),
+                (Stat::MGT, 20),
+                (Stat::MAG, 4),
+                (Stat::ARM, 2),
+                (Stat::RES, 2),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
             ],
         );
         let log = BattleState::new(
@@ -1325,13 +1325,13 @@ mod tests {
             "Tanky",
             0,
             vec![
-                (Stat::CON, 200),
-                (Stat::STR, 1),
-                (Stat::INT, 1),
-                (Stat::FOR, 50),
-                (Stat::WIS, 50),
-                (Stat::DEX, 30),
-                (Stat::SPI, 5),
+                (Stat::VIT, 200),
+                (Stat::MGT, 1),
+                (Stat::MAG, 1),
+                (Stat::ARM, 50),
+                (Stat::RES, 50),
+                (Stat::SPD, 30),
+                (Stat::WIL, 5),
             ],
         );
         let log = BattleState::new(
@@ -1357,39 +1357,39 @@ mod tests {
             "Front1",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 8),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 10),
+                (Stat::MGT, 8),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         let front2 = make_config(
             "Front2",
             0,
             vec![
-                (Stat::CON, 8),
-                (Stat::STR, 6),
-                (Stat::INT, 4),
-                (Stat::FOR, 4),
-                (Stat::WIS, 4),
-                (Stat::DEX, 6),
-                (Stat::SPI, 5),
+                (Stat::VIT, 8),
+                (Stat::MGT, 6),
+                (Stat::MAG, 4),
+                (Stat::ARM, 4),
+                (Stat::RES, 4),
+                (Stat::SPD, 6),
+                (Stat::WIL, 5),
             ],
         );
         let back = make_config(
             "Back",
             1,
             vec![
-                (Stat::CON, 6),
-                (Stat::STR, 3),
-                (Stat::INT, 10),
-                (Stat::FOR, 2),
-                (Stat::WIS, 8),
-                (Stat::DEX, 4),
-                (Stat::SPI, 7),
+                (Stat::VIT, 6),
+                (Stat::MGT, 3),
+                (Stat::MAG, 10),
+                (Stat::ARM, 2),
+                (Stat::RES, 8),
+                (Stat::SPD, 4),
+                (Stat::WIL, 7),
             ],
         );
         let log = BattleState::new(
@@ -1423,39 +1423,39 @@ mod tests {
             "Front",
             0,
             vec![
-                (Stat::CON, 15),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 15),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         let squishy_back = make_config(
             "SquishyBack",
             1,
             vec![
-                (Stat::CON, 3),
-                (Stat::STR, 3),
-                (Stat::INT, 10),
-                (Stat::FOR, 1),
-                (Stat::WIS, 8),
-                (Stat::DEX, 4),
-                (Stat::SPI, 7),
+                (Stat::VIT, 3),
+                (Stat::MGT, 3),
+                (Stat::MAG, 10),
+                (Stat::ARM, 1),
+                (Stat::RES, 8),
+                (Stat::SPD, 4),
+                (Stat::WIL, 7),
             ],
         );
         let attacker = make_config(
             "Attacker",
             0,
             vec![
-                (Stat::CON, 12),
-                (Stat::STR, 10),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 6),
-                (Stat::SPI, 4),
+                (Stat::VIT, 12),
+                (Stat::MGT, 10),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 6),
+                (Stat::WIL, 4),
             ],
         );
         let log = BattleState::new(
@@ -1497,26 +1497,26 @@ mod tests {
             "Fighter",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 8),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 10),
+                (Stat::MGT, 8),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         let lone = make_config(
             "Lone",
             0,
             vec![
-                (Stat::CON, 8),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 8),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         let log = BattleState::new(
@@ -1540,26 +1540,26 @@ mod tests {
             "Tank",
             0,
             vec![
-                (Stat::CON, 15),
-                (Stat::STR, 5),
-                (Stat::INT, 3),
-                (Stat::FOR, 8),
-                (Stat::WIS, 5),
-                (Stat::DEX, 4),
-                (Stat::SPI, 4),
+                (Stat::VIT, 15),
+                (Stat::MGT, 5),
+                (Stat::MAG, 3),
+                (Stat::ARM, 8),
+                (Stat::RES, 5),
+                (Stat::SPD, 4),
+                (Stat::WIL, 4),
             ],
         );
         let dps = make_config(
             "DPS",
             1,
             vec![
-                (Stat::CON, 6),
-                (Stat::STR, 12),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 2),
-                (Stat::DEX, 6),
-                (Stat::SPI, 4),
+                (Stat::VIT, 6),
+                (Stat::MGT, 12),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 2),
+                (Stat::SPD, 6),
+                (Stat::WIL, 4),
             ],
         );
         let log = BattleState::new(
@@ -1596,26 +1596,26 @@ mod tests {
             "Front",
             0,
             vec![
-                (Stat::CON, 8),
-                (Stat::STR, 8),
-                (Stat::INT, 3),
-                (Stat::FOR, 4),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 8),
+                (Stat::MGT, 8),
+                (Stat::MAG, 3),
+                (Stat::ARM, 4),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         let back = make_config(
             "Back",
             1,
             vec![
-                (Stat::CON, 6),
-                (Stat::STR, 3),
-                (Stat::INT, 8),
-                (Stat::FOR, 2),
-                (Stat::WIS, 6),
-                (Stat::DEX, 5),
-                (Stat::SPI, 6),
+                (Stat::VIT, 6),
+                (Stat::MGT, 3),
+                (Stat::MAG, 8),
+                (Stat::ARM, 2),
+                (Stat::RES, 6),
+                (Stat::SPD, 5),
+                (Stat::WIL, 6),
             ],
         );
         let log = BattleState::new(
@@ -1648,13 +1648,13 @@ mod tests {
 
     fn simple_stats() -> Vec<(Stat, u32)> {
         vec![
-            (Stat::CON, 10),
-            (Stat::STR, 6),
-            (Stat::INT, 4),
-            (Stat::FOR, 4),
-            (Stat::WIS, 3),
-            (Stat::DEX, 5),
-            (Stat::SPI, 5),
+            (Stat::VIT, 10),
+            (Stat::MGT, 6),
+            (Stat::MAG, 4),
+            (Stat::ARM, 4),
+            (Stat::RES, 3),
+            (Stat::SPD, 5),
+            (Stat::WIL, 5),
         ]
     }
 
@@ -1736,13 +1736,13 @@ mod tests {
             0,
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 4),
-                (Stat::INT, 4),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 10),
-                (Stat::SPI, 4),
+                (Stat::VIT, 10),
+                (Stat::MGT, 4),
+                (Stat::MAG, 4),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 10),
+                (Stat::WIL, 4),
             ],
         );
         actor.actives = vec!["Withdraw".to_string()];
@@ -1761,13 +1761,13 @@ mod tests {
             0,
             1,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 4),
-                (Stat::INT, 4),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 1),
-                (Stat::SPI, 5),
+                (Stat::VIT, 10),
+                (Stat::MGT, 4),
+                (Stat::MAG, 4),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 1),
+                (Stat::WIL, 5),
             ],
         );
         let enemy = make_config_at("Enemy", 0, 0, simple_stats());
@@ -1837,13 +1837,13 @@ mod tests {
             0,
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 6),
-                (Stat::INT, 4),
-                (Stat::FOR, 3),
-                (Stat::WIS, 2),
-                (Stat::DEX, 4),
-                (Stat::SPI, 5),
+                (Stat::VIT, 10),
+                (Stat::MGT, 6),
+                (Stat::MAG, 4),
+                (Stat::ARM, 3),
+                (Stat::RES, 2),
+                (Stat::SPD, 4),
+                (Stat::WIL, 5),
             ],
         );
         config.actives = vec!["Crush".to_string(), "Embolden".to_string()];
@@ -1882,13 +1882,13 @@ mod tests {
             "Enemy",
             0,
             vec![
-                (Stat::CON, 15),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 4),
-                (Stat::SPI, 4),
+                (Stat::VIT, 15),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 4),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -1917,21 +1917,21 @@ mod tests {
 
     #[test]
     fn emperor_falls_back_to_basic_attack_when_spi_exhausted() {
-        // Emperor with only 2 SPI — can Crush once, then basic attacks
+        // Emperor with only 2 max MP from WIL — can Crush once, then basic attacks
         let mut emperor = emperor_config();
-        emperor.stats.insert(Stat::SPI, 2);
+        emperor.stats.insert(Stat::WIL, 2);
 
         let enemy = make_config(
             "Enemy",
             0,
             vec![
-                (Stat::CON, 30),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 4),
-                (Stat::SPI, 4),
+                (Stat::VIT, 30),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 4),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -1966,7 +1966,7 @@ mod tests {
         assert!(crush_count >= 1, "Should use Crush at least once");
         assert!(
             basic_count >= 1,
-            "Should fall back to basic attack when SPI runs out"
+            "Should fall back to basic attack when MP runs out"
         );
     }
 
@@ -1977,26 +1977,26 @@ mod tests {
             "A",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 6),
-                (Stat::INT, 4),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 5),
+                (Stat::VIT, 10),
+                (Stat::MGT, 6),
+                (Stat::MAG, 4),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
             ],
         );
         let b = make_config(
             "B",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 6),
-                (Stat::INT, 4),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 5),
+                (Stat::VIT, 10),
+                (Stat::MGT, 6),
+                (Stat::MAG, 4),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
             ],
         );
 
@@ -2029,13 +2029,13 @@ mod tests {
             "Attacker",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 5),
+                (Stat::VIT, 20),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
             ],
         );
         attacker.actives = vec!["Poison".to_string()];
@@ -2047,13 +2047,13 @@ mod tests {
             "Enemy",
             0,
             vec![
-                (Stat::CON, 30),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 30),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -2109,26 +2109,26 @@ mod tests {
             "A",
             0,
             vec![
-                (Stat::CON, 50),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 3),
-                (Stat::SPI, 5),
+                (Stat::VIT, 50),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 3),
+                (Stat::WIL, 5),
             ],
         );
         let b = make_config(
             "B",
             0,
             vec![
-                (Stat::CON, 50),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 3),
-                (Stat::SPI, 5),
+                (Stat::VIT, 50),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 3),
+                (Stat::WIL, 5),
             ],
         );
 
@@ -2168,26 +2168,26 @@ mod tests {
             "Actor",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 10),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 10),
+                (Stat::WIL, 4),
             ],
         );
         let enemy = make_config(
             "Enemy",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 1),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 1),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -2245,13 +2245,13 @@ mod tests {
             "Actor",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 10),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 10),
+                (Stat::WIL, 4),
             ],
         );
         actor.passive = "Meditation".to_string();
@@ -2260,13 +2260,13 @@ mod tests {
             "Enemy",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 1),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 1),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -2335,13 +2335,13 @@ mod tests {
             "Warrior",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 5),
+                (Stat::VIT, 10),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
             ],
         );
         char_config.passive = "TestPassive".to_string();
@@ -2350,13 +2350,13 @@ mod tests {
             "Enemy",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 10),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -2368,7 +2368,7 @@ mod tests {
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
-                    stat: Some(Stat::STR),
+                    stat: Some(Stat::MGT),
                     stacks: 5,
                 }],
             },
@@ -2413,13 +2413,13 @@ mod tests {
             "Warrior",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 5),
+                (Stat::VIT, 10),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
             ],
         );
         warrior.passive = "PowerUp".to_string();
@@ -2428,13 +2428,13 @@ mod tests {
             "Enemy",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 10),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -2446,7 +2446,7 @@ mod tests {
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
-                    stat: Some(Stat::STR),
+                    stat: Some(Stat::MGT),
                     stacks: 100,
                 }],
             },
@@ -2462,7 +2462,7 @@ mod tests {
             },
         );
 
-        // With huge STR buff, warrior should win easily
+        // With huge MGT buff, warrior should win easily
         let log = BattleState::new(
             &[warrior],
             &[enemy],
@@ -2484,13 +2484,13 @@ mod tests {
             "Warrior",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 5),
+                (Stat::VIT, 10),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
             ],
         );
         char_config.passive = "NonexistentPassive".to_string();
@@ -2499,13 +2499,13 @@ mod tests {
             "Enemy",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 10),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -2536,13 +2536,13 @@ mod tests {
             "Warrior",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 5),
+                (Stat::VIT, 10),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
             ],
         );
         char_config.passive = "Thorns".to_string();
@@ -2551,13 +2551,13 @@ mod tests {
             "Enemy",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 10),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -2596,13 +2596,13 @@ mod tests {
             "Attacker",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -2610,13 +2610,13 @@ mod tests {
             "Defender",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         defender.passive = "Thorns".to_string();
@@ -2655,13 +2655,13 @@ mod tests {
             "Attacker",
             0,
             vec![
-                (Stat::CON, 2),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 2),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -2669,13 +2669,13 @@ mod tests {
             "Defender",
             0,
             vec![
-                (Stat::CON, 50),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 50),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         defender.passive = "Thorns".to_string();
@@ -2722,13 +2722,13 @@ mod tests {
             "Attacker",
             0,
             vec![
-                (Stat::CON, 2),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 2),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         attacker.passive = "Collapse".to_string();
@@ -2737,13 +2737,13 @@ mod tests {
             "Defender",
             0,
             vec![
-                (Stat::CON, 50),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 50),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         defender.passive = "Thorns".to_string();
@@ -2810,13 +2810,13 @@ mod tests {
             "Attacker",
             0,
             vec![
-                (Stat::CON, 10),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 10),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         attacker.passive = "Barrier".to_string();
@@ -2825,13 +2825,13 @@ mod tests {
             "Defender",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         defender.passive = "Thorns".to_string();
@@ -2888,22 +2888,22 @@ mod tests {
         use crate::abilities::PassiveDef;
         use crate::models::TraitEffect;
 
-        // Emperor with SPI cost reduction — should be able to use Crush more
+        // Emperor with MP cost reduction — should be able to use Crush more
         let mut emperor = emperor_config();
         emperor.passive = "Thrift".to_string();
-        emperor.stats.insert(Stat::SPI, 3); // barely enough for Crush(2) without reduction
+        emperor.stats.insert(Stat::WIL, 3); // barely enough MP for Crush(2) without reduction
 
         let enemy = make_config(
             "Enemy",
             0,
             vec![
-                (Stat::CON, 30),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 4),
-                (Stat::SPI, 4),
+                (Stat::VIT, 30),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 4),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -2952,13 +2952,13 @@ mod tests {
             "Meditator",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 5),
+                (Stat::VIT, 20),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
             ],
         );
         char_config.passive = "Meditation".to_string();
@@ -2967,13 +2967,13 @@ mod tests {
             "Enemy",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -3017,13 +3017,13 @@ mod tests {
             "Attacker",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 8),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 8),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         attacker.passive = "Momentum".to_string();
@@ -3032,13 +3032,13 @@ mod tests {
             "Enemy",
             0,
             vec![
-                (Stat::CON, 30),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 30),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -3050,7 +3050,7 @@ mod tests {
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
-                    stat: Some(Stat::STR),
+                    stat: Some(Stat::MGT),
                     stacks: 1,
                 }],
             },
@@ -3099,13 +3099,13 @@ mod tests {
             "Attacker",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 8),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 8),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -3113,13 +3113,13 @@ mod tests {
             "Defender",
             0,
             vec![
-                (Stat::CON, 30),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 3),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 30),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         defender.passive = "Vengeance".to_string();
@@ -3132,7 +3132,7 @@ mod tests {
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
-                    stat: Some(Stat::STR),
+                    stat: Some(Stat::MGT),
                     stacks: 1,
                 }],
             },
@@ -3174,13 +3174,13 @@ mod tests {
             "Killer",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 15),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 15),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         killer.passive = "Reaper".to_string();
@@ -3189,13 +3189,13 @@ mod tests {
             "Weak",
             0,
             vec![
-                (Stat::CON, 3),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 2),
-                (Stat::WIS, 2),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 3),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 2),
+                (Stat::RES, 2),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -3243,13 +3243,13 @@ mod tests {
             "Strong",
             0,
             vec![
-                (Stat::CON, 30),
-                (Stat::STR, 15),
-                (Stat::INT, 3),
-                (Stat::FOR, 10),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 30),
+                (Stat::MGT, 15),
+                (Stat::MAG, 3),
+                (Stat::ARM, 10),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -3257,13 +3257,13 @@ mod tests {
             "Dying",
             0,
             vec![
-                (Stat::CON, 3),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 2),
-                (Stat::WIS, 2),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 3),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 2),
+                (Stat::RES, 2),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         dying.passive = "Collapse".to_string();
@@ -3314,13 +3314,13 @@ mod tests {
             "Enemy",
             0,
             vec![
-                (Stat::CON, 30),
-                (Stat::STR, 15),
-                (Stat::INT, 3),
-                (Stat::FOR, 10),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 30),
+                (Stat::MGT, 15),
+                (Stat::MAG, 3),
+                (Stat::ARM, 10),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -3328,13 +3328,13 @@ mod tests {
             "Dying",
             0,
             vec![
-                (Stat::CON, 2),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 2),
-                (Stat::WIS, 2),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 2),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 2),
+                (Stat::RES, 2),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         dying.passive = "Collapse".to_string();
@@ -3404,13 +3404,13 @@ mod tests {
             "Enemy",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 6),
-                (Stat::INT, 3),
-                (Stat::FOR, 4),
-                (Stat::WIS, 3),
-                (Stat::DEX, 4),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 6),
+                (Stat::MAG, 3),
+                (Stat::ARM, 4),
+                (Stat::RES, 3),
+                (Stat::SPD, 4),
+                (Stat::WIL, 4),
             ],
         );
 
@@ -3418,13 +3418,13 @@ mod tests {
             "Dying",
             0,
             vec![
-                (Stat::CON, 2),
-                (Stat::STR, 4),
-                (Stat::INT, 3),
-                (Stat::FOR, 2),
-                (Stat::WIS, 2),
-                (Stat::DEX, 4),
-                (Stat::SPI, 4),
+                (Stat::VIT, 2),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 2),
+                (Stat::RES, 2),
+                (Stat::SPD, 4),
+                (Stat::WIL, 4),
             ],
         );
         dying.passive = "Collapse".to_string();
@@ -3490,13 +3490,13 @@ mod tests {
             "A",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 8),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 8),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         a.passive = "Splash".to_string();
@@ -3505,13 +3505,13 @@ mod tests {
             "B",
             0,
             vec![
-                (Stat::CON, 20),
-                (Stat::STR, 8),
-                (Stat::INT, 3),
-                (Stat::FOR, 5),
-                (Stat::WIS, 3),
-                (Stat::DEX, 5),
-                (Stat::SPI, 4),
+                (Stat::VIT, 20),
+                (Stat::MGT, 8),
+                (Stat::MAG, 3),
+                (Stat::ARM, 5),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 4),
             ],
         );
         b.passive = "Splash".to_string();

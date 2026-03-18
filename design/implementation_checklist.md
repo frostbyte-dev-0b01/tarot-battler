@@ -8,9 +8,9 @@ This checklist tracks the work required to align the Rust battle engine with the
 
 ## Phase 1: Stat and Resource Cleanup
 
-- [x] Remove `FOC` and `RES` from engine models, loaders, sample data, and tests
-- [x] Keep `SPI` as the base stat
-- [x] Rename runtime resource terminology from SPI to MP in code where practical
+- [x] Remove `FOC` and the older save-style `RES` concept from engine models, loaders, sample data, and tests
+- [x] Keep `WIL` as the base stat
+- [x] Rename runtime resource terminology from WIL to MP in code where practical
 - [x] Update rules, primitives, helpers, and logs to use MP terminology
 - [x] Update docs to reflect completed engine alignment
 - [x] Run test suite
@@ -18,7 +18,7 @@ This checklist tracks the work required to align the Rust battle engine with the
 
 ## Phase 2: Speed System Rewrite
 
-- [x] Replace current DEX timing model with `max_ticks = 10 - DEX`
+- [x] Replace current SPD timing model with `max_ticks = 10 - SPD`
 - [x] Clamp `ticks_until_turn` with `max(max_ticks, 1)`
 - [x] Increase `max_ticks` by `2` after each turn
 - [x] Update tests for new speed progression

@@ -170,7 +170,7 @@ mod tests {
             ability: "Crush".to_string(),
             conditions: Vec::new(),
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
         let abilities = make_abilities();
         let result = evaluate_rules(&actor, None, &[], world(), &abilities);
         assert_eq!(result.as_deref(), Some("Crush"));
@@ -182,7 +182,7 @@ mod tests {
             ability: "Embolden".to_string(), // costs 3
             conditions: Vec::new(),
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
         actor.spend_mp(3); // only 2 left, need 3
         let abilities = make_abilities();
         let result = evaluate_rules(&actor, None, &[], world(), &abilities);
@@ -200,15 +200,15 @@ mod tests {
                 threshold: 5,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
         let abilities = make_abilities();
 
         // Target HP=20 → doesn't match
-        let target_high = make_char(1, vec![(Stat::CON, 10)]); // HP=20
+        let target_high = make_char(1, vec![(Stat::VIT, 10)]); // HP=20
         assert!(evaluate_rules(&actor, Some(&target_high), &[], world(), &abilities).is_none());
 
         // Target HP=4 → matches
-        let mut target_low = make_char(1, vec![(Stat::CON, 10)]);
+        let mut target_low = make_char(1, vec![(Stat::VIT, 10)]);
         target_low.take_damage(16); // HP=4
         assert_eq!(
             evaluate_rules(&actor, Some(&target_low), &[], world(), &abilities).as_deref(),
@@ -227,16 +227,16 @@ mod tests {
                 threshold: 1,
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
         actor.set_companions(vec![1]);
         let abilities = make_abilities();
 
-        // Companion has plenty of SPI
-        let companion_full = make_char(1, vec![(Stat::CON, 5), (Stat::SPI, 5)]);
+        // Companion has plenty of WIL
+        let companion_full = make_char(1, vec![(Stat::VIT, 5), (Stat::WIL, 5)]);
         assert!(evaluate_rules(&actor, None, &[companion_full], world(), &abilities).is_none());
 
-        // Companion has low SPI
-        let mut companion_low = make_char(1, vec![(Stat::CON, 5), (Stat::SPI, 5)]);
+        // Companion has low WIL
+        let mut companion_low = make_char(1, vec![(Stat::VIT, 5), (Stat::WIL, 5)]);
         companion_low.spend_mp(4); // MP=1
         assert_eq!(
             evaluate_rules(&actor, None, &[companion_low], world(), &abilities).as_deref(),
@@ -250,19 +250,19 @@ mod tests {
             ability: "Crush".to_string(),
             conditions: vec![Condition {
                 subject: ConditionSubject::SelfChar,
-                value: QueryValue::Stat(Stat::STR),
+                value: QueryValue::Stat(Stat::MGT),
                 comparator: Comparator::Gte,
                 threshold: 10,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::SPI, 5), (Stat::STR, 12)], rules.clone());
+        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5), (Stat::MGT, 12)], rules.clone());
         let abilities = make_abilities();
         assert_eq!(
             evaluate_rules(&actor, None, &[], world(), &abilities).as_deref(),
             Some("Crush")
         );
 
-        let actor_weak = make_char_with_rules(0, vec![(Stat::SPI, 5), (Stat::STR, 8)], rules);
+        let actor_weak = make_char_with_rules(0, vec![(Stat::WIL, 5), (Stat::MGT, 8)], rules);
         assert!(evaluate_rules(&actor_weak, None, &[], world(), &abilities).is_none());
     }
 
@@ -283,18 +283,18 @@ mod tests {
                 conditions: Vec::new(), // always matches
             },
         ];
-        let actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
         let abilities = make_abilities();
 
         // Target HP high → first rule fails, Embolden matches
-        let target = make_char(1, vec![(Stat::CON, 10)]);
+        let target = make_char(1, vec![(Stat::VIT, 10)]);
         assert_eq!(
             evaluate_rules(&actor, Some(&target), &[], world(), &abilities).as_deref(),
             Some("Embolden")
         );
 
         // Target HP low → first rule matches
-        let mut target_low = make_char(1, vec![(Stat::CON, 10)]);
+        let mut target_low = make_char(1, vec![(Stat::VIT, 10)]);
         target_low.take_damage(18); // HP=2
         assert_eq!(
             evaluate_rules(&actor, Some(&target_low), &[], world(), &abilities).as_deref(),
@@ -314,7 +314,7 @@ mod tests {
                 actives: vec!["Embolden".to_string()],
                 item: None,
                 position: Position { row: 0, col: 0 },
-                stats: vec![(Stat::SPI, 5)].into_iter().collect(),
+                stats: vec![(Stat::WIL, 5)].into_iter().collect(),
                 rules: vec![Rule {
                     ability: "Crush".to_string(),
                     conditions: Vec::new(),
@@ -337,7 +337,7 @@ mod tests {
                 threshold: 100,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
         let abilities = make_abilities();
         assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
     }
@@ -353,7 +353,7 @@ mod tests {
                 threshold: 1,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::SPI, 5), (Stat::CON, 10)], rules);
+        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5), (Stat::VIT, 10)], rules);
         let abilities = make_abilities();
 
         assert_eq!(
@@ -393,7 +393,7 @@ mod tests {
                 },
             ],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
         let abilities = make_abilities();
 
         assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
@@ -425,7 +425,7 @@ mod tests {
                 threshold: 2, // use at most 2 times
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 10)], rules);
+        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 10)], rules);
         let abilities = make_abilities();
 
         // Never used → count=0, 0 <= 2 → matches
@@ -458,7 +458,7 @@ mod tests {
                 threshold: 3, // only use if >= 3 turns since last use
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 10)], rules);
+        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 10)], rules);
         let abilities = make_abilities();
 
         // Never used → turns_since = MAX → matches
@@ -495,7 +495,7 @@ mod tests {
             ability: "Embolden".to_string(), // costs 3
             conditions: Vec::new(),
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
         actor.spend_mp(3); // only 2 left, need 3
         let abilities = make_abilities();
 
@@ -518,7 +518,7 @@ mod tests {
             ability: "Crush".to_string(), // costs 2
             conditions: Vec::new(),
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
         actor.add_trait(TraitEffect::MpCostReduction { amount: 100 });
         actor.spend_mp(5); // 0 MP left
 
@@ -538,7 +538,7 @@ mod tests {
                 threshold: 2,
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 10)], rules);
+        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 10)], rules);
         let abilities = make_abilities();
 
         // Turn 1: use it
@@ -573,7 +573,7 @@ mod tests {
                 threshold: 1,
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5), (Stat::CON, 10)], rules);
+        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5), (Stat::VIT, 10)], rules);
         actor.add_status(
             "Ward",
             1,
@@ -604,8 +604,8 @@ mod tests {
                 threshold: 2,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
-        let mut target = make_char(1, vec![(Stat::CON, 10)]);
+        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let mut target = make_char(1, vec![(Stat::VIT, 10)]);
         target.add_status(
             "Bleed",
             2,
@@ -631,16 +631,16 @@ mod tests {
             ability: "Embolden".to_string(),
             conditions: vec![Condition {
                 subject: ConditionSubject::Companion,
-                value: QueryValue::StatusStacks("Empower:STR".to_string()),
+                value: QueryValue::StatusStacks("Empower:MGT".to_string()),
                 comparator: Comparator::Gte,
                 threshold: 2,
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::SPI, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
         actor.set_companions(vec![1]);
-        let mut companion = make_char(1, vec![(Stat::CON, 5), (Stat::STR, 5)]);
+        let mut companion = make_char(1, vec![(Stat::VIT, 5), (Stat::MGT, 5)]);
         companion.add_status(
-            &crate::statuses::status_key("Empower", Some(&Stat::STR)),
+            &crate::statuses::status_key("Empower", Some(&Stat::MGT)),
             2,
             99,
             &crate::statuses::StatusDef {
@@ -648,7 +648,7 @@ mod tests {
                 stack_type: crate::statuses::StackType::TickDown,
                 opposes: Some("Weaken".to_string()),
             },
-            Some(Stat::STR),
+            Some(Stat::MGT),
         );
         let abilities = make_abilities();
 

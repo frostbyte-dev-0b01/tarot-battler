@@ -19,7 +19,7 @@ This plan assumes the full Team A design should be finalized before code changes
 Passive:
 
 - `Imperial Formation`
-  Allies in The Emperor's row gain `Empower STR 1` and `Empower INT 1`.
+  Allies in The Emperor's row gain `Empower MGT 1` and `Empower MAG 1`.
 
 Abilities:
 
@@ -28,14 +28,14 @@ Abilities:
 - `Command`
   One companion immediately makes a basic attack against the user's current target.
 - `Taunt`
-  Enemies with `STR > INT` change their target to the user.
+  Enemies with `MGT > MAG` change their target to the user.
 
 ### The Hierophant
 
 Passive:
 
 - `Sanctuary`
-  Allies in Hierophant's row gain `Empower WIS 1`.
+  Allies in Hierophant's row gain `Empower RES 1`.
 
 Abilities:
 
@@ -51,7 +51,7 @@ Abilities:
 Passive:
 
 - `Pursuit`
-  When an ally damages Chariot's current target, Chariot gains `Empower STR 1`.
+  When an ally damages Chariot's current target, Chariot gains `Empower MGT 1`.
 
 Abilities:
 
@@ -60,7 +60,7 @@ Abilities:
 - `Withdraw`
   Deal physical damage to the user's current target. If the tile one row backward in the same column is empty, move there.
 - `Breakthrough`
-  Deal physical damage to the user's current target. `Empower STR` on the user counts double for this attack.
+  Deal physical damage to the user's current target. `Empower MGT` on the user counts double for this attack.
 
 ## Current Engine Support
 
@@ -193,7 +193,7 @@ Initial supported filter:
 
 Meaning:
 
-- affected units with `STR > INT`
+- affected units with `MGT > MAG`
 
 ### Resolution rules
 
@@ -244,7 +244,7 @@ Recommended v1 semantics:
 
 Recommended companion selection rule for v1:
 
-- highest STR living companion
+- highest MGT living companion
 
 This is more readable and strategic than random for Emperor.
 
@@ -409,7 +409,7 @@ Example:
 or
 
 ```json
-{ "subject": "self", "value": { "status_stacks": "Empower:STR" }, "op": "gte", "threshold": 2 }
+{ "subject": "self", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 2 }
 ```
 
 ### Recommendation
@@ -421,7 +421,7 @@ This phase is important enough that it should happen before Chariot's full scrip
 - self has_status checks
 - self status_stacks checks
 - target status checks
-- interaction with stat-keyed statuses like `Empower:STR`
+- interaction with stat-keyed statuses like `Empower:MGT`
 
 ## Phase 7: Breakthrough Payoff Support
 
@@ -431,7 +431,7 @@ Status:
 
 ### Goal
 
-Support an attack that treats `Empower STR` as double for one ability.
+Support an attack that treats `Empower MGT` as double for one ability.
 
 ### Needed for
 
@@ -457,7 +457,7 @@ Cons:
 
 Add optional fields to physical-damage primitives:
 
-- `double_empower_stat: "str"`
+- `double_empower_stat: "mgt"`
 
 Pros:
 
@@ -476,8 +476,8 @@ This keeps the primitive library from exploding while still supporting notable p
 
 ### Tests
 
-- damage increases correctly with `Empower STR`
-- only `Empower STR` is doubled
+- damage increases correctly with `Empower MGT`
+- only `Empower MGT` is doubled
 - doubled empower applies only to that one ability
 
 ## Phase 8: Data Integration

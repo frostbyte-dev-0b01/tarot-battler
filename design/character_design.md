@@ -255,7 +255,7 @@ Role:
 Passive:
 
 - `Imperial Formation`
-  Allies in The Emperor's row gain `Empower STR 1` and `Empower INT 1`.
+  Allies in The Emperor's row gain `Empower MGT 1` and `Empower MAG 1`.
 
 Abilities:
 
@@ -264,7 +264,7 @@ Abilities:
 - `Command`
   One companion immediately makes a basic attack against the user's current target.
 - `Taunt`
-  Enemies with `STR > INT` change their target to the user.
+  Enemies with `MGT > MAG` change their target to the user.
 
 #### The Hierophant
 
@@ -277,7 +277,7 @@ Role:
 Passive:
 
 - `Sanctuary`
-  Allies in Hierophant's row gain `Empower WIS 1`.
+  Allies in Hierophant's row gain `Empower RES 1`.
 
 Abilities:
 
@@ -316,7 +316,7 @@ Pivot units create strategic ambiguity:
 
 Death is a strong candidate for a pivot design:
 
-- balanced `STR` and `INT`
+- balanced `MGT` and `MAG`
 - both physical and magical actives equipped
 - rules that choose damage lane based on defender profile
 - execute behavior once the target is low enough

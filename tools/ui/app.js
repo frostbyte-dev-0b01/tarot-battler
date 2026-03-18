@@ -83,7 +83,7 @@ const demoTeams = {
         id: "the_emperor",
         display_name: "The Emperor",
         position: { row: 0, col: 0 },
-        stats: { con: 10, str: 6, int: 4, for: 5, wis: 3, dex: 4, spi: 6 },
+        stats: { vit: 10, mgt: 6, mag: 4, arm: 5, res: 3, spd: 4, wil: 6 },
         passive: "Imperial Formation",
         actives: ["Hold the Line", "Command", "Taunt"],
         item: null,
@@ -102,7 +102,7 @@ const demoTeams = {
         id: "the_hierophant",
         display_name: "The Hierophant",
         position: { row: 0, col: 2 },
-        stats: { con: 11, str: 3, int: 7, for: 4, wis: 7, dex: 3, spi: 7 },
+        stats: { vit: 11, mgt: 3, mag: 7, arm: 4, res: 7, spd: 3, wil: 7 },
         passive: "Sanctuary",
         actives: ["Smite", "Consecrate", "Blessing"],
         item: null,
@@ -125,14 +125,14 @@ const demoTeams = {
         id: "the_chariot",
         display_name: "The Chariot",
         position: { row: 1, col: 1 },
-        stats: { con: 9, str: 8, int: 3, for: 4, wis: 3, dex: 6, spi: 5 },
+        stats: { vit: 9, mgt: 8, mag: 3, arm: 4, res: 3, spd: 6, wil: 5 },
         passive: "Pursuit",
         actives: ["Charge", "Withdraw", "Breakthrough"],
         item: null,
         rules: [
           {
             ability: "Breakthrough",
-            when: [{ subject: "self", value: { status_stacks: "Empower:STR" }, op: "gte", threshold: 3 }],
+            when: [{ subject: "self", value: { status_stacks: "Empower:MGT" }, op: "gte", threshold: 3 }],
           },
           {
             ability: "Charge",
@@ -154,7 +154,7 @@ const demoTeams = {
         id: "the_fool",
         display_name: "The Fool",
         position: { row: 0, col: 0 },
-        stats: { con: 7, str: 4, int: 4, for: 3, wis: 3, dex: 7, spi: 6 },
+        stats: { vit: 7, mgt: 4, mag: 4, arm: 3, res: 3, spd: 7, wil: 6 },
         passive: "",
         actives: [],
         item: null,
@@ -164,7 +164,7 @@ const demoTeams = {
         id: "the_magician",
         display_name: "The Magician",
         position: { row: 0, col: 1 },
-        stats: { con: 5, str: 3, int: 9, for: 2, wis: 5, dex: 6, spi: 6 },
+        stats: { vit: 5, mgt: 3, mag: 9, arm: 2, res: 5, spd: 6, wil: 6 },
         passive: "",
         actives: [],
         item: null,
@@ -174,7 +174,7 @@ const demoTeams = {
         id: "strength",
         display_name: "Strength",
         position: { row: 1, col: 1 },
-        stats: { con: 10, str: 7, int: 2, for: 6, wis: 5, dex: 4, spi: 5 },
+        stats: { vit: 10, mgt: 7, mag: 2, arm: 6, res: 5, spd: 4, wil: 5 },
         passive: "",
         actives: [],
         item: null,
@@ -868,7 +868,7 @@ function validateTeamConfig(candidate) {
 function validateTeamCharacters(characters, errors) {
   const seenIds = new Set();
   const seenPositions = new Set();
-  const requiredStats = ["con", "str", "int", "for", "wis", "dex", "spi"];
+  const requiredStats = ["vit", "mgt", "mag", "arm", "res", "spd", "wil"];
 
   characters.forEach((character, index) => {
     const prefix = `characters[${index}]`;
@@ -1113,7 +1113,7 @@ function renderCharacterEditor(teamKey, character, characterIndex) {
         </label>
       </div>
       <div class="editor-inline-grid">
-        ${["con", "str", "int", "for", "wis", "dex", "spi"].map((statKey) => `
+        ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((statKey) => `
           <label class="field-group">
             <span>${statKey.toUpperCase()}</span>
             <input type="number" data-stat-field="${statKey}" data-character-index="${characterIndex}" value="${character.stats?.[statKey] ?? 0}">
@@ -1170,7 +1170,7 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
       : isPlainObject(value) && typeof value.status_stacks === "string"
         ? "status_stacks"
         : String(value ?? "hp");
-  const statValue = valueType === "stat" ? value.stat : "con";
+  const statValue = valueType === "stat" ? value.stat : "vit";
   const statusValue =
     valueType === "has_status"
       ? value.has_status
@@ -1202,7 +1202,7 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
         <label class="field-group">
           <span>Stat</span>
           <select data-condition-field="value_stat" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
-            ${["con", "str", "int", "for", "wis", "dex", "spi"].map((option) => `<option value="${option}" ${statValue === option ? "selected" : ""}>${option}</option>`).join("")}
+            ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((option) => `<option value="${option}" ${statValue === option ? "selected" : ""}>${option}</option>`).join("")}
           </select>
         </label>
         <label class="field-group">
@@ -1302,11 +1302,11 @@ function handleTeamEditorInput(teamKey, event) {
       condition.subject = target.value;
     } else if (target.dataset.conditionField === "value_type") {
       if (target.value === "stat") {
-        condition.value = { stat: "con" };
+        condition.value = { stat: "vit" };
       } else if (target.value === "has_status") {
         condition.value = { has_status: "Ward" };
       } else if (target.value === "status_stacks") {
-        condition.value = { status_stacks: "Empower:STR" };
+        condition.value = { status_stacks: "Empower:MGT" };
       } else {
         condition.value = target.value;
       }
@@ -1381,7 +1381,7 @@ function createEmptyCharacter(index) {
     id: `new_character_${index + 1}`,
     display_name: "",
     position: { row: 0, col: 0 },
-    stats: { con: 5, str: 5, int: 5, for: 5, wis: 5, dex: 5, spi: 5 },
+    stats: { vit: 5, mgt: 5, mag: 5, arm: 5, res: 5, spd: 5, wil: 5 },
     passive: "",
     actives: ["", "", ""].filter(Boolean),
     item: null,
@@ -1778,7 +1778,7 @@ function renderInspector(character) {
 }
 
 function renderStatsBlock(label, stats) {
-  const statOrder = ["con", "str", "int", "for", "wis", "dex", "spi"];
+  const statOrder = ["vit", "mgt", "mag", "arm", "res", "spd", "wil"];
   const markup = statOrder.map((statKey) => `
     <dt>${statKey.toUpperCase()}</dt>
     <dd>${stats?.[statKey] ?? "-"}</dd>

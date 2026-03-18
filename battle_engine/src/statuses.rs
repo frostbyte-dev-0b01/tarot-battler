@@ -53,7 +53,7 @@ pub struct StatusInstance {
 }
 
 /// Build the HashMap key for a status. Stat-mod statuses include the stat
-/// (e.g., "Empower:STR"), others are just the name (e.g., "Bleed").
+/// (e.g., "Empower:MGT"), others are just the name (e.g., "Bleed").
 pub fn status_key(name: &str, stat: Option<&Stat>) -> String {
     match stat {
         Some(s) => format!("{}:{:?}", name, s),
@@ -61,8 +61,8 @@ pub fn status_key(name: &str, stat: Option<&Stat>) -> String {
     }
 }
 
-/// Given a status key like "Empower:STR" and an opposing name "Weaken",
-/// produce the opposite key "Weaken:STR". For keyless statuses, returns
+/// Given a status key like "Empower:MGT" and an opposing name "Weaken",
+/// produce the opposite key "Weaken:MGT". For keyless statuses, returns
 /// just the opposing name.
 pub fn opposite_key(key: &str, opposes: &str) -> String {
     match key.split_once(':') {

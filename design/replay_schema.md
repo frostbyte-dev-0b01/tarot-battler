@@ -77,13 +77,13 @@ cargo run -- --json-out path/to/replay.json
       "max_hp": 14,
       "max_mp": 4,
       "stats": {
-        "con": 7,
-        "str": 8,
-        "int": 3,
-        "for": 7,
-        "wis": 3,
-        "dex": 4,
-        "spi": 4
+        "vit": 7,
+        "mgt": 8,
+        "mag": 3,
+        "arm": 7,
+        "res": 3,
+        "spd": 4,
+        "wil": 4
       },
       "passive": "Authority",
       "actives": ["Crush", "Embolden"]
@@ -233,7 +233,7 @@ Example:
   "type": "status_removed",
   "source_id": "the_hermit",
   "target_id": "strength",
-  "status": "Empower:STR",
+  "status": "Empower:MGT",
   "stacks_removed": 1,
   "stacks_after": 0
 }

@@ -7,20 +7,20 @@ use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusInstance, oppo
 /// The current character attributes.
 #[derive(Hash, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Stat {
-    #[serde(rename = "con")]
-    CON, // Max HP = 2 * CON
-    #[serde(rename = "str")]
-    STR, // Base physical damage
-    #[serde(rename = "int")]
-    INT, // Base magical damage
-    #[serde(rename = "for")]
-    FOR, // Physical resistance
-    #[serde(rename = "wis")]
-    WIS, // Magical resistance
-    #[serde(rename = "dex")]
-    DEX, // Determines how often to act
-    #[serde(rename = "spi")]
-    SPI, // Spirit stat: max MP and MP regen
+    #[serde(rename = "vit")]
+    VIT, // Max HP = 2 * VIT
+    #[serde(rename = "mgt")]
+    MGT, // Base physical damage
+    #[serde(rename = "mag")]
+    MAG, // Base magical damage
+    #[serde(rename = "arm")]
+    ARM, // Physical resistance
+    #[serde(rename = "res")]
+    RES, // Magical resistance
+    #[serde(rename = "spd")]
+    SPD, // Determines how often to act
+    #[serde(rename = "wil")]
+    WIL, // Will stat: max MP and MP regen
 }
 
 /// Cell on the battle grid (rows 0-2, cols 0-3).
@@ -161,9 +161,9 @@ pub struct CharacterState {
 
 impl CharacterState {
     pub fn from_config(id: u32, config: &CharacterConfig) -> Self {
-        let hp = config.stats.get(&Stat::CON).copied().unwrap_or(0) * 2;
-        let mp = config.stats.get(&Stat::SPI).copied().unwrap_or(0);
-        let dex = config.stats.get(&Stat::DEX).copied().unwrap_or(0) as i32;
+        let hp = config.stats.get(&Stat::VIT).copied().unwrap_or(0) * 2;
+        let mp = config.stats.get(&Stat::WIL).copied().unwrap_or(0);
+        let dex = config.stats.get(&Stat::SPD).copied().unwrap_or(0) as i32;
         let max_ticks = 10 - dex;
         Self {
             id,
@@ -316,9 +316,9 @@ impl CharacterState {
         amount
     }
 
-    /// Heals up to max HP (2 * CON).
+    /// Heals up to max HP (2 * VIT).
     pub fn heal(&mut self, amount: u32) {
-        let max_hp = self.get_base_stat(&Stat::CON) * 2;
+        let max_hp = self.get_base_stat(&Stat::VIT) * 2;
         self.curr_hp = (self.curr_hp + amount).min(max_hp);
     }
 
@@ -336,9 +336,9 @@ impl CharacterState {
         }
     }
 
-    /// Restores up to base SPI, which determines max MP.
+    /// Restores up to base WIL, which determines max MP.
     pub fn restore_mp(&mut self, amount: u32) {
-        let max_mp = self.get_base_stat(&Stat::SPI);
+        let max_mp = self.get_base_stat(&Stat::WIL);
         self.curr_mp = (self.curr_mp + amount).min(max_mp);
     }
 
@@ -484,7 +484,7 @@ impl CharacterState {
 
     /// Apply a named status effect. Handles stacking, NoStack replacement,
     /// and Empower/Weaken cancellation. Rejects StatModPerStack targeting
-    /// pool stats (CON, DEX, SPI).
+    /// pool stats (VIT, SPD, WIL).
     pub fn add_status(
         &mut self,
         key: &str,
@@ -508,7 +508,7 @@ impl CharacterState {
         // Reject stat mods on pool stats
         if matches!(&def.behavior, StatusBehavior::StatModPerStack { .. }) {
             if let Some(ref s) = stat {
-                if matches!(s, Stat::CON | Stat::DEX | Stat::SPI) {
+                if matches!(s, Stat::VIT | Stat::SPD | Stat::WIL) {
                     return false;
                 }
             }
@@ -732,14 +732,14 @@ mod tests {
 
     #[test]
     fn from_config_sets_hp_to_twice_con() {
-        let config = make_config(vec![(Stat::CON, 10), (Stat::DEX, 5), (Stat::SPI, 3)]);
+        let config = make_config(vec![(Stat::VIT, 10), (Stat::SPD, 5), (Stat::WIL, 3)]);
         let state = CharacterState::from_config(0, &config);
         assert_eq!(state.current_hp(), 20);
     }
 
     #[test]
     fn from_config_copies_position() {
-        let mut config = make_config(vec![(Stat::CON, 5)]);
+        let mut config = make_config(vec![(Stat::VIT, 5)]);
         config.position = Position { row: 2, col: 3 };
         let state = CharacterState::from_config(0, &config);
         assert_eq!(state.position().row, 2);
@@ -748,7 +748,7 @@ mod tests {
 
     #[test]
     fn take_damage_saturates_at_zero() {
-        let config = make_config(vec![(Stat::CON, 5)]);
+        let config = make_config(vec![(Stat::VIT, 5)]);
         let mut state = CharacterState::from_config(0, &config);
         assert_eq!(state.current_hp(), 10);
         state.take_damage(100);
@@ -758,7 +758,7 @@ mod tests {
 
     #[test]
     fn heal_caps_at_max_hp() {
-        let config = make_config(vec![(Stat::CON, 5)]);
+        let config = make_config(vec![(Stat::VIT, 5)]);
         let mut state = CharacterState::from_config(0, &config);
         state.take_damage(3);
         assert_eq!(state.current_hp(), 7);
@@ -768,7 +768,7 @@ mod tests {
 
     #[test]
     fn spend_mp_fails_when_insufficient() {
-        let config = make_config(vec![(Stat::SPI, 5)]);
+        let config = make_config(vec![(Stat::WIL, 5)]);
         let mut state = CharacterState::from_config(0, &config);
         assert!(state.spend_mp(3));
         assert_eq!(state.current_mp(), 2);
@@ -778,7 +778,7 @@ mod tests {
 
     #[test]
     fn restore_mp_caps_at_base() {
-        let config = make_config(vec![(Stat::SPI, 10)]);
+        let config = make_config(vec![(Stat::WIL, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.spend_mp(8);
         state.restore_mp(100);
@@ -787,7 +787,7 @@ mod tests {
 
     #[test]
     fn ward_negates_next_hit_and_is_removed() {
-        let config = make_config(vec![(Stat::CON, 5)]);
+        let config = make_config(vec![(Stat::VIT, 5)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_status("Ward", 1, 99, &ward_def(), None);
 
@@ -798,7 +798,7 @@ mod tests {
 
     #[test]
     fn multiple_wards_consume_one_per_hit() {
-        let config = make_config(vec![(Stat::CON, 5)]);
+        let config = make_config(vec![(Stat::VIT, 5)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_status("Ward", 2, 99, &ward_def(), None);
 
@@ -812,7 +812,7 @@ mod tests {
 
     #[test]
     fn ward_does_not_negate_status_tick_damage() {
-        let config = make_config(vec![(Stat::CON, 10)]);
+        let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_status("Ward", 1, 99, &ward_def(), None);
         state.add_status("Bleed", 2, 99, &bleed_def(), None);
@@ -825,7 +825,7 @@ mod tests {
 
     #[test]
     fn speed_system_ticks_and_escalates() {
-        let config = make_config(vec![(Stat::DEX, 3)]);
+        let config = make_config(vec![(Stat::SPD, 3)]);
         let mut state = CharacterState::from_config(0, &config);
         for _ in 0..6 {
             assert!(!state.tick_speed());
@@ -845,7 +845,7 @@ mod tests {
 
     #[test]
     fn speed_system_clamps_high_dex_to_one_tick() {
-        let config = make_config(vec![(Stat::DEX, 12)]);
+        let config = make_config(vec![(Stat::SPD, 12)]);
         let mut state = CharacterState::from_config(0, &config);
 
         assert!(state.tick_speed());
@@ -858,44 +858,44 @@ mod tests {
 
     #[test]
     fn effective_stat_includes_empower() {
-        let config = make_config(vec![(Stat::STR, 10)]);
+        let config = make_config(vec![(Stat::MGT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
-        assert_eq!(state.get_eff_stat(&Stat::STR), 10);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 10);
 
-        let key = status_key("Empower", Some(&Stat::STR));
-        state.add_status(&key, 5, 99, &empower_def(), Some(Stat::STR));
-        assert_eq!(state.get_eff_stat(&Stat::STR), 15);
+        let key = status_key("Empower", Some(&Stat::MGT));
+        state.add_status(&key, 5, 99, &empower_def(), Some(Stat::MGT));
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 15);
     }
 
     #[test]
     fn doubled_empower_only_amplifies_empower_for_requested_stat() {
-        let config = make_config(vec![(Stat::STR, 10), (Stat::INT, 6)]);
+        let config = make_config(vec![(Stat::MGT, 10), (Stat::MAG, 6)]);
         let mut state = CharacterState::from_config(0, &config);
-        let str_key = status_key("Empower", Some(&Stat::STR));
-        let int_key = status_key("Empower", Some(&Stat::INT));
-        state.add_status(&str_key, 2, 99, &empower_def(), Some(Stat::STR));
-        state.add_status(&int_key, 3, 99, &empower_def(), Some(Stat::INT));
+        let str_key = status_key("Empower", Some(&Stat::MGT));
+        let int_key = status_key("Empower", Some(&Stat::MAG));
+        state.add_status(&str_key, 2, 99, &empower_def(), Some(Stat::MGT));
+        state.add_status(&int_key, 3, 99, &empower_def(), Some(Stat::MAG));
 
-        assert_eq!(state.get_eff_stat(&Stat::STR), 12);
-        assert_eq!(state.get_eff_stat_with_doubled_empower(&Stat::STR), 14);
-        assert_eq!(state.get_eff_stat_with_doubled_empower(&Stat::INT), 12);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 12);
+        assert_eq!(state.get_eff_stat_with_doubled_empower(&Stat::MGT), 14);
+        assert_eq!(state.get_eff_stat_with_doubled_empower(&Stat::MAG), 12);
     }
 
     #[test]
     fn effective_stat_floors_at_zero_with_weaken() {
-        let config = make_config(vec![(Stat::STR, 3)]);
+        let config = make_config(vec![(Stat::MGT, 3)]);
         let mut state = CharacterState::from_config(0, &config);
-        let key = status_key("Weaken", Some(&Stat::STR));
-        state.add_status(&key, 10, 99, &weaken_def(), Some(Stat::STR));
-        assert_eq!(state.get_eff_stat(&Stat::STR), 0);
+        let key = status_key("Weaken", Some(&Stat::MGT));
+        state.add_status(&key, 10, 99, &weaken_def(), Some(Stat::MGT));
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 0);
     }
 
     #[test]
     fn add_status_rejects_pool_stat_mods() {
-        let config = make_config(vec![(Stat::CON, 10), (Stat::DEX, 5), (Stat::SPI, 5)]);
+        let config = make_config(vec![(Stat::VIT, 10), (Stat::SPD, 5), (Stat::WIL, 5)]);
         let mut state = CharacterState::from_config(0, &config);
 
-        for stat in [Stat::CON, Stat::DEX, Stat::SPI] {
+        for stat in [Stat::VIT, Stat::SPD, Stat::WIL] {
             let key = status_key("Empower", Some(&stat));
             let result = state.add_status(&key, 3, 99, &empower_def(), Some(stat));
             assert!(!result);
@@ -905,16 +905,16 @@ mod tests {
 
     #[test]
     fn add_status_allows_non_pool_stat_mods() {
-        let config = make_config(vec![(Stat::STR, 10)]);
+        let config = make_config(vec![(Stat::MGT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
-        let key = status_key("Empower", Some(&Stat::STR));
-        assert!(state.add_status(&key, 3, 99, &empower_def(), Some(Stat::STR)));
+        let key = status_key("Empower", Some(&Stat::MGT));
+        assert!(state.add_status(&key, 3, 99, &empower_def(), Some(Stat::MGT)));
         assert_eq!(state.statuses().len(), 1);
     }
 
     #[test]
     fn tick_down_bleed_stacks_decay() {
-        let config = make_config(vec![(Stat::CON, 20)]);
+        let config = make_config(vec![(Stat::VIT, 20)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_status("Bleed", 3, 99, &bleed_def(), None);
 
@@ -941,7 +941,7 @@ mod tests {
 
     #[test]
     fn tick_down_additive_stacking() {
-        let config = make_config(vec![(Stat::CON, 50)]);
+        let config = make_config(vec![(Stat::VIT, 50)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_status("Bleed", 2, 99, &bleed_def(), None);
         state.add_status("Bleed", 3, 99, &bleed_def(), None);
@@ -950,7 +950,7 @@ mod tests {
 
     #[test]
     fn no_stack_replaces_with_higher() {
-        let config = make_config(vec![(Stat::CON, 10)]);
+        let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_status("Stun", 2, 99, &stun_def(), None);
         assert_eq!(state.status_stacks("Stun"), 2);
@@ -966,74 +966,74 @@ mod tests {
 
     #[test]
     fn empower_weaken_cancellation_partial() {
-        let config = make_config(vec![(Stat::STR, 10)]);
+        let config = make_config(vec![(Stat::MGT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
 
-        let emp_key = status_key("Empower", Some(&Stat::STR));
-        let weak_key = status_key("Weaken", Some(&Stat::STR));
+        let emp_key = status_key("Empower", Some(&Stat::MGT));
+        let weak_key = status_key("Weaken", Some(&Stat::MGT));
 
-        state.add_status(&emp_key, 3, 99, &empower_def(), Some(Stat::STR));
-        assert_eq!(state.get_eff_stat(&Stat::STR), 13);
+        state.add_status(&emp_key, 3, 99, &empower_def(), Some(Stat::MGT));
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 13);
 
-        // Apply 2 Weaken — cancels 2 Empower, leaving Empower:STR 1
-        state.add_status(&weak_key, 2, 99, &weaken_def(), Some(Stat::STR));
+        // Apply 2 Weaken — cancels 2 Empower, leaving Empower:MGT 1
+        state.add_status(&weak_key, 2, 99, &weaken_def(), Some(Stat::MGT));
         assert_eq!(state.status_stacks(&emp_key), 1);
         assert!(!state.has_status(&weak_key));
-        assert_eq!(state.get_eff_stat(&Stat::STR), 11);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 11);
     }
 
     #[test]
     fn empower_weaken_cancellation_overflow() {
-        let config = make_config(vec![(Stat::STR, 10)]);
+        let config = make_config(vec![(Stat::MGT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
 
-        let emp_key = status_key("Empower", Some(&Stat::STR));
-        let weak_key = status_key("Weaken", Some(&Stat::STR));
+        let emp_key = status_key("Empower", Some(&Stat::MGT));
+        let weak_key = status_key("Weaken", Some(&Stat::MGT));
 
-        state.add_status(&emp_key, 2, 99, &empower_def(), Some(Stat::STR));
+        state.add_status(&emp_key, 2, 99, &empower_def(), Some(Stat::MGT));
 
         // Apply 5 Weaken — cancels 2 Empower, leaves 3 Weaken
-        state.add_status(&weak_key, 5, 99, &weaken_def(), Some(Stat::STR));
+        state.add_status(&weak_key, 5, 99, &weaken_def(), Some(Stat::MGT));
         assert!(!state.has_status(&emp_key));
         assert_eq!(state.status_stacks(&weak_key), 3);
-        assert_eq!(state.get_eff_stat(&Stat::STR), 7);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 7);
     }
 
     #[test]
     fn multiple_stat_empower_simultaneously() {
-        let config = make_config(vec![(Stat::STR, 10), (Stat::FOR, 5)]);
+        let config = make_config(vec![(Stat::MGT, 10), (Stat::ARM, 5)]);
         let mut state = CharacterState::from_config(0, &config);
 
-        let str_key = status_key("Empower", Some(&Stat::STR));
-        let for_key = status_key("Empower", Some(&Stat::FOR));
+        let str_key = status_key("Empower", Some(&Stat::MGT));
+        let for_key = status_key("Empower", Some(&Stat::ARM));
 
-        state.add_status(&str_key, 3, 99, &empower_def(), Some(Stat::STR));
-        state.add_status(&for_key, 2, 99, &empower_def(), Some(Stat::FOR));
+        state.add_status(&str_key, 3, 99, &empower_def(), Some(Stat::MGT));
+        state.add_status(&for_key, 2, 99, &empower_def(), Some(Stat::ARM));
 
-        assert_eq!(state.get_eff_stat(&Stat::STR), 13);
-        assert_eq!(state.get_eff_stat(&Stat::FOR), 7);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 13);
+        assert_eq!(state.get_eff_stat(&Stat::ARM), 7);
     }
 
     #[test]
     fn permanent_status_never_decays() {
-        let config = make_config(vec![(Stat::FOR, 5)]);
+        let config = make_config(vec![(Stat::ARM, 5)]);
         let mut state = CharacterState::from_config(0, &config);
 
-        let key = status_key("Fortify", Some(&Stat::FOR));
-        state.add_status(&key, 2, 99, &fortify_def(), Some(Stat::FOR));
+        let key = status_key("Fortify", Some(&Stat::ARM));
+        state.add_status(&key, 2, 99, &fortify_def(), Some(Stat::ARM));
 
         state.tick_statuses();
         state.tick_statuses();
         state.tick_statuses();
 
         assert_eq!(state.status_stacks(&key), 2);
-        assert_eq!(state.get_eff_stat(&Stat::FOR), 7);
+        assert_eq!(state.get_eff_stat(&Stat::ARM), 7);
     }
 
     #[test]
     fn batch_resolve_bleed_and_regen_survive() {
         // 1 HP, 1 bleed (1 dmg), 3 regen (6 heal). Should survive.
-        let config = make_config(vec![(Stat::CON, 10)]);
+        let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.take_damage(19); // 1 HP
         assert_eq!(state.current_hp(), 1);
@@ -1049,7 +1049,7 @@ mod tests {
 
     #[test]
     fn is_incapacitated_with_stun() {
-        let config = make_config(vec![(Stat::CON, 10)]);
+        let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         assert!(!state.is_incapacitated());
 
@@ -1059,7 +1059,7 @@ mod tests {
 
     #[test]
     fn stun_is_consumed_when_action_is_skipped() {
-        let config = make_config(vec![(Stat::CON, 10)]);
+        let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_status("Stun", 1, 99, &stun_def(), None);
         assert!(state.is_incapacitated());
@@ -1073,23 +1073,23 @@ mod tests {
 
     #[test]
     fn empower_ticks_down() {
-        let config = make_config(vec![(Stat::STR, 10)]);
+        let config = make_config(vec![(Stat::MGT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
-        let key = status_key("Empower", Some(&Stat::STR));
-        state.add_status(&key, 3, 99, &empower_def(), Some(Stat::STR));
+        let key = status_key("Empower", Some(&Stat::MGT));
+        state.add_status(&key, 3, 99, &empower_def(), Some(Stat::MGT));
 
-        assert_eq!(state.get_eff_stat(&Stat::STR), 13);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 13);
         state.tick_statuses(); // 3→2
-        assert_eq!(state.get_eff_stat(&Stat::STR), 12);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 12);
         state.tick_statuses(); // 2→1
-        assert_eq!(state.get_eff_stat(&Stat::STR), 11);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 11);
         state.tick_statuses(); // 1→0, removed
-        assert_eq!(state.get_eff_stat(&Stat::STR), 10);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 10);
     }
 
     #[test]
     fn remove_status_partial() {
-        let config = make_config(vec![(Stat::CON, 10)]);
+        let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_status("Bleed", 5, 99, &bleed_def(), None);
         state.remove_status("Bleed", 2);
@@ -1098,7 +1098,7 @@ mod tests {
 
     #[test]
     fn remove_status_full() {
-        let config = make_config(vec![(Stat::CON, 10)]);
+        let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_status("Bleed", 3, 99, &bleed_def(), None);
         state.remove_status("Bleed", 5);
@@ -1130,7 +1130,7 @@ mod tests {
 
     #[test]
     fn mp_cost_reduction_sums_amounts() {
-        let config = make_config(vec![(Stat::SPI, 5)]);
+        let config = make_config(vec![(Stat::WIL, 5)]);
         let mut state = CharacterState::from_config(0, &config);
         assert_eq!(state.mp_cost_reduction(), 0);
 
@@ -1140,7 +1140,7 @@ mod tests {
 
     #[test]
     fn damage_reflect_sums_amounts() {
-        let config = make_config(vec![(Stat::CON, 10)]);
+        let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         assert_eq!(state.damage_reflect_amount(), 0);
 
@@ -1150,20 +1150,20 @@ mod tests {
 
     #[test]
     fn aura_stat_mod_trait_affects_effective_stat() {
-        let config = make_config(vec![(Stat::STR, 10)]);
+        let config = make_config(vec![(Stat::MGT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_trait(TraitEffect::AuraStatMod {
-            stat: Stat::STR,
+            stat: Stat::MGT,
             amount: 2,
         });
-        assert_eq!(state.get_eff_stat(&Stat::STR), 12);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 12);
         state.clear_aura_traits();
-        assert_eq!(state.get_eff_stat(&Stat::STR), 10);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 10);
     }
 
     #[test]
     fn debuff_resistance_negates_first_n_debuffs() {
-        let config = make_config(vec![(Stat::CON, 10), (Stat::STR, 10)]);
+        let config = make_config(vec![(Stat::VIT, 10), (Stat::MGT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_trait(TraitEffect::DebuffResistance { count: 2 });
 
@@ -1172,8 +1172,8 @@ mod tests {
         assert!(!state.has_status("Bleed"));
 
         // Second debuff: negated
-        let weak_key = status_key("Weaken", Some(&Stat::STR));
-        state.add_status(&weak_key, 2, 99, &weaken_def(), Some(Stat::STR));
+        let weak_key = status_key("Weaken", Some(&Stat::MGT));
+        state.add_status(&weak_key, 2, 99, &weaken_def(), Some(Stat::MGT));
         assert!(!state.has_status(&weak_key));
 
         // Third debuff: goes through
@@ -1183,13 +1183,13 @@ mod tests {
 
     #[test]
     fn debuff_resistance_allows_buffs_through() {
-        let config = make_config(vec![(Stat::CON, 10), (Stat::STR, 10)]);
+        let config = make_config(vec![(Stat::VIT, 10), (Stat::MGT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_trait(TraitEffect::DebuffResistance { count: 1 });
 
         // Buff should not consume a charge
-        let emp_key = status_key("Empower", Some(&Stat::STR));
-        state.add_status(&emp_key, 3, 99, &empower_def(), Some(Stat::STR));
+        let emp_key = status_key("Empower", Some(&Stat::MGT));
+        state.add_status(&emp_key, 3, 99, &empower_def(), Some(Stat::MGT));
         assert_eq!(state.status_stacks(&emp_key), 3);
 
         // Heal should not consume a charge
@@ -1207,7 +1207,7 @@ mod tests {
 
     #[test]
     fn debuff_resistance_blocks_stun() {
-        let config = make_config(vec![(Stat::CON, 10)]);
+        let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_trait(TraitEffect::DebuffResistance { count: 1 });
 

@@ -5,17 +5,17 @@ use rand::rngs::StdRng;
 use crate::models::{CharacterState, Stat};
 use crate::targeting::{OffensiveType, compute_offensive_type};
 
-/// Physical damage: max(STR - FOR, 1)
+/// Physical damage: max(MGT - ARM, 1)
 pub fn calc_physical_damage(attacker: &CharacterState, defender: &CharacterState) -> u32 {
-    let str_val = attacker.get_eff_stat(&Stat::STR) as i32;
-    let for_val = defender.get_eff_stat(&Stat::FOR) as i32;
+    let str_val = attacker.get_eff_stat(&Stat::MGT) as i32;
+    let for_val = defender.get_eff_stat(&Stat::ARM) as i32;
     (str_val - for_val).max(1) as u32
 }
 
-/// Magical damage: max(INT - WIS, 1)
+/// Magical damage: max(MAG - RES, 1)
 pub fn calc_magical_damage(attacker: &CharacterState, defender: &CharacterState) -> u32 {
-    let int_val = attacker.get_eff_stat(&Stat::INT) as i32;
-    let wis_val = defender.get_eff_stat(&Stat::WIS) as i32;
+    let int_val = attacker.get_eff_stat(&Stat::MAG) as i32;
+    let wis_val = defender.get_eff_stat(&Stat::RES) as i32;
     (int_val - wis_val).max(1) as u32
 }
 
@@ -54,47 +54,47 @@ mod tests {
 
     #[test]
     fn physical_damage_str_minus_for() {
-        let attacker = make_char(0, vec![(Stat::STR, 15)]);
-        let defender = make_char(1, vec![(Stat::FOR, 8)]);
+        let attacker = make_char(0, vec![(Stat::MGT, 15)]);
+        let defender = make_char(1, vec![(Stat::ARM, 8)]);
         assert_eq!(calc_physical_damage(&attacker, &defender), 7);
     }
 
     #[test]
     fn physical_damage_minimum_one() {
-        let attacker = make_char(0, vec![(Stat::STR, 3)]);
-        let defender = make_char(1, vec![(Stat::FOR, 20)]);
+        let attacker = make_char(0, vec![(Stat::MGT, 3)]);
+        let defender = make_char(1, vec![(Stat::ARM, 20)]);
         assert_eq!(calc_physical_damage(&attacker, &defender), 1);
     }
 
     #[test]
     fn magical_damage_int_minus_wis() {
-        let attacker = make_char(0, vec![(Stat::INT, 16)]);
-        let defender = make_char(1, vec![(Stat::WIS, 5)]);
+        let attacker = make_char(0, vec![(Stat::MAG, 16)]);
+        let defender = make_char(1, vec![(Stat::RES, 5)]);
         assert_eq!(calc_magical_damage(&attacker, &defender), 11);
     }
 
     #[test]
     fn magical_damage_minimum_one() {
-        let attacker = make_char(0, vec![(Stat::INT, 2)]);
-        let defender = make_char(1, vec![(Stat::WIS, 15)]);
+        let attacker = make_char(0, vec![(Stat::MAG, 2)]);
+        let defender = make_char(1, vec![(Stat::RES, 15)]);
         assert_eq!(calc_magical_damage(&attacker, &defender), 1);
     }
 
     #[test]
     fn basic_attack_uses_physical_when_str_higher() {
-        let attacker = make_char(0, vec![(Stat::STR, 15), (Stat::INT, 5)]);
-        let defender = make_char(1, vec![(Stat::FOR, 8), (Stat::WIS, 3)]);
+        let attacker = make_char(0, vec![(Stat::MGT, 15), (Stat::MAG, 5)]);
+        let defender = make_char(1, vec![(Stat::ARM, 8), (Stat::RES, 3)]);
         let mut rng = StdRng::seed_from_u64(0);
-        // STR > INT so physical: 15 - 8 = 7
+        // MGT > MAG so physical: 15 - 8 = 7
         assert_eq!(calc_basic_attack_damage(&attacker, &defender, &mut rng), 7);
     }
 
     #[test]
     fn basic_attack_uses_magical_when_int_higher() {
-        let attacker = make_char(0, vec![(Stat::STR, 4), (Stat::INT, 16)]);
-        let defender = make_char(1, vec![(Stat::FOR, 8), (Stat::WIS, 5)]);
+        let attacker = make_char(0, vec![(Stat::MGT, 4), (Stat::MAG, 16)]);
+        let defender = make_char(1, vec![(Stat::ARM, 8), (Stat::RES, 5)]);
         let mut rng = StdRng::seed_from_u64(0);
-        // INT > STR so magical: 16 - 5 = 11
+        // MAG > MGT so magical: 16 - 5 = 11
         assert_eq!(calc_basic_attack_damage(&attacker, &defender, &mut rng), 11);
     }
 }

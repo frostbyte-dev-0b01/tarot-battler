@@ -130,7 +130,7 @@ The first recommended filter is:
 
 Meaning:
 
-- units whose `STR > INT`
+- units whose `MGT > MAG`
 
 This is enough to support early taunt-style abilities without committing to a broader filtering system.
 

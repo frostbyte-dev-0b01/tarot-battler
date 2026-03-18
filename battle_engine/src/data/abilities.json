@@ -104,7 +104,7 @@
         "kind": "deal_physical_damage",
         "target": "current_target",
         "multiplier": 1.0,
-        "double_empower_stat": "str"
+        "double_empower_stat": "mgt"
       }
     ]
   }

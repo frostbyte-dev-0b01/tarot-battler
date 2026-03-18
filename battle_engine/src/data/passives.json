@@ -3,11 +3,11 @@
     "type": "row_aura",
     "effects": [
       {
-        "stat": "str",
+        "stat": "mgt",
         "amount": 1
       },
       {
-        "stat": "int",
+        "stat": "mag",
         "amount": 1
       }
     ]
@@ -16,7 +16,7 @@
     "type": "row_aura",
     "effects": [
       {
-        "stat": "wis",
+        "stat": "res",
         "amount": 1
       }
     ]
@@ -29,7 +29,7 @@
         "kind": "apply_status",
         "target": "self",
         "status": "Empower",
-        "stat": "str",
+        "stat": "mgt",
         "stacks": 1
       }
     ]
