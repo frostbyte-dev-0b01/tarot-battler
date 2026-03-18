@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusInstance, opposite_key};
+use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusInstance, opposite_key, status_key};
 
 /// The current character attributes.
 #[derive(Hash, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -237,6 +237,30 @@ impl CharacterState {
             .filter_map(|s| match &s.behavior {
                 StatusBehavior::StatModPerStack { magnitude } if s.stat.as_ref() == Some(stat) => {
                     Some(*magnitude * s.stacks as i32)
+                }
+                _ => None,
+            })
+            .sum();
+        (base + modifier).max(0) as u32
+    }
+
+    /// Returns the effective stat value while counting Empower on that stat twice.
+    pub fn get_eff_stat_with_doubled_empower(&self, stat: &Stat) -> u32 {
+        let base = self.get_base_stat(stat) as i32;
+        let empower_key = status_key("Empower", Some(stat));
+        let modifier: i32 = self
+            .statuses
+            .iter()
+            .filter_map(|(key, status)| match &status.behavior {
+                StatusBehavior::StatModPerStack { magnitude }
+                    if status.stat.as_ref() == Some(stat) =>
+                {
+                    let value = *magnitude * status.stacks as i32;
+                    if key == &empower_key && *magnitude > 0 {
+                        Some(value * 2)
+                    } else {
+                        Some(value)
+                    }
                 }
                 _ => None,
             })
@@ -814,6 +838,20 @@ mod tests {
         let key = status_key("Empower", Some(&Stat::STR));
         state.add_status(&key, 5, 99, &empower_def(), Some(Stat::STR));
         assert_eq!(state.get_eff_stat(&Stat::STR), 15);
+    }
+
+    #[test]
+    fn doubled_empower_only_amplifies_empower_for_requested_stat() {
+        let config = make_config(vec![(Stat::STR, 10), (Stat::INT, 6)]);
+        let mut state = CharacterState::from_config(0, &config);
+        let str_key = status_key("Empower", Some(&Stat::STR));
+        let int_key = status_key("Empower", Some(&Stat::INT));
+        state.add_status(&str_key, 2, 99, &empower_def(), Some(Stat::STR));
+        state.add_status(&int_key, 3, 99, &empower_def(), Some(Stat::INT));
+
+        assert_eq!(state.get_eff_stat(&Stat::STR), 12);
+        assert_eq!(state.get_eff_stat_with_doubled_empower(&Stat::STR), 14);
+        assert_eq!(state.get_eff_stat_with_doubled_empower(&Stat::INT), 12);
     }
 
     #[test]

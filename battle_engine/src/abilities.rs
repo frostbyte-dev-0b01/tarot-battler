@@ -129,6 +129,8 @@ pub enum Primitive {
     DealPhysicalDamage {
         target: AbilityTarget,
         multiplier: f64,
+        #[serde(default)]
+        double_empower_stat: Option<Stat>,
     },
     DealMagicalDamage {
         target: AbilityTarget,
@@ -270,12 +272,19 @@ pub fn execute_primitives(
     let actor_id = actor_team[actor_idx].id();
 
     // Pre-compute actor offensive stats for damage calculation
-    let actor_str = actor_team[actor_idx].get_eff_stat(&Stat::STR);
     let actor_int = actor_team[actor_idx].get_eff_stat(&Stat::INT);
 
     for primitive in primitives {
         match primitive {
-            Primitive::DealPhysicalDamage { target, multiplier } => {
+            Primitive::DealPhysicalDamage {
+                target,
+                multiplier,
+                double_empower_stat,
+            } => {
+                let actor_str = match double_empower_stat {
+                    Some(Stat::STR) => actor_team[actor_idx].get_eff_stat_with_doubled_empower(&Stat::STR),
+                    _ => actor_team[actor_idx].get_eff_stat(&Stat::STR),
+                };
                 let target_indices =
                     resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
                 for tidx in target_indices {
@@ -1038,6 +1047,7 @@ mod tests {
             primitives: vec![Primitive::DealPhysicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
                 multiplier: 1.5,
+                double_empower_stat: None,
             }],
         };
 
@@ -1329,6 +1339,7 @@ mod tests {
             primitives: vec![Primitive::DealPhysicalDamage {
                 target: SimpleAbilityTarget::AllEnemies.into(),
                 multiplier: 1.0,
+                double_empower_stat: None,
             }],
         };
 
@@ -1451,6 +1462,7 @@ mod tests {
                     bypass_row_protection: true,
                 }),
                 multiplier: 1.0,
+                double_empower_stat: None,
             }],
         };
 
@@ -1495,6 +1507,7 @@ mod tests {
                     bypass_row_protection: false,
                 }),
                 multiplier: 1.0,
+                double_empower_stat: None,
             }],
         };
 
@@ -1793,6 +1806,7 @@ mod tests {
             primitives: vec![Primitive::DealPhysicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
                 multiplier: 1.5,
+                double_empower_stat: None,
             }],
         };
 
@@ -1849,6 +1863,70 @@ mod tests {
         assert_eq!(dealt[0].damage, 0);
         assert_eq!(enemy_team[0].current_hp(), 40);
         assert_eq!(enemy_team[0].status_stacks("Ward"), 0);
+    }
+
+    #[test]
+    fn doubled_empower_stat_increases_only_the_flagged_attack() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(
+            0,
+            vec![(Stat::STR, 10), (Stat::INT, 8), (Stat::CON, 10), (Stat::SPI, 5)],
+        )];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::FOR, 4), (Stat::WIS, 4), (Stat::CON, 20)])];
+        actor_team[0].set_target(1);
+        actor_team[0].add_status(
+            &status_key("Empower", Some(&Stat::STR)),
+            2,
+            99,
+            statuses.get("Empower").unwrap(),
+            Some(Stat::STR),
+        );
+
+        let normal = AbilityDef {
+            mp_cost: 2,
+            primitives: vec![Primitive::DealPhysicalDamage {
+                target: SimpleAbilityTarget::CurrentTarget.into(),
+                multiplier: 1.0,
+                double_empower_stat: None,
+            }],
+        };
+        let payoff = AbilityDef {
+            mp_cost: 2,
+            primitives: vec![Primitive::DealPhysicalDamage {
+                target: SimpleAbilityTarget::CurrentTarget.into(),
+                multiplier: 1.0,
+                double_empower_stat: Some(Stat::STR),
+            }],
+        };
+
+        let normal_dealt = execute_ability(
+            0,
+            "Charge",
+            &normal,
+            &mut actor_team.clone(),
+            &mut enemy_team.clone(),
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        let payoff_dealt = execute_ability(
+            0,
+            "Breakthrough",
+            &payoff,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        assert_eq!(normal_dealt[0].damage, 8);
+        assert_eq!(payoff_dealt[0].damage, 10);
     }
 
     #[test]

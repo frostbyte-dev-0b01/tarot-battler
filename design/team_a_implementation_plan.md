@@ -419,6 +419,10 @@ This phase is important enough that it should happen before Chariot's full scrip
 
 ## Phase 7: Breakthrough Payoff Support
 
+Status:
+
+- implemented
+
 ### Goal
 
 Support an attack that treats `Empower STR` as double for one ability.

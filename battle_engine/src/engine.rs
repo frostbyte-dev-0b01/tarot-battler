@@ -1525,6 +1525,7 @@ mod tests {
             primitives: vec![Primitive::DealPhysicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
                 multiplier: 1.5,
+                double_empower_stat: None,
             }],
         }
     }
@@ -2471,6 +2472,7 @@ mod tests {
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
+                    double_empower_stat: None,
                 }],
             },
         );
@@ -2990,6 +2992,7 @@ mod tests {
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
+                    double_empower_stat: None,
                 }],
             },
         );
@@ -3060,6 +3063,7 @@ mod tests {
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
+                    double_empower_stat: None,
                 }],
             },
         );
@@ -3149,6 +3153,7 @@ mod tests {
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
+                    double_empower_stat: None,
                 }],
             },
         );
@@ -3235,6 +3240,7 @@ mod tests {
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 0.5,
+                    double_empower_stat: None,
                 }],
             },
         );
