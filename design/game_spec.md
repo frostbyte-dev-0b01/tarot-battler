@@ -63,6 +63,8 @@ The current intended base stat set is:
 
 Stat names and exact effects are still somewhat provisional, but this is the intended v1 structure.
 
+Conceptually, the long-term design likely lands on much larger total stat budgets than the current prototype, with each character having a fixed base spread plus a smaller flexible adjustment budget. Those larger totals are a balance target, not a current engine requirement.
+
 ### Derived Resources
 
 - `HP` = `2 * CON`
@@ -289,6 +291,8 @@ Abilities are currently modeled as:
 
 Most abilities should be expressible through data-driven primitives. Unique one-off handlers are acceptable for especially distinct signature abilities.
 
+Each ability should be impactful and notable in its own right. Filler actions that are only "deal ordinary damage with a slightly different multiplier" should be kept rare. The main reason to add abilities is to create team-building depth, role shifts, or tactical interaction.
+
 ### Ability Primitives
 
 The current primitive families are:
@@ -305,20 +309,59 @@ This list can expand as the game's tactical needs become clearer.
 
 ## Damage and Defense
 
-Current intended baseline formulas:
+Current intended formulas:
 
-- physical damage: `max(STR - FOR, 1)`
-- magical damage: `max(INT - WIS, 1)`
+- physical damage: `max(STR * multiplier - FOR, 1)`
+- magical damage: `max(INT * multiplier - WIS, 1)`
+- omen damage: current stacks as true damage, with no mitigation
+- lethality: flat damage added after normal damage resolution, bypassing `FOR` and `WIS`
 
-Abilities can scale these formulas up, down, or transform them with custom logic.
+### Damage Resolution Order
+
+For a normal physical or magical hit:
+
+1. calculate effective `STR` or `INT`, including active Fortify or Weaken stacks
+2. apply the ability multiplier
+3. subtract `FOR` or `WIS`
+4. apply the `max(result, 1)` floor
+5. add any `Lethality` stacks flat
+6. apply the result to target HP
+
+`Omen` resolves separately at start of turn before the character acts.
+
+### Common Ability Multipliers
+
+These are intended balancing anchors, not hard-coded categories:
+
+- weak tap: around `0.7x`
+- standard attack: `1.0x`
+- strong attack: around `1.5x`
+- heavy attack: around `2.0x`
+- AOE per target: around `0.5x` to `0.7x`
+- execute: around `2.0x` to `2.5x`, usually conditional
+
+Multipliers apply before defense subtraction. This means offensive Fortify and Weaken effects on `STR` or `INT` naturally scale ability damage up or down.
 
 ## Status and Effect System
 
-Statuses are a core team-building axis, but the final status vocabulary should be more tarot-specific than the current prototype.
+Statuses are a core team-building axis, and the intended vocabulary should support archetypes and payoff patterns rather than only generic RPG effects.
 
-### Current Prototype Direction
+### Official Status Direction
 
-The current implementation uses familiar effects such as:
+The current intended core effect families are:
+
+- `Fortify(stat)` — positive stack-based modifier to `STR`, `INT`, `FOR`, or `WIS`
+- `Weaken(stat)` — negative stack-based modifier to `STR`, `INT`, `FOR`, or `WIS`
+- `Lethality` — flat post-mitigation bonus damage on the attacker
+- `Omen` — true-damage setup effect that triggers at start of turn
+- `Regen` — HP restoration over time
+- `Stunned` — skips the next action
+
+`Omen` is the official name for the intended true-damage setup effect.
+
+### Current Engine Prototype
+
+The current implementation still uses familiar effects such as:
 
 - `Bleed`
 - `Poison`
@@ -326,7 +369,7 @@ The current implementation uses familiar effects such as:
 - stat buffs and debuffs
 - `Stun`
 
-This is acceptable for prototyping, but not assumed to be the final thematic vocabulary.
+`Bleed` and `Poison` should currently be treated as engine placeholders for a more thematic future status model, with `Omen` being the intended design direction.
 
 ### Intended Design Direction
 
@@ -336,24 +379,33 @@ Statuses should:
 - support tactical archetypes rather than only generic damage over time
 - create interactions such as payoff, conversion, cleansing, dispelling, transfer, or detonation
 
-Good long-term status families will likely include:
-
-- pressure or burden effects
-- omen or setup effects
-- ward or protection effects
-- blessing or radiance effects
-- escalation or momentum effects
-
 ### Stacking and Duration
 
-The current intended effect model includes:
+The intended effect model includes:
 
 - stackable timed effects
 - non-stackable effects that refresh or overwrite
 - permanent effects that persist until removed
-- opposing effects that cancel each other out
+- opposing effects that cancel each other out on application
 
-Exact final status vocabulary is still open, but the engine should support these interaction patterns.
+### Decay Model
+
+For timed stacked effects, the intended default decay behavior is:
+
+- halve stacks at the appropriate resolution point
+- round down
+- remove the effect when stacks reach `0`
+
+This creates a self-limiting equilibrium when the same effect is applied repeatedly.
+
+Current intended timing:
+
+- start of turn: `Omen` deals damage, then halves
+- start of turn: `Regen` heals, then halves
+- end of turn: `Fortify`, `Weaken`, and `Lethality` halve
+- `Stunned` is removed after it successfully denies an action
+
+The older prototype tick-down-by-1 behavior is an implementation detail, not the intended long-term design.
 
 ## Passives and Traits
 
@@ -384,6 +436,65 @@ Examples:
 - damage reflection
 - row-bypass permission
 - target redirection
+
+## Items and Build Depth
+
+Build depth should come from two complementary systems:
+
+- character-specific identity through stat allocation and ability thresholds
+- flexible external identity through items
+
+### Ability Threshold Unlocks
+
+Abilities may gain one secondary unlock when a less-obvious secondary stat crosses a threshold.
+
+Design rules:
+
+- the base ability must be competitive without the unlock
+- the threshold stat should not be the obvious primary stat for that role
+- the unlock should shift character identity rather than only adding raw efficiency
+- thresholds should live in the upper third of the reachable range, so they require real investment
+
+Examples:
+
+- `Crush`: high `CON` could add self-healing, turning it toward bruiser play
+- `Execute`: high `DEX` could grant a follow-up turn if it kills, turning it toward assassin play
+- `Taunt`: high `INT` could also Weaken enemy `INT`, turning it toward a hexblade/control angle
+- `Embolden`: high `STR` could also grant `Fortify STR`, turning it toward battle support
+
+### Items
+
+Each character equips one item.
+
+Items combine:
+
+- stat bonuses
+- a passive effect
+- a seasonal price
+
+Items should act as identity packages rather than generic efficiency bundles.
+
+Examples of intended item identities:
+
+- gap exploiters
+- durable battlemages
+- vengeance tanks
+- omen accelerators
+
+Item prices are expected to shift with seasonal popularity and performance, creating budget pressure and meta-based tradeoffs.
+
+### Effective Stats
+
+Rule conditions check effective stats during battle.
+
+Effective stats include:
+
+- base stats
+- allocated adjustment points
+- item bonuses
+- active Fortify and Weaken stacks
+
+The team builder and inspection tools should make effective stats legible so rule scripting remains understandable.
 
 ## Stun and Turn Denial
 
@@ -417,8 +528,7 @@ These are intentionally not locked in yet:
 
 - final stat names and exact stat tuning
 - final MP regeneration rate
-- final status vocabulary
-- exact item system
+- exact item pricing and budget rules
 - field effects
 - reversed character mode
 - pricing formula details

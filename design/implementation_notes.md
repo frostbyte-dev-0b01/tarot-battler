@@ -25,7 +25,14 @@ The current prototype still uses familiar RPG effects such as:
 - `Enfeeble`
 - `Stun`
 
-This is useful for prototyping, but the long-term intent is to migrate toward more tarot-specific status families.
+This is useful for prototyping, but the intended design direction is now:
+
+- `Omen` as the official true-damage setup effect
+- `Lethality` as a post-mitigation offensive stack
+- `Fortify` / `Weaken` as the main offensive and defensive stat-mod families
+- `Regen` and `Stunned` as the main sustain and turn-denial effects
+
+`Bleed` and `Poison` should currently be treated as implementation placeholders so the design docs and engine behavior do not get confused.
 
 ### Stat Naming
 
@@ -64,6 +71,7 @@ These are real design questions but not yet settled enough to be part of the cor
 - exact stat point budgets and adjustment caps
 - exact team point budget size
 - season-to-season pricing formula
+- the exact long-term numeric stat scale, even though the likely direction is much larger totals than the current prototype
 
 ## Future Design Ideas
 
@@ -110,6 +118,7 @@ Potential long-term direction:
 
 - replace generic DOTs and generic buff names with tarot-flavored effect families
 - ensure status families create tactical ecosystems, not just passive penalties
+- keep permanent and non-stacking effects where useful, but migrate timed stack decay away from tick-down-by-1 toward halving decay
 
 Possible effect families include:
 
@@ -118,6 +127,7 @@ Possible effect families include:
 - ward or protection
 - blessing or radiance
 - momentum or escalation
+- lethality or finishing pressure
 
 ### Field Effects
 
@@ -156,6 +166,17 @@ Useful spaces to explore later:
 - move while attacking
 - sweep an entire row
 - ignore row protection to hit the lowest HP enemy
+
+### UI / Tooling Implications
+
+Because rules use effective stats, the team builder and replay inspection tools should eventually show:
+
+- base stats
+- item bonuses
+- live Fortify and Weaken effects
+- resulting effective stat totals
+
+This is especially important once threshold unlocks and item-based identity shifts are in the main design.
 
 ## Consolidated Source of Truth
 

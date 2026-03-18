@@ -200,6 +200,44 @@ Pivot units should trade peak efficiency for flexibility.
 
 They should not be the best specialist in both lanes.
 
+## Build Systems
+
+Two complementary systems should drive deeper character building:
+
+- character-specific threshold unlocks
+- seasonally priced items
+
+### Threshold Unlocks
+
+Threshold unlocks are internal identity shifts.
+
+An ability can gain one secondary effect when a less-related stat crosses a threshold. This should reward deliberate investment rather than automatic optimization.
+
+Strong threshold design rules:
+
+- the base ability must stand on its own
+- the threshold stat should create a role shift, not just reinforce the obvious main stat
+- the unlock should change how the character is built or used
+
+This helps turn one kit into multiple legitimate build paths.
+
+### Items as Identity Packages
+
+Items are external identity shifts.
+
+Each item should combine:
+
+- stat bonuses
+- one defining passive
+- seasonal price pressure
+
+Items should let different characters express different versions of the same item. A good item is not just raw value; it changes what a character is good at or what matchup it answers.
+
+Together, threshold unlocks and items create two distinct axes:
+
+- how deeply a player invests in a character's specific identity
+- what external tool best complements that role in the current meta
+
 ## Current Team Drafts
 
 These are the current working character-kit drafts for the first small-scale 3v3 prototype.
@@ -329,6 +367,8 @@ Useful status functions:
 - escalation
 - conversion fuel
 - control
+- post-mitigation bonus damage
+- start-of-turn true-damage pressure
 
 Strong status ecosystems allow characters to:
 
