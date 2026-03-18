@@ -265,6 +265,18 @@ Example:
 }
 ```
 
+### `retargeted`
+
+```json
+{
+  "tick": 10,
+  "type": "retargeted",
+  "actor_id": "the_fool",
+  "new_target_id": "the_emperor",
+  "mode": "to_self"
+}
+```
+
 ### `passive_triggered`
 
 ```json

@@ -43,10 +43,10 @@ Either approach is acceptable. Tabs are likely cleaner once the page grows.
 
 The recommended replay layout is:
 
-- left column: inspector panel
-- center: battle board
-- bottom: playback controls
-- right column: event timeline
+- top: replay load controls and current-event summary
+- full-width board row
+- lower detail row with inspector and event timeline
+- bottom: raw replay JSON, metadata, and validation
 
 The recommended team builder layout is:
 
@@ -144,6 +144,8 @@ The timeline should support at least:
 
 The timeline should remain readable even when many events happen on the same tick, so it should group or visually label events by tick.
 
+The viewer should also render replay events for movement and retargeting in both the timeline and the current-event summary.
+
 ## Team Builder
 
 ### Team Editor
@@ -196,6 +198,7 @@ A condition editor should support:
 - subject
 - value type
 - stat selector when relevant
+- status selector when relevant
 - operator
 - threshold
 
@@ -254,6 +257,12 @@ Current engine loop:
 2. engine writes `tools/ui/sample-data/latest_replay.json`
 3. replay viewer loads that file by default on page open
 4. `Load Latest Replay` re-fetches it on demand
+
+Current sample-team loop:
+
+1. click `Load Sample Team` in either team panel
+2. edit the structured team form or raw JSON
+3. export the team JSON for the engine
 
 ## Recommended File Structure
 

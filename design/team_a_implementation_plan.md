@@ -654,6 +654,10 @@ Current bundled sample note:
 
 ## Phase 10: Replay and UI Support
 
+Status:
+
+- implemented
+
 ### Goal
 
 Ensure the replay viewer and team builder expose the new mechanics clearly.
@@ -668,6 +672,12 @@ Ensure the replay viewer and team builder expose the new mechanics clearly.
 ### Recommendation
 
 Movement events are likely worth logging explicitly. Retarget changes should at least be visible in text replay even if not yet visualized on the board.
+
+Implemented result:
+
+- replay JSON already includes `moved` and `retargeted` events
+- the dev UI now applies and displays those events in the board state, inspector, current-event summary, and timeline
+- built-in sample teams in the dev UI now match the bundled Team A / Team B sample lineup
 
 ## Recommended Implementation Order
 

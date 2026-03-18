@@ -83,23 +83,98 @@ const demoTeams = {
         id: "the_emperor",
         display_name: "The Emperor",
         position: { row: 0, col: 0 },
-        stats: { con: 7, str: 8, int: 3, for: 7, wis: 3, dex: 4, spi: 4 },
-        passive: "",
-        actives: [],
+        stats: { con: 10, str: 6, int: 4, for: 5, wis: 3, dex: 4, spi: 6 },
+        passive: "Imperial Formation",
+        actives: ["Hold the Line", "Command", "Taunt"],
         item: null,
-        rules: [],
+        rules: [
+          {
+            ability: "Hold the Line",
+            when: [{ subject: "world", value: "tick_count", op: "lte", threshold: 1 }],
+          },
+          {
+            ability: "Taunt",
+            when: [{ subject: "world", value: "tick_count", op: "lte", threshold: 3 }],
+          },
+        ],
+      },
+      {
+        id: "the_hierophant",
+        display_name: "The Hierophant",
+        position: { row: 0, col: 2 },
+        stats: { con: 11, str: 3, int: 7, for: 4, wis: 7, dex: 3, spi: 7 },
+        passive: "Sanctuary",
+        actives: ["Smite", "Consecrate", "Blessing"],
+        item: null,
+        rules: [
+          {
+            ability: "Blessing",
+            when: [{ subject: "world", value: "tick_count", op: "lte", threshold: 2 }],
+          },
+          {
+            ability: "Consecrate",
+            when: [{ subject: "world", value: "enemy_count", op: "gte", threshold: 2 }],
+          },
+          {
+            ability: "Smite",
+            when: [],
+          },
+        ],
+      },
+      {
+        id: "the_chariot",
+        display_name: "The Chariot",
+        position: { row: 1, col: 1 },
+        stats: { con: 9, str: 8, int: 3, for: 4, wis: 3, dex: 6, spi: 5 },
+        passive: "Pursuit",
+        actives: ["Charge", "Withdraw", "Breakthrough"],
+        item: null,
+        rules: [
+          {
+            ability: "Breakthrough",
+            when: [{ subject: "self", value: { status_stacks: "Empower:STR" }, op: "gte", threshold: 3 }],
+          },
+          {
+            ability: "Charge",
+            when: [{ subject: "world", value: "tick_count", op: "lte", threshold: 1 }],
+          },
+          {
+            ability: "Withdraw",
+            when: [{ subject: "self", value: { has_status: "Ward" }, op: "gte", threshold: 1 }],
+          },
+        ],
       },
     ],
   },
   team_b: {
     version: 1,
-    name: "Arcane Gambit",
+    name: "Trial Opposition",
     characters: [
       {
-        id: "the_star",
-        display_name: "The Star",
-        position: { row: 2, col: 1 },
-        stats: { con: 5, str: 2, int: 6, for: 3, wis: 7, dex: 3, spi: 6 },
+        id: "the_fool",
+        display_name: "The Fool",
+        position: { row: 0, col: 0 },
+        stats: { con: 7, str: 4, int: 4, for: 3, wis: 3, dex: 7, spi: 6 },
+        passive: "",
+        actives: [],
+        item: null,
+        rules: [],
+      },
+      {
+        id: "the_magician",
+        display_name: "The Magician",
+        position: { row: 0, col: 1 },
+        stats: { con: 5, str: 3, int: 9, for: 2, wis: 5, dex: 6, spi: 6 },
+        passive: "",
+        actives: [],
+        item: null,
+        rules: [],
+      },
+      {
+        id: "strength",
+        display_name: "Strength",
+        position: { row: 1, col: 1 },
+        stats: { con: 10, str: 7, int: 2, for: 6, wis: 5, dex: 4, spi: 5 },
         passive: "",
         actives: [],
         item: null,
@@ -1088,8 +1163,20 @@ function renderRuleEditor(teamKey, characterIndex, rule, ruleIndex) {
 
 function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIndex) {
   const value = condition.value;
-  const valueType = isPlainObject(value) && typeof value.stat === "string" ? "stat" : String(value ?? "hp");
+  const valueType = isPlainObject(value) && typeof value.stat === "string"
+    ? "stat"
+    : isPlainObject(value) && typeof value.has_status === "string"
+      ? "has_status"
+      : isPlainObject(value) && typeof value.status_stacks === "string"
+        ? "status_stacks"
+        : String(value ?? "hp");
   const statValue = valueType === "stat" ? value.stat : "con";
+  const statusValue =
+    valueType === "has_status"
+      ? value.has_status
+      : valueType === "status_stacks"
+        ? value.status_stacks
+        : "Ward";
 
   return `
     <div class="editor-card">
@@ -1109,7 +1196,7 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
         <label class="field-group">
           <span>Value</span>
           <select data-condition-field="value_type" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
-            ${["hp", "mp", "use_count", "turns_since_use", "tick_count", "ally_count", "enemy_count", "stat"].map((option) => `<option value="${option}" ${valueType === option ? "selected" : ""}>${option}</option>`).join("")}
+            ${["hp", "mp", "use_count", "turns_since_use", "tick_count", "ally_count", "enemy_count", "stat", "has_status", "status_stacks"].map((option) => `<option value="${option}" ${valueType === option ? "selected" : ""}>${option}</option>`).join("")}
           </select>
         </label>
         <label class="field-group">
@@ -1117,6 +1204,10 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
           <select data-condition-field="value_stat" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
             ${["con", "str", "int", "for", "wis", "dex", "spi"].map((option) => `<option value="${option}" ${statValue === option ? "selected" : ""}>${option}</option>`).join("")}
           </select>
+        </label>
+        <label class="field-group">
+          <span>Status</span>
+          <input type="text" data-condition-field="value_status" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}" value="${escapeHtml(statusValue)}">
         </label>
         <label class="field-group">
           <span>Operator</span>
@@ -1210,9 +1301,23 @@ function handleTeamEditorInput(teamKey, event) {
     if (target.dataset.conditionField === "subject") {
       condition.subject = target.value;
     } else if (target.dataset.conditionField === "value_type") {
-      condition.value = target.value === "stat" ? { stat: "con" } : target.value;
+      if (target.value === "stat") {
+        condition.value = { stat: "con" };
+      } else if (target.value === "has_status") {
+        condition.value = { has_status: "Ward" };
+      } else if (target.value === "status_stacks") {
+        condition.value = { status_stacks: "Empower:STR" };
+      } else {
+        condition.value = target.value;
+      }
     } else if (target.dataset.conditionField === "value_stat") {
       condition.value = { stat: target.value };
+    } else if (target.dataset.conditionField === "value_status") {
+      if (isPlainObject(condition.value) && typeof condition.value.has_status === "string") {
+        condition.value = { has_status: target.value };
+      } else {
+        condition.value = { status_stacks: target.value };
+      }
     } else if (target.dataset.conditionField === "op") {
       condition.op = target.value;
       delete condition.comparator;
@@ -1379,6 +1484,7 @@ function createCharacterState(character, teamKey) {
     current_mp: Number(character.max_mp) || 0,
     alive: true,
     statuses: {},
+    current_target_id: null,
   };
 }
 
@@ -1422,6 +1528,12 @@ function applyReplayEvent(characterIndex, event) {
       return;
     case "status_tick":
       applyStatusTickEvent(characterIndex, event);
+      return;
+    case "retargeted":
+      applyRetargetEvent(characterIndex, event);
+      return;
+    case "moved":
+      applyMovedEvent(characterIndex, event);
       return;
     case "resource_changed":
       applyResourceChangeEvent(characterIndex, event);
@@ -1567,6 +1679,29 @@ function applyResourceChangeEvent(characterIndex, event) {
   }
 }
 
+function applyRetargetEvent(characterIndex, event) {
+  const character = characterIndex.get(event.actor_id);
+  if (!character) {
+    return;
+  }
+
+  character.current_target_id = typeof event.new_target_id === "string" ? event.new_target_id : null;
+}
+
+function applyMovedEvent(characterIndex, event) {
+  const character = characterIndex.get(event.actor_id);
+  if (!character) {
+    return;
+  }
+
+  if (typeof event.to_row === "number") {
+    character.position.row = event.to_row;
+  }
+  if (typeof event.to_col === "number") {
+    character.position.col = event.to_col;
+  }
+}
+
 function applyDefeatEvent(characterIndex, event) {
   const character = characterIndex.get(event.actor_id);
   if (!character) {
@@ -1600,6 +1735,7 @@ function renderInspector(character) {
   const statusMarkup = renderStatusList(character.statuses);
   const activeMarkup = (character.actives ?? []).map((active) => `<span>${escapeHtml(active)}</span>`).join("");
   const aliveLabel = character.alive ? "Alive" : "Defeated";
+  const targetLabel = character.current_target_id ? escapeHtml(character.current_target_id) : "No sticky target tracked";
 
   inspectorPanel.innerHTML = `
     <div class="inspector-header">
@@ -1626,6 +1762,10 @@ function renderInspector(character) {
     <section class="inspector-section">
       <h5>Statuses</h5>
       <div class="status-list">${statusMarkup}</div>
+    </section>
+    <section class="inspector-section">
+      <h5>Target</h5>
+      <div class="pill-list"><span>${targetLabel}</span></div>
     </section>
     <section class="inspector-section">
       <h5>Stats</h5>
@@ -1703,6 +1843,7 @@ function shouldRenderTimelineEvent(event) {
       event.actor_id,
       event.source_id,
       event.target_id,
+      event.new_target_id,
     ].filter(Boolean);
 
     return eventCharacters.includes(appState.selectedCharacterId);
@@ -1722,6 +1863,8 @@ function isMajorEvent(type) {
     "status_tick",
     "passive_triggered",
     "turn_skipped",
+    "retargeted",
+    "moved",
     "defeat",
     "battle_end",
   ].includes(type);
@@ -1757,6 +1900,10 @@ function formatTimelineText(event) {
       return `${event.actor_id ?? "Unknown"} skips a turn because of ${event.reason ?? "an effect"}.`;
     case "resource_changed":
       return `${event.actor_id ?? "Unknown"} ${event.delta >= 0 ? "gains" : "spends"} ${Math.abs(event.delta ?? 0)} ${event.resource ?? "resource"}.`;
+    case "retargeted":
+      return `${event.actor_id ?? "Unknown"} retargets to ${event.new_target_id ?? "no target"} (${event.mode ?? "retarget"}).`;
+    case "moved":
+      return `${event.actor_id ?? "Unknown"} moves to row ${event.to_row ?? "?"}, col ${event.to_col ?? "?"}.`;
     case "defeat":
       return `${event.actor_id ?? "Unknown"} is defeated.`;
     case "battle_end":
