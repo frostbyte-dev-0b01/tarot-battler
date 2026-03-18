@@ -11,7 +11,7 @@ use crate::abilities::{
 };
 use crate::damage::calc_basic_attack_damage;
 use crate::logger::{BattleEvent, BattleLog};
-use crate::models::{CharacterConfig, CharacterState, Stat, StatusTick};
+use crate::models::{CharacterConfig, CharacterState, Stat, StatusTick, TraitEffect};
 use crate::rules::{WorldState, evaluate_rules};
 use crate::statuses::StatusMap;
 use crate::targeting::select_target;
@@ -200,6 +200,8 @@ impl BattleState {
                 self.resolve_defeats_from_damage(&damage_dealt, true);
             }
         }
+
+        self.refresh_auras();
     }
 
     /// Fire a triggered passive if it matches the expected trigger. Returns damage dealt.
@@ -252,7 +254,49 @@ impl BattleState {
                 actor_team[idx].add_trait(effect.clone());
                 Vec::new()
             }
+            PassiveDef::RowAura { .. } => Vec::new(),
             _ => Vec::new(),
+        }
+    }
+
+    fn refresh_auras(&mut self) {
+        Self::clear_team_auras(&mut self.team_a);
+        Self::clear_team_auras(&mut self.team_b);
+
+        Self::apply_team_row_auras(&mut self.team_a, &self.passives);
+        Self::apply_team_row_auras(&mut self.team_b, &self.passives);
+    }
+
+    fn clear_team_auras(team: &mut [CharacterState]) {
+        for character in team {
+            character.clear_aura_traits();
+        }
+    }
+
+    fn apply_team_row_auras(team: &mut [CharacterState], passives: &PassiveMap) {
+        let sources: Vec<(usize, Vec<crate::abilities::AuraStatEffect>)> = team
+            .iter()
+            .enumerate()
+            .filter(|(_, character)| character.is_alive())
+            .filter_map(|(idx, character)| match passives.get(character.passive()) {
+                Some(PassiveDef::RowAura { effects }) => Some((idx, effects.clone())),
+                _ => None,
+            })
+            .collect();
+
+        for (source_idx, effects) in sources {
+            let source_row = team[source_idx].position().row;
+            for (idx, target) in team.iter_mut().enumerate() {
+                if idx == source_idx || !target.is_alive() || target.position().row != source_row {
+                    continue;
+                }
+                for effect in &effects {
+                    target.add_trait(TraitEffect::AuraStatMod {
+                        stat: effect.stat.clone(),
+                        amount: effect.amount,
+                    });
+                }
+            }
         }
     }
 
@@ -562,6 +606,7 @@ impl BattleState {
     }
 
     fn finish_turn(&mut self, actor_idx: usize, is_team_a: bool) {
+        self.refresh_auras();
         let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         if !actor_team[actor_idx].is_alive() {
             return;
@@ -774,6 +819,7 @@ impl BattleState {
             character_id: team[char_idx].id(),
             character_name: team[char_idx].base_name().to_string(),
         });
+        self.refresh_auras();
     }
 
     /// Resolve the actor's target, reassigning if needed. Returns None if no enemies alive.
@@ -810,7 +856,7 @@ impl BattleState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::abilities::{AbilityDef, PassiveMap, Primitive, SimpleAbilityTarget};
+    use crate::abilities::{AbilityDef, AuraStatEffect, PassiveMap, Primitive, SimpleAbilityTarget};
     use crate::logger::BattleEvent;
     use crate::models::{
         Comparator, Condition, ConditionSubject, Position, QueryValue, Rule, Stat,
@@ -891,6 +937,79 @@ mod tests {
                 (Stat::SPI, 10),
             ],
         )
+    }
+
+    #[test]
+    fn row_aura_applies_to_same_row_allies() {
+        let mut emperor = make_config_at("Emperor", 0, 0, vec![(Stat::STR, 10), (Stat::CON, 10)]);
+        emperor.passive = "Imperial Formation".to_string();
+        let ally = make_config_at("Ally", 0, 1, vec![(Stat::STR, 8), (Stat::CON, 10)]);
+        let other = make_config_at("Other", 1, 1, vec![(Stat::STR, 8), (Stat::CON, 10)]);
+
+        let mut passives = PassiveMap::new();
+        passives.insert(
+            "Imperial Formation".to_string(),
+            PassiveDef::RowAura {
+                effects: vec![AuraStatEffect {
+                    stat: Stat::STR,
+                    amount: 1,
+                }],
+            },
+        );
+
+        let battle = BattleState::new(
+            &[emperor, ally, other],
+            &[mage()],
+            empty_abilities(),
+            passives,
+            empty_statuses(),
+            42,
+        );
+        let mut battle = battle;
+        battle.refresh_auras();
+
+        assert_eq!(battle.team_a[1].get_eff_stat(&Stat::STR), 9);
+        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::STR), 8);
+    }
+
+    #[test]
+    fn row_aura_recomputes_after_movement_and_death() {
+        let mut emperor = make_config_at("Emperor", 0, 0, vec![(Stat::STR, 10), (Stat::CON, 10)]);
+        emperor.passive = "Imperial Formation".to_string();
+        let ally = make_config_at("Ally", 0, 1, vec![(Stat::STR, 8), (Stat::CON, 10)]);
+        let mover = make_config_at("Mover", 1, 1, vec![(Stat::STR, 8), (Stat::CON, 10)]);
+
+        let mut passives = PassiveMap::new();
+        passives.insert(
+            "Imperial Formation".to_string(),
+            PassiveDef::RowAura {
+                effects: vec![AuraStatEffect {
+                    stat: Stat::STR,
+                    amount: 1,
+                }],
+            },
+        );
+
+        let mut battle = BattleState::new(
+            &[emperor, ally, mover],
+            &[mage()],
+            empty_abilities(),
+            passives,
+            empty_statuses(),
+            42,
+        );
+        battle.refresh_auras();
+        assert_eq!(battle.team_a[1].get_eff_stat(&Stat::STR), 9);
+        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::STR), 8);
+
+        battle.team_a[2].set_position(Position { row: 0, col: 1 });
+        battle.refresh_auras();
+        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::STR), 9);
+
+        battle.team_a[0].take_damage(999);
+        battle.resolve_character_death(0, true);
+        assert_eq!(battle.team_a[1].get_eff_stat(&Stat::STR), 8);
+        assert_eq!(battle.team_a[2].get_eff_stat(&Stat::STR), 8);
     }
 
     #[test]

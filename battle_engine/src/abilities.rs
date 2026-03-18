@@ -194,6 +194,12 @@ pub enum PassiveTrigger {
     OnTurnStart,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct AuraStatEffect {
+    pub stat: Stat,
+    pub amount: i32,
+}
+
 /// A passive ability definition — either a triggered effect or a permanent trait.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -204,6 +210,9 @@ pub enum PassiveDef {
     },
     Trait {
         effect: crate::models::TraitEffect,
+    },
+    RowAura {
+        effects: Vec<AuraStatEffect>,
     },
 }
 

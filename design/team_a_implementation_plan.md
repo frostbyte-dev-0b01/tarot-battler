@@ -526,6 +526,10 @@ This should remain target-resolution logic, not a one-off Hierophant shortcut.
 
 ## Phase 8B: Dynamic Row Aura Support
 
+Status:
+
+- implemented
+
 ### Goal
 
 Support row-based passives that stay correct as formation changes during battle.

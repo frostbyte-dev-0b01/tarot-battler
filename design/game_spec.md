@@ -426,6 +426,8 @@ Triggered passives fire on battle events such as:
 - dying
 - ally death
 
+Some passives are dynamic auras rather than one-time triggers. These should update with live formation state so row-based bonuses remain correct when units move or die.
+
 ### Permanent Traits
 
 Some passives are permanent traits that alter engine behavior rather than firing a one-time effect list.

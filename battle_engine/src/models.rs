@@ -124,6 +124,8 @@ pub enum TraitEffect {
     DebuffResistance { count: u32 },
     /// Attackers take `amount` damage when they hit this character.
     DamageReflect { amount: u32 },
+    /// Dynamic stat bonus from a row aura passive.
+    AuraStatMod { stat: Stat, amount: i32 },
 }
 
 /// What happened when statuses ticked.
@@ -240,7 +242,17 @@ impl CharacterState {
                 }
                 _ => None,
             })
-            .sum();
+            .sum::<i32>()
+            + self
+                .traits
+                .iter()
+                .filter_map(|t| match t {
+                    TraitEffect::AuraStatMod { stat: aura_stat, amount } if aura_stat == stat => {
+                        Some(*amount)
+                    }
+                    _ => None,
+                })
+                .sum::<i32>();
         (base + modifier).max(0) as u32
     }
 
@@ -264,7 +276,17 @@ impl CharacterState {
                 }
                 _ => None,
             })
-            .sum();
+            .sum::<i32>()
+            + self
+                .traits
+                .iter()
+                .filter_map(|t| match t {
+                    TraitEffect::AuraStatMod { stat: aura_stat, amount } if aura_stat == stat => {
+                        Some(*amount)
+                    }
+                    _ => None,
+                })
+                .sum::<i32>();
         (base + modifier).max(0) as u32
     }
 
@@ -368,6 +390,11 @@ impl CharacterState {
 
     pub fn add_trait(&mut self, t: TraitEffect) {
         self.traits.push(t);
+    }
+
+    pub fn clear_aura_traits(&mut self) {
+        self.traits
+            .retain(|t| !matches!(t, TraitEffect::AuraStatMod { .. }));
     }
 
     pub fn mp_cost_reduction(&self) -> u32 {
@@ -1119,6 +1146,19 @@ mod tests {
 
         state.add_trait(TraitEffect::DamageReflect { amount: 3 });
         assert_eq!(state.damage_reflect_amount(), 3);
+    }
+
+    #[test]
+    fn aura_stat_mod_trait_affects_effective_stat() {
+        let config = make_config(vec![(Stat::STR, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_trait(TraitEffect::AuraStatMod {
+            stat: Stat::STR,
+            amount: 2,
+        });
+        assert_eq!(state.get_eff_stat(&Stat::STR), 12);
+        state.clear_aura_traits();
+        assert_eq!(state.get_eff_stat(&Stat::STR), 10);
     }
 
     #[test]
