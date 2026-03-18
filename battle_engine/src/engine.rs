@@ -9,8 +9,6 @@ use crate::abilities::{
     AbilityMap, DamageRecord, PassiveDef, PassiveMap, PassiveTrigger, execute_ability,
     execute_primitives,
 };
-#[cfg(test)]
-use crate::abilities::SimpleAbilityTarget;
 use crate::damage::calc_basic_attack_damage;
 use crate::logger::{BattleEvent, BattleLog};
 use crate::models::{CharacterConfig, CharacterState, Stat, StatusTick};
@@ -533,7 +531,7 @@ impl BattleState {
             &mut self.rng,
         );
 
-        enemy_team[target_idx].take_damage(damage);
+        let damage = enemy_team[target_idx].take_hit(damage);
         let target_name = enemy_team[target_idx].base_name().to_string();
         let hp_remaining = enemy_team[target_idx].current_hp();
 
@@ -680,14 +678,14 @@ impl BattleState {
             if !actor_team[source_idx].is_alive() {
                 continue;
             }
-            actor_team[source_idx].take_damage(*reflect);
+            let reflect = actor_team[source_idx].take_hit(*reflect);
             self.log.push(BattleEvent::DamageReflect {
                 tick_count: self.step,
                 reflector_id: *reflector_id,
                 reflector_name: reflector_name.clone(),
                 target_id: *source_id,
                 target_name: actor_team[source_idx].base_name().to_string(),
-                damage: *reflect,
+                damage: reflect,
                 target_hp_remaining: actor_team[source_idx].current_hp(),
             });
             if !actor_team[source_idx].is_alive() {
@@ -812,12 +810,12 @@ impl BattleState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::abilities::{AbilityDef, PassiveMap, Primitive};
+    use crate::abilities::{AbilityDef, PassiveMap, Primitive, SimpleAbilityTarget};
     use crate::logger::BattleEvent;
     use crate::models::{
         Comparator, Condition, ConditionSubject, Position, QueryValue, Rule, Stat,
     };
-    use crate::statuses::StatusMap;
+    use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusMap};
     use std::collections::HashMap;
 
     fn empty_abilities() -> AbilityMap {
@@ -830,6 +828,19 @@ mod tests {
 
     fn empty_statuses() -> StatusMap {
         HashMap::new()
+    }
+
+    fn ward_statuses() -> StatusMap {
+        let mut statuses = HashMap::new();
+        statuses.insert(
+            "Ward".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::Ward,
+                stack_type: StackType::Permanent,
+                opposes: None,
+            },
+        );
+        statuses
     }
 
     fn make_config(name: &str, row: u8, stats: Vec<(Stat, u32)>) -> CharacterConfig {
@@ -2502,6 +2513,88 @@ mod tests {
             collapse_idx < attacker_defeat_idx,
             "on_death should resolve before Defeat is logged"
         );
+    }
+
+    #[test]
+    fn ward_negates_reflect_damage_and_is_consumed() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+        use crate::models::TraitEffect;
+
+        let mut attacker = make_config(
+            "Attacker",
+            0,
+            vec![
+                (Stat::CON, 10),
+                (Stat::STR, 6),
+                (Stat::INT, 3),
+                (Stat::FOR, 5),
+                (Stat::WIS, 3),
+                (Stat::DEX, 5),
+                (Stat::SPI, 4),
+            ],
+        );
+        attacker.passive = "Barrier".to_string();
+
+        let mut defender = make_config(
+            "Defender",
+            0,
+            vec![
+                (Stat::CON, 20),
+                (Stat::STR, 4),
+                (Stat::INT, 3),
+                (Stat::FOR, 3),
+                (Stat::WIS, 3),
+                (Stat::DEX, 5),
+                (Stat::SPI, 4),
+            ],
+        );
+        defender.passive = "Thorns".to_string();
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert(
+            "Barrier".to_string(),
+            PassiveDef::Triggered {
+                trigger: PassiveTrigger::OnBattleStart,
+                primitives: vec![Primitive::ApplyStatus {
+                    target: SimpleAbilityTarget::SelfChar.into(),
+                    status: "Ward".to_string(),
+                    stat: None,
+                    stacks: 1,
+                }],
+            },
+        );
+        passives.insert(
+            "Thorns".to_string(),
+            PassiveDef::Trait {
+                effect: TraitEffect::DamageReflect { amount: 2 },
+            },
+        );
+
+        let log = BattleState::new(
+            &[attacker],
+            &[defender],
+            empty_abilities(),
+            passives,
+            ward_statuses(),
+            42,
+        )
+        .run();
+
+        let reflect_event = log
+            .events()
+            .iter()
+            .find_map(|event| match event {
+                BattleEvent::DamageReflect {
+                    target_name,
+                    damage,
+                    target_hp_remaining,
+                    ..
+                } if target_name == "Attacker" => Some((*damage, *target_hp_remaining)),
+                _ => None,
+            })
+            .expect("attacker should receive reflect event");
+
+        assert_eq!(reflect_event, (0, 20));
     }
 
     #[test]

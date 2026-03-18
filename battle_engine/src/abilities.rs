@@ -281,8 +281,8 @@ pub fn execute_primitives(
                 for tidx in target_indices {
                     let defender_for = enemy_team[tidx].get_eff_stat(&Stat::FOR);
                     let base = (actor_str as i32 - defender_for as i32).max(1) as u32;
-                    let damage = ((base as f64 * multiplier).max(1.0)) as u32;
-                    enemy_team[tidx].take_damage(damage);
+                    let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
+                    let damage = enemy_team[tidx].take_hit(raw_damage);
                     let tid = enemy_team[tidx].id();
                     let tname = enemy_team[tidx].base_name().to_string();
                     let hp = enemy_team[tidx].current_hp();
@@ -307,8 +307,8 @@ pub fn execute_primitives(
                 for tidx in target_indices {
                     let defender_wis = enemy_team[tidx].get_eff_stat(&Stat::WIS);
                     let base = (actor_int as i32 - defender_wis as i32).max(1) as u32;
-                    let damage = ((base as f64 * multiplier).max(1.0)) as u32;
-                    enemy_team[tidx].take_damage(damage);
+                    let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
+                    let damage = enemy_team[tidx].take_hit(raw_damage);
                     let tid = enemy_team[tidx].id();
                     let tname = enemy_team[tidx].base_name().to_string();
                     let hp = enemy_team[tidx].current_hp();
@@ -480,8 +480,8 @@ pub fn execute_primitives(
 
                 let attacker_str = actor_team[companion_idx].get_eff_stat(&Stat::STR);
                 let defender_for = enemy_team[target_idx].get_eff_stat(&Stat::FOR);
-                let damage = (attacker_str as i32 - defender_for as i32).max(1) as u32;
-                enemy_team[target_idx].take_damage(damage);
+                let raw_damage = (attacker_str as i32 - defender_for as i32).max(1) as u32;
+                let damage = enemy_team[target_idx].take_hit(raw_damage);
                 let source_id = actor_team[companion_idx].id();
                 let source_name = actor_team[companion_idx].base_name().to_string();
                 let hp = enemy_team[target_idx].current_hp();
@@ -1009,6 +1009,14 @@ mod tests {
                 behavior: StatusBehavior::StatModPerStack { magnitude: -1 },
                 stack_type: StackType::TickDown,
                 opposes: Some("Empower".to_string()),
+            },
+        );
+        map.insert(
+            "Ward".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::Ward,
+                stack_type: StackType::Permanent,
+                opposes: None,
             },
         );
         map
@@ -1765,6 +1773,82 @@ mod tests {
         assert_eq!(dealt[0].source_id, 1);
         assert_eq!(dealt[0].target_id, 10);
         assert_eq!(enemy_team[0].current_hp(), 15);
+    }
+
+    #[test]
+    fn ward_negates_physical_ability_damage() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(
+            0,
+            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+        )];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::FOR, 4), (Stat::CON, 20)])];
+        enemy_team[0].add_status("Ward", 1, 99, statuses.get("Ward").unwrap(), None);
+        actor_team[0].set_target(1);
+
+        let ability = AbilityDef {
+            mp_cost: 2,
+            primitives: vec![Primitive::DealPhysicalDamage {
+                target: SimpleAbilityTarget::CurrentTarget.into(),
+                multiplier: 1.5,
+            }],
+        };
+
+        let dealt = execute_ability(
+            0,
+            "Crush",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        assert_eq!(dealt[0].damage, 0);
+        assert_eq!(enemy_team[0].current_hp(), 40);
+        assert_eq!(enemy_team[0].status_stacks("Ward"), 0);
+    }
+
+    #[test]
+    fn ward_negates_magical_ability_damage() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(
+            0,
+            vec![(Stat::INT, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+        )];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::WIS, 4), (Stat::CON, 20)])];
+        enemy_team[0].add_status("Ward", 1, 99, statuses.get("Ward").unwrap(), None);
+        actor_team[0].set_target(1);
+
+        let ability = AbilityDef {
+            mp_cost: 2,
+            primitives: vec![Primitive::DealMagicalDamage {
+                target: SimpleAbilityTarget::CurrentTarget.into(),
+                multiplier: 1.5,
+            }],
+        };
+
+        let dealt = execute_ability(
+            0,
+            "Smite",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        assert_eq!(dealt[0].damage, 0);
+        assert_eq!(enemy_team[0].current_hp(), 40);
+        assert_eq!(enemy_team[0].status_stacks("Ward"), 0);
     }
 
     #[test]

@@ -409,6 +409,7 @@ fn status_polarity(def: &StatusDef) -> StatusPolarity {
         StatusBehavior::HealPerStack { .. } => StatusPolarity::Buff,
         StatusBehavior::StatModPerStack { magnitude } if *magnitude < 0 => StatusPolarity::Debuff,
         StatusBehavior::StatModPerStack { .. } => StatusPolarity::Buff,
+        StatusBehavior::Ward => StatusPolarity::Buff,
         StatusBehavior::SkipTurn => StatusPolarity::Debuff,
     }
 }

@@ -330,6 +330,10 @@ Recommended v1:
 
 ## Phase 5: Real Ward Mechanic
 
+Status:
+
+- implemented
+
 ### Goal
 
 Replace placeholder `Fortify` approximations with a true `Ward` defensive effect.

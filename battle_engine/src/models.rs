@@ -256,6 +256,20 @@ impl CharacterState {
         self.curr_hp = self.curr_hp.saturating_sub(amount);
     }
 
+    /// Apply an incoming hit. One Ward stack negates the hit entirely.
+    /// Returns the damage actually applied after Ward.
+    pub fn take_hit(&mut self, amount: u32) -> u32 {
+        if amount == 0 {
+            return 0;
+        }
+        if self.status_stacks("Ward") > 0 {
+            self.remove_status("Ward", 1);
+            return 0;
+        }
+        self.take_damage(amount);
+        amount
+    }
+
     /// Heals up to max HP (2 * CON).
     pub fn heal(&mut self, amount: u32) {
         let max_hp = self.get_base_stat(&Stat::CON) * 2;
@@ -429,6 +443,7 @@ impl CharacterState {
         let is_debuff = match &def.behavior {
             StatusBehavior::DamagePerStack { .. } => true,
             StatusBehavior::SkipTurn => true,
+            StatusBehavior::Ward => false,
             StatusBehavior::StatModPerStack { magnitude } => *magnitude < 0,
             _ => false,
         };
@@ -553,7 +568,7 @@ impl CharacterState {
                         amount: heal,
                     });
                 }
-                // StatModPerStack and SkipTurn don't produce tick events
+                // StatModPerStack, SkipTurn, and Ward don't produce tick events
                 _ => {}
             }
         }
@@ -653,6 +668,14 @@ mod tests {
         }
     }
 
+    fn ward_def() -> StatusDef {
+        StatusDef {
+            behavior: StatusBehavior::Ward,
+            stack_type: StackType::Permanent,
+            opposes: None,
+        }
+    }
+
     #[test]
     fn from_config_sets_hp_to_twice_con() {
         let config = make_config(vec![(Stat::CON, 10), (Stat::DEX, 5), (Stat::SPI, 3)]);
@@ -706,6 +729,44 @@ mod tests {
         state.spend_mp(8);
         state.restore_mp(100);
         assert_eq!(state.current_mp(), 10);
+    }
+
+    #[test]
+    fn ward_negates_next_hit_and_is_removed() {
+        let config = make_config(vec![(Stat::CON, 5)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_status("Ward", 1, 99, &ward_def(), None);
+
+        assert_eq!(state.take_hit(4), 0);
+        assert_eq!(state.current_hp(), 10);
+        assert_eq!(state.status_stacks("Ward"), 0);
+    }
+
+    #[test]
+    fn multiple_wards_consume_one_per_hit() {
+        let config = make_config(vec![(Stat::CON, 5)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_status("Ward", 2, 99, &ward_def(), None);
+
+        assert_eq!(state.take_hit(4), 0);
+        assert_eq!(state.status_stacks("Ward"), 1);
+        assert_eq!(state.take_hit(3), 0);
+        assert_eq!(state.status_stacks("Ward"), 0);
+        assert_eq!(state.take_hit(2), 2);
+        assert_eq!(state.current_hp(), 8);
+    }
+
+    #[test]
+    fn ward_does_not_negate_status_tick_damage() {
+        let config = make_config(vec![(Stat::CON, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_status("Ward", 1, 99, &ward_def(), None);
+        state.add_status("Bleed", 2, 99, &bleed_def(), None);
+
+        state.tick_statuses();
+
+        assert_eq!(state.current_hp(), 18);
+        assert_eq!(state.status_stacks("Ward"), 1);
     }
 
     #[test]

@@ -24,6 +24,7 @@ pub enum StatusBehavior {
     HealPerStack { value: u32 },
     StatModPerStack { magnitude: i32 },
     SkipTurn,
+    Ward,
 }
 
 /// A named status effect definition loaded from JSON.
