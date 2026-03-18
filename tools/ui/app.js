@@ -5,6 +5,9 @@ const replayJsonInput = document.querySelector("#replay-json-input");
 const replayLoadButton = document.querySelector("#replay-load-button");
 const replayDemoButton = document.querySelector("#replay-demo-button");
 const replayValidationOutput = document.querySelector("#replay-validation-output");
+const latestReplayPath = "./sample-data/latest_replay.json";
+const passiveCatalogPath = "../../battle_engine/src/data/passives.json";
+const abilityCatalogPath = "../../battle_engine/src/data/abilities.json";
 const teamConfigs = {
   team_a: {
     fileInput: document.querySelector("#team-a-file-input"),
@@ -58,6 +61,10 @@ const appState = {
     team_a: null,
     team_b: null,
   },
+  catalogs: {
+    passives: [],
+    abilities: [],
+  },
 };
 const metadataFields = {
   seed: document.querySelector('[data-meta-field="seed"]'),
@@ -65,109 +72,6 @@ const metadataFields = {
   tick_count: document.querySelector('[data-meta-field="tick_count"]'),
   team_a: document.querySelector('[data-meta-field="team_a"]'),
   team_b: document.querySelector('[data-meta-field="team_b"]'),
-};
-
-const demoReplay = {
-  version: 1,
-  seed: 42,
-  winner: "team_a",
-  tick_count: 7,
-  teams: {
-    team_a: {
-      name: "Imperial Phalanx",
-      characters: [
-        {
-          id: "the_emperor",
-          display_name: "The Emperor",
-          position: { row: 0, col: 0 },
-          max_hp: 14,
-          max_mp: 4,
-          stats: { con: 7, str: 8, int: 3, for: 7, wis: 3, dex: 4, spi: 4 },
-          passive: "Authority",
-          actives: ["Crush", "Embolden"],
-        },
-        {
-          id: "the_hermit",
-          display_name: "The Hermit",
-          position: { row: 2, col: 1 },
-          max_hp: 12,
-          max_mp: 5,
-          stats: { con: 6, str: 3, int: 5, for: 5, wis: 7, dex: 3, spi: 5 },
-          passive: "Solitude",
-          actives: ["Lantern", "Absolve"],
-        },
-      ],
-    },
-    team_b: {
-      name: "Arcane Gambit",
-      characters: [
-        {
-          id: "the_fool",
-          display_name: "The Fool",
-          position: { row: 0, col: 0 },
-          max_hp: 12,
-          max_mp: 3,
-          stats: { con: 6, str: 6, int: 4, for: 5, wis: 4, dex: 6, spi: 3 },
-          passive: "Beginner's Luck",
-          actives: ["Leap of Faith", "Stumble"],
-        },
-        {
-          id: "the_star",
-          display_name: "The Star",
-          position: { row: 2, col: 1 },
-          max_hp: 10,
-          max_mp: 6,
-          stats: { con: 5, str: 2, int: 6, for: 3, wis: 7, dex: 3, spi: 6 },
-          passive: "Hope",
-          actives: ["Restore", "Purify"],
-        },
-      ],
-    },
-  },
-  events: [
-    { tick: 0, type: "battle_start" },
-    { tick: 2, type: "turn_start", actor_id: "the_emperor", current_hp: 14, current_mp: 4 },
-    { tick: 2, type: "ability_used", actor_id: "the_emperor", ability: "Crush", mp_cost: 2 },
-    {
-      tick: 2,
-      type: "damage",
-      source_id: "the_emperor",
-      target_id: "the_fool",
-      amount: 4,
-      damage_kind: "physical",
-      source_kind: "ability",
-      source_name: "Crush",
-      target_hp_after: 8,
-    },
-    {
-      tick: 3,
-      type: "status_applied",
-      source_id: "the_star",
-      target_id: "the_hermit",
-      status: "Regen",
-      stacks_added: 1,
-      stacks_after: 1,
-    },
-    {
-      tick: 4,
-      type: "resource_changed",
-      actor_id: "the_emperor",
-      resource: "mp",
-      delta: 2,
-      value_after: 4,
-      reason: "turn_regen",
-    },
-    {
-      tick: 5,
-      type: "status_tick",
-      target_id: "the_hermit",
-      status: "Regen",
-      amount: 2,
-      kind: "heal",
-      target_hp_after: 12,
-    },
-    { tick: 7, type: "battle_end", winner: "team_a" },
-  ],
 };
 
 const demoTeams = {
@@ -279,8 +183,7 @@ replayLoadButton.addEventListener("click", () => {
 });
 
 replayDemoButton.addEventListener("click", () => {
-  replayJsonInput.value = JSON.stringify(demoReplay, null, 2);
-  replayLoadButton.click();
+  void loadLatestReplay();
 });
 
 replayFileInput.addEventListener("change", async (event) => {
@@ -430,6 +333,64 @@ resetTeamSummary("team_a");
 resetTeamSummary("team_b");
 renderTeamEditor("team_a");
 renderTeamEditor("team_b");
+void loadEditorCatalogs();
+void loadLatestReplay();
+
+async function loadEditorCatalogs() {
+  try {
+    const [passiveResponse, abilityResponse] = await Promise.all([
+      fetch(passiveCatalogPath, { cache: "no-store" }),
+      fetch(abilityCatalogPath, { cache: "no-store" }),
+    ]);
+
+    if (!passiveResponse.ok || !abilityResponse.ok) {
+      throw new Error(
+        `catalog request failed (${passiveResponse.status}/${abilityResponse.status})`,
+      );
+    }
+
+    const [passives, abilities] = await Promise.all([
+      passiveResponse.json(),
+      abilityResponse.json(),
+    ]);
+
+    appState.catalogs.passives = Object.keys(passives).sort();
+    appState.catalogs.abilities = Object.keys(abilities).sort();
+    renderTeamEditor("team_a");
+    renderTeamEditor("team_b");
+  } catch (_error) {
+    appState.catalogs.passives = [];
+    appState.catalogs.abilities = [];
+  }
+}
+
+async function loadLatestReplay() {
+  try {
+    const response = await fetch(latestReplayPath, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Request failed with ${response.status}`);
+    }
+
+    const content = await response.text();
+    replayJsonInput.value = content;
+    replayLoadButton.click();
+  } catch (error) {
+    renderReplayValidation({
+      ok: false,
+      errors: [
+        `Could not load latest replay from ${latestReplayPath}: ${error.message}. Run the engine to generate it, then try again.`,
+      ],
+    });
+    appState.replay = null;
+    appState.selectedEventIndex = -1;
+    appState.selectedCharacterId = null;
+    stopPlayback();
+    resetMetadata();
+    resetBoards();
+    renderPlaybackControls();
+    renderInspector(null);
+  }
+}
 
 function validateReplay(candidate) {
   const errors = [];
@@ -1017,7 +978,19 @@ function renderTeamEditor(teamKey) {
 }
 
 function renderCharacterEditor(teamKey, character, characterIndex) {
-  const activeValue = Array.isArray(character.actives) ? character.actives.join(", ") : "";
+  const passiveOptions = buildSelectOptions(
+    appState.catalogs.passives,
+    character.passive ?? "",
+    "No passive",
+  );
+  const activeSelections = normalizeActiveSelections(character.actives);
+  const activeOptions = activeSelections.map((selection, activeIndex) =>
+    buildSelectOptions(
+      appState.catalogs.abilities,
+      selection,
+      `No active ${activeIndex + 1}`,
+    ),
+  );
   const rulesMarkup = (character.rules ?? []).map((rule, ruleIndex) => renderRuleEditor(teamKey, characterIndex, rule, ruleIndex)).join("");
 
   return `
@@ -1039,7 +1012,9 @@ function renderCharacterEditor(teamKey, character, characterIndex) {
         </label>
         <label class="field-group">
           <span>Passive</span>
-          <input type="text" data-character-field="passive" data-character-index="${characterIndex}" value="${escapeHtml(character.passive ?? "")}">
+          <select data-character-field="passive" data-character-index="${characterIndex}">
+            ${passiveOptions}
+          </select>
         </label>
         <label class="field-group">
           <span>Item</span>
@@ -1053,9 +1028,23 @@ function renderCharacterEditor(teamKey, character, characterIndex) {
           <span>Col</span>
           <input type="number" min="0" max="3" data-position-field="col" data-character-index="${characterIndex}" value="${character.position?.col ?? 0}">
         </label>
-        <label class="field-group editor-grid-wide">
-          <span>Actives</span>
-          <input type="text" data-character-field="actives" data-character-index="${characterIndex}" value="${escapeHtml(activeValue)}">
+        <label class="field-group">
+          <span>Active 1</span>
+          <select data-character-field="active_0" data-character-index="${characterIndex}">
+            ${activeOptions[0]}
+          </select>
+        </label>
+        <label class="field-group">
+          <span>Active 2</span>
+          <select data-character-field="active_1" data-character-index="${characterIndex}">
+            ${activeOptions[1]}
+          </select>
+        </label>
+        <label class="field-group">
+          <span>Active 3</span>
+          <select data-character-field="active_2" data-character-index="${characterIndex}">
+            ${activeOptions[2]}
+          </select>
         </label>
       </div>
       <div class="editor-inline-grid">
@@ -1177,8 +1166,11 @@ function handleTeamEditorInput(teamKey, event) {
       return;
     }
 
-    if (target.dataset.characterField === "actives") {
-      character.actives = target.value.split(",").map((value) => value.trim()).filter(Boolean);
+    if (target.dataset.characterField.startsWith("active_")) {
+      const activeIndex = Number(target.dataset.characterField.split("_")[1]);
+      const nextActives = normalizeActiveSelections(character.actives);
+      nextActives[activeIndex] = target.value.trim();
+      character.actives = nextActives.filter(Boolean);
     } else if (target.dataset.characterField === "item") {
       character.item = target.value.trim() === "" ? null : target.value;
     } else {
@@ -1296,10 +1288,35 @@ function createEmptyCharacter(index) {
     position: { row: 0, col: 0 },
     stats: { con: 5, str: 5, int: 5, for: 5, wis: 5, dex: 5, spi: 5 },
     passive: "",
-    actives: [],
+    actives: ["", "", ""].filter(Boolean),
     item: null,
     rules: [],
   };
+}
+
+function normalizeActiveSelections(actives) {
+  const values = Array.isArray(actives) ? actives.slice(0, 3) : [];
+  while (values.length < 3) {
+    values.push("");
+  }
+  return values;
+}
+
+function buildSelectOptions(options, currentValue, emptyLabel) {
+  const normalizedOptions = Array.isArray(options) ? [...options] : [];
+  if (currentValue && !normalizedOptions.includes(currentValue)) {
+    normalizedOptions.unshift(currentValue);
+  }
+
+  const entries = ["", ...normalizedOptions];
+  return entries
+    .map((optionValue, index) => {
+      const label = optionValue || emptyLabel;
+      const isSelected =
+        optionValue === (currentValue ?? "") || (!currentValue && optionValue === "" && index === 0);
+      return `<option value="${escapeHtml(optionValue)}" ${isSelected ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    })
+    .join("");
 }
 
 function createEmptyRule() {

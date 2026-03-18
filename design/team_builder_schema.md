@@ -88,6 +88,7 @@ For now, full loadouts are easier to edit by hand and simpler to support in dev 
 - `stats` are the final allocated stats for now, not base stats plus modifiers
 - `item` remains nullable until item design and implementation are expanded
 - bundled engine JSON now uses the same lowercase stat keys and `when` / `op` rule fields
+- the current UI exposes up to three active slots explicitly, though the stored JSON remains `actives: string[]`
 
 ## Position
 

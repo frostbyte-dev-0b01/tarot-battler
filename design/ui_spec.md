@@ -165,8 +165,8 @@ Each character editor should include:
 - `display_name`
 - position
 - stats
-- passive
-- actives
+- passive chosen from the passive catalog
+- `active_1`, `active_2`, and `active_3` style slots backed by the ability catalog
 - item
 - rules
 
@@ -252,7 +252,8 @@ Current engine loop:
 
 1. run the engine
 2. engine writes `tools/ui/sample-data/latest_replay.json`
-3. load that file in the replay viewer
+3. replay viewer loads that file by default on page open
+4. `Load Latest Replay` re-fetches it on demand
 
 ## Recommended File Structure
 
