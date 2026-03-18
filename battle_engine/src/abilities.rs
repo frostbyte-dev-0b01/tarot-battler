@@ -91,6 +91,13 @@ pub enum RetargetFilter {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MoveDirection {
+    Forward,
+    Backward,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct TargetSpec {
     pub category: TargetCategory,
     #[serde(default)]
@@ -156,6 +163,11 @@ pub enum Primitive {
         filter: Option<RetargetFilter>,
     },
     CommandAttack,
+    Move {
+        direction: MoveDirection,
+        #[serde(default = "default_true")]
+        if_empty: bool,
+    },
 }
 
 /// A complete ability definition.
@@ -488,6 +500,12 @@ pub fn execute_primitives(
                     damage,
                 });
             }
+            Primitive::Move {
+                direction,
+                if_empty,
+            } => {
+                try_move_actor(actor_idx, actor_team, direction, *if_empty, log, step);
+            }
         }
     }
 
@@ -678,6 +696,69 @@ fn retarget_mode_label(mode: &RetargetMode) -> &'static str {
         RetargetMode::ToSelf => "to_self",
         RetargetMode::ToCompanion => "to_companion",
         RetargetMode::DefaultRetarget => "default_retarget",
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn try_move_actor(
+    actor_idx: usize,
+    actor_team: &mut [CharacterState],
+    direction: &MoveDirection,
+    if_empty: bool,
+    log: &mut BattleLog,
+    step: u32,
+) {
+    let current = actor_team[actor_idx].position().clone();
+    let next_row = match direction {
+        MoveDirection::Forward => current.row.checked_sub(1),
+        MoveDirection::Backward => current.row.checked_add(1).filter(|row| *row < 3),
+    };
+    let Some(next_row) = next_row else {
+        return;
+    };
+
+    let destination = crate::models::Position {
+        row: next_row,
+        col: current.col,
+    };
+    let occupied = actor_team
+        .iter()
+        .enumerate()
+        .any(|(idx, c)| idx != actor_idx && c.is_alive() && c.position().row == destination.row && c.position().col == destination.col);
+    if if_empty && occupied {
+        return;
+    }
+
+    actor_team[actor_idx].set_position(destination.clone());
+    recompute_team_companions(actor_team);
+    log.push(BattleEvent::Moved {
+        tick_count: step,
+        character_id: actor_team[actor_idx].id(),
+        character_name: actor_team[actor_idx].base_name().to_string(),
+        from_row: current.row,
+        from_col: current.col,
+        to_row: destination.row,
+        to_col: destination.col,
+    });
+}
+
+fn recompute_team_companions(team: &mut [CharacterState]) {
+    let positions: Vec<(u32, crate::models::Position)> = team
+        .iter()
+        .filter(|c| c.is_alive())
+        .map(|c| (c.id(), c.position().clone()))
+        .collect();
+
+    for c in team.iter_mut() {
+        let companions: Vec<u32> = positions
+            .iter()
+            .filter(|(id, pos)| *id != c.id() && c.position().is_adjacent(pos))
+            .map(|(id, _)| *id)
+            .collect();
+        c.set_companions(companions);
     }
 }
 
@@ -1684,5 +1765,98 @@ mod tests {
         assert_eq!(dealt[0].source_id, 1);
         assert_eq!(dealt[0].target_id, 10);
         assert_eq!(enemy_team[0].current_hp(), 15);
+    }
+
+    #[test]
+    fn move_forward_updates_position_and_companions() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![
+            make_adjacent_char(0, 1, 1, vec![(Stat::CON, 10)]),
+            make_adjacent_char(1, 1, 2, vec![(Stat::CON, 10)]),
+            make_adjacent_char(2, 0, 0, vec![(Stat::CON, 10)]),
+        ];
+        actor_team[0].set_companions(vec![1]);
+        actor_team[1].set_companions(vec![0]);
+        actor_team[2].set_companions(vec![]);
+        let mut enemy_team = vec![make_adjacent_char(10, 0, 3, vec![(Stat::CON, 10)])];
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::Move {
+                direction: MoveDirection::Forward,
+                if_empty: true,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "Charge",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert_eq!(actor_team[0].position().row, 0);
+        assert_eq!(actor_team[0].position().col, 1);
+        assert_eq!(actor_team[0].companions(), &[2]);
+        assert!(actor_team[1].companions().is_empty());
+        assert_eq!(actor_team[2].companions(), &[0]);
+
+        let moved_event = log.events().iter().find_map(|event| match event {
+            BattleEvent::Moved {
+                character_id,
+                from_row,
+                from_col,
+                to_row,
+                to_col,
+                ..
+            } => Some((*character_id, *from_row, *from_col, *to_row, *to_col)),
+            _ => None,
+        });
+        assert_eq!(moved_event, Some((0, 1, 1, 0, 1)));
+    }
+
+    #[test]
+    fn move_backward_requires_empty_destination_when_flagged() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![
+            make_adjacent_char(0, 1, 1, vec![(Stat::CON, 10)]),
+            make_adjacent_char(1, 2, 1, vec![(Stat::CON, 10)]),
+        ];
+        actor_team[0].set_companions(vec![]);
+        actor_team[1].set_companions(vec![]);
+        let mut enemy_team = vec![make_adjacent_char(10, 0, 0, vec![(Stat::CON, 10)])];
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::Move {
+                direction: MoveDirection::Backward,
+                if_empty: true,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "Withdraw",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert_eq!(actor_team[0].position().row, 1);
+        assert!(log
+            .events()
+            .iter()
+            .all(|event| !matches!(event, BattleEvent::Moved { .. })));
     }
 }

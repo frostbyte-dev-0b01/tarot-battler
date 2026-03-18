@@ -264,6 +264,10 @@ Recommended behavior:
 
 ## Phase 4: Movement Primitive
 
+Status:
+
+- implemented
+
 ### Goal
 
 Support same-column forward and backward movement if the destination tile is empty.

@@ -253,6 +253,18 @@ Example:
 }
 ```
 
+### `moved`
+
+```json
+{
+  "tick": 10,
+  "type": "moved",
+  "actor_id": "the_chariot",
+  "to_row": 0,
+  "to_col": 2
+}
+```
+
 ### `passive_triggered`
 
 ```json

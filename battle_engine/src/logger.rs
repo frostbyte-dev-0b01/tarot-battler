@@ -82,6 +82,15 @@ pub enum BattleEvent {
         new_target_name: Option<String>,
         mode: String,
     },
+    Moved {
+        tick_count: u32,
+        character_id: u32,
+        character_name: String,
+        from_row: u8,
+        from_col: u8,
+        to_row: u8,
+        to_col: u8,
+    },
     ResourceChanged {
         tick_count: u32,
         actor_id: u32,
@@ -292,6 +301,19 @@ impl BattleLog {
                     "new_target_id": new_target_id.map(|id| stable_id(id, &id_map)),
                     "mode": mode,
                 })),
+                BattleEvent::Moved {
+                    tick_count,
+                    character_id,
+                    to_row,
+                    to_col,
+                    ..
+                } => replay_events.push(json!({
+                    "tick": tick_count,
+                    "type": "moved",
+                    "actor_id": stable_id(*character_id, &id_map),
+                    "to_row": to_row,
+                    "to_col": to_col,
+                })),
                 BattleEvent::ResourceChanged {
                     tick_count,
                     actor_id,
@@ -481,6 +503,19 @@ impl BattleLog {
                         "  {character_name} retargets to {target_label} ({mode})"
                     );
                 }
+                BattleEvent::Moved {
+                    character_name,
+                    from_row,
+                    from_col,
+                    to_row,
+                    to_col,
+                    ..
+                } => {
+                    let _ = writeln!(
+                        out,
+                        "  {character_name} moves from (r{from_row}, c{from_col}) to (r{to_row}, c{to_col})"
+                    );
+                }
                 BattleEvent::ResourceChanged {
                     actor_name,
                     resource,
@@ -541,6 +576,7 @@ impl BattleEvent {
             | BattleEvent::StatusHeal { tick_count, .. }
             | BattleEvent::TurnSkipped { tick_count, .. }
             | BattleEvent::Retargeted { tick_count, .. }
+            | BattleEvent::Moved { tick_count, .. }
             | BattleEvent::ResourceChanged { tick_count, .. }
             | BattleEvent::PassiveTriggered { tick_count, .. }
             | BattleEvent::DamageReflect { tick_count, .. }

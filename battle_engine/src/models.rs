@@ -220,6 +220,10 @@ impl CharacterState {
         &self.position
     }
 
+    pub fn set_position(&mut self, position: Position) {
+        self.position = position;
+    }
+
     pub fn get_base_stat(&self, stat: &Stat) -> u32 {
         self.base_stats.get(stat).copied().unwrap_or(0)
     }
