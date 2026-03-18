@@ -200,6 +200,56 @@ Pivot units should trade peak efficiency for flexibility.
 
 They should not be the best specialist in both lanes.
 
+## Current Team Drafts
+
+These are the current working character-kit drafts for the first small-scale 3v3 prototype.
+
+### Team A
+
+#### The Emperor
+
+Role:
+
+- frontline commander
+- formation enabler
+- target-flow control
+
+Passive:
+
+- `Imperial Formation`
+  Allies in The Emperor's row gain `Empower STR 1` and `Empower INT 1`.
+
+Abilities:
+
+- `Hold the Line`
+  Apply `Ward 1` to allies in the user's row.
+- `Command`
+  One companion immediately makes a basic attack against the user's current target.
+- `Taunt`
+  Enemies with `STR > INT` change their target to the user.
+
+#### The Hierophant
+
+Role:
+
+- row-based magical protector
+- companion support bruiser
+- secondary magical pressure
+
+Passive:
+
+- `Sanctuary`
+  Allies in Hierophant's row gain `Empower WIS 1`.
+
+Abilities:
+
+- `Smite`
+  Deal magical damage to the user's current target.
+- `Consecrate`
+  Deal magical damage to the user's current target and all of that target's companions.
+- `Blessing`
+  Restore MP to allies in the user's row.
+
 ## Pivot Unit Design
 
 ### Why Pivot Units Matter
