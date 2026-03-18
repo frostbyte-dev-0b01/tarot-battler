@@ -15,6 +15,7 @@ use crate::targeting::select_target;
 #[serde(rename_all = "snake_case")]
 pub enum SimpleAbilityTarget {
     CurrentTarget,
+    CurrentTargetAndCompanions,
     #[serde(rename = "self")]
     SelfChar,
     Companions,
@@ -538,6 +539,25 @@ fn resolve_enemy_targets(
             }
             Vec::new()
         }
+        AbilityTarget::Simple(SimpleAbilityTarget::CurrentTargetAndCompanions) => {
+            let Some(target_id) = actor_team[actor_idx].target() else {
+                return Vec::new();
+            };
+            let Some(target_idx) = enemy_team.iter().position(|c| c.id() == target_id) else {
+                return Vec::new();
+            };
+
+            let companion_ids = enemy_team[target_idx].companions().to_vec();
+            let mut targets = vec![target_idx];
+            targets.extend(
+                companion_ids
+                    .iter()
+                    .filter_map(|id| enemy_team.iter().position(|c| c.id() == *id && c.is_alive())),
+            );
+            targets.sort_unstable();
+            targets.dedup();
+            targets
+        }
         AbilityTarget::Simple(SimpleAbilityTarget::FrontRow) => front_row_enemy_indices(enemy_team),
         AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies) => enemy_team
             .iter()
@@ -679,6 +699,7 @@ fn target_is_enemy_side(target: &AbilityTarget) -> bool {
     matches!(
         target,
         AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget)
+            | AbilityTarget::Simple(SimpleAbilityTarget::CurrentTargetAndCompanions)
             | AbilityTarget::Simple(SimpleAbilityTarget::FrontRow)
             | AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies)
             | AbilityTarget::Detailed(TargetSpec {
@@ -1525,6 +1546,88 @@ mod tests {
 
         assert_eq!(dealt.len(), 1);
         assert_eq!(dealt[0].target_id, 2);
+    }
+
+    #[test]
+    fn current_target_and_companions_hits_target_and_living_companions() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![make_adjacent_char(
+            0,
+            0,
+            0,
+            vec![(Stat::INT, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+        )];
+        let mut enemy_team = vec![
+            make_adjacent_char(1, 0, 1, vec![(Stat::WIS, 3), (Stat::CON, 10)]),
+            make_adjacent_char(2, 0, 2, vec![(Stat::WIS, 3), (Stat::CON, 10)]),
+            make_adjacent_char(3, 1, 1, vec![(Stat::WIS, 3), (Stat::CON, 10)]),
+            make_adjacent_char(4, 2, 2, vec![(Stat::WIS, 3), (Stat::CON, 10)]),
+        ];
+        enemy_team[0].set_companions(vec![2, 3]);
+        enemy_team[2].set_companions(vec![1]);
+        enemy_team[3].set_companions(vec![1]);
+        enemy_team[1].take_damage(100);
+        actor_team[0].set_target(1);
+
+        let ability = AbilityDef {
+            mp_cost: 2,
+            primitives: vec![Primitive::DealMagicalDamage {
+                target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
+                multiplier: 1.0,
+            }],
+        };
+
+        let dealt = execute_ability(
+            0,
+            "Consecrate",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert_eq!(dealt.len(), 2);
+        assert!(dealt.iter().any(|record| record.target_id == 1));
+        assert!(dealt.iter().any(|record| record.target_id == 3));
+        assert!(!dealt.iter().any(|record| record.target_id == 2));
+        assert!(!dealt.iter().any(|record| record.target_id == 4));
+    }
+
+    #[test]
+    fn current_target_and_companions_handles_missing_target() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![make_char(
+            0,
+            vec![(Stat::INT, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+        )];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::WIS, 3), (Stat::CON, 10)])];
+
+        let ability = AbilityDef {
+            mp_cost: 2,
+            primitives: vec![Primitive::DealMagicalDamage {
+                target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
+                multiplier: 1.0,
+            }],
+        };
+
+        let dealt = execute_ability(
+            0,
+            "Consecrate",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert!(dealt.is_empty());
     }
 
     #[test]

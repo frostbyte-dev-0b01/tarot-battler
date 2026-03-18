@@ -179,6 +179,7 @@ The recommended model is:
 - `ally`
 - `all_allies`
 - `current_target`
+- `current_target_and_companions`
 - `enemy`
 - `front_row`
 - `all_enemies`

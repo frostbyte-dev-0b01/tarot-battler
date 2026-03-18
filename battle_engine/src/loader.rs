@@ -499,6 +499,9 @@ fn status_requires_stat(def: &StatusDef) -> bool {
 fn target_label(target: &AbilityTarget) -> &'static str {
     match target {
         AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget) => "current_target",
+        AbilityTarget::Simple(SimpleAbilityTarget::CurrentTargetAndCompanions) => {
+            "current_target_and_companions"
+        }
         AbilityTarget::Simple(SimpleAbilityTarget::SelfChar) => "self",
         AbilityTarget::Simple(SimpleAbilityTarget::Companions) => "companions",
         AbilityTarget::Simple(SimpleAbilityTarget::FrontRow) => "front_row",

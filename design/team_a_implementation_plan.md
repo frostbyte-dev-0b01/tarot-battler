@@ -492,6 +492,10 @@ Without those capabilities, Team A can only be approximated and Chariot's intend
 
 ## Phase 8A: Enemy Companion Targeting
 
+Status:
+
+- implemented
+
 ### Goal
 
 Support effects that hit the user's current target and that target's companions.
