@@ -165,8 +165,8 @@ Each character editor should include:
 - `display_name`
 - position
 - stats
-- passive chosen from the passive catalog
-- `active_1`, `active_2`, and `active_3` style slots backed by the ability catalog
+- passive chosen from the passive catalog, or left empty
+- `active_1`, `active_2`, and `active_3` style slots backed by the ability catalog, each optional
 - item
 - rules
 

@@ -84,15 +84,10 @@ const demoTeams = {
         display_name: "The Emperor",
         position: { row: 0, col: 0 },
         stats: { con: 7, str: 8, int: 3, for: 7, wis: 3, dex: 4, spi: 4 },
-        passive: "Authority",
-        actives: ["Crush", "Embolden"],
+        passive: "",
+        actives: [],
         item: null,
-        rules: [
-          {
-            ability: "Crush",
-            when: [{ subject: "self", value: "mp", op: "gte", threshold: 2 }],
-          },
-        ],
+        rules: [],
       },
     ],
   },
@@ -105,15 +100,10 @@ const demoTeams = {
         display_name: "The Star",
         position: { row: 2, col: 1 },
         stats: { con: 5, str: 2, int: 6, for: 3, wis: 7, dex: 3, spi: 6 },
-        passive: "Hope",
-        actives: ["Restore", "Purify"],
+        passive: "",
+        actives: [],
         item: null,
-        rules: [
-          {
-            ability: "Restore",
-            when: [{ subject: "companion", value: "hp", op: "lte", threshold: 6 }],
-          },
-        ],
+        rules: [],
       },
     ],
   },
@@ -850,8 +840,8 @@ function validateTeamCharacters(characters, errors) {
       }
     }
 
-    if (typeof character.passive !== "string" || character.passive.trim() === "") {
-      errors.push(`${prefix}.passive must be a non-empty string.`);
+    if (typeof character.passive !== "string") {
+      errors.push(`${prefix}.passive must be a string.`);
     }
 
     if (!Array.isArray(character.actives)) {
