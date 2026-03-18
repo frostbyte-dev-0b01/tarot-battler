@@ -192,6 +192,7 @@ pub enum PassiveTrigger {
     OnDealDamage,
     OnTakeDamage,
     OnTurnStart,
+    OnAllyDamageMyTarget,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

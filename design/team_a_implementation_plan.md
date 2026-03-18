@@ -563,6 +563,10 @@ This avoids baking Team A behavior into one-time `on_battle_start` applications 
 
 ## Phase 8C: Focus-Fire Passive Trigger
 
+Status:
+
+- implemented
+
 ### Goal
 
 Support passives that react when an ally damages this character's current target.

@@ -425,6 +425,7 @@ Triggered passives fire on battle events such as:
 - killing an enemy
 - dying
 - ally death
+- an ally damaging this character's current target
 
 Some passives are dynamic auras rather than one-time triggers. These should update with live formation state so row-based bonuses remain correct when units move or die.
 

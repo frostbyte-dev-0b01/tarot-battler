@@ -746,6 +746,22 @@ impl BattleState {
             }
         }
 
+        for record in damage_dealt.iter().filter(|record| record.damage > 0) {
+            let owner_indices: Vec<usize> = {
+                let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                actor_team
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| c.is_alive() && c.id() != record.source_id && c.target() == Some(record.target_id))
+                    .map(|(idx, _)| idx)
+                    .collect()
+            };
+
+            for owner_idx in owner_indices {
+                self.try_fire_passive(owner_idx, &PassiveTrigger::OnAllyDamageMyTarget, is_team_a);
+            }
+        }
+
         for eidx in damaged_enemy_indices {
             let (_, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
             if enemy_team[eidx].is_alive() {
@@ -1010,6 +1026,155 @@ mod tests {
         battle.resolve_character_death(0, true);
         assert_eq!(battle.team_a[1].get_eff_stat(&Stat::STR), 8);
         assert_eq!(battle.team_a[2].get_eff_stat(&Stat::STR), 8);
+    }
+
+    #[test]
+    fn on_ally_damage_my_target_fires_for_matching_target() {
+        let striker = make_config_at(
+            "Striker",
+            0,
+            0,
+            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+        );
+        let mut chariot = make_config_at(
+            "Chariot",
+            0,
+            1,
+            vec![(Stat::STR, 8), (Stat::CON, 10), (Stat::SPI, 5)],
+        );
+        chariot.passive = "Pursuit".to_string();
+        let enemy = make_config_at("Target", 0, 0, vec![(Stat::FOR, 3), (Stat::CON, 10)]);
+
+        let mut passives = PassiveMap::new();
+        passives.insert(
+            "Pursuit".to_string(),
+            PassiveDef::Triggered {
+                trigger: PassiveTrigger::OnAllyDamageMyTarget,
+                primitives: vec![Primitive::ApplyStatus {
+                    target: SimpleAbilityTarget::SelfChar.into(),
+                    status: "Empower".to_string(),
+                    stat: Some(Stat::STR),
+                    stacks: 1,
+                }],
+            },
+        );
+        let statuses = [(
+            "Empower".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+                stack_type: StackType::TickDown,
+                opposes: Some("Weaken".to_string()),
+            },
+        )]
+        .into_iter()
+        .collect();
+
+        let mut battle = BattleState::new(
+            &[striker, chariot],
+            &[enemy],
+            empty_abilities(),
+            passives,
+            statuses,
+            42,
+        );
+        battle.team_a[0].set_target(battle.team_b[0].id());
+        battle.team_a[1].set_target(battle.team_b[0].id());
+
+        battle.process_damage_results(
+            0,
+            true,
+            &[DamageRecord {
+                source_id: battle.team_a[0].id(),
+                target_id: battle.team_b[0].id(),
+                damage: 3,
+            }],
+        );
+
+        assert_eq!(
+            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::STR))),
+            1
+        );
+    }
+
+    #[test]
+    fn on_ally_damage_my_target_does_not_fire_for_self_or_other_targets() {
+        let mut chariot = make_config_at(
+            "Chariot",
+            0,
+            1,
+            vec![(Stat::STR, 8), (Stat::CON, 10), (Stat::SPI, 5)],
+        );
+        chariot.passive = "Pursuit".to_string();
+        let ally = make_config_at(
+            "Ally",
+            0,
+            0,
+            vec![(Stat::STR, 10), (Stat::CON, 10), (Stat::SPI, 5)],
+        );
+        let enemy_a = make_config_at("EnemyA", 0, 0, vec![(Stat::FOR, 3), (Stat::CON, 10)]);
+        let enemy_b = make_config_at("EnemyB", 0, 1, vec![(Stat::FOR, 3), (Stat::CON, 10)]);
+
+        let mut passives = PassiveMap::new();
+        passives.insert(
+            "Pursuit".to_string(),
+            PassiveDef::Triggered {
+                trigger: PassiveTrigger::OnAllyDamageMyTarget,
+                primitives: vec![Primitive::ApplyStatus {
+                    target: SimpleAbilityTarget::SelfChar.into(),
+                    status: "Empower".to_string(),
+                    stat: Some(Stat::STR),
+                    stacks: 1,
+                }],
+            },
+        );
+        let statuses = [(
+            "Empower".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+                stack_type: StackType::TickDown,
+                opposes: Some("Weaken".to_string()),
+            },
+        )]
+        .into_iter()
+        .collect();
+
+        let mut battle = BattleState::new(
+            &[ally, chariot],
+            &[enemy_a, enemy_b],
+            empty_abilities(),
+            passives,
+            statuses,
+            42,
+        );
+        battle.team_a[1].set_target(battle.team_b[0].id());
+
+        battle.process_damage_results(
+            1,
+            true,
+            &[DamageRecord {
+                source_id: battle.team_a[1].id(),
+                target_id: battle.team_b[0].id(),
+                damage: 3,
+            }],
+        );
+        assert_eq!(
+            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::STR))),
+            0
+        );
+
+        battle.process_damage_results(
+            0,
+            true,
+            &[DamageRecord {
+                source_id: battle.team_a[0].id(),
+                target_id: battle.team_b[1].id(),
+                damage: 3,
+            }],
+        );
+        assert_eq!(
+            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::STR))),
+            0
+        );
     }
 
     #[test]
