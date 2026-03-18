@@ -602,6 +602,10 @@ Long-term direction:
 
 ## Phase 9: Data Integration
 
+Status:
+
+- implemented
+
 ### Goal
 
 Add Team A's drafted passives and abilities to the bundled catalogs and sample teams.
@@ -641,6 +645,12 @@ This supports the intended Chariot loop:
 - absorb support
 - `Withdraw` back
 - save MP for `Breakthrough`
+
+Current bundled sample note:
+
+- the bundled 3v3 sample keeps this formation, so Chariot is not adjacent to Emperor at battle start
+- `Command` remains equipped on Emperor, but is not currently scripted in the bundled sample lineup
+- this is a sample-formation compromise, not a change to the intended kit
 
 ## Phase 10: Replay and UI Support
 

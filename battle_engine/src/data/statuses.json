@@ -38,6 +38,10 @@
     "stack_type": "permanent",
     "opposes": "Fortify"
   },
+  "Ward": {
+    "behavior": "ward",
+    "stack_type": "permanent"
+  },
   "Stun": {
     "behavior": "skip_turn",
     "stack_type": "no_stack"

@@ -583,9 +583,12 @@ fn resolve_enemy_targets(
                 spec.position.as_ref(),
                 spec.bypass_row_protection,
             );
-            select_single_target(&mut candidates, enemy_team, spec.selector.as_ref(), rng)
-                .into_iter()
-                .collect()
+            match spec.selector.as_ref() {
+                Some(selector) => select_single_target(&mut candidates, enemy_team, Some(selector), rng)
+                    .into_iter()
+                    .collect(),
+                None => candidates,
+            }
         }
         AbilityTarget::Simple(_) | AbilityTarget::Detailed(_) => Vec::new(),
     }
@@ -615,17 +618,23 @@ fn resolve_ally_targets(
             .collect(),
         AbilityTarget::Detailed(spec) if matches!(spec.category, TargetCategory::Ally) => {
             let mut candidates = ally_candidates(actor_idx, actor_team, None, spec.position.as_ref());
-            select_single_target(&mut candidates, actor_team, spec.selector.as_ref(), rng)
-                .into_iter()
-                .collect()
+            match spec.selector.as_ref() {
+                Some(selector) => select_single_target(&mut candidates, actor_team, Some(selector), rng)
+                    .into_iter()
+                    .collect(),
+                None => candidates,
+            }
         }
         AbilityTarget::Detailed(spec) if matches!(spec.category, TargetCategory::Companion) => {
             let comp_ids = actor_team[actor_idx].companions().to_vec();
             let mut candidates =
                 ally_candidates(actor_idx, actor_team, Some(&comp_ids), spec.position.as_ref());
-            select_single_target(&mut candidates, actor_team, spec.selector.as_ref(), rng)
-                .into_iter()
-                .collect()
+            match spec.selector.as_ref() {
+                Some(selector) => select_single_target(&mut candidates, actor_team, Some(selector), rng)
+                    .into_iter()
+                    .collect(),
+                None => candidates,
+            }
         }
         AbilityTarget::Simple(_) | AbilityTarget::Detailed(_) => Vec::new(),
     }
@@ -1680,6 +1689,51 @@ mod tests {
 
         assert_eq!(actor_team[1].current_mp(), 3);
         assert_eq!(actor_team[2].current_mp(), 0);
+    }
+
+    #[test]
+    fn ally_detailed_target_without_selector_hits_all_matching_allies() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![
+            make_adjacent_char(0, 1, 1, vec![(Stat::CON, 10), (Stat::SPI, 6)]),
+            make_adjacent_char(1, 1, 2, vec![(Stat::CON, 10), (Stat::SPI, 4)]),
+            make_adjacent_char(2, 1, 0, vec![(Stat::CON, 10), (Stat::SPI, 2)]),
+            make_adjacent_char(3, 2, 1, vec![(Stat::CON, 10), (Stat::SPI, 1)]),
+        ];
+        actor_team[1].spend_mp(3);
+        actor_team[2].spend_mp(1);
+        actor_team[3].spend_mp(1);
+        let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::RestoreMp {
+                target: AbilityTarget::Detailed(TargetSpec {
+                    category: TargetCategory::Ally,
+                    selector: None,
+                    position: Some(PositionalCondition::SameRow),
+                    bypass_row_protection: false,
+                }),
+                amount: 2,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "RowBlessing",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert_eq!(actor_team[1].current_mp(), 3);
+        assert_eq!(actor_team[2].current_mp(), 2);
+        assert_eq!(actor_team[3].current_mp(), 0);
     }
 
     #[test]

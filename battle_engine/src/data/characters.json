@@ -1,63 +1,123 @@
 [
   {
     "base_name": "The Emperor",
-    "passive": "",
-    "actives": [],
+    "passive": "Imperial Formation",
+    "actives": ["Hold the Line", "Command", "Taunt"],
     "item": null,
     "position": { "row": 0, "col": 0 },
     "stats": {
-      "con": 10, "str": 6, "int": 4, "for": 3, "wis": 2,
-      "dex": 4, "spi": 5
+      "con": 10, "str": 6, "int": 4, "for": 5, "wis": 3,
+      "dex": 4, "spi": 6
     },
-    "rules": []
+    "rules": [
+      {
+        "ability": "Hold the Line",
+        "when": [
+          {
+            "subject": "world",
+            "value": "tick_count",
+            "op": "lte",
+            "threshold": 1
+          }
+        ]
+      },
+      {
+        "ability": "Taunt",
+        "when": [
+          {
+            "subject": "world",
+            "value": "tick_count",
+            "op": "lte",
+            "threshold": 3
+          }
+        ]
+      }
+    ]
   },
   {
-    "base_name": "The Tower",
-    "passive": "",
-    "actives": [],
-    "item": null,
-    "position": { "row": 0, "col": 1 },
-    "stats": {
-      "con": 8, "str": 8, "int": 3, "for": 5, "wis": 2,
-      "dex": 3, "spi": 4
-    },
-    "rules": []
-  },
-  {
-    "base_name": "The Chariot",
-    "passive": "",
-    "actives": [],
+    "base_name": "The Hierophant",
+    "passive": "Sanctuary",
+    "actives": ["Smite", "Consecrate", "Blessing"],
     "item": null,
     "position": { "row": 0, "col": 2 },
     "stats": {
-      "con": 9, "str": 7, "int": 3, "for": 4, "wis": 2,
-      "dex": 5, "spi": 4
+      "con": 11, "str": 3, "int": 7, "for": 4, "wis": 7,
+      "dex": 3, "spi": 7
     },
-    "rules": []
+    "rules": [
+      {
+        "ability": "Blessing",
+        "when": [
+          {
+            "subject": "world",
+            "value": "tick_count",
+            "op": "lte",
+            "threshold": 2
+          }
+        ]
+      },
+      {
+        "ability": "Consecrate",
+        "when": [
+          {
+            "subject": "world",
+            "value": "enemy_count",
+            "op": "gte",
+            "threshold": 2
+          }
+        ]
+      },
+      {
+        "ability": "Smite",
+        "when": []
+      }
+    ]
   },
   {
-    "base_name": "The High Priestess",
-    "passive": "",
-    "actives": [],
+    "base_name": "The Chariot",
+    "passive": "Pursuit",
+    "actives": ["Charge", "Withdraw", "Breakthrough"],
     "item": null,
     "position": { "row": 1, "col": 1 },
     "stats": {
-      "con": 6, "str": 2, "int": 8, "for": 2, "wis": 7,
-      "dex": 5, "spi": 7
+      "con": 9, "str": 8, "int": 3, "for": 4, "wis": 3,
+      "dex": 6, "spi": 5
     },
-    "rules": []
-  },
-  {
-    "base_name": "The Hermit",
-    "passive": "",
-    "actives": [],
-    "item": null,
-    "position": { "row": 2, "col": 1 },
-    "stats": {
-      "con": 7, "str": 2, "int": 7, "for": 3, "wis": 6,
-      "dex": 4, "spi": 8
-    },
-    "rules": []
+    "rules": [
+      {
+        "ability": "Breakthrough",
+        "when": [
+          {
+            "subject": "self",
+            "value": { "status_stacks": "Empower:STR" },
+            "op": "gte",
+            "threshold": 3
+          }
+        ]
+      },
+      {
+        "ability": "Charge",
+        "when": [
+          {
+            "subject": "world",
+            "value": "tick_count",
+            "op": "lte",
+            "threshold": 1
+          }
+        ]
+      },
+      {
+        "ability": "Withdraw",
+        "when": [
+          {
+            "subject": "self",
+            "value": { "has_status": "Ward" },
+            "op": "gte",
+            "threshold": 1
+          }
+        ]
+      }
+    ]
   },
   {
     "base_name": "The Fool",
@@ -88,34 +148,10 @@
     "passive": "",
     "actives": [],
     "item": null,
-    "position": { "row": 0, "col": 2 },
-    "stats": {
-      "con": 9, "str": 7, "int": 3, "for": 6, "wis": 3,
-      "dex": 4, "spi": 5
-    },
-    "rules": []
-  },
-  {
-    "base_name": "The Moon",
-    "passive": "",
-    "actives": [],
-    "item": null,
     "position": { "row": 1, "col": 1 },
     "stats": {
-      "con": 5, "str": 2, "int": 8, "for": 2, "wis": 6,
-      "dex": 5, "spi": 8
-    },
-    "rules": []
-  },
-  {
-    "base_name": "The Star",
-    "passive": "",
-    "actives": [],
-    "item": null,
-    "position": { "row": 2, "col": 1 },
-    "stats": {
-      "con": 6, "str": 2, "int": 6, "for": 3, "wis": 7,
-      "dex": 4, "spi": 9
+      "con": 10, "str": 7, "int": 2, "for": 6, "wis": 5,
+      "dex": 4, "spi": 5
     },
     "rules": []
   }

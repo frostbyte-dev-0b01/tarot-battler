@@ -1,1 +1,37 @@
-{}
+{
+  "Imperial Formation": {
+    "type": "row_aura",
+    "effects": [
+      {
+        "stat": "str",
+        "amount": 1
+      },
+      {
+        "stat": "int",
+        "amount": 1
+      }
+    ]
+  },
+  "Sanctuary": {
+    "type": "row_aura",
+    "effects": [
+      {
+        "stat": "wis",
+        "amount": 1
+      }
+    ]
+  },
+  "Pursuit": {
+    "type": "triggered",
+    "trigger": "on_ally_damage_my_target",
+    "primitives": [
+      {
+        "kind": "apply_status",
+        "target": "self",
+        "status": "Empower",
+        "stat": "str",
+        "stacks": 1
+      }
+    ]
+  }
+}

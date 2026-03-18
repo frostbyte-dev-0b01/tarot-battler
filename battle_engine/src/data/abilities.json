@@ -1,1 +1,111 @@
-{}
+{
+  "Hold the Line": {
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "apply_status",
+        "target": {
+          "category": "ally",
+          "position": "same_row"
+        },
+        "status": "Ward",
+        "stacks": 1
+      }
+    ]
+  },
+  "Command": {
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "command_attack"
+      }
+    ]
+  },
+  "Taunt": {
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "retarget",
+        "target": "all_enemies",
+        "mode": "to_self",
+        "filter": "physical_attackers"
+      }
+    ]
+  },
+  "Smite": {
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "deal_magical_damage",
+        "target": "current_target",
+        "multiplier": 1.0
+      }
+    ]
+  },
+  "Consecrate": {
+    "mp_cost": 3,
+    "primitives": [
+      {
+        "kind": "deal_magical_damage",
+        "target": "current_target_and_companions",
+        "multiplier": 0.7
+      }
+    ]
+  },
+  "Blessing": {
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "restore_mp",
+        "target": {
+          "category": "ally",
+          "position": "same_row"
+        },
+        "amount": 2
+      }
+    ]
+  },
+  "Charge": {
+    "mp_cost": 1,
+    "primitives": [
+      {
+        "kind": "deal_physical_damage",
+        "target": "current_target",
+        "multiplier": 1.0,
+        "double_empower_stat": null
+      },
+      {
+        "kind": "move",
+        "direction": "forward",
+        "if_empty": true
+      }
+    ]
+  },
+  "Withdraw": {
+    "mp_cost": 1,
+    "primitives": [
+      {
+        "kind": "deal_physical_damage",
+        "target": "current_target",
+        "multiplier": 1.0,
+        "double_empower_stat": null
+      },
+      {
+        "kind": "move",
+        "direction": "backward",
+        "if_empty": true
+      }
+    ]
+  },
+  "Breakthrough": {
+    "mp_cost": 3,
+    "primitives": [
+      {
+        "kind": "deal_physical_damage",
+        "target": "current_target",
+        "multiplier": 1.0,
+        "double_empower_stat": "str"
+      }
+    ]
+  }
+}
