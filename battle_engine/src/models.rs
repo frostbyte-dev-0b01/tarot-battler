@@ -7,19 +7,19 @@ use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusInstance, oppo
 /// The current character attributes.
 #[derive(Hash, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum Stat {
-    #[serde(rename = "CON", alias = "con")]
+    #[serde(rename = "con")]
     CON, // Max HP = 2 * CON
-    #[serde(rename = "STR", alias = "str")]
+    #[serde(rename = "str")]
     STR, // Base physical damage
-    #[serde(rename = "INT", alias = "int")]
+    #[serde(rename = "int")]
     INT, // Base magical damage
-    #[serde(rename = "FOR", alias = "for")]
+    #[serde(rename = "for")]
     FOR, // Physical resistance
-    #[serde(rename = "WIS", alias = "wis")]
+    #[serde(rename = "wis")]
     WIS, // Magical resistance
-    #[serde(rename = "DEX", alias = "dex")]
+    #[serde(rename = "dex")]
     DEX, // Determines how often to act
-    #[serde(rename = "SPI", alias = "spi")]
+    #[serde(rename = "spi")]
     SPI, // Spirit stat: max MP and MP regen
 }
 
@@ -67,7 +67,7 @@ pub enum QueryValue {
     UseCount,
     TurnsSinceUse,
     // TODO: StatusStacks(String) and HasStatus(String) for rule conditions
-    // e.g., { "value": { "status_stacks": "Bleed" }, "comparator": "gte", "threshold": 3 }
+    // e.g., { "value": { "status_stacks": "Bleed" }, "op": "gte", "threshold": 3 }
 }
 
 /// Comparison operator for conditions.
@@ -83,7 +83,7 @@ pub enum Comparator {
 pub struct Condition {
     pub subject: ConditionSubject,
     pub value: QueryValue,
-    #[serde(alias = "op")]
+    #[serde(rename = "op")]
     pub comparator: Comparator,
     pub threshold: u32,
 }
@@ -92,7 +92,7 @@ pub struct Condition {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Rule {
     pub ability: String,
-    #[serde(alias = "when")]
+    #[serde(rename = "when")]
     pub conditions: Vec<Condition>,
 }
 

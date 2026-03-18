@@ -2,9 +2,9 @@
   "Absolve": {
     "mp_cost": 2,
     "primitives": [
-      { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "STR", "stacks": 1 },
-      { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "WIS", "stacks": 1 },
-      { "kind": "remove_status", "target": "current_target", "status": "Fortify", "stat": "FOR", "stacks": 1 }
+      { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "str", "stacks": 1 },
+      { "kind": "remove_status", "target": "current_target", "status": "Empower", "stat": "wis", "stacks": 1 },
+      { "kind": "remove_status", "target": "current_target", "status": "Fortify", "stat": "for", "stacks": 1 }
     ]
   },
   "Channel": {
@@ -35,7 +35,7 @@
   "Ebb": {
     "mp_cost": 2,
     "primitives": [
-      { "kind": "apply_status", "target": "current_target", "status": "Weaken", "stat": "STR", "stacks": 1 }
+      { "kind": "apply_status", "target": "current_target", "status": "Weaken", "stat": "str", "stacks": 1 }
     ]
   },
   "Embolden": {
@@ -47,7 +47,7 @@
   "Inner Sight": {
     "mp_cost": 2,
     "primitives": [
-      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "WIS", "stacks": 1 }
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "wis", "stacks": 1 }
     ]
   },
   "Lantern": {
@@ -60,7 +60,7 @@
     "mp_cost": 2,
     "primitives": [
       { "kind": "deal_physical_damage", "target": "current_target", "multiplier": 1.2 },
-      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 1 }
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "str", "stacks": 1 }
     ]
   },
   "Moonbeam": {
@@ -80,14 +80,14 @@
     "primitives": [
       { "kind": "remove_status", "target": "all_allies", "status": "Bleed", "stacks": 1 },
       { "kind": "remove_status", "target": "all_allies", "status": "Poison", "stacks": 1 },
-      { "kind": "remove_status", "target": "all_allies", "status": "Weaken", "stat": "STR", "stacks": 1 },
+      { "kind": "remove_status", "target": "all_allies", "status": "Weaken", "stat": "str", "stacks": 1 },
       { "kind": "restore_hp", "target": "all_allies", "amount": 2 }
     ]
   },
   "Rally": {
     "mp_cost": 2,
     "primitives": [
-      { "kind": "apply_status", "target": "companions", "status": "Empower", "stat": "STR", "stacks": 1 }
+      { "kind": "apply_status", "target": "companions", "status": "Empower", "stat": "str", "stacks": 1 }
     ]
   },
   "Restore": {
@@ -107,7 +107,7 @@
   "Roar": {
     "mp_cost": 2,
     "primitives": [
-      { "kind": "apply_status", "target": "all_enemies", "status": "Weaken", "stat": "STR", "stacks": 1 }
+      { "kind": "apply_status", "target": "all_enemies", "status": "Weaken", "stat": "str", "stacks": 1 }
     ]
   },
   "Rubble": {
@@ -125,7 +125,7 @@
   "Stumble": {
     "mp_cost": 1,
     "primitives": [
-      { "kind": "apply_status", "target": "current_target", "status": "Weaken", "stat": "STR", "stacks": 1 },
+      { "kind": "apply_status", "target": "current_target", "status": "Weaken", "stat": "str", "stacks": 1 },
       { "kind": "restore_mp", "target": "self", "amount": 2 }
     ]
   },
@@ -133,7 +133,7 @@
     "mp_cost": 2,
     "primitives": [
       { "kind": "deal_physical_damage", "target": "current_target", "multiplier": 1.2 },
-      { "kind": "apply_status", "target": "self", "status": "Fortify", "stat": "FOR", "stacks": 1 }
+      { "kind": "apply_status", "target": "self", "status": "Fortify", "stat": "for", "stacks": 1 }
     ]
   },
   "Transmute": {

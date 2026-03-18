@@ -7,7 +7,7 @@
     "type": "triggered",
     "trigger": "on_battle_start",
     "primitives": [
-      { "kind": "apply_status", "target": "all_enemies", "status": "Weaken", "stat": "STR", "stacks": 1 }
+      { "kind": "apply_status", "target": "all_enemies", "status": "Weaken", "stat": "str", "stacks": 1 }
     ]
   },
   "Beginner's Luck": {
@@ -25,21 +25,21 @@
     "type": "triggered",
     "trigger": "on_battle_start",
     "primitives": [
-      { "kind": "apply_status", "target": "all_allies", "status": "Empower", "stat": "WIS", "stacks": 1 }
+      { "kind": "apply_status", "target": "all_allies", "status": "Empower", "stat": "wis", "stacks": 1 }
     ]
   },
   "Illusion": {
     "type": "triggered",
     "trigger": "on_take_damage",
     "primitives": [
-      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "WIS", "stacks": 1 }
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "wis", "stacks": 1 }
     ]
   },
   "Inner Fire": {
     "type": "triggered",
     "trigger": "on_battle_start",
     "primitives": [
-      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 2 }
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "str", "stacks": 2 }
     ]
   },
   "Meditation": {
@@ -53,7 +53,7 @@
     "type": "triggered",
     "trigger": "on_deal_damage",
     "primitives": [
-      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 1 }
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "str", "stacks": 1 }
     ]
   },
   "Reaper": {
@@ -82,14 +82,14 @@
     "type": "triggered",
     "trigger": "on_take_damage",
     "primitives": [
-      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "STR", "stacks": 1 }
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "str", "stacks": 1 }
     ]
   },
   "Veil of Mystery": {
     "type": "triggered",
     "trigger": "on_battle_start",
     "primitives": [
-      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "WIS", "stacks": 1 }
+      { "kind": "apply_status", "target": "self", "status": "Empower", "stat": "wis", "stacks": 1 }
     ]
   }
 }
