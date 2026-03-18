@@ -87,6 +87,9 @@ Not yet supported:
 - movement abilities that change formation position mid-battle
 - a true `Ward` mechanic
 - damage calculations that selectively reinterpret status stacks for a single ability
+- enemy companion targeting
+- passives that react to an ally damaging this character's current target
+- dynamic row-aura passives that update as units move
 
 ## Design Decisions To Preserve
 
@@ -97,6 +100,9 @@ The implementation should preserve these gameplay intentions:
 - `Command` is impactful and notable, not a hidden minor rider
 - `Taunt` uses sticky-target mutation rather than target locking
 - `Breakthrough` is a real payoff attack for `Empower`, not just a larger generic multiplier
+- row-based passives should follow current formation state rather than only battle-start snapshots
+- `Consecrate` should use enemy-companion splash rather than a generic all-enemies fallback
+- `Pursuit` should care about coordinated focus fire on Chariot's current target, not generic ally damage
 
 ## Recommended Rollout
 
@@ -476,6 +482,114 @@ This keeps the primitive library from exploding while still supporting notable p
 
 ## Phase 8: Data Integration
 
+### Blocked on
+
+- Phase 8A: enemy companion targeting
+- Phase 8B: dynamic row auras
+- Phase 8C: focus-fire passive trigger
+
+Without those capabilities, Team A can only be approximated and Chariot's intended loop will not behave correctly.
+
+## Phase 8A: Enemy Companion Targeting
+
+### Goal
+
+Support effects that hit the user's current target and that target's companions.
+
+### Needed for
+
+- `Consecrate`
+
+### Implementation
+
+Add a new enemy targeting shape that resolves:
+
+- the user's current target
+- all living companions of that target
+
+Recommended v1 shape:
+
+- `current_target_and_companions`
+
+This should remain target-resolution logic, not a one-off Hierophant shortcut.
+
+### Tests
+
+- includes current target
+- includes all living companions of current target
+- excludes non-companions
+- handles missing current target cleanly
+
+## Phase 8B: Dynamic Row Aura Support
+
+### Goal
+
+Support row-based passives that stay correct as formation changes during battle.
+
+### Needed for
+
+- `Imperial Formation`
+- `Sanctuary`
+
+### Implementation
+
+Add a lightweight row-aura system for passives that:
+
+- applies aura statuses to qualifying allies
+- removes aura statuses when the source moves, dies, or row membership changes
+- reevaluates after battle start and after movement
+
+Recommended v1 scope:
+
+- only ally same-row aura passives
+- only stat-mod aura statuses
+
+This avoids baking Team A behavior into one-time `on_battle_start` applications that would not follow Chariot when he changes rows.
+
+### Tests
+
+- same-row ally gains aura status while sharing row
+- ally loses aura status after source or ally moves out of row
+- dead source removes aura effect
+- overlapping row auras stack predictably or are explicitly defined not to
+
+## Phase 8C: Focus-Fire Passive Trigger
+
+### Goal
+
+Support passives that react when an ally damages this character's current target.
+
+### Needed for
+
+- `Pursuit`
+
+### Implementation
+
+Add a new passive trigger concept for:
+
+- ally damages my current target
+
+Recommended semantics:
+
+- fires on actual damage dealt, not on zero-damage hits
+- checks the passive owner's current sticky target at the time the ally damage resolves
+- does not fire from the owner's own damage
+- can fire from commanded attacks if the commanded unit is an ally and hits the correct target
+
+Long-term direction:
+
+- this v1 trigger is intentionally narrow
+- a more flexible future system should likely generalize this into ally-event passives with event-type and relationship filters
+
+### Tests
+
+- fires when an ally damages the passive owner's current target
+- does not fire on unrelated enemy targets
+- does not fire on self damage
+- fires off commanded companion attacks if target matches
+
+## Phase 9: Data Integration
+
 ### Goal
 
 Add Team A's drafted passives and abilities to the bundled catalogs and sample teams.
@@ -516,7 +630,7 @@ This supports the intended Chariot loop:
 - `Withdraw` back
 - save MP for `Breakthrough`
 
-## Phase 9: Replay and UI Support
+## Phase 10: Replay and UI Support
 
 ### Goal
 
@@ -542,8 +656,11 @@ Movement events are likely worth logging explicitly. Retarget changes should at 
 5. Phase 5: real Ward mechanic
 6. Phase 6: status-aware rule conditions
 7. Phase 7: Breakthrough payoff support
-8. Phase 8: data integration
-9. Phase 9: replay and UI support
+8. Phase 8A: enemy companion targeting
+9. Phase 8B: dynamic row aura support
+10. Phase 8C: focus-fire passive trigger
+11. Phase 9: data integration
+12. Phase 10: replay and UI support
 
 ## Suggested Milestones
 
@@ -555,6 +672,7 @@ Emperor and Hierophant are functional:
 - `Taunt` works
 - `Smite` and `Consecrate` work using existing damage primitives
 - `Blessing` works
+- row auras update as formation changes
 
 ### Milestone B
 
@@ -564,6 +682,7 @@ Chariot movement loop is functional:
 - `Command` works
 - `Ward` works
 - basic row-dance play pattern is visible in logs
+- `Pursuit` can build Empower during coordinated focus fire
 
 ### Milestone C
 
@@ -572,6 +691,7 @@ Team A scripting and payoff are functional:
 - status-aware rules work
 - `Breakthrough` payoff works
 - replay viewer can show the resulting battle clearly
+- bundled Team A data and sample battle are aligned with the intended kits
 
 ## Risks
 
@@ -579,6 +699,8 @@ Team A scripting and payoff are functional:
 - a real `Ward` mechanic affects many combat interactions, not just Team A
 - commanded attacks may create unexpected passive-trigger chains
 - status-aware rules expand the rule language and need careful validation
+- dynamic auras can create subtle add/remove timing bugs after movement and death
+- focus-fire passive triggers can overfire if damage attribution is not kept precise
 
 ## Recommendation
 
