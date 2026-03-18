@@ -102,6 +102,10 @@ The implementation should preserve these gameplay intentions:
 
 ## Phase 1: Row-Based Ally Targeting
 
+Status:
+
+- implemented
+
 ### Goal
 
 Support effects that target allies in the user's row.

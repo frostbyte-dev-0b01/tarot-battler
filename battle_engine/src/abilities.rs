@@ -422,31 +422,94 @@ fn resolve_ally_targets(
             .map(|(i, _)| i)
             .collect(),
         AbilityTarget::Detailed(spec) if matches!(spec.category, TargetCategory::Ally) => {
-            let mut candidates: Vec<usize> = actor_team
-                .iter()
-                .enumerate()
-                .filter(|(i, c)| *i != actor_idx && c.is_alive())
-                .map(|(i, _)| i)
-                .collect();
+            let mut candidates = ally_candidates(actor_idx, actor_team, None, spec.position.as_ref());
             select_single_target(&mut candidates, actor_team, spec.selector.as_ref(), rng)
                 .into_iter()
                 .collect()
         }
         AbilityTarget::Detailed(spec) if matches!(spec.category, TargetCategory::Companion) => {
             let comp_ids = actor_team[actor_idx].companions().to_vec();
-            let mut candidates: Vec<usize> = comp_ids
-                .iter()
-                .filter_map(|id| {
-                    actor_team
-                        .iter()
-                        .position(|c| c.id() == *id && c.is_alive())
-                })
-                .collect();
+            let mut candidates =
+                ally_candidates(actor_idx, actor_team, Some(&comp_ids), spec.position.as_ref());
             select_single_target(&mut candidates, actor_team, spec.selector.as_ref(), rng)
                 .into_iter()
                 .collect()
         }
         AbilityTarget::Simple(_) | AbilityTarget::Detailed(_) => Vec::new(),
+    }
+}
+
+fn ally_candidates(
+    actor_idx: usize,
+    actor_team: &[CharacterState],
+    allowed_ids: Option<&[u32]>,
+    position: Option<&PositionalCondition>,
+) -> Vec<usize> {
+    let mut candidates: Vec<usize> = actor_team
+        .iter()
+        .enumerate()
+        .filter(|(i, c)| {
+            *i != actor_idx
+                && c.is_alive()
+                && allowed_ids.map_or(true, |ids| ids.contains(&c.id()))
+        })
+        .map(|(i, _)| i)
+        .collect();
+
+    if let Some(position) = position {
+        candidates = filter_ally_positions(candidates, actor_idx, actor_team, position);
+    }
+
+    candidates
+}
+
+fn filter_ally_positions(
+    candidates: Vec<usize>,
+    actor_idx: usize,
+    actor_team: &[CharacterState],
+    position: &PositionalCondition,
+) -> Vec<usize> {
+    if candidates.is_empty() {
+        return candidates;
+    }
+
+    match position {
+        PositionalCondition::Frontmost => {
+            let row = candidates
+                .iter()
+                .map(|idx| actor_team[*idx].position().row)
+                .min()
+                .unwrap();
+            candidates
+                .into_iter()
+                .filter(|idx| actor_team[*idx].position().row == row)
+                .collect()
+        }
+        PositionalCondition::Backmost => {
+            let row = candidates
+                .iter()
+                .map(|idx| actor_team[*idx].position().row)
+                .max()
+                .unwrap();
+            candidates
+                .into_iter()
+                .filter(|idx| actor_team[*idx].position().row == row)
+                .collect()
+        }
+        PositionalCondition::SameRow => {
+            let row = actor_team[actor_idx].position().row;
+            candidates
+                .into_iter()
+                .filter(|idx| actor_team[*idx].position().row == row)
+                .collect()
+        }
+        PositionalCondition::SameColumn => {
+            let col = actor_team[actor_idx].position().col;
+            candidates
+                .into_iter()
+                .filter(|idx| actor_team[*idx].position().col == col)
+                .collect()
+        }
     }
 }
 
@@ -1205,5 +1268,101 @@ mod tests {
 
         assert_eq!(dealt.len(), 1);
         assert_eq!(dealt[0].0, 2);
+    }
+
+    #[test]
+    fn ally_selector_can_target_same_row_ally() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![
+            make_adjacent_char(0, 1, 1, vec![(Stat::CON, 10), (Stat::SPI, 6)]),
+            make_adjacent_char(1, 1, 2, vec![(Stat::CON, 10), (Stat::SPI, 4)]),
+            make_adjacent_char(2, 2, 1, vec![(Stat::CON, 10), (Stat::SPI, 2)]),
+        ];
+        actor_team[1].spend_mp(3);
+        actor_team[2].spend_mp(2);
+        let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::RestoreMp {
+                target: AbilityTarget::Detailed(TargetSpec {
+                    category: TargetCategory::Ally,
+                    selector: Some(TargetSelector::LowestMp),
+                    position: Some(PositionalCondition::SameRow),
+                    bypass_row_protection: false,
+                }),
+                amount: 2,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "RowBlessing",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert_eq!(actor_team[1].current_mp(), 3);
+        assert_eq!(actor_team[2].current_mp(), 0);
+    }
+
+    #[test]
+    fn companion_selector_can_target_same_row_companion() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![
+            make_adjacent_char(0, 1, 1, vec![(Stat::CON, 10)]),
+            make_adjacent_char(1, 1, 2, vec![(Stat::CON, 10)]),
+            make_adjacent_char(2, 2, 1, vec![(Stat::CON, 10)]),
+        ];
+        actor_team[0].set_companions(vec![1, 2]);
+        let mut enemy_team = vec![make_char(10, vec![(Stat::CON, 5)])];
+
+        let mut statuses = empty_statuses();
+        statuses.insert(
+            "Empower".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+                stack_type: StackType::TickDown,
+                opposes: Some("Weaken".to_string()),
+            },
+        );
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::ApplyStatus {
+                target: AbilityTarget::Detailed(TargetSpec {
+                    category: TargetCategory::Companion,
+                    selector: Some(TargetSelector::Random),
+                    position: Some(PositionalCondition::SameRow),
+                    bypass_row_protection: false,
+                }),
+                status: "Empower".to_string(),
+                stat: Some(Stat::STR),
+                stacks: 1,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "RowCommand",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        let key = status_key("Empower", Some(&Stat::STR));
+        assert_eq!(actor_team[1].status_stacks(&key), 1);
+        assert_eq!(actor_team[2].status_stacks(&key), 0);
     }
 }
