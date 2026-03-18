@@ -151,6 +151,10 @@ This should be a generic engine improvement, not an Emperor-specific shortcut.
 
 ## Phase 2: Retarget Primitive
 
+Status:
+
+- implemented
+
 ### Goal
 
 Implement the v1 retargeting system described in [retargeting_spec.md](./retargeting_spec.md).

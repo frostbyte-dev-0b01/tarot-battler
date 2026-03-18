@@ -8,6 +8,7 @@ use rand::seq::SliceRandom;
 use crate::logger::{BattleEvent, BattleLog};
 use crate::models::{CharacterState, Stat};
 use crate::statuses::{StatusMap, status_key};
+use crate::targeting::select_target;
 
 /// Simple target categories used by existing sample data.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -76,6 +77,20 @@ pub enum TargetSelector {
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RetargetMode {
+    ToSelf,
+    ToCompanion,
+    DefaultRetarget,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RetargetFilter {
+    PhysicalAttackers,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct TargetSpec {
     pub category: TargetCategory,
     #[serde(default)]
@@ -133,6 +148,12 @@ pub enum Primitive {
         #[serde(default)]
         stat: Option<Stat>,
         stacks: u32,
+    },
+    Retarget {
+        target: AbilityTarget,
+        mode: RetargetMode,
+        #[serde(default)]
+        filter: Option<RetargetFilter>,
     },
 }
 
@@ -353,6 +374,65 @@ pub fn execute_primitives(
                     }
                 }
             }
+            Primitive::Retarget {
+                target,
+                mode,
+                filter,
+            } => {
+                let target_indices = if target_is_enemy_side(target) {
+                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng)
+                } else {
+                    Vec::new()
+                };
+                for tidx in target_indices {
+                    if !enemy_team[tidx].is_alive()
+                        || !retarget_filter_matches(&enemy_team[tidx], filter.as_ref())
+                    {
+                        continue;
+                    }
+
+                    let new_target = match mode {
+                        RetargetMode::ToSelf => Some(actor_team[actor_idx].id()),
+                        RetargetMode::ToCompanion => {
+                            let mut living_companion_ids: Vec<u32> = actor_team[actor_idx]
+                                .companions()
+                                .iter()
+                                .filter_map(|id| {
+                                    actor_team
+                                        .iter()
+                                        .find(|c| c.id() == *id && c.is_alive())
+                                        .map(|c| c.id())
+                                })
+                                .collect();
+                            living_companion_ids.shuffle(_rng);
+                            living_companion_ids.into_iter().next()
+                        }
+                        RetargetMode::DefaultRetarget => {
+                            enemy_team[tidx].clear_target();
+                            select_target(&enemy_team[tidx], actor_team, _rng)
+                        }
+                    };
+
+                    if let Some(new_target_id) = new_target {
+                        enemy_team[tidx].set_target(new_target_id);
+                    }
+
+                    let new_target_name = new_target.and_then(|target_id| {
+                        actor_team
+                            .iter()
+                            .find(|c| c.id() == target_id)
+                            .map(|c| c.base_name().to_string())
+                    });
+                    log.push(BattleEvent::Retargeted {
+                        tick_count: step,
+                        character_id: enemy_team[tidx].id(),
+                        character_name: enemy_team[tidx].base_name().to_string(),
+                        new_target_id: enemy_team[tidx].target(),
+                        new_target_name,
+                        mode: retarget_mode_label(mode).to_string(),
+                    });
+                }
+            }
         }
     }
 
@@ -524,6 +604,26 @@ fn target_is_enemy_side(target: &AbilityTarget) -> bool {
                 ..
             })
     )
+}
+
+fn retarget_filter_matches(
+    target: &CharacterState,
+    filter: Option<&RetargetFilter>,
+) -> bool {
+    match filter {
+        None => true,
+        Some(RetargetFilter::PhysicalAttackers) => {
+            target.get_eff_stat(&Stat::STR) > target.get_eff_stat(&Stat::INT)
+        }
+    }
+}
+
+fn retarget_mode_label(mode: &RetargetMode) -> &'static str {
+    match mode {
+        RetargetMode::ToSelf => "to_self",
+        RetargetMode::ToCompanion => "to_companion",
+        RetargetMode::DefaultRetarget => "default_retarget",
+    }
 }
 
 fn front_row_enemy_indices(enemy_team: &[CharacterState]) -> Vec<usize> {
@@ -1364,5 +1464,129 @@ mod tests {
         let key = status_key("Empower", Some(&Stat::STR));
         assert_eq!(actor_team[1].status_stacks(&key), 1);
         assert_eq!(actor_team[2].status_stacks(&key), 0);
+    }
+
+    #[test]
+    fn retarget_to_self_only_affects_physical_attackers() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![
+            make_adjacent_char(0, 0, 0, vec![(Stat::CON, 10)]),
+            make_adjacent_char(1, 0, 1, vec![(Stat::CON, 10)]),
+        ];
+        actor_team[0].set_companions(vec![1]);
+        let mut enemy_team = vec![
+            make_adjacent_char(10, 0, 0, vec![(Stat::STR, 7), (Stat::INT, 2), (Stat::CON, 10)]),
+            make_adjacent_char(11, 0, 1, vec![(Stat::STR, 2), (Stat::INT, 7), (Stat::CON, 10)]),
+        ];
+        enemy_team[0].set_target(1);
+        enemy_team[1].set_target(1);
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::Retarget {
+                target: SimpleAbilityTarget::AllEnemies.into(),
+                mode: RetargetMode::ToSelf,
+                filter: Some(RetargetFilter::PhysicalAttackers),
+            }],
+        };
+
+        execute_ability(
+            0,
+            "Taunt",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert_eq!(enemy_team[0].target(), Some(0));
+        assert_eq!(enemy_team[1].target(), Some(1));
+    }
+
+    #[test]
+    fn retarget_to_companion_chooses_living_companion() {
+        let mut rng = StdRng::seed_from_u64(2);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![
+            make_adjacent_char(0, 0, 0, vec![(Stat::CON, 10)]),
+            make_adjacent_char(1, 0, 1, vec![(Stat::CON, 10)]),
+            make_adjacent_char(2, 1, 0, vec![(Stat::CON, 10)]),
+        ];
+        actor_team[0].set_companions(vec![1, 2]);
+        actor_team[2].take_damage(100);
+        let mut enemy_team = vec![make_adjacent_char(
+            10,
+            0,
+            2,
+            vec![(Stat::STR, 7), (Stat::CON, 10)],
+        )];
+        enemy_team[0].set_target(0);
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::Retarget {
+                target: SimpleAbilityTarget::AllEnemies.into(),
+                mode: RetargetMode::ToCompanion,
+                filter: None,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "DecoyOrders",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert_eq!(enemy_team[0].target(), Some(1));
+    }
+
+    #[test]
+    fn default_retarget_uses_normal_target_selection() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![
+            make_adjacent_char(0, 0, 0, vec![(Stat::FOR, 9), (Stat::WIS, 2), (Stat::CON, 10)]),
+            make_adjacent_char(1, 0, 1, vec![(Stat::FOR, 2), (Stat::WIS, 9), (Stat::CON, 10)]),
+        ];
+        let mut enemy_team = vec![make_adjacent_char(
+            10,
+            0,
+            2,
+            vec![(Stat::STR, 8), (Stat::INT, 3), (Stat::CON, 10)],
+        )];
+        enemy_team[0].set_target(0);
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::Retarget {
+                target: SimpleAbilityTarget::AllEnemies.into(),
+                mode: RetargetMode::DefaultRetarget,
+                filter: None,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "Confuse",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert_eq!(enemy_team[0].target(), Some(1));
     }
 }

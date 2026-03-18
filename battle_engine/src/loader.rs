@@ -322,6 +322,15 @@ fn validate_primitives(
                     ));
                 }
             }
+            Primitive::Retarget { target, .. } => {
+                if !is_enemy_target(target) {
+                    errors.push(format!(
+                        "{} retargets invalid target side '{}'",
+                        source_name,
+                        target_label(target),
+                    ));
+                }
+            }
             _ => {}
         }
     }
@@ -788,6 +797,38 @@ mod tests {
 
         let err = validate_content(&chars, &abilities, &PassiveMap::new(), &statuses).unwrap_err();
         assert!(err.contains("removes status 'Bleed'"));
+    }
+
+    #[test]
+    fn validate_content_rejects_invalid_retarget_target_side() {
+        let chars = vec![CharacterConfig {
+            id: None,
+            base_name: "Tester".to_string(),
+            display_name: None,
+            passive: String::new(),
+            actives: vec!["BadTaunt".to_string()],
+            item: None,
+            position: crate::models::Position { row: 0, col: 0 },
+            stats: [(Stat::CON, 10)].into_iter().collect(),
+            rules: Vec::new(),
+        }];
+        let abilities = [(
+            "BadTaunt".to_string(),
+            crate::abilities::AbilityDef {
+                mp_cost: 1,
+                primitives: vec![crate::abilities::Primitive::Retarget {
+                    target: crate::abilities::SimpleAbilityTarget::SelfChar.into(),
+                    mode: crate::abilities::RetargetMode::ToSelf,
+                    filter: None,
+                }],
+            },
+        )]
+        .into_iter()
+        .collect();
+
+        let err = validate_content(&chars, &abilities, &PassiveMap::new(), &StatusMap::new())
+            .unwrap_err();
+        assert!(err.contains("retargets invalid target side"));
     }
 
     #[test]
