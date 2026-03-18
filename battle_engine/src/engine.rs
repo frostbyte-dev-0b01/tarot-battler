@@ -6,7 +6,8 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use crate::abilities::{
-    AbilityMap, PassiveDef, PassiveMap, PassiveTrigger, execute_ability, execute_primitives,
+    AbilityMap, DamageRecord, PassiveDef, PassiveMap, PassiveTrigger, execute_ability,
+    execute_primitives,
 };
 #[cfg(test)]
 use crate::abilities::SimpleAbilityTarget;
@@ -215,7 +216,7 @@ impl BattleState {
         log: &mut BattleLog,
         step: u32,
         status_defs: &StatusMap,
-    ) -> Vec<(u32, u32)> {
+    ) -> Vec<DamageRecord> {
         match passive_def {
             PassiveDef::Triggered {
                 trigger,
@@ -264,7 +265,7 @@ impl BattleState {
         char_idx: usize,
         trigger: &PassiveTrigger,
         actor_team_is_a: bool,
-    ) -> Vec<(u32, u32)> {
+    ) -> Vec<DamageRecord> {
         if self.in_passive_phase {
             return Vec::new();
         }
@@ -326,21 +327,21 @@ impl BattleState {
     }
 
     /// Resolve deaths caused by passive damage while respecting the passive re-entry guard.
-    fn resolve_defeats_from_damage(&mut self, damage_dealt: &[(u32, u32)], team_is_a: bool) {
+    fn resolve_defeats_from_damage(&mut self, damage_dealt: &[DamageRecord], team_is_a: bool) {
         let mut seen = HashSet::new();
-        for (tid, _) in damage_dealt {
-            if !seen.insert(*tid) {
+        for record in damage_dealt {
+            if !seen.insert(record.target_id) {
                 continue;
             }
 
             let idx_opt = if team_is_a {
                 self.team_a
                     .iter()
-                    .position(|c| c.id() == *tid && !c.is_alive())
+                    .position(|c| c.id() == record.target_id && !c.is_alive())
             } else {
                 self.team_b
                     .iter()
-                    .position(|c| c.id() == *tid && !c.is_alive())
+                    .position(|c| c.id() == record.target_id && !c.is_alive())
             };
 
             if let Some(idx) = idx_opt {
@@ -547,7 +548,11 @@ impl BattleState {
         });
 
         // Process damage: defeat, reflect, passive triggers
-        let damage_dealt = vec![(target_id, damage)];
+        let damage_dealt = vec![DamageRecord {
+            source_id: actor_id,
+            target_id,
+            damage,
+        }];
         self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
 
         // Reassign target if dead
@@ -621,98 +626,100 @@ impl BattleState {
     /// passives, and apply damage reflect.
     fn process_damage_results(
         &mut self,
-        actor_idx: usize,
+        _actor_idx: usize,
         is_team_a: bool,
-        damage_dealt: &[(u32, u32)],
+        damage_dealt: &[DamageRecord],
     ) {
         if damage_dealt.is_empty() {
             return;
         }
 
-        let (actor_team, enemy_team) =
-            Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        let actor_id = actor_team[actor_idx].id();
+        let mut any_damage_by_source: HashSet<u32> = HashSet::new();
+        let mut damaged_enemy_indices: HashSet<usize> = HashSet::new();
+        let mut defeated_enemy_indices: HashSet<usize> = HashSet::new();
+        let mut kills_by_source: Vec<(u32, usize)> = Vec::new();
+        let mut reflect_sources: Vec<(u32, u32, String, u32)> = Vec::new();
 
-        // Collect defeat info and reflect info before firing passives
-        let mut defeated_enemy_indices: Vec<usize> = Vec::new();
-        let mut defeated_enemy_seen: HashSet<usize> = HashSet::new();
-        let mut reflect_sources: Vec<(u32, String, u32)> = Vec::new(); // (reflector_id, reflector_name, amount)
-        let mut any_damage = false;
-        let mut damaged_enemy_indices: Vec<usize> = Vec::new();
-
-        for (tid, dmg) in damage_dealt {
-            if *dmg > 0 {
-                any_damage = true;
-            }
-            if let Some(eidx) = enemy_team.iter().position(|c| c.id() == *tid) {
-                if *dmg > 0 {
-                    damaged_enemy_indices.push(eidx);
+        {
+            let (actor_team, enemy_team) =
+                Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+            for record in damage_dealt {
+                if record.damage > 0 {
+                    any_damage_by_source.insert(record.source_id);
                 }
-                if !enemy_team[eidx].is_alive() && defeated_enemy_seen.insert(eidx) {
-                    defeated_enemy_indices.push(eidx);
-                }
-                // Collect reflect info
-                let reflect = enemy_team[eidx].damage_reflect_amount();
-                if reflect > 0 && actor_team[actor_idx].is_alive() {
-                    reflect_sources.push((*tid, enemy_team[eidx].base_name().to_string(), reflect));
+                if let Some(eidx) = enemy_team.iter().position(|c| c.id() == record.target_id) {
+                    if record.damage > 0 {
+                        damaged_enemy_indices.insert(eidx);
+                    }
+                    if !enemy_team[eidx].is_alive() {
+                        defeated_enemy_indices.insert(eidx);
+                        kills_by_source.push((record.source_id, eidx));
+                    }
+                    let reflect = enemy_team[eidx].damage_reflect_amount();
+                    if reflect > 0
+                        && actor_team
+                            .iter()
+                            .any(|c| c.id() == record.source_id && c.is_alive())
+                    {
+                        reflect_sources.push((
+                            record.source_id,
+                            enemy_team[eidx].id(),
+                            enemy_team[eidx].base_name().to_string(),
+                            reflect,
+                        ));
+                    }
                 }
             }
         }
 
-        // Apply damage reflect
-        for (reflector_id, reflector_name, reflect) in &reflect_sources {
+        for (source_id, reflector_id, reflector_name, reflect) in &reflect_sources {
             let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            if !actor_team[actor_idx].is_alive() {
-                break;
+            let Some(source_idx) = actor_team.iter().position(|c| c.id() == *source_id) else {
+                continue;
+            };
+            if !actor_team[source_idx].is_alive() {
+                continue;
             }
-            actor_team[actor_idx].take_damage(*reflect);
+            actor_team[source_idx].take_damage(*reflect);
             self.log.push(BattleEvent::DamageReflect {
                 tick_count: self.step,
                 reflector_id: *reflector_id,
                 reflector_name: reflector_name.clone(),
-                target_id: actor_id,
-                target_name: {
-                    let (at, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-                    at[actor_idx].base_name().to_string()
-                },
+                target_id: *source_id,
+                target_name: actor_team[source_idx].base_name().to_string(),
                 damage: *reflect,
-                target_hp_remaining: {
-                    let (at, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-                    at[actor_idx].current_hp()
-                },
+                target_hp_remaining: actor_team[source_idx].current_hp(),
             });
-            let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            if !actor_team[actor_idx].is_alive() {
-                self.resolve_character_death(actor_idx, is_team_a);
-                break;
+            if !actor_team[source_idx].is_alive() {
+                self.resolve_character_death(source_idx, is_team_a);
             }
         }
 
-        // Fire on_deal_damage for actor (once per action, if any damage dealt)
-        if any_damage {
+        for source_id in any_damage_by_source {
             let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            if actor_team[actor_idx].is_alive() {
-                self.try_fire_passive(actor_idx, &PassiveTrigger::OnDealDamage, is_team_a);
+            if let Some(source_idx) = actor_team.iter().position(|c| c.id() == source_id && c.is_alive())
+            {
+                self.try_fire_passive(source_idx, &PassiveTrigger::OnDealDamage, is_team_a);
             }
         }
 
-        // Fire on_take_damage for each damaged enemy (from their perspective)
         for eidx in damaged_enemy_indices {
             let (_, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
             if enemy_team[eidx].is_alive() {
-                // Defender's team is the "enemy" from actor's perspective, so !is_team_a
                 self.try_fire_passive(eidx, &PassiveTrigger::OnTakeDamage, !is_team_a);
             }
         }
 
-        // Fire on_kill for actor, on_death for each defeated enemy
-        for eidx in defeated_enemy_indices {
-            // on_kill fires for actor
+        for (source_id, eidx) in kills_by_source {
             let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            if actor_team[actor_idx].is_alive() {
-                self.try_fire_passive(actor_idx, &PassiveTrigger::OnKill, is_team_a);
+            if let Some(source_idx) = actor_team.iter().position(|c| c.id() == source_id && c.is_alive())
+            {
+                self.try_fire_passive(source_idx, &PassiveTrigger::OnKill, is_team_a);
             }
+            self.resolve_character_death(eidx, !is_team_a);
+        }
 
+        for eidx in defeated_enemy_indices {
             self.resolve_character_death(eidx, !is_team_a);
         }
     }

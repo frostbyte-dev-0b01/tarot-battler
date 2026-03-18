@@ -208,6 +208,10 @@ For each affected unit:
 
 ## Phase 3: Commanded Companion Attack
 
+Status:
+
+- implemented
+
 ### Goal
 
 Allow one companion to immediately basic attack the user's current target.

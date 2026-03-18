@@ -155,6 +155,7 @@ pub enum Primitive {
         #[serde(default)]
         filter: Option<RetargetFilter>,
     },
+    CommandAttack,
 }
 
 /// A complete ability definition.
@@ -193,9 +194,16 @@ pub enum PassiveDef {
 
 pub type PassiveMap = HashMap<String, PassiveDef>;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DamageRecord {
+    pub source_id: u32,
+    pub target_id: u32,
+    pub damage: u32,
+}
+
 /// Execute an ability's primitives.
 ///
-/// Returns a list of (target_id, damage) pairs for defeat checking by the caller.
+/// Returns a list of damage records for defeat checking by the caller.
 pub fn execute_ability(
     actor_idx: usize,
     ability_name: &str,
@@ -206,7 +214,7 @@ pub fn execute_ability(
     log: &mut BattleLog,
     step: u32,
     status_defs: &StatusMap,
-) -> Vec<(u32, u32)> {
+) -> Vec<DamageRecord> {
     let actor_id = actor_team[actor_idx].id();
     let actor_name = actor_team[actor_idx].base_name().to_string();
 
@@ -233,7 +241,7 @@ pub fn execute_ability(
 
 /// Execute a list of primitives (shared by abilities and passives).
 ///
-/// Returns a list of (target_id, damage) pairs for defeat checking.
+/// Returns a list of damage records for defeat checking.
 pub fn execute_primitives(
     actor_idx: usize,
     _source_name: &str,
@@ -244,8 +252,8 @@ pub fn execute_primitives(
     log: &mut BattleLog,
     step: u32,
     status_defs: &StatusMap,
-) -> Vec<(u32, u32)> {
-    let mut damage_dealt: Vec<(u32, u32)> = Vec::new();
+) -> Vec<DamageRecord> {
+    let mut damage_dealt: Vec<DamageRecord> = Vec::new();
 
     let actor_id = actor_team[actor_idx].id();
 
@@ -274,7 +282,11 @@ pub fn execute_primitives(
                         damage,
                         target_hp_remaining: hp,
                     });
-                    damage_dealt.push((tid, damage));
+                    damage_dealt.push(DamageRecord {
+                        source_id: actor_id,
+                        target_id: tid,
+                        damage,
+                    });
                 }
             }
             Primitive::DealMagicalDamage { target, multiplier } => {
@@ -296,7 +308,11 @@ pub fn execute_primitives(
                         damage,
                         target_hp_remaining: hp,
                     });
-                    damage_dealt.push((tid, damage));
+                    damage_dealt.push(DamageRecord {
+                        source_id: actor_id,
+                        target_id: tid,
+                        damage,
+                    });
                 }
             }
             Primitive::RestoreHp { target, amount } => {
@@ -432,6 +448,45 @@ pub fn execute_primitives(
                         mode: retarget_mode_label(mode).to_string(),
                     });
                 }
+            }
+            Primitive::CommandAttack => {
+                let target_id = match actor_team[actor_idx].target() {
+                    Some(target_id) => target_id,
+                    None => continue,
+                };
+                let Some(target_idx) = enemy_team.iter().position(|c| c.id() == target_id) else {
+                    continue;
+                };
+                let Some(companion_idx) = actor_team[actor_idx]
+                    .companions()
+                    .iter()
+                    .filter_map(|id| actor_team.iter().position(|c| c.id() == *id && c.is_alive()))
+                    .max_by_key(|idx| actor_team[*idx].get_eff_stat(&Stat::STR))
+                else {
+                    continue;
+                };
+
+                let attacker_str = actor_team[companion_idx].get_eff_stat(&Stat::STR);
+                let defender_for = enemy_team[target_idx].get_eff_stat(&Stat::FOR);
+                let damage = (attacker_str as i32 - defender_for as i32).max(1) as u32;
+                enemy_team[target_idx].take_damage(damage);
+                let source_id = actor_team[companion_idx].id();
+                let source_name = actor_team[companion_idx].base_name().to_string();
+                let hp = enemy_team[target_idx].current_hp();
+                log.push(BattleEvent::BasicAttack {
+                    tick_count: step,
+                    actor_id: source_id,
+                    actor_name: source_name,
+                    target_id,
+                    target_name: enemy_team[target_idx].base_name().to_string(),
+                    damage,
+                    target_hp_remaining: hp,
+                });
+                damage_dealt.push(DamageRecord {
+                    source_id,
+                    target_id,
+                    damage,
+                });
             }
         }
     }
@@ -909,8 +964,8 @@ mod tests {
             &empty_statuses(),
         );
         assert_eq!(dealt.len(), 1);
-        assert_eq!(dealt[0].0, 1);
-        assert_eq!(dealt[0].1, 9);
+        assert_eq!(dealt[0].target_id, 1);
+        assert_eq!(dealt[0].damage, 9);
         assert_eq!(enemy_team[0].current_hp(), 40 - 9);
     }
 
@@ -1200,8 +1255,8 @@ mod tests {
             &empty_statuses(),
         );
         assert_eq!(dealt.len(), 2);
-        assert!(dealt.iter().any(|(id, _)| *id == 1));
-        assert!(dealt.iter().any(|(id, _)| *id == 3));
+        assert!(dealt.iter().any(|record| record.target_id == 1));
+        assert!(dealt.iter().any(|record| record.target_id == 3));
     }
 
     #[test]
@@ -1323,7 +1378,7 @@ mod tests {
         );
 
         assert_eq!(dealt.len(), 1);
-        assert_eq!(dealt[0].0, 2);
+        assert_eq!(dealt[0].target_id, 2);
     }
 
     #[test]
@@ -1367,7 +1422,7 @@ mod tests {
         );
 
         assert_eq!(dealt.len(), 1);
-        assert_eq!(dealt[0].0, 2);
+        assert_eq!(dealt[0].target_id, 2);
     }
 
     #[test]
@@ -1588,5 +1643,46 @@ mod tests {
         );
 
         assert_eq!(enemy_team[0].target(), Some(1));
+    }
+
+    #[test]
+    fn command_attack_uses_highest_str_living_companion() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let mut actor_team = vec![
+            make_adjacent_char(0, 0, 0, vec![(Stat::CON, 10)]),
+            make_adjacent_char(1, 0, 1, vec![(Stat::STR, 8), (Stat::CON, 10)]),
+            make_adjacent_char(2, 1, 0, vec![(Stat::STR, 5), (Stat::CON, 10)]),
+        ];
+        actor_team[0].set_companions(vec![1, 2]);
+        actor_team[0].set_target(10);
+        let mut enemy_team = vec![make_adjacent_char(
+            10,
+            0,
+            2,
+            vec![(Stat::FOR, 3), (Stat::CON, 10)],
+        )];
+
+        let ability = AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::CommandAttack],
+        };
+
+        let dealt = execute_ability(
+            0,
+            "Command",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &empty_statuses(),
+        );
+
+        assert_eq!(dealt.len(), 1);
+        assert_eq!(dealt[0].source_id, 1);
+        assert_eq!(dealt[0].target_id, 10);
+        assert_eq!(enemy_team[0].current_hp(), 15);
     }
 }
