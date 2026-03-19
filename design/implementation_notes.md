@@ -17,6 +17,7 @@ Use [game_spec.md](/home/frostbyte/Work/tarot-battler/design/game_spec.md) as th
 The current prototype still uses familiar RPG effects such as:
 
 - `Bleed`
+- `Omen`
 - `Poison`
 - `Regen`
 - `Empower`
@@ -32,7 +33,9 @@ This is useful for prototyping, but the intended design direction is now:
 - `Fortify` / `Weaken` as the main offensive and defensive stat-mod families
 - `Regen` and `Stunned` as the main sustain and turn-denial effects
 
-`Bleed` and `Poison` should currently be treated as implementation placeholders so the design docs and engine behavior do not get confused.
+`Omen` now exists in the engine as the intended named setup effect, but it still uses the prototype tick-down status model rather than the long-term halving-decay design.
+
+`Bleed` and `Poison` should still be treated as implementation placeholders so the design docs and engine behavior do not get confused.
 
 ### Stat Naming
 

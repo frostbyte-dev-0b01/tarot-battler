@@ -690,6 +690,14 @@ mod tests {
         }
     }
 
+    fn omen_def() -> StatusDef {
+        StatusDef {
+            behavior: StatusBehavior::DamagePerStack { value: 1 },
+            stack_type: StackType::TickDown,
+            opposes: None,
+        }
+    }
+
     fn empower_def() -> StatusDef {
         StatusDef {
             behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
@@ -937,6 +945,35 @@ mod tests {
         state.tick_statuses();
         assert_eq!(state.current_hp(), 34);
         assert!(!state.has_status("Bleed"));
+    }
+
+    #[test]
+    fn omen_ticks_for_current_stack_count() {
+        let config = make_config(vec![(Stat::VIT, 20)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_status("Omen", 4, 99, &omen_def(), None);
+
+        let ticks = state.tick_statuses();
+        assert_eq!(ticks.len(), 1);
+        assert!(matches!(
+            &ticks[0],
+            StatusTick::DamageDealt { name, damage } if name == "Omen" && *damage == 4
+        ));
+        assert_eq!(state.current_hp(), 36);
+        assert_eq!(state.status_stacks("Omen"), 3);
+    }
+
+    #[test]
+    fn omen_can_kill_on_turn_start_tick() {
+        let config = make_config(vec![(Stat::VIT, 2)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_status("Omen", 4, 99, &omen_def(), None);
+
+        state.tick_statuses();
+
+        assert_eq!(state.current_hp(), 0);
+        assert!(!state.is_alive());
+        assert_eq!(state.status_stacks("Omen"), 3);
     }
 
     #[test]
