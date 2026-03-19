@@ -113,6 +113,13 @@ pub struct TargetSpec {
     pub bypass_row_protection: bool,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct StatusRef {
+    pub status: String,
+    #[serde(default)]
+    pub stat: Option<Stat>,
+}
+
 /// Who the ability primitive targets.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
@@ -155,6 +162,12 @@ pub enum Primitive {
         status: String,
         #[serde(default)]
         stat: Option<Stat>,
+        bonus_per_stack: u32,
+    },
+    DealPhysicalDamageConsumeSelfStatuses {
+        target: AbilityTarget,
+        multiplier: f64,
+        statuses: Vec<StatusRef>,
         bonus_per_stack: u32,
     },
     RestoreHp {
@@ -511,6 +524,56 @@ pub fn execute_primitives_with_context(
                     if consumed_stacks > 0 {
                         ctx.enemy_team[tidx].remove_status(&key, consumed_stacks);
                     }
+                    let tid = ctx.enemy_team[tidx].id();
+                    let tname = ctx.enemy_team[tidx].base_name().to_string();
+                    let hp = ctx.enemy_team[tidx].current_hp();
+                    ctx.log.push(BattleEvent::AbilityDamage {
+                        tick_count: ctx.step,
+                        actor_id,
+                        target_id: tid,
+                        target_name: tname,
+                        damage,
+                        target_hp_remaining: hp,
+                    });
+                    damage_dealt.push(DamageRecord {
+                        source_id: actor_id,
+                        target_id: tid,
+                        damage,
+                    });
+                }
+            }
+            Primitive::DealPhysicalDamageConsumeSelfStatuses {
+                target,
+                multiplier,
+                statuses,
+                bonus_per_stack,
+            } => {
+                let actor_mgt = ctx.actor_team[actor_idx].get_eff_stat(&Stat::MGT);
+                let consumed_stacks: u32 = statuses
+                    .iter()
+                    .map(|status_ref| {
+                        let key = status_key(&status_ref.status, status_ref.stat.as_ref());
+                        let stacks = ctx.actor_team[actor_idx].status_stacks(&key);
+                        if stacks > 0 {
+                            ctx.actor_team[actor_idx].remove_status(&key, stacks);
+                        }
+                        stacks
+                    })
+                    .sum();
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    ctx.actor_team,
+                    ctx.enemy_team,
+                    ctx.rng,
+                    ctx.trigger_target_id,
+                );
+                for tidx in target_indices {
+                    let defender_arm = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
+                    let base = (actor_mgt as i32 - defender_arm as i32).max(1) as u32;
+                    let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32
+                        + consumed_stacks.saturating_mul(*bonus_per_stack);
+                    let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
                     let tid = ctx.enemy_team[tidx].id();
                     let tname = ctx.enemy_team[tidx].base_name().to_string();
                     let hp = ctx.enemy_team[tidx].current_hp();

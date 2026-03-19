@@ -429,6 +429,25 @@ fn validate_primitives(
 
                 validate_status_stat_usage(source_name, status, stat.as_ref(), def, errors);
             }
+            Primitive::DealPhysicalDamageConsumeSelfStatuses { statuses: refs, .. } => {
+                for status_ref in refs {
+                    let Some(def) = statuses.get(&status_ref.status) else {
+                        errors.push(format!(
+                            "{} references unknown status '{}'",
+                            source_name, status_ref.status
+                        ));
+                        continue;
+                    };
+
+                    validate_status_stat_usage(
+                        source_name,
+                        &status_ref.status,
+                        status_ref.stat.as_ref(),
+                        def,
+                        errors,
+                    );
+                }
+            }
             Primitive::Retarget { target, .. } => {
                 if !is_enemy_target(target) {
                     errors.push(format!(

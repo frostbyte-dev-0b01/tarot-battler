@@ -717,6 +717,72 @@ fn if_target_lacks_status_executes_nested_primitives() {
 }
 
 #[test]
+fn physical_consume_self_statuses_adds_bonus_damage_and_removes_statuses() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let statuses = test_statuses();
+    let mut actor_team =
+        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 8), (Stat::ARM, 5)])];
+    let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::ARM, 3)])];
+    actor_team[0].set_target(1);
+    actor_team[0].add_status(
+        &crate::statuses::status_key("Empower", Some(&Stat::MGT)),
+        2,
+        99,
+        statuses.get("Empower").unwrap(),
+        Some(Stat::MGT),
+    );
+    actor_team[0].add_status(
+        &crate::statuses::status_key("Empower", Some(&Stat::ARM)),
+        1,
+        99,
+        statuses.get("Empower").unwrap(),
+        Some(Stat::ARM),
+    );
+
+    let ability = AbilityDef {
+        mp_cost: 3,
+        primitives: vec![Primitive::DealPhysicalDamageConsumeSelfStatuses {
+            target: SimpleAbilityTarget::CurrentTarget.into(),
+            multiplier: 1.0,
+            statuses: vec![
+                StatusRef {
+                    status: "Empower".to_string(),
+                    stat: Some(Stat::MGT),
+                },
+                StatusRef {
+                    status: "Empower".to_string(),
+                    stat: Some(Stat::ARM),
+                },
+            ],
+            bonus_per_stack: 1,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Sever",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &statuses,
+    );
+
+    assert_eq!(enemy_team[0].current_hp(), 10);
+    assert_eq!(
+        actor_team[0].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
+        0
+    );
+    assert_eq!(
+        actor_team[0].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::ARM))),
+        0
+    );
+}
+
+#[test]
 fn all_enemies_target_resolves_to_all_living() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();

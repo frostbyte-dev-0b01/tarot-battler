@@ -89,6 +89,11 @@ This stage unlocks:
 
 - `Sever`
 
+Status:
+
+- completed
+- engine now supports physical bonus-damage attacks that consume selected self-statuses
+
 ### Stage 4: Retarget Filter Expansion
 
 Extend retarget filtering to support:
