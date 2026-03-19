@@ -6,7 +6,7 @@ use std::fmt::Write;
 use serde::Serialize;
 use serde_json::json;
 
-use crate::models::{CharacterConfig, Stat};
+use crate::models::{CharacterConfig, CharacterState, Stat};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "event_type")]
@@ -142,6 +142,81 @@ impl BattleLog {
 
     pub fn push(&mut self, event: BattleEvent) {
         self.events.push(event);
+    }
+
+    pub fn push_turn_start(&mut self, tick_count: u32, actor: &CharacterState) {
+        self.push(BattleEvent::TurnStart {
+            tick_count,
+            actor_id: actor.id(),
+            actor_name: actor.base_name().to_string(),
+            current_hp: actor.current_hp(),
+            current_mp: actor.current_mp(),
+        });
+    }
+
+    pub fn push_turn_skipped(&mut self, tick_count: u32, actor: &CharacterState, reason: &str) {
+        self.push(BattleEvent::TurnSkipped {
+            tick_count,
+            character_id: actor.id(),
+            character_name: actor.base_name().to_string(),
+            reason: reason.to_string(),
+        });
+    }
+
+    pub fn push_passive_triggered(
+        &mut self,
+        tick_count: u32,
+        actor: &CharacterState,
+        passive_name: &str,
+    ) {
+        self.push(BattleEvent::PassiveTriggered {
+            tick_count,
+            character_id: actor.id(),
+            character_name: actor.base_name().to_string(),
+            passive_name: passive_name.to_string(),
+        });
+    }
+
+    pub fn push_defeat(&mut self, tick_count: u32, actor: &CharacterState) {
+        self.push(BattleEvent::Defeat {
+            tick_count,
+            character_id: actor.id(),
+            character_name: actor.base_name().to_string(),
+        });
+    }
+
+    pub fn push_status_damage(
+        &mut self,
+        tick_count: u32,
+        actor: &CharacterState,
+        status_name: &str,
+        damage: u32,
+    ) {
+        self.push(BattleEvent::StatusDamage {
+            tick_count,
+            character_id: actor.id(),
+            character_name: actor.base_name().to_string(),
+            status_name: status_name.to_string(),
+            damage,
+            hp_remaining: actor.current_hp(),
+        });
+    }
+
+    pub fn push_status_heal(
+        &mut self,
+        tick_count: u32,
+        actor: &CharacterState,
+        status_name: &str,
+        amount: u32,
+    ) {
+        self.push(BattleEvent::StatusHeal {
+            tick_count,
+            character_id: actor.id(),
+            character_name: actor.base_name().to_string(),
+            status_name: status_name.to_string(),
+            amount,
+            hp_remaining: actor.current_hp(),
+        });
     }
 
     pub fn len(&self) -> usize {

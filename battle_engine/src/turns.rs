@@ -46,16 +46,10 @@ pub(crate) fn log_turn_start(
     actor_team: &[CharacterState],
     actor_idx: usize,
 ) -> TurnStart {
-    let actor_id = actor_team[actor_idx].id();
-    let actor_name = actor_team[actor_idx].base_name().to_string();
-
-    runtime.log.push(BattleEvent::TurnStart {
-        tick_count: runtime.step,
-        actor_id,
-        actor_name: actor_name.clone(),
-        current_hp: actor_team[actor_idx].current_hp(),
-        current_mp: actor_team[actor_idx].current_mp(),
-    });
+    let actor = &actor_team[actor_idx];
+    let actor_id = actor.id();
+    let actor_name = actor.base_name().to_string();
+    runtime.log.push_turn_start(runtime.step, actor);
 
     TurnStart {
         actor_id,
@@ -65,15 +59,11 @@ pub(crate) fn log_turn_start(
 
 pub(crate) fn log_turn_skipped(
     runtime: &mut TurnRuntime<'_>,
-    actor_id: u32,
-    actor_name: String,
+    actor: &CharacterState,
 ) {
-    runtime.log.push(BattleEvent::TurnSkipped {
-        tick_count: runtime.step,
-        character_id: actor_id,
-        character_name: actor_name,
-        reason: "incapacitated".to_string(),
-    });
+    runtime
+        .log
+        .push_turn_skipped(runtime.step, actor, "incapacitated");
 }
 
 pub(crate) fn resolve_target(

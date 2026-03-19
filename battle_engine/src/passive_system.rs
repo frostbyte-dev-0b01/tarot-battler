@@ -8,7 +8,7 @@ use crate::abilities::{
     DamageRecord, ExecutionContext, PassiveDef, PassiveMap, PassiveTrigger,
     execute_primitives_with_context,
 };
-use crate::logger::{BattleEvent, BattleLog};
+use crate::logger::BattleLog;
 use crate::models::{CharacterState, TraitEffect};
 use crate::statuses::StatusMap;
 
@@ -110,14 +110,9 @@ pub(crate) fn fire_passive_if_matches(
             primitives,
             ..
         } if std::mem::discriminant(trigger) == std::mem::discriminant(expected) => {
-            let char_id = actor_team[idx].id();
-            let char_name = actor_team[idx].base_name().to_string();
-            runtime.log.push(BattleEvent::PassiveTriggered {
-                tick_count: runtime.step,
-                character_id: char_id,
-                character_name: char_name,
-                passive_name: passive_name.to_string(),
-            });
+            runtime
+                .log
+                .push_passive_triggered(runtime.step, &actor_team[idx], passive_name);
             let mut ctx = ExecutionContext::new(
                 actor_team,
                 enemy_team,
@@ -130,14 +125,9 @@ pub(crate) fn fire_passive_if_matches(
             execute_primitives_with_context(&mut ctx, idx, passive_name, primitives)
         }
         PassiveDef::Trait { effect } if matches!(expected, PassiveTrigger::OnBattleStart) => {
-            let char_id = actor_team[idx].id();
-            let char_name = actor_team[idx].base_name().to_string();
-            runtime.log.push(BattleEvent::PassiveTriggered {
-                tick_count: runtime.step,
-                character_id: char_id,
-                character_name: char_name,
-                passive_name: passive_name.to_string(),
-            });
+            runtime
+                .log
+                .push_passive_triggered(runtime.step, &actor_team[idx], passive_name);
             actor_team[idx].add_trait(effect.clone());
             Vec::new()
         }

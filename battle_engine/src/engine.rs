@@ -398,7 +398,7 @@ impl BattleState {
                 &mut self.log,
                 self.step,
             );
-            turns::log_turn_skipped(&mut runtime, turn_start.actor_id, turn_start.actor_name);
+            turns::log_turn_skipped(&mut runtime, &actor_team[actor_idx]);
             actor_team[actor_idx].consume_skip_turn_statuses();
             self.finish_turn(actor_idx, is_team_a);
             return;
@@ -563,8 +563,8 @@ mod tests {
     };
     use crate::statuses::{StackType, StatusBehavior, StatusDef};
     use crate::test_support::{
-        empty_abilities, empty_passives, empty_statuses, mage, make_config, make_config_at,
-        ward_statuses, warrior,
+        build_battle, empty_abilities, empty_passives, empty_statuses, mage, make_config,
+        make_config_at, ward_statuses, warrior,
     };
     use std::collections::HashMap;
 
@@ -586,13 +586,12 @@ mod tests {
             },
         );
 
-        let battle = BattleState::new(
+        let battle = build_battle(
             &[emperor, ally, other],
             &[mage()],
             empty_abilities(),
             passives,
             empty_statuses(),
-            42,
         );
         let mut battle = battle;
         battle.refresh_auras();
@@ -619,13 +618,12 @@ mod tests {
             },
         );
 
-        let mut battle = BattleState::new(
+        let mut battle = build_battle(
             &[emperor, ally, mover],
             &[mage()],
             empty_abilities(),
             passives,
             empty_statuses(),
-            42,
         );
         battle.refresh_auras();
         assert_eq!(battle.team_a[1].get_eff_stat(&Stat::MGT), 9);
@@ -683,13 +681,12 @@ mod tests {
         .into_iter()
         .collect();
 
-        let mut battle = BattleState::new(
+        let mut battle = build_battle(
             &[striker, chariot],
             &[enemy],
             empty_abilities(),
             passives,
             statuses,
-            42,
         );
         battle.team_a[0].set_target(battle.team_b[0].id());
         battle.team_a[1].set_target(battle.team_b[0].id());
@@ -753,13 +750,12 @@ mod tests {
         .into_iter()
         .collect();
 
-        let mut battle = BattleState::new(
+        let mut battle = build_battle(
             &[ally, chariot],
             &[enemy_a, enemy_b],
             empty_abilities(),
             passives,
             statuses,
-            42,
         );
         battle.team_a[1].set_target(battle.team_b[0].id());
 

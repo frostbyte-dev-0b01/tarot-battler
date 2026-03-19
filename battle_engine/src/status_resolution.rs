@@ -54,24 +54,10 @@ impl BattleState {
         for tick in ticks {
             match tick {
                 StatusTick::DamageDealt { name, damage } => {
-                    log.push(BattleEvent::StatusDamage {
-                        tick_count: step,
-                        character_id: team[idx].id(),
-                        character_name: team[idx].base_name().to_string(),
-                        status_name: name,
-                        damage,
-                        hp_remaining: team[idx].current_hp(),
-                    });
+                    log.push_status_damage(step, &team[idx], &name, damage);
                 }
                 StatusTick::HealApplied { name, amount } => {
-                    log.push(BattleEvent::StatusHeal {
-                        tick_count: step,
-                        character_id: team[idx].id(),
-                        character_name: team[idx].base_name().to_string(),
-                        status_name: name,
-                        amount,
-                        hp_remaining: team[idx].current_hp(),
-                    });
+                    log.push_status_heal(step, &team[idx], &name, amount);
                 }
             }
         }

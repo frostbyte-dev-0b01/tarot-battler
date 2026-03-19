@@ -173,11 +173,7 @@ impl BattleState {
 
         let (team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         team[char_idx].mark_defeat_resolved();
-        self.log.push(BattleEvent::Defeat {
-            tick_count: self.step,
-            character_id: team[char_idx].id(),
-            character_name: team[char_idx].base_name().to_string(),
-        });
+        self.log.push_defeat(self.step, &team[char_idx]);
         self.refresh_auras();
     }
 }
