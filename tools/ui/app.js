@@ -1586,6 +1586,7 @@ function indexReplayCharacters(state) {
 function applyReplayEvent(characterIndex, event) {
   switch (event.type) {
     case "battle_start":
+    case "rest":
     case "basic_attack":
     case "passive_triggered":
     case "turn_skipped":
@@ -1960,6 +1961,7 @@ function shouldRenderTimelineEvent(event) {
 function isMajorEvent(type) {
   return [
     "ability_used",
+    "rest",
     "basic_attack",
     "damage",
     "healing",
@@ -2013,6 +2015,8 @@ function formatTimelineText(event) {
       return "Battle starts.";
     case "turn_start":
       return `${formatCharacterLabel(event.actor_id, event.actor_name)} begins a turn at ${event.current_hp ?? "?"} HP and ${event.current_mp ?? "?"} MP.`;
+    case "rest":
+      return `${formatCharacterLabel(event.actor_id, event.actor_name)} rests and restores ${event.mp_restored ?? "?"} MP.`;
     case "basic_attack":
       return `${formatCharacterLabel(event.actor_id, event.actor_name)} attacks ${formatCharacterLabel(event.target_id, event.target_name)} with a ${event.damage_kind ?? "basic"} hit.`;
     case "ability_used":

@@ -37,6 +37,12 @@ Result:
 - the engine and tooling understand `Rest`
 - no gameplay behavior changes yet
 
+Status:
+
+- completed
+- `Rest` now exists in the log, replay schema, and UI formatting
+- `Command` wording now explicitly describes a standard physical attack
+
 ### Stage 2: Change Fallback from Basic Attack to Rest
 
 Change the battle loop so that when no rule is satisfied, the actor uses `Rest` instead of a universal basic attack.
@@ -82,4 +88,3 @@ After each stage:
 - `basic_attack` replay events should remain for commanded attacks and any future explicit attack effects
 - `damage.rs` can remain, since the engine still needs standard attack damage resolution for commanded attacks
 - once this plan is complete, the prototype and the design docs should match on the fallback/resource model
-

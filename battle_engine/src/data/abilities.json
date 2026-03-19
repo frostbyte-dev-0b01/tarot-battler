@@ -15,7 +15,7 @@
     ]
   },
   "Command": {
-    "description": "One companion immediately makes a basic attack against the user's current target.",
+    "description": "One companion immediately makes a standard physical attack against the user's current target.",
     "mp_cost": 2,
     "primitives": [
       {

@@ -168,6 +168,18 @@ Example:
 }
 ```
 
+### `rest`
+
+```json
+{
+  "tick": 4,
+  "type": "rest",
+  "actor_id": "the_emperor",
+  "mp_restored": 2,
+  "mp_after": 4
+}
+```
+
 ### `ability_used`
 
 ```json

@@ -14,7 +14,7 @@ The current target is a core pool of 25 active abilities.
   Apply `Ward 1` to allies in the user's row.
 
 - `Command`
-  One companion immediately makes a basic attack against the user's current target.
+  One companion immediately makes a standard physical attack against the user's current target.
 
 - `Taunt`
   Enemies with stronger `MGT` than `MAG` change their target to the user.
@@ -93,5 +93,4 @@ The current target is a core pool of 25 active abilities.
 
 ## Brainstorming
 
-Add future ability ideas here before promoting them into the core pool above.
-
+Need to add MP cost to all the abilities. 
