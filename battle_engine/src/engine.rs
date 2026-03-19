@@ -959,83 +959,12 @@ mod tests {
     use crate::models::{
         Comparator, Condition, ConditionSubject, Position, QueryValue, Rule, Stat,
     };
-    use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusMap};
+    use crate::statuses::{StackType, StatusBehavior, StatusDef};
+    use crate::test_support::{
+        empty_abilities, empty_passives, empty_statuses, mage, make_config, make_config_at,
+        ward_statuses, warrior,
+    };
     use std::collections::HashMap;
-
-    fn empty_abilities() -> AbilityMap {
-        HashMap::new()
-    }
-
-    fn empty_passives() -> PassiveMap {
-        HashMap::new()
-    }
-
-    fn empty_statuses() -> StatusMap {
-        HashMap::new()
-    }
-
-    fn ward_statuses() -> StatusMap {
-        let mut statuses = HashMap::new();
-        statuses.insert(
-            "Ward".to_string(),
-            StatusDef {
-                behavior: StatusBehavior::Ward,
-                stack_type: StackType::Permanent,
-                opposes: None,
-            },
-        );
-        statuses
-    }
-
-    fn make_config(name: &str, row: u8, stats: Vec<(Stat, u32)>) -> CharacterConfig {
-        make_config_at(name, row, 0, stats)
-    }
-
-    fn make_config_at(name: &str, row: u8, col: u8, stats: Vec<(Stat, u32)>) -> CharacterConfig {
-        CharacterConfig {
-            id: None,
-            base_name: name.to_string(),
-            display_name: None,
-            passive: String::new(),
-            actives: Vec::new(),
-            item: None,
-            position: Position { row, col },
-            stats: stats.into_iter().collect(),
-            rules: Vec::new(),
-        }
-    }
-
-    fn warrior() -> CharacterConfig {
-        make_config(
-            "Warrior",
-            0,
-            vec![
-                (Stat::VIT, 12),
-                (Stat::MGT, 15),
-                (Stat::MAG, 4),
-                (Stat::ARM, 10),
-                (Stat::RES, 5),
-                (Stat::SPD, 8),
-                (Stat::WIL, 6),
-            ],
-        )
-    }
-
-    fn mage() -> CharacterConfig {
-        make_config(
-            "Mage",
-            0,
-            vec![
-                (Stat::VIT, 8),
-                (Stat::MGT, 4),
-                (Stat::MAG, 16),
-                (Stat::ARM, 5),
-                (Stat::RES, 12),
-                (Stat::SPD, 10),
-                (Stat::WIL, 10),
-            ],
-        )
-    }
 
     #[test]
     fn row_aura_applies_to_same_row_allies() {

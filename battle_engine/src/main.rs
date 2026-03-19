@@ -1,4 +1,5 @@
 mod abilities;
+mod abilities_targeting;
 mod damage;
 mod engine;
 mod loader;
@@ -6,6 +7,8 @@ mod logger;
 mod models;
 mod rules;
 mod statuses;
+#[cfg(test)]
+mod test_support;
 mod targeting;
 
 use std::path::{Path, PathBuf};
