@@ -154,6 +154,13 @@ Result:
 
 - full team assembly becomes composition-first instead of only form-edit-first
 
+Status:
+
+- completed
+- saved library characters can now be added directly into the current team
+- library entries can replace an existing team slot without editing raw JSON
+- if no team is loaded yet, adding from the library starts a new team shell automatically
+
 ### Phase 4: Optional Filesystem-Friendly Workflow Polish
 
 Add better file-based ergonomics.

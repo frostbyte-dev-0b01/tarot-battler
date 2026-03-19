@@ -326,6 +326,13 @@ select {
   gap: 8px;
 }
 
+.library-card-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
 .library-card-tags span {
   display: inline-flex;
   align-items: center;
@@ -988,6 +995,10 @@ textarea:focus-visible {
 
   .editor-grid,
   .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .library-card-controls {
     grid-template-columns: 1fr;
   }
 

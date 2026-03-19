@@ -1364,14 +1364,14 @@ function handleTeamEditorAction(event) {
     return;
   }
 
-  const team = appState.teamConfig;
-  if (!team) {
-    return;
-  }
-
   const characterIndex = Number(event.target.dataset.characterIndex);
   const ruleIndex = Number(event.target.dataset.ruleIndex);
   const conditionIndex = Number(event.target.dataset.conditionIndex);
+  const team = appState.teamConfig;
+
+  if (!team && !["add-library-character", "replace-library-character", "remove-library-character"].includes(action)) {
+    return;
+  }
 
   switch (action) {
     case "add-character":
@@ -1390,6 +1390,12 @@ function handleTeamEditorAction(event) {
       return;
     case "remove-library-character":
       removeCharacterFromLibrary(Number(event.target.dataset.libraryIndex));
+      return;
+    case "add-library-character":
+      addLibraryCharacterToTeam(Number(event.target.dataset.libraryIndex));
+      return;
+    case "replace-library-character":
+      replaceTeamCharacterFromLibrary(event.target);
       return;
     case "remove-character":
       team.characters.splice(characterIndex, 1);
@@ -1489,6 +1495,12 @@ function renderCharacterLibrary() {
 }
 
 function renderCharacterLibraryCard(character, libraryIndex) {
+  const team = appState.teamConfig;
+  const replaceOptions = team?.characters?.length
+    ? team.characters.map((teamCharacter, teamIndex) => `
+        <option value="${teamIndex}">${escapeHtml(teamCharacter.display_name || teamCharacter.id || `Slot ${teamIndex + 1}`)}</option>
+      `).join("")
+    : "";
   const actives = Array.isArray(character.actives) && character.actives.length > 0
     ? character.actives.join(" · ")
     : "No actives";
@@ -1501,12 +1513,22 @@ function renderCharacterLibraryCard(character, libraryIndex) {
           <div class="library-card-meta">${escapeHtml(character.id || "No id")} · row ${character.position?.row ?? "?"}, col ${character.position?.col ?? "?"}</div>
         </div>
         <div class="editor-card-actions">
+          <button type="button" class="button-secondary" data-team-action="add-library-character" data-library-index="${libraryIndex}">Add to Team</button>
           <button type="button" class="button-quiet" data-team-action="remove-library-character" data-library-index="${libraryIndex}">Remove</button>
         </div>
       </div>
       <div class="library-card-tags">
         <span${renderTitleAttribute(getPassiveDescription(character.passive))}>${escapeHtml(character.passive || "No passive")}</span>
         <span>${escapeHtml(actives)}</span>
+      </div>
+      <div class="library-card-controls">
+        <label class="field-group">
+          <span>Replace Slot</span>
+          <select data-library-field="replace-index" data-library-index="${libraryIndex}" ${replaceOptions ? "" : "disabled"}>
+            ${replaceOptions || '<option value="">No team loaded</option>'}
+          </select>
+        </label>
+        <button type="button" class="button-quiet" data-team-action="replace-library-character" data-library-index="${libraryIndex}" ${replaceOptions ? "" : "disabled"}>Replace Slot</button>
       </div>
     </article>
   `;
@@ -1533,6 +1555,45 @@ function removeCharacterFromLibrary(libraryIndex) {
   teamEditorConfig.validationOutput.textContent = removed
     ? `${removed.display_name || removed.id || `Character ${libraryIndex + 1}`} removed from the library.`
     : "Character removed from the library.";
+}
+
+function addLibraryCharacterToTeam(libraryIndex) {
+  const character = appState.characterLibrary[libraryIndex];
+  if (!character) {
+    renderTeamValidation({ ok: false, errors: ["No saved character was found in the library."] });
+    return;
+  }
+
+  if (!appState.teamConfig) {
+    appState.teamConfig = {
+      version: 1,
+      name: "New Team",
+      characters: [],
+    };
+  }
+
+  appState.teamConfig.characters.push(cloneCharacterConfig(character));
+  syncTeamUI();
+  renderTeamValidation({ ok: true, errors: [] });
+  teamEditorConfig.validationOutput.textContent = `${character.display_name || character.id || "Character"} added to the team from the library.`;
+}
+
+function replaceTeamCharacterFromLibrary(button) {
+  const libraryIndex = Number(button.dataset.libraryIndex);
+  const character = appState.characterLibrary[libraryIndex];
+  const card = button.closest(".character-library-card");
+  const replaceSelect = card?.querySelector('[data-library-field="replace-index"]');
+  const replaceIndex = Number(replaceSelect?.value);
+
+  if (!character || !appState.teamConfig || !Number.isInteger(replaceIndex) || replaceIndex < 0) {
+    renderTeamValidation({ ok: false, errors: ["Choose a valid team slot to replace from the library."] });
+    return;
+  }
+
+  appState.teamConfig.characters[replaceIndex] = cloneCharacterConfig(character);
+  syncTeamUI();
+  renderTeamValidation({ ok: true, errors: [] });
+  teamEditorConfig.validationOutput.textContent = `${character.display_name || character.id || "Character"} replaced slot ${replaceIndex + 1} from the library.`;
 }
 
 function cloneCharacterConfig(character) {
