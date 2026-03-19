@@ -254,5 +254,136 @@
         "mode": "default_retarget"
       }
     ]
+  },
+  "Sanctify": {
+    "description": "Cleanse allies in the user's column.",
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "cleanse",
+        "target": {
+          "category": "ally",
+          "position": "same_column"
+        },
+        "amount": 1
+      }
+    ]
+  },
+  "Sunder": {
+    "description": "Deal physical damage and apply Weaken ARM.",
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "deal_physical_damage",
+        "target": "current_target",
+        "multiplier": 1.0,
+        "double_empower_stat": null
+      },
+      {
+        "kind": "apply_status",
+        "target": "current_target",
+        "status": "Weaken",
+        "stat": "arm",
+        "stacks": 1
+      }
+    ]
+  },
+  "Invocation": {
+    "description": "Deal magical damage. If the target has no Omen, apply Omen 1; otherwise restore MP 1 to the user.",
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "deal_magical_damage",
+        "target": "current_target",
+        "multiplier": 1.0
+      },
+      {
+        "kind": "if_target_lacks_status",
+        "target": "current_target",
+        "status": "Omen",
+        "primitives": [
+          {
+            "kind": "apply_status",
+            "target": "current_target",
+            "status": "Omen",
+            "stacks": 1
+          }
+        ]
+      },
+      {
+        "kind": "if_target_has_status",
+        "target": "current_target",
+        "status": "Omen",
+        "primitives": [
+          {
+            "kind": "restore_mp",
+            "target": "self",
+            "amount": 1
+          }
+        ]
+      }
+    ]
+  },
+  "Sever": {
+    "description": "Deal physical damage. Consume the user's Empower MGT and Empower ARM for bonus damage based on the consumed stacks.",
+    "mp_cost": 3,
+    "primitives": [
+      {
+        "kind": "deal_physical_damage_consume_self_statuses",
+        "target": "current_target",
+        "multiplier": 1.0,
+        "statuses": [
+          {
+            "status": "Empower",
+            "stat": "mgt"
+          },
+          {
+            "status": "Empower",
+            "stat": "arm"
+          }
+        ],
+        "bonus_per_stack": 1
+      }
+    ]
+  },
+  "Restoration": {
+    "description": "Restore HP to one companion.",
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "restore_hp",
+        "target": {
+          "category": "companion",
+          "selector": {
+            "kind": "lowest_hp"
+          }
+        },
+        "amount": 6
+      }
+    ]
+  },
+  "Interpose": {
+    "description": "Enemies targeting the user's companion change their target to the user.",
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "retarget",
+        "target": "all_enemies",
+        "mode": "to_self",
+        "filter": "targeting_companion"
+      }
+    ]
+  },
+  "Decoy": {
+    "description": "Enemies targeting the user change their target to one of the user's companions.",
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "retarget",
+        "target": "all_enemies",
+        "mode": "to_companion",
+        "filter": "targeting_self"
+      }
+    ]
   }
 }

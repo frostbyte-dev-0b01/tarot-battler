@@ -123,6 +123,11 @@ Update:
 - [ability_roster.md](/home/frostbyte/Work/tarot-battler/design/ability_roster.md)
 - relevant UI descriptions if needed
 
+Status:
+
+- completed
+- the seven new abilities now exist in the ability catalog with descriptions
+
 ### Stage 6: Verification and Follow-Up
 
 Add regression tests for:
@@ -138,6 +143,12 @@ Then verify:
 - `cargo test -q`
 - `cargo clippy -q`
 - `node --check tools/ui/app.js`
+
+Status:
+
+- completed
+- regression coverage was added incrementally during the earlier stages
+- final verification is green
 
 ## Notes
 
