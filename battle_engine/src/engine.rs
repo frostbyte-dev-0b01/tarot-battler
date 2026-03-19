@@ -1558,7 +1558,7 @@ mod tests {
 
         battle.step_once();
 
-        assert_eq!(battle.team_a[0].current_mp(), 4);
+        assert_eq!(battle.team_a[0].current_mp(), 3);
         assert_eq!(battle.team_a[1].current_mp(), 1);
     }
 
@@ -1936,7 +1936,7 @@ mod tests {
     }
 
     #[test]
-    fn stunned_turn_still_ticks_statuses_and_regens_mp() {
+    fn stunned_turn_still_ticks_statuses_without_restoring_mp() {
         use crate::statuses::{StackType, StatusBehavior, StatusDef};
 
         let actor = make_config(
@@ -1992,7 +1992,7 @@ mod tests {
         battle.step_once();
 
         assert_eq!(battle.team_a[0].current_hp(), 39);
-        assert_eq!(battle.team_a[0].current_mp(), 2);
+        assert_eq!(battle.team_a[0].current_mp(), 0);
         assert!(!battle.team_a[0].is_incapacitated());
 
         let has_skip = battle.log.events().iter().any(|e| {

@@ -312,20 +312,6 @@ Example:
 }
 ```
 
-### `resource_changed`
-
-```json
-{
-  "tick": 11,
-  "type": "resource_changed",
-  "actor_id": "the_magician",
-  "resource": "mp",
-  "delta": 2,
-  "value_after": 4,
-  "reason": "turn_regen"
-}
-```
-
 ### `defeat`
 
 ```json
@@ -373,7 +359,6 @@ The replay format should support at least these event families:
 - `status_tick`
 - `passive_triggered`
 - `turn_skipped`
-- `resource_changed`
 - `defeat`
 - `battle_end`
 
@@ -391,7 +376,6 @@ Currently emitted:
 - `status_tick`
 - `passive_triggered`
 - `turn_skipped`
-- `resource_changed`
 - `defeat`
 - `battle_end`
 

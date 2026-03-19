@@ -3,7 +3,7 @@
 use rand::rngs::StdRng;
 
 use crate::abilities::{AbilityDef, AbilityMap, DamageRecord, execute_ability};
-use crate::logger::{BattleEvent, BattleLog};
+use crate::logger::BattleLog;
 use crate::models::{CharacterState, Stat};
 use crate::rules::{WorldState, evaluate_rules};
 use crate::statuses::StatusMap;
@@ -149,28 +149,12 @@ pub(crate) fn execute_rest_action(
 }
 
 pub(crate) fn finish_turn(
-    runtime: &mut TurnRuntime<'_>,
+    _runtime: &mut TurnRuntime<'_>,
     actor_idx: usize,
     actor_team: &mut [CharacterState],
 ) {
     if !actor_team[actor_idx].is_alive() {
         return;
-    }
-
-    let regen = actor_team[actor_idx].get_base_stat(&Stat::WIL) / 2;
-    let actor_id = actor_team[actor_idx].id();
-    let actor_name = actor_team[actor_idx].base_name().to_string();
-    actor_team[actor_idx].restore_mp(regen);
-    if regen > 0 {
-        runtime.log.push(BattleEvent::ResourceChanged {
-            tick_count: runtime.step,
-            actor_id,
-            actor_name,
-            resource: "mp".to_string(),
-            delta: regen as i32,
-            value_after: actor_team[actor_idx].current_mp(),
-            reason: "turn_regen".to_string(),
-        });
     }
     actor_team[actor_idx].reset_speed();
 }

@@ -81,6 +81,12 @@ Result:
 - `Rest` is the primary MP recovery mechanism
 - no passive turn-by-turn MP gain remains
 
+Status:
+
+- completed
+- turn-end MP regeneration has been removed from the engine
+- replay/docs no longer describe `turn_regen` events
+
 ## Verification
 
 After each stage:

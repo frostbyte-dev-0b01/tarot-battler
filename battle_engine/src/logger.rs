@@ -109,15 +109,6 @@ pub enum BattleEvent {
         to_row: u8,
         to_col: u8,
     },
-    ResourceChanged {
-        tick_count: u32,
-        actor_id: u32,
-        actor_name: String,
-        resource: String,
-        delta: i32,
-        value_after: u32,
-        reason: String,
-    },
     PassiveTriggered {
         tick_count: u32,
         character_id: u32,
@@ -456,23 +447,6 @@ impl BattleLog {
                     "to_row": to_row,
                     "to_col": to_col,
                 })),
-                BattleEvent::ResourceChanged {
-                    tick_count,
-                    actor_id,
-                    resource,
-                    delta,
-                    value_after,
-                    reason,
-                    ..
-                } => replay_events.push(json!({
-                    "tick": tick_count,
-                    "type": "resource_changed",
-                    "actor_id": stable_id(*actor_id, &id_map),
-                    "resource": resource,
-                    "delta": delta,
-                    "value_after": value_after,
-                    "reason": reason,
-                })),
                 BattleEvent::PassiveTriggered {
                     tick_count,
                     character_id,
@@ -682,19 +656,6 @@ impl BattleLog {
                         "  {character_name} moves from (r{from_row}, c{from_col}) to (r{to_row}, c{to_col})"
                     );
                 }
-                BattleEvent::ResourceChanged {
-                    actor_name,
-                    resource,
-                    delta,
-                    value_after,
-                    reason,
-                    ..
-                } => {
-                    let _ = writeln!(
-                        out,
-                        "  {actor_name} gains {delta} {resource} ({value_after} after, {reason})"
-                    );
-                }
                 BattleEvent::PassiveTriggered {
                     character_name,
                     passive_name,
@@ -745,7 +706,6 @@ impl BattleEvent {
             | BattleEvent::TurnSkipped { tick_count, .. }
             | BattleEvent::Retargeted { tick_count, .. }
             | BattleEvent::Moved { tick_count, .. }
-            | BattleEvent::ResourceChanged { tick_count, .. }
             | BattleEvent::PassiveTriggered { tick_count, .. }
             | BattleEvent::DamageReflect { tick_count, .. }
             | BattleEvent::BattleEnd { tick_count, .. } => *tick_count,
