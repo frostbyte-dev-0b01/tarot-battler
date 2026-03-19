@@ -178,6 +178,7 @@ impl BattleState {
                     &mut self.log,
                     0,
                     &self.status_defs,
+                    None,
                 );
                 self.resolve_defeats_from_damage(&damage_dealt, false);
             }
@@ -196,6 +197,7 @@ impl BattleState {
                     &mut self.log,
                     0,
                     &self.status_defs,
+                    None,
                 );
                 self.resolve_defeats_from_damage(&damage_dealt, true);
             }
@@ -216,6 +218,7 @@ impl BattleState {
         log: &mut BattleLog,
         step: u32,
         status_defs: &StatusMap,
+        trigger_target_id: Option<u32>,
     ) -> Vec<DamageRecord> {
         match passive_def {
             PassiveDef::Triggered {
@@ -240,6 +243,7 @@ impl BattleState {
                     log,
                     step,
                     status_defs,
+                    trigger_target_id,
                 )
             }
             PassiveDef::Trait { effect } if matches!(expected, PassiveTrigger::OnBattleStart) => {
@@ -308,6 +312,16 @@ impl BattleState {
         trigger: &PassiveTrigger,
         actor_team_is_a: bool,
     ) -> Vec<DamageRecord> {
+        self.try_fire_passive_with_target(char_idx, trigger, actor_team_is_a, None)
+    }
+
+    fn try_fire_passive_with_target(
+        &mut self,
+        char_idx: usize,
+        trigger: &PassiveTrigger,
+        actor_team_is_a: bool,
+        trigger_target_id: Option<u32>,
+    ) -> Vec<DamageRecord> {
         if self.in_passive_phase {
             return Vec::new();
         }
@@ -360,6 +374,7 @@ impl BattleState {
                 &mut self.log,
                 self.step,
                 &self.status_defs,
+                trigger_target_id,
             )
         };
 
@@ -541,6 +556,7 @@ impl BattleState {
                 actor_team[actor_idx].record_ability_use(name);
 
                 // Execute ability
+                let event_start = self.log.len();
                 let damage_dealt = execute_ability(
                     actor_idx,
                     name,
@@ -552,6 +568,8 @@ impl BattleState {
                     self.step,
                     &self.status_defs,
                 );
+
+                self.process_status_application_events(event_start, is_team_a);
 
                 // Process damage results: defeats, reflect, and passive triggers
                 self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
@@ -780,6 +798,44 @@ impl BattleState {
 
         for eidx in defeated_enemy_indices {
             self.resolve_character_death(eidx, !is_team_a);
+        }
+    }
+
+    fn process_status_application_events(&mut self, event_start: usize, is_team_a: bool) {
+        let omen_applications: Vec<(u32, u32)> = self
+            .log
+            .events_from(event_start)
+            .iter()
+            .filter_map(|event| match event {
+                BattleEvent::StatusApplied {
+                    actor_id,
+                    target_id,
+                    status_name,
+                    ..
+                } if status_name == "Omen" => Some((*actor_id, *target_id)),
+                _ => None,
+            })
+            .collect();
+
+        for (source_id, target_id) in omen_applications {
+            let owner_indices: Vec<usize> = {
+                let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                actor_team
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| c.is_alive() && c.id() != source_id)
+                    .map(|(idx, _)| idx)
+                    .collect()
+            };
+
+            for owner_idx in owner_indices {
+                self.try_fire_passive_with_target(
+                    owner_idx,
+                    &PassiveTrigger::OnAllyApplyOmen,
+                    is_team_a,
+                    Some(target_id),
+                );
+            }
         }
     }
 
@@ -1175,6 +1231,83 @@ mod tests {
             battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
             0
         );
+    }
+
+    #[test]
+    fn on_ally_apply_omen_applies_extra_omen_to_same_target() {
+        let mut moon = make_config_at(
+            "Moon",
+            0,
+            0,
+            vec![(Stat::MAG, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
+        );
+        moon.actives = vec!["Hex".to_string()];
+        let mut magician = make_config_at(
+            "Magician",
+            0,
+            1,
+            vec![(Stat::MAG, 6), (Stat::VIT, 10), (Stat::WIL, 5)],
+        );
+        magician.passive = "Catalyst".to_string();
+        let enemy = make_config_at("Target", 0, 0, vec![(Stat::RES, 3), (Stat::VIT, 10)]);
+
+        let mut abilities = AbilityMap::new();
+        abilities.insert(
+            "Hex".to_string(),
+            crate::abilities::AbilityDef {
+                mp_cost: 2,
+                primitives: vec![Primitive::ApplyStatus {
+                    target: SimpleAbilityTarget::CurrentTarget.into(),
+                    status: "Omen".to_string(),
+                    stat: None,
+                    stacks: 2,
+                }],
+            },
+        );
+
+        let mut passives = PassiveMap::new();
+        passives.insert(
+            "Catalyst".to_string(),
+            PassiveDef::Triggered {
+                trigger: PassiveTrigger::OnAllyApplyOmen,
+                primitives: vec![Primitive::ApplyStatus {
+                    target: SimpleAbilityTarget::TriggerTarget.into(),
+                    status: "Omen".to_string(),
+                    stat: None,
+                    stacks: 1,
+                }],
+            },
+        );
+
+        let statuses = [(
+            "Omen".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::DamagePerStack { value: 1 },
+                stack_type: StackType::TickDown,
+                opposes: None,
+            },
+        )]
+        .into_iter()
+        .collect();
+
+        let mut battle = BattleState::new(&[moon, magician], &[enemy], abilities, passives, statuses, 42);
+        battle.team_a[0].set_target(battle.team_b[0].id());
+
+        let event_start = battle.log.len();
+        execute_ability(
+            0,
+            "Hex",
+            battle.abilities.get("Hex").unwrap(),
+            &mut battle.team_a,
+            &mut battle.team_b,
+            &mut battle.rng,
+            &mut battle.log,
+            1,
+            &battle.status_defs,
+        );
+        battle.process_status_application_events(event_start, true);
+
+        assert_eq!(battle.team_b[0].status_stacks("Omen"), 3);
     }
 
     #[test]

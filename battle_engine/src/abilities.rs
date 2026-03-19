@@ -16,6 +16,7 @@ use crate::targeting::select_target;
 pub enum SimpleAbilityTarget {
     CurrentTarget,
     CurrentTargetAndCompanions,
+    TriggerTarget,
     #[serde(rename = "self")]
     SelfChar,
     Companions,
@@ -209,6 +210,7 @@ pub enum PassiveTrigger {
     OnTakeDamage,
     OnTurnStart,
     OnAllyDamageMyTarget,
+    OnAllyApplyOmen,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -277,6 +279,7 @@ pub fn execute_ability(
         log,
         step,
         status_defs,
+        None,
     )
 }
 
@@ -293,6 +296,7 @@ pub fn execute_primitives(
     log: &mut BattleLog,
     step: u32,
     status_defs: &StatusMap,
+    trigger_target_id: Option<u32>,
 ) -> Vec<DamageRecord> {
     let mut damage_dealt: Vec<DamageRecord> = Vec::new();
 
@@ -312,8 +316,14 @@ pub fn execute_primitives(
                     Some(Stat::MGT) => actor_team[actor_idx].get_eff_stat_with_doubled_empower(&Stat::MGT),
                     _ => actor_team[actor_idx].get_eff_stat(&Stat::MGT),
                 };
-                let target_indices =
-                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    actor_team,
+                    enemy_team,
+                    _rng,
+                    trigger_target_id,
+                );
                 for tidx in target_indices {
                     let defender_for = enemy_team[tidx].get_eff_stat(&Stat::ARM);
                     let base = (actor_str as i32 - defender_for as i32).max(1) as u32;
@@ -346,8 +356,14 @@ pub fn execute_primitives(
             } => {
                 let key = status_key(status, stat.as_ref());
                 let actor_mgt = actor_team[actor_idx].get_eff_stat(&Stat::MGT);
-                let target_indices =
-                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    actor_team,
+                    enemy_team,
+                    _rng,
+                    trigger_target_id,
+                );
                 for tidx in target_indices {
                     let defender_arm = enemy_team[tidx].get_eff_stat(&Stat::ARM);
                     let base = (actor_mgt as i32 - defender_arm as i32).max(1) as u32;
@@ -375,8 +391,14 @@ pub fn execute_primitives(
                 }
             }
             Primitive::DealMagicalDamage { target, multiplier } => {
-                let target_indices =
-                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    actor_team,
+                    enemy_team,
+                    _rng,
+                    trigger_target_id,
+                );
                 for tidx in target_indices {
                     let defender_wis = enemy_team[tidx].get_eff_stat(&Stat::RES);
                     let base = (actor_int as i32 - defender_wis as i32).max(1) as u32;
@@ -408,8 +430,14 @@ pub fn execute_primitives(
                 bonus_per_stack,
             } => {
                 let key = status_key(status, stat.as_ref());
-                let target_indices =
-                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    actor_team,
+                    enemy_team,
+                    _rng,
+                    trigger_target_id,
+                );
                 for tidx in target_indices {
                     let defender_res = enemy_team[tidx].get_eff_stat(&Stat::RES);
                     let base = (actor_int as i32 - defender_res as i32).max(1) as u32;
@@ -463,17 +491,35 @@ pub fn execute_primitives(
                 if let Some(def) = status_defs.get(status) {
                     let key = status_key(status, stat.as_ref());
                     if target_is_enemy_side(target) {
-                        let target_indices =
-                            resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
+                        let target_indices = resolve_enemy_targets(
+                            target,
+                            actor_idx,
+                            actor_team,
+                            enemy_team,
+                            _rng,
+                            trigger_target_id,
+                        );
                         for tidx in target_indices {
                             if enemy_team[tidx].is_alive() {
-                                enemy_team[tidx].add_status(
+                                let applied = enemy_team[tidx].add_status(
                                     &key,
                                     *stacks,
                                     actor_id,
                                     def,
                                     stat.clone(),
                                 );
+                                if applied {
+                                    log.push(BattleEvent::StatusApplied {
+                                        tick_count: step,
+                                        actor_id,
+                                        actor_name: actor_team[actor_idx].base_name().to_string(),
+                                        target_id: enemy_team[tidx].id(),
+                                        target_name: enemy_team[tidx].base_name().to_string(),
+                                        status_name: key.clone(),
+                                        stacks_added: *stacks,
+                                        stacks_after: enemy_team[tidx].status_stacks(&key),
+                                    });
+                                }
                             }
                         }
                     } else {
@@ -501,8 +547,14 @@ pub fn execute_primitives(
             } => {
                 let key = status_key(status, stat.as_ref());
                 if target_is_enemy_side(target) {
-                    let target_indices =
-                        resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
+                    let target_indices = resolve_enemy_targets(
+                        target,
+                        actor_idx,
+                        actor_team,
+                        enemy_team,
+                        _rng,
+                        trigger_target_id,
+                    );
                     for tidx in target_indices {
                         enemy_team[tidx].remove_status(&key, *stacks);
                     }
@@ -519,7 +571,14 @@ pub fn execute_primitives(
                 filter,
             } => {
                 let target_indices = if target_is_enemy_side(target) {
-                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng)
+                    resolve_enemy_targets(
+                        target,
+                        actor_idx,
+                        actor_team,
+                        enemy_team,
+                        _rng,
+                        trigger_target_id,
+                    )
                 } else {
                     Vec::new()
                 };
@@ -630,6 +689,7 @@ fn resolve_enemy_targets(
     actor_team: &[CharacterState],
     enemy_team: &[CharacterState],
     rng: &mut StdRng,
+    trigger_target_id: Option<u32>,
 ) -> Vec<usize> {
     match target {
         AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget) => {
@@ -658,6 +718,16 @@ fn resolve_enemy_targets(
             targets.sort_unstable();
             targets.dedup();
             targets
+        }
+        AbilityTarget::Simple(SimpleAbilityTarget::TriggerTarget) => {
+            let Some(target_id) = trigger_target_id else {
+                return Vec::new();
+            };
+            enemy_team
+                .iter()
+                .position(|c| c.id() == target_id && c.is_alive())
+                .into_iter()
+                .collect()
         }
         AbilityTarget::Simple(SimpleAbilityTarget::FrontRow) => front_row_enemy_indices(enemy_team),
         AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies) => enemy_team
@@ -810,6 +880,7 @@ fn target_is_enemy_side(target: &AbilityTarget) -> bool {
         target,
         AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget)
             | AbilityTarget::Simple(SimpleAbilityTarget::CurrentTargetAndCompanions)
+            | AbilityTarget::Simple(SimpleAbilityTarget::TriggerTarget)
             | AbilityTarget::Simple(SimpleAbilityTarget::FrontRow)
             | AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies)
             | AbilityTarget::Detailed(TargetSpec {

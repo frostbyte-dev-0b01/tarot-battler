@@ -47,6 +47,16 @@ pub enum BattleEvent {
         damage: u32,
         target_hp_remaining: u32,
     },
+    StatusApplied {
+        tick_count: u32,
+        actor_id: u32,
+        actor_name: String,
+        target_id: u32,
+        target_name: String,
+        status_name: String,
+        stacks_added: u32,
+        stacks_after: u32,
+    },
     Defeat {
         tick_count: u32,
         character_id: u32,
@@ -132,6 +142,14 @@ impl BattleLog {
 
     pub fn push(&mut self, event: BattleEvent) {
         self.events.push(event);
+    }
+
+    pub fn len(&self) -> usize {
+        self.events.len()
+    }
+
+    pub fn events_from(&self, start: usize) -> &[BattleEvent] {
+        &self.events[start.min(self.events.len())..]
     }
 
     #[cfg(test)]
@@ -235,6 +253,23 @@ impl BattleLog {
                         .cloned()
                         .unwrap_or_else(|| "Ability".to_string()),
                     "target_hp_after": target_hp_remaining,
+                })),
+                BattleEvent::StatusApplied {
+                    tick_count,
+                    actor_id,
+                    target_id,
+                    status_name,
+                    stacks_added,
+                    stacks_after,
+                    ..
+                } => replay_events.push(json!({
+                    "tick": tick_count,
+                    "type": "status_applied",
+                    "source_id": stable_id(*actor_id, &id_map),
+                    "target_id": stable_id(*target_id, &id_map),
+                    "status": status_name,
+                    "stacks_added": stacks_added,
+                    "stacks_after": stacks_after,
                 })),
                 BattleEvent::Defeat {
                     tick_count,
@@ -457,6 +492,19 @@ impl BattleLog {
                         "    hits {target_name} for {damage} ({target_hp_remaining} HP left)"
                     );
                 }
+                BattleEvent::StatusApplied {
+                    actor_name,
+                    target_name,
+                    status_name,
+                    stacks_added,
+                    stacks_after,
+                    ..
+                } => {
+                    let _ = writeln!(
+                        out,
+                        "  {actor_name} applies {status_name} to {target_name} (+{stacks_added}, {stacks_after} total)"
+                    );
+                }
                 BattleEvent::Defeat { character_name, .. } => {
                     let _ = writeln!(out, "  {character_name} is defeated");
                 }
@@ -571,6 +619,7 @@ impl BattleEvent {
             | BattleEvent::BasicAttack { tick_count, .. }
             | BattleEvent::AbilityUsed { tick_count, .. }
             | BattleEvent::AbilityDamage { tick_count, .. }
+            | BattleEvent::StatusApplied { tick_count, .. }
             | BattleEvent::Defeat { tick_count, .. }
             | BattleEvent::StatusDamage { tick_count, .. }
             | BattleEvent::StatusHeal { tick_count, .. }

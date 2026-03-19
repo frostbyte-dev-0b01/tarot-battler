@@ -479,6 +479,7 @@ fn is_enemy_target(target: &AbilityTarget) -> bool {
     matches!(
         target,
         AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget)
+            | AbilityTarget::Simple(SimpleAbilityTarget::TriggerTarget)
             | AbilityTarget::Simple(SimpleAbilityTarget::FrontRow)
             | AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies)
             | AbilityTarget::Detailed(crate::abilities::TargetSpec {
@@ -528,6 +529,7 @@ fn target_label(target: &AbilityTarget) -> &'static str {
         AbilityTarget::Simple(SimpleAbilityTarget::CurrentTargetAndCompanions) => {
             "current_target_and_companions"
         }
+        AbilityTarget::Simple(SimpleAbilityTarget::TriggerTarget) => "trigger_target",
         AbilityTarget::Simple(SimpleAbilityTarget::SelfChar) => "self",
         AbilityTarget::Simple(SimpleAbilityTarget::Companions) => "companions",
         AbilityTarget::Simple(SimpleAbilityTarget::FrontRow) => "front_row",

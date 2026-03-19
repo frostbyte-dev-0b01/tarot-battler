@@ -235,6 +235,10 @@ Implemented result:
 
 ## Phase 4: Ally Applies Omen Trigger
 
+Status:
+
+- implemented
+
 ### Goal
 
 Support passives that react when an ally applies `Omen` to an enemy.
@@ -255,6 +259,12 @@ Recommended semantics:
 - does not fire on self-application by the passive owner unless explicitly intended
 - fires after the original `Omen` application resolves
 - should carry enough context to target the same enemy
+
+Implemented result:
+
+- the engine now logs real `status_applied` events
+- passives can react to ally `Omen` applications through `on_ally_apply_omen`
+- passives can target the just-marked enemy through `trigger_target`
 
 Long-term note:
 
