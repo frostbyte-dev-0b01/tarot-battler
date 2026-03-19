@@ -51,7 +51,7 @@ Abilities:
 Passive:
 
 - `Sentence`
-  Enemies with `Omen` deal `Weaken MGT 1` to themselves while targeting Justice.
+  When Justice deals damage to an enemy with `Omen`, apply `Weaken MGT 1` to that enemy.
 
 Abilities:
 
@@ -312,6 +312,10 @@ Implemented result:
 
 ## Phase 6: While-Targeting Trigger or Simplification
 
+Status:
+
+- implemented
+
 ### Goal
 
 Support Justice's passive if kept as written.
@@ -322,29 +326,21 @@ Support Justice's passive if kept as written.
 
 ### Implementation
 
-Current wording:
+Original wording:
 
 - enemies with `Omen` deal `Weaken MGT 1` to themselves while targeting Justice
 
-This is not naturally expressible today. There are two options:
+Implemented design decision:
 
-1. add a new trigger or continuously evaluated targeting-state passive
-2. simplify the passive before implementation
+- simplify before coding instead of adding a targeting-state passive subsystem
+- `Sentence` now reads:
+  - "When Justice deals damage to an enemy with `Omen`, apply `Weaken MGT 1` to that enemy."
 
-Recommendation:
-
-- simplify before coding unless this behavior is considered essential
-
-Good simplified versions:
-
-- "When an enemy targeting Justice starts its turn, if it has `Omen`, apply `Weaken MGT 1` to that enemy."
-- or "When Justice is attacked by an enemy with `Omen`, apply `Weaken MGT 1` to that enemy."
-
-Both map more cleanly onto existing or slightly expanded trigger surfaces.
+This keeps Justice omen-aware and control-oriented while fitting existing trigger and targeting surfaces.
 
 ### Tests
 
-- depend on the final chosen wording
+- covered during Team B data integration
 
 ## Phase 7: Data Integration
 

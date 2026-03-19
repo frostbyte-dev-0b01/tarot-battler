@@ -374,7 +374,7 @@ Role:
 Passive:
 
 - `Sentence`
-  Enemies with `Omen` deal `Weaken MGT 1` to themselves while targeting Justice.
+  When Justice deals damage to an enemy with `Omen`, apply `Weaken MGT 1` to that enemy.
 
 Abilities:
 
