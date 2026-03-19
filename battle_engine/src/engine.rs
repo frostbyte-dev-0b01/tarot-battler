@@ -7,14 +7,13 @@ use rand::rngs::StdRng;
 
 use crate::abilities::{
     AbilityMap, DamageRecord, ExecutionContext, PassiveDef, PassiveMap, PassiveTrigger,
-    execute_ability, execute_primitives_with_context,
+    execute_primitives_with_context,
 };
-use crate::damage::calc_basic_attack_damage;
 use crate::logger::{BattleEvent, BattleLog};
-use crate::models::{CharacterConfig, CharacterState, Stat, StatusTick, TraitEffect};
-use crate::rules::{WorldState, evaluate_rules};
+use crate::models::{CharacterConfig, CharacterState, StatusTick, TraitEffect};
 use crate::statuses::StatusMap;
 use crate::targeting::select_target;
+use crate::turns::{self, TurnRuntime};
 
 const MAX_STEPS: u32 = 1000;
 pub struct BattleState {
@@ -512,25 +511,27 @@ impl BattleState {
             return;
         }
 
-        let actor_id = actor_team[actor_idx].id();
-        let actor_name = actor_team[actor_idx].base_name().to_string();
-
-        self.log.push(BattleEvent::TurnStart {
-            tick_count: self.step,
-            actor_id,
-            actor_name: actor_name.clone(),
-            current_hp: actor_team[actor_idx].current_hp(),
-            current_mp: actor_team[actor_idx].current_mp(),
-        });
+        let turn_start = {
+            let mut runtime = TurnRuntime::new(
+                &self.abilities,
+                &self.status_defs,
+                &mut self.rng,
+                &mut self.log,
+                self.step,
+            );
+            turns::log_turn_start(&mut runtime, actor_team, actor_idx)
+        };
 
         // Incapacitate check happens after start-of-turn passives and status ticks.
         if actor_team[actor_idx].is_incapacitated() {
-            self.log.push(BattleEvent::TurnSkipped {
-                tick_count: self.step,
-                character_id: actor_id,
-                character_name: actor_name,
-                reason: "incapacitated".to_string(),
-            });
+            let mut runtime = TurnRuntime::new(
+                &self.abilities,
+                &self.status_defs,
+                &mut self.rng,
+                &mut self.log,
+                self.step,
+            );
+            turns::log_turn_skipped(&mut runtime, turn_start.actor_id, turn_start.actor_name);
             actor_team[actor_idx].consume_skip_turn_statuses();
             self.finish_turn(actor_idx, is_team_a);
             return;
@@ -539,58 +540,54 @@ impl BattleState {
         // Get or reassign target
         let (actor_team, enemy_team) =
             Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        let target_id = match Self::resolve_target(actor_idx, actor_team, enemy_team, &mut self.rng)
-        {
-            Some(tid) => tid,
-            None => {
-                self.finish_turn(actor_idx, is_team_a);
-                return;
-            }
-        };
-
-        let target_idx = enemy_team.iter().position(|c| c.id() == target_id).unwrap();
-
-        // Evaluate rules to see if an ability should be used
-        let target_ref = &enemy_team[target_idx];
-        let world = WorldState {
-            tick_count: self.step,
-            ally_count: actor_team.iter().filter(|c| c.is_alive()).count() as u32,
-            enemy_count: enemy_team.iter().filter(|c| c.is_alive()).count() as u32,
-        };
-        let ability_name = evaluate_rules(
-            &actor_team[actor_idx],
-            Some(target_ref),
-            actor_team,
-            world,
-            &self.abilities,
-        );
-
-        if let Some(ref name) = ability_name
-            && let Some(ability_def) = self.abilities.get(name).cloned()
-        {
-            let (actor_team, enemy_team) =
-                Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            // Spend MP (reduced by trait) and record usage
-            let effective_cost = ability_def
-                .mp_cost
-                .saturating_sub(actor_team[actor_idx].mp_cost_reduction())
-                .max(1);
-            actor_team[actor_idx].spend_mp(effective_cost);
-            actor_team[actor_idx].record_ability_use(name);
-
-            // Execute ability
-            let event_start = self.log.len();
-            let damage_dealt = execute_ability(
-                actor_idx,
-                name,
-                &ability_def,
-                actor_team,
-                enemy_team,
+        let target_id = {
+            let runtime = TurnRuntime::new(
+                &self.abilities,
+                &self.status_defs,
                 &mut self.rng,
                 &mut self.log,
                 self.step,
-                &self.status_defs,
             );
+            match turns::resolve_target(actor_idx, actor_team, enemy_team, runtime.rng) {
+                Some(tid) => tid,
+                None => {
+                    self.finish_turn(actor_idx, is_team_a);
+                    return;
+                }
+            }
+        };
+
+        let ability_choice = {
+            let runtime = TurnRuntime::new(
+                &self.abilities,
+                &self.status_defs,
+                &mut self.rng,
+                &mut self.log,
+                self.step,
+            );
+            turns::choose_ability(&runtime, actor_idx, actor_team, enemy_team, target_id)
+        };
+
+        if let Some((ability_name, ability_def)) = ability_choice {
+            let (actor_team, enemy_team) =
+                Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+            let (event_start, damage_dealt) = {
+                let mut runtime = TurnRuntime::new(
+                    &self.abilities,
+                    &self.status_defs,
+                    &mut self.rng,
+                    &mut self.log,
+                    self.step,
+                );
+                turns::execute_ability_action(
+                    &mut runtime,
+                    actor_idx,
+                    actor_team,
+                    enemy_team,
+                    &ability_name,
+                    &ability_def,
+                )
+            };
 
             self.process_status_application_events(event_start, is_team_a);
 
@@ -609,32 +606,24 @@ impl BattleState {
         // Fallback: basic attack
         let (actor_team, enemy_team) =
             Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        let damage = calc_basic_attack_damage(
-            &actor_team[actor_idx],
-            &enemy_team[target_idx],
-            &mut self.rng,
-        );
-
-        let damage = enemy_team[target_idx].take_hit(damage);
-        let target_name = enemy_team[target_idx].base_name().to_string();
-        let hp_remaining = enemy_team[target_idx].current_hp();
-
-        self.log.push(BattleEvent::BasicAttack {
-            tick_count: self.step,
-            actor_id,
-            actor_name,
-            target_id,
-            target_name: target_name.clone(),
-            damage,
-            target_hp_remaining: hp_remaining,
-        });
-
-        // Process damage: defeat, reflect, passive triggers
-        let damage_dealt = vec![DamageRecord {
-            source_id: actor_id,
-            target_id,
-            damage,
-        }];
+        let damage_dealt = {
+            let mut runtime = TurnRuntime::new(
+                &self.abilities,
+                &self.status_defs,
+                &mut self.rng,
+                &mut self.log,
+                self.step,
+            );
+            turns::execute_basic_attack_action(
+                &mut runtime,
+                actor_idx,
+                turn_start.actor_id,
+                turn_start.actor_name,
+                target_id,
+                actor_team,
+                enemy_team,
+            )
+        };
         self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
 
         // Reassign target if dead
@@ -648,26 +637,14 @@ impl BattleState {
     fn finish_turn(&mut self, actor_idx: usize, is_team_a: bool) {
         self.refresh_auras();
         let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        if !actor_team[actor_idx].is_alive() {
-            return;
-        }
-
-        let regen = actor_team[actor_idx].get_base_stat(&Stat::WIL) / 2;
-        let actor_id = actor_team[actor_idx].id();
-        let actor_name = actor_team[actor_idx].base_name().to_string();
-        actor_team[actor_idx].restore_mp(regen);
-        if regen > 0 {
-            self.log.push(BattleEvent::ResourceChanged {
-                tick_count: self.step,
-                actor_id,
-                actor_name,
-                resource: "mp".to_string(),
-                delta: regen as i32,
-                value_after: actor_team[actor_idx].current_mp(),
-                reason: "turn_regen".to_string(),
-            });
-        }
-        actor_team[actor_idx].reset_speed();
+        let mut runtime = TurnRuntime::new(
+            &self.abilities,
+            &self.status_defs,
+            &mut self.rng,
+            &mut self.log,
+            self.step,
+        );
+        turns::finish_turn(&mut runtime, actor_idx, actor_team);
     }
 
     /// Split teams into (actor_team, enemy_team) based on which team the actor is on.
@@ -920,41 +897,14 @@ impl BattleState {
         self.refresh_auras();
     }
 
-    /// Resolve the actor's target, reassigning if needed. Returns None if no enemies alive.
-    fn resolve_target(
-        actor_idx: usize,
-        actor_team: &mut [CharacterState],
-        enemy_team: &[CharacterState],
-        rng: &mut StdRng,
-    ) -> Option<u32> {
-        let current = actor_team[actor_idx].target();
-        let needs_new = match current {
-            Some(tid) => enemy_team
-                .iter()
-                .find(|c| c.id() == tid)
-                .is_none_or(|t| !t.is_alive()),
-            None => true,
-        };
-
-        if needs_new {
-            let new_target = select_target(&actor_team[actor_idx], enemy_team, rng);
-            match new_target {
-                Some(tid) => {
-                    actor_team[actor_idx].set_target(tid);
-                    Some(tid)
-                }
-                None => None,
-            }
-        } else {
-            current
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::abilities::{AbilityDef, AuraStatEffect, PassiveMap, Primitive, SimpleAbilityTarget};
+    use crate::abilities::{
+        AbilityDef, AuraStatEffect, PassiveMap, Primitive, SimpleAbilityTarget, execute_ability,
+    };
     use crate::logger::BattleEvent;
     use crate::models::{
         Comparator, Condition, ConditionSubject, Position, QueryValue, Rule, Stat,

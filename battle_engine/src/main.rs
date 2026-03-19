@@ -10,6 +10,7 @@ mod statuses;
 #[cfg(test)]
 mod test_support;
 mod targeting;
+mod turns;
 
 use std::path::{Path, PathBuf};
 
