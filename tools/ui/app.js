@@ -1391,6 +1391,9 @@ function handleTeamEditorAction(event) {
     case "remove-library-character":
       removeCharacterFromLibrary(Number(event.target.dataset.libraryIndex));
       return;
+    case "download-library-character":
+      downloadLibraryCharacterJson(Number(event.target.dataset.libraryIndex));
+      return;
     case "add-library-character":
       addLibraryCharacterToTeam(Number(event.target.dataset.libraryIndex));
       return;
@@ -1434,15 +1437,7 @@ function downloadCharacterJson(characterIndex) {
   }
 
   const jsonText = JSON.stringify(character, null, 2);
-  const blob = new Blob([jsonText], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${character.id || `character_${characterIndex + 1}`}.json`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  triggerJsonDownload(jsonText, buildCharacterFilename(character, `character_${characterIndex + 1}`));
   renderTeamValidation({ ok: true, errors: [] });
   teamEditorConfig.validationOutput.textContent = `Character JSON downloaded for ${character.display_name || character.id || `character ${characterIndex + 1}`}.`;
 }
@@ -1514,6 +1509,7 @@ function renderCharacterLibraryCard(character, libraryIndex) {
         </div>
         <div class="editor-card-actions">
           <button type="button" class="button-secondary" data-team-action="add-library-character" data-library-index="${libraryIndex}">Add to Team</button>
+          <button type="button" class="button-quiet" data-team-action="download-library-character" data-library-index="${libraryIndex}">Download</button>
           <button type="button" class="button-quiet" data-team-action="remove-library-character" data-library-index="${libraryIndex}">Remove</button>
         </div>
       </div>
@@ -1557,6 +1553,18 @@ function removeCharacterFromLibrary(libraryIndex) {
     : "Character removed from the library.";
 }
 
+function downloadLibraryCharacterJson(libraryIndex) {
+  const character = appState.characterLibrary[libraryIndex];
+  if (!character) {
+    renderTeamValidation({ ok: false, errors: ["No saved character is available to download."] });
+    return;
+  }
+
+  triggerJsonDownload(JSON.stringify(character, null, 2), buildCharacterFilename(character, `library_character_${libraryIndex + 1}`));
+  renderTeamValidation({ ok: true, errors: [] });
+  teamEditorConfig.validationOutput.textContent = `${character.display_name || character.id || "Character"} downloaded from the library.`;
+}
+
 function addLibraryCharacterToTeam(libraryIndex) {
   const character = appState.characterLibrary[libraryIndex];
   if (!character) {
@@ -1598,6 +1606,31 @@ function replaceTeamCharacterFromLibrary(button) {
 
 function cloneCharacterConfig(character) {
   return JSON.parse(JSON.stringify(character));
+}
+
+function triggerJsonDownload(jsonText, filename) {
+  const blob = new Blob([jsonText], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildCharacterFilename(character, fallbackName) {
+  return `${slugifyFileStem(character.display_name || character.id || fallbackName)}.json`;
+}
+
+function slugifyFileStem(value) {
+  const normalized = String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return normalized || "export";
 }
 
 function createEmptyCharacter(index) {

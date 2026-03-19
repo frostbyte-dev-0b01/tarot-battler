@@ -175,6 +175,13 @@ Result:
 
 - easier long-term reuse outside one browser session
 
+Status:
+
+- completed
+- character exports now use cleaner slug-based filenames from display name or id
+- saved library entries can be downloaded directly without first adding them to a team
+- the Team Builder now includes clearer guidance around reusable character JSON files and a suggested local folder convention
+
 ## UI Direction
 
 ### Character Card Actions
