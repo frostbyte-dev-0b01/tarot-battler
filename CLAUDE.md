@@ -57,7 +57,7 @@ All cargo commands should be run from `battle_engine/`.
 
 ### Key Design Decisions
 
-- **HP = 2 * VIT.** Healing caps at this value.
+- **HP = 3 * VIT.** Healing caps at this value.
 - **Pool stats (VIT, SPD, WIL) cannot be modified by status effects.** `add_status()` rejects `StatModPerStack` targeting these. Other current prototype stats are freely moddable.
 - **CharacterState is fully encapsulated.** All fields are private; mutation happens through purpose-driven methods (`take_damage`, `heal`, `spend_mp`, `restore_mp`, `tick_speed`, `add_status`, etc.) that enforce invariants like HP/MP caps.
 - **Two identity systems:** `base_name` is the archetype (e.g. "The Emperor"), `id` is a numeric runtime identifier assigned at battle setup. Players may later name custom loadouts separately.
@@ -68,7 +68,7 @@ All cargo commands should be run from `battle_engine/`.
 - **Formation:** 4-column by 3-row grid with front/middle/back rows. Row-based protection: must clear front before targeting middle, and middle before targeting back. Companions = cardinal-adjacent teammates (set at battle start). Allies = all living teammates.
 - **Targeting:** The intended design uses sticky targets for basic attacks and `current_target` abilities, with ability-side targeting kept separate from rule evaluation. See `design/game_spec.md`.
 - **Speed system:** The engine uses `max_ticks = 10 - SPD`, clamps `ticks_until_turn` to at least `1`, then adds `+2` to `max_ticks` after each turn before resetting the countdown. This preserves fast openers while softening high-SPD advantage over time.
-- **Rule system:** Rule groups are `SelfChar`, `Companion`, `Target`, and `World`. `Companion` means any adjacent ally and does not imply that same companion becomes the ability target. World queries currently support live `ally_count`, `enemy_count`, and step-based `tick_count`.
+- **Rule system:** Each character has up to 5 ordered priority rules. Rule groups are `SelfChar`, `Companion`, `Target`, and `World`. `Companion` means any adjacent ally and does not imply that same companion becomes the ability target. Rules are evaluated top to bottom; the first satisfied rule fires, otherwise the character uses `Rest`. World queries currently support live `ally_count`, `enemy_count`, and step-based `tick_count`.
 - **Abilities:** JSON-defined primitives now cover direct damage, healing, MP restoration, status application/removal, retargeting, movement, commanded attacks, conditional execution, and status-based payoff effects. Target definitions support both simple categories and detailed selector-based targeting, and content validation enforces legal buff/debuff targeting.
 - **Passives:** Each character has an optional passive ability. Current passive forms are **triggered**, **trait**, and **row aura**. Triggered passives can react to battle start, turn start, dealing damage, taking damage, kills, death, ally damage to the owner's target, and ally `Omen` application. Re-entrancy guard prevents passive cascading during passive execution.
 - **Damage formulas:** Physical: `max(MGT - ARM, 1)`, Magical: `max(MAG - RES, 1)`.
