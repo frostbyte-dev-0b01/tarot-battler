@@ -133,6 +133,14 @@ pub enum Primitive {
         #[serde(default)]
         double_empower_stat: Option<Stat>,
     },
+    DealPhysicalDamageBonusVsStatus {
+        target: AbilityTarget,
+        multiplier: f64,
+        status: String,
+        #[serde(default)]
+        stat: Option<Stat>,
+        bonus_damage: u32,
+    },
     DealMagicalDamage {
         target: AbilityTarget,
         multiplier: f64,
@@ -310,6 +318,43 @@ pub fn execute_primitives(
                     let defender_for = enemy_team[tidx].get_eff_stat(&Stat::ARM);
                     let base = (actor_str as i32 - defender_for as i32).max(1) as u32;
                     let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
+                    let damage = enemy_team[tidx].take_hit(raw_damage);
+                    let tid = enemy_team[tidx].id();
+                    let tname = enemy_team[tidx].base_name().to_string();
+                    let hp = enemy_team[tidx].current_hp();
+                    log.push(BattleEvent::AbilityDamage {
+                        tick_count: step,
+                        actor_id,
+                        target_id: tid,
+                        target_name: tname,
+                        damage,
+                        target_hp_remaining: hp,
+                    });
+                    damage_dealt.push(DamageRecord {
+                        source_id: actor_id,
+                        target_id: tid,
+                        damage,
+                    });
+                }
+            }
+            Primitive::DealPhysicalDamageBonusVsStatus {
+                target,
+                multiplier,
+                status,
+                stat,
+                bonus_damage,
+            } => {
+                let key = status_key(status, stat.as_ref());
+                let actor_mgt = actor_team[actor_idx].get_eff_stat(&Stat::MGT);
+                let target_indices =
+                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
+                for tidx in target_indices {
+                    let defender_arm = enemy_team[tidx].get_eff_stat(&Stat::ARM);
+                    let base = (actor_mgt as i32 - defender_arm as i32).max(1) as u32;
+                    let mut raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
+                    if enemy_team[tidx].has_status(&key) {
+                        raw_damage = raw_damage.saturating_add(*bonus_damage);
+                    }
                     let damage = enemy_team[tidx].take_hit(raw_damage);
                     let tid = enemy_team[tidx].id();
                     let tname = enemy_team[tidx].base_name().to_string();
@@ -1488,6 +1533,81 @@ mod tests {
         // base magical damage only: 8 - 3 = 5
         assert_eq!(enemy_team[0].current_hp(), 15);
         assert_eq!(enemy_team[0].status_stacks("Omen"), 0);
+    }
+
+    #[test]
+    fn physical_damage_bonus_vs_status_applies_only_when_present() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 8)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::ARM, 3)])];
+        actor_team[0].set_target(1);
+
+        let omen = statuses.get("Omen").unwrap();
+        enemy_team[0].add_status("Omen", 1, 99, omen, None);
+
+        let ability = AbilityDef {
+            mp_cost: 2,
+            primitives: vec![Primitive::DealPhysicalDamageBonusVsStatus {
+                target: SimpleAbilityTarget::CurrentTarget.into(),
+                multiplier: 1.0,
+                status: "Omen".to_string(),
+                stat: None,
+                bonus_damage: 3,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "Condemn",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        // base physical damage: 8 - 3 = 5, plus 3 bonus
+        assert_eq!(enemy_team[0].current_hp(), 12);
+        assert_eq!(enemy_team[0].status_stacks("Omen"), 1);
+    }
+
+    #[test]
+    fn physical_damage_bonus_vs_status_does_not_apply_without_status() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 8)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::ARM, 3)])];
+        actor_team[0].set_target(1);
+
+        let ability = AbilityDef {
+            mp_cost: 2,
+            primitives: vec![Primitive::DealPhysicalDamageBonusVsStatus {
+                target: SimpleAbilityTarget::CurrentTarget.into(),
+                multiplier: 1.0,
+                status: "Omen".to_string(),
+                stat: None,
+                bonus_damage: 3,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "Condemn",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        assert_eq!(enemy_team[0].current_hp(), 15);
     }
 
     #[test]

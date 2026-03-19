@@ -198,6 +198,10 @@ Implemented result:
 
 ## Phase 3: Conditional Bonus Damage on Marked Targets
 
+Status:
+
+- implemented
+
 ### Goal
 
 Support attacks that gain a damage rider if the target has `Omen`.
@@ -218,10 +222,10 @@ There are two reasonable v1 options:
 - add a damage rider like:
   - if target has status X, add flat or multiplicative bonus
 
-Recommended v1:
+Implemented result:
 
-- if possible, keep `Condemn` data-driven with a conditional rider
-- if not, collapse its identity temporarily into rule-gated use and let `Verdict` be the more distinctive payoff
+- the engine now supports a reusable physical damage primitive with a flat bonus against targets that have a named status
+- this keeps `Condemn` data-driven without collapsing it into a pure rule-gated generic attack
 
 ### Tests
 
