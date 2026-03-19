@@ -8,31 +8,17 @@ const replayValidationOutput = document.querySelector("#replay-validation-output
 const latestReplayPath = "./sample-data/latest_replay.json";
 const passiveCatalogPath = "../../battle_engine/src/data/passives.json";
 const abilityCatalogPath = "../../battle_engine/src/data/abilities.json";
-const teamConfigs = {
-  team_a: {
-    fileInput: document.querySelector("#team-a-file-input"),
-    jsonInput: document.querySelector("#team-a-json-input"),
-    loadButton: document.querySelector("#team-a-load-button"),
-    demoButton: document.querySelector("#team-a-demo-button"),
-    copyButton: document.querySelector("#team-a-copy-button"),
-    downloadButton: document.querySelector("#team-a-download-button"),
-    validationOutput: document.querySelector("#team-a-validation-output"),
-    editor: document.querySelector("#team-a-editor"),
-    metaName: document.querySelector('[data-team-meta="team_a_name"]'),
-    metaCount: document.querySelector('[data-team-meta="team_a_count"]'),
-  },
-  team_b: {
-    fileInput: document.querySelector("#team-b-file-input"),
-    jsonInput: document.querySelector("#team-b-json-input"),
-    loadButton: document.querySelector("#team-b-load-button"),
-    demoButton: document.querySelector("#team-b-demo-button"),
-    copyButton: document.querySelector("#team-b-copy-button"),
-    downloadButton: document.querySelector("#team-b-download-button"),
-    validationOutput: document.querySelector("#team-b-validation-output"),
-    editor: document.querySelector("#team-b-editor"),
-    metaName: document.querySelector('[data-team-meta="team_b_name"]'),
-    metaCount: document.querySelector('[data-team-meta="team_b_count"]'),
-  },
+const teamEditorConfig = {
+  fileInput: document.querySelector("#team-file-input"),
+  jsonInput: document.querySelector("#team-json-input"),
+  loadButton: document.querySelector("#team-load-button"),
+  demoButton: document.querySelector("#team-demo-button"),
+  copyButton: document.querySelector("#team-copy-button"),
+  downloadButton: document.querySelector("#team-download-button"),
+  validationOutput: document.querySelector("#team-validation-output"),
+  editor: document.querySelector("#team-editor"),
+  metaName: document.querySelector('[data-team-meta="team_name"]'),
+  metaCount: document.querySelector('[data-team-meta="team_count"]'),
 };
 const replayPreviousButton = document.querySelector("#replay-previous-button");
 const replayPlayButton = document.querySelector("#replay-play-button");
@@ -57,10 +43,7 @@ const appState = {
   selectedEventIndex: -1,
   selectedCharacterId: null,
   playbackTimerId: null,
-  teamConfigs: {
-    team_a: null,
-    team_b: null,
-  },
+  teamConfig: null,
   catalogs: {
     passives: [],
     abilities: [],
@@ -76,16 +59,15 @@ const metadataFields = {
   team_b: document.querySelector('[data-meta-field="team_b"]'),
 };
 
-const demoTeams = {
-  team_a: {
-    version: 1,
-    name: "Imperial Phalanx",
-    characters: [
+const demoTeam = {
+  version: 1,
+  name: "Imperial Phalanx",
+  characters: [
       {
         id: "the_emperor",
         display_name: "The Emperor",
         position: { row: 0, col: 0 },
-        stats: { vit: 10, mgt: 6, mag: 4, arm: 5, res: 3, spd: 4, wil: 6 },
+        stats: { vit: 12, mgt: 12, mag: 8, arm: 7, res: 5, spd: 8, wil: 12 },
         passive: "Imperial Formation",
         actives: ["Hold the Line", "Command", "Taunt"],
         item: null,
@@ -93,14 +75,14 @@ const demoTeams = {
           {
             ability: "Hold the Line",
             when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 2 },
+              { subject: "self", value: "mp", op: "gte", threshold: 4 },
               { subject: "self", value: "use_count", op: "lte", threshold: 0 },
             ],
           },
           {
             ability: "Taunt",
             when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 2 },
+              { subject: "self", value: "mp", op: "gte", threshold: 4 },
               { subject: "self", value: "use_count", op: "lte", threshold: 0 },
             ],
           },
@@ -110,7 +92,7 @@ const demoTeams = {
         id: "the_hierophant",
         display_name: "The Hierophant",
         position: { row: 0, col: 2 },
-        stats: { vit: 11, mgt: 3, mag: 7, arm: 4, res: 7, spd: 3, wil: 7 },
+        stats: { vit: 14, mgt: 8, mag: 12, arm: 5, res: 8, spd: 8, wil: 14 },
         passive: "Sanctuary",
         actives: ["Smite", "Consecrate", "Blessing"],
         item: null,
@@ -118,7 +100,7 @@ const demoTeams = {
           {
             ability: "Blessing",
             when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 2 },
+              { subject: "self", value: "mp", op: "gte", threshold: 4 },
               { subject: "self", value: "use_count", op: "lte", threshold: 0 },
             ],
           },
@@ -136,7 +118,7 @@ const demoTeams = {
         id: "the_chariot",
         display_name: "The Chariot",
         position: { row: 1, col: 1 },
-        stats: { vit: 9, mgt: 8, mag: 3, arm: 4, res: 3, spd: 6, wil: 5 },
+        stats: { vit: 10, mgt: 15, mag: 8, arm: 5, res: 4, spd: 14, wil: 10 },
         passive: "Pursuit",
         actives: ["Charge", "Withdraw", "Breakthrough"],
         item: null,
@@ -156,106 +138,6 @@ const demoTeams = {
         ],
       },
     ],
-  },
-  team_b: {
-    version: 1,
-    name: "Omen Tribunal",
-    characters: [
-      {
-        id: "justice",
-        display_name: "Justice",
-        position: { row: 0, col: 1 },
-        stats: { vit: 12, mgt: 6, mag: 3, arm: 6, res: 6, spd: 3, wil: 5 },
-        passive: "Sentence",
-        actives: ["Condemn", "Verdict", "Rebuke"],
-        item: null,
-        rules: [
-          {
-            ability: "Verdict",
-            when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 3 },
-              { subject: "target", value: { status_stacks: "Omen" }, op: "gte", threshold: 3 },
-            ],
-          },
-          {
-            ability: "Rebuke",
-            when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 2 },
-              { subject: "self", value: "use_count", op: "lte", threshold: 0 },
-            ],
-          },
-          {
-            ability: "Condemn",
-            when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 2 },
-              { subject: "target", value: { has_status: "Omen" }, op: "gte", threshold: 1 },
-            ],
-          },
-        ],
-      },
-      {
-        id: "the_moon",
-        display_name: "The Moon",
-        position: { row: 1, col: 1 },
-        stats: { vit: 8, mgt: 3, mag: 8, arm: 3, res: 6, spd: 5, wil: 7 },
-        passive: "Foreboding",
-        actives: ["Hex", "Eclipse", "Harvest Night"],
-        item: null,
-        rules: [
-          {
-            ability: "Harvest Night",
-            when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 3 },
-              { subject: "target", value: { status_stacks: "Omen" }, op: "gte", threshold: 4 },
-            ],
-          },
-          {
-            ability: "Eclipse",
-            when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 3 },
-              { subject: "self", value: "use_count", op: "lte", threshold: 0 },
-            ],
-          },
-          {
-            ability: "Hex",
-            when: [{ subject: "self", value: "mp", op: "gte", threshold: 2 }],
-          },
-        ],
-      },
-      {
-        id: "the_magician",
-        display_name: "The Magician",
-        position: { row: 2, col: 1 },
-        stats: { vit: 7, mgt: 3, mag: 7, arm: 3, res: 5, spd: 6, wil: 8 },
-        passive: "Catalyst",
-        actives: ["Channel", "Distill", "Transmute"],
-        item: null,
-        rules: [
-          {
-            ability: "Channel",
-            when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 1 },
-              { subject: "companion", value: "mp", op: "lte", threshold: 1 },
-            ],
-          },
-          {
-            ability: "Distill",
-            when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 2 },
-              { subject: "target", value: { status_stacks: "Omen" }, op: "gte", threshold: 2 },
-            ],
-          },
-          {
-            ability: "Transmute",
-            when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 2 },
-              { subject: "target", value: { has_status: "Omen" }, op: "gte", threshold: 1 },
-            ],
-          },
-        ],
-      },
-    ],
-  },
 };
 
 for (const button of tabButtons) {
@@ -413,65 +295,61 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-for (const [teamKey, teamConfig] of Object.entries(teamConfigs)) {
-  teamConfig.loadButton.addEventListener("click", () => {
-    loadTeamFromText(teamKey, teamConfig.jsonInput.value.trim());
-  });
+teamEditorConfig.loadButton.addEventListener("click", () => {
+  loadTeamFromText(teamEditorConfig.jsonInput.value.trim());
+});
 
-  teamConfig.demoButton.addEventListener("click", () => {
-    teamConfig.jsonInput.value = JSON.stringify(demoTeams[teamKey], null, 2);
-    loadTeamFromText(teamKey, teamConfig.jsonInput.value);
-  });
+teamEditorConfig.demoButton.addEventListener("click", () => {
+  teamEditorConfig.jsonInput.value = JSON.stringify(demoTeam, null, 2);
+  loadTeamFromText(teamEditorConfig.jsonInput.value);
+});
 
-  teamConfig.fileInput.addEventListener("change", async (event) => {
-    const [file] = event.target.files ?? [];
-    if (!file) {
-      return;
-    }
+teamEditorConfig.fileInput.addEventListener("change", async (event) => {
+  const [file] = event.target.files ?? [];
+  if (!file) {
+    return;
+  }
 
-    try {
-      const content = await file.text();
-      teamConfig.jsonInput.value = content;
-      loadTeamFromText(teamKey, content);
-    } catch (error) {
-      renderTeamValidation(teamKey, {
-        ok: false,
-        errors: [`Could not read team file: ${error.message}`],
-      });
-      resetTeamSummary(teamKey);
-    }
-  });
+  try {
+    const content = await file.text();
+    teamEditorConfig.jsonInput.value = content;
+    loadTeamFromText(content);
+  } catch (error) {
+    renderTeamValidation({
+      ok: false,
+      errors: [`Could not read team file: ${error.message}`],
+    });
+    resetTeamSummary();
+  }
+});
 
-  teamConfig.copyButton.addEventListener("click", async () => {
-    await copyTeamJson(teamKey);
-  });
+teamEditorConfig.copyButton.addEventListener("click", async () => {
+  await copyTeamJson();
+});
 
-  teamConfig.downloadButton.addEventListener("click", () => {
-    downloadTeamJson(teamKey);
-  });
+teamEditorConfig.downloadButton.addEventListener("click", () => {
+  downloadTeamJson();
+});
 
-  teamConfig.editor.addEventListener("input", (event) => {
-    handleTeamEditorInput(teamKey, event);
-  });
+teamEditorConfig.editor.addEventListener("input", (event) => {
+  handleTeamEditorInput(event);
+});
 
-  teamConfig.editor.addEventListener("change", (event) => {
-    handleTeamEditorInput(teamKey, event);
-  });
+teamEditorConfig.editor.addEventListener("change", (event) => {
+  handleTeamEditorInput(event);
+});
 
-  teamConfig.editor.addEventListener("click", (event) => {
-    handleTeamEditorAction(teamKey, event);
-  });
-}
+teamEditorConfig.editor.addEventListener("click", (event) => {
+  handleTeamEditorAction(event);
+});
 
 resetMetadata();
 resetBoards();
 renderPlaybackControls();
 renderTimeline();
 renderInspector(null);
-resetTeamSummary("team_a");
-resetTeamSummary("team_b");
-renderTeamEditor("team_a");
-renderTeamEditor("team_b");
+resetTeamSummary();
+renderTeamEditor();
 void loadEditorCatalogs();
 void loadLatestReplay();
 
@@ -501,8 +379,7 @@ async function loadEditorCatalogs() {
     appState.catalogs.abilityDescriptions = Object.fromEntries(
       Object.entries(abilities).map(([name, definition]) => [name, definition?.description ?? ""]),
     );
-    renderTeamEditor("team_a");
-    renderTeamEditor("team_b");
+    renderTeamEditor();
   } catch (_error) {
     appState.catalogs.passives = [];
     appState.catalogs.abilities = [];
@@ -883,38 +760,38 @@ function renderReplayValidation(result) {
   replayValidationOutput.textContent = result.errors.map((error) => `- ${error}`).join("\n");
 }
 
-function loadTeamFromText(teamKey, sourceText) {
+function loadTeamFromText(sourceText) {
   if (!sourceText) {
-    renderTeamValidation(teamKey, {
+    renderTeamValidation({
       ok: false,
       errors: ["Team JSON input is empty."],
     });
-    appState.teamConfigs[teamKey] = null;
-    resetTeamSummary(teamKey);
+    appState.teamConfig = null;
+    resetTeamSummary();
     return;
   }
 
   try {
     const parsedTeam = JSON.parse(sourceText);
     const validation = validateTeamConfig(parsedTeam);
-    renderTeamValidation(teamKey, validation);
+    renderTeamValidation(validation);
 
     if (validation.ok) {
-      appState.teamConfigs[teamKey] = parsedTeam;
-      syncTeamUI(teamKey);
+      appState.teamConfig = parsedTeam;
+      syncTeamUI();
     } else {
-      appState.teamConfigs[teamKey] = null;
-      resetTeamSummary(teamKey);
-      renderTeamEditor(teamKey);
+      appState.teamConfig = null;
+      resetTeamSummary();
+      renderTeamEditor();
     }
   } catch (error) {
-    renderTeamValidation(teamKey, {
+    renderTeamValidation({
       ok: false,
       errors: [`Could not parse team JSON: ${error.message}`],
     });
-    appState.teamConfigs[teamKey] = null;
-    resetTeamSummary(teamKey);
-    renderTeamEditor(teamKey);
+    appState.teamConfig = null;
+    resetTeamSummary();
+    renderTeamEditor();
   }
 }
 
@@ -1012,34 +889,32 @@ function validateTeamCharacters(characters, errors) {
   });
 }
 
-function renderTeamSummary(teamKey, teamConfig) {
-  const config = teamConfigs[teamKey];
-  config.metaName.textContent = teamConfig.name;
-  config.metaCount.textContent = String(teamConfig.characters.length);
+function renderTeamSummary(teamConfig) {
+  teamEditorConfig.metaName.textContent = teamConfig.name;
+  teamEditorConfig.metaCount.textContent = String(teamConfig.characters.length);
 }
 
-function resetTeamSummary(teamKey) {
-  const config = teamConfigs[teamKey];
-  config.metaName.textContent = "-";
-  config.metaCount.textContent = "-";
+function resetTeamSummary() {
+  teamEditorConfig.metaName.textContent = "-";
+  teamEditorConfig.metaCount.textContent = "-";
 }
 
-function syncTeamUI(teamKey) {
-  const teamConfig = appState.teamConfigs[teamKey];
+function syncTeamUI() {
+  const teamConfig = appState.teamConfig;
   if (!teamConfig) {
-    resetTeamSummary(teamKey);
-    renderTeamEditor(teamKey);
+    resetTeamSummary();
+    renderTeamEditor();
     return;
   }
 
-  teamConfigs[teamKey].jsonInput.value = JSON.stringify(teamConfig, null, 2);
-  renderTeamSummary(teamKey, teamConfig);
-  renderTeamValidation(teamKey, validateTeamConfig(teamConfig));
-  renderTeamEditor(teamKey);
+  teamEditorConfig.jsonInput.value = JSON.stringify(teamConfig, null, 2);
+  renderTeamSummary(teamConfig);
+  renderTeamValidation(validateTeamConfig(teamConfig));
+  renderTeamEditor();
 }
 
-function renderTeamValidation(teamKey, result) {
-  const output = teamConfigs[teamKey].validationOutput;
+function renderTeamValidation(result) {
+  const output = teamEditorConfig.validationOutput;
   output.className = "message-panel";
 
   if (result.ok) {
@@ -1058,10 +933,10 @@ function renderTeamValidation(teamKey, result) {
   output.textContent = result.errors.map((error) => `- ${error}`).join("\n");
 }
 
-async function copyTeamJson(teamKey) {
-  const team = appState.teamConfigs[teamKey];
+async function copyTeamJson() {
+  const team = appState.teamConfig;
   if (!team) {
-    renderTeamValidation(teamKey, { ok: false, errors: ["No team is loaded to copy."] });
+    renderTeamValidation({ ok: false, errors: ["No team is loaded to copy."] });
     return;
   }
 
@@ -1070,22 +945,22 @@ async function copyTeamJson(teamKey) {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(jsonText);
-      renderTeamValidation(teamKey, { ok: true, errors: [] });
-      teamConfigs[teamKey].validationOutput.textContent = "Team JSON copied to clipboard.";
+      renderTeamValidation({ ok: true, errors: [] });
+      teamEditorConfig.validationOutput.textContent = "Team JSON copied to clipboard.";
       return;
     }
   } catch (error) {
-    renderTeamValidation(teamKey, { ok: false, errors: [`Could not copy team JSON: ${error.message}`] });
+    renderTeamValidation({ ok: false, errors: [`Could not copy team JSON: ${error.message}`] });
     return;
   }
 
-  renderTeamValidation(teamKey, { ok: false, errors: ["Clipboard access is not available in this browser context."] });
+  renderTeamValidation({ ok: false, errors: ["Clipboard access is not available in this browser context."] });
 }
 
-function downloadTeamJson(teamKey) {
-  const team = appState.teamConfigs[teamKey];
+function downloadTeamJson() {
+  const team = appState.teamConfig;
   if (!team) {
-    renderTeamValidation(teamKey, { ok: false, errors: ["No team is loaded to download."] });
+    renderTeamValidation({ ok: false, errors: ["No team is loaded to download."] });
     return;
   }
 
@@ -1094,24 +969,24 @@ function downloadTeamJson(teamKey) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${team.name || teamKey}.json`;
+  link.download = `${team.name || "team"}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  renderTeamValidation(teamKey, { ok: true, errors: [] });
-  teamConfigs[teamKey].validationOutput.textContent = "Team JSON downloaded.";
+  renderTeamValidation({ ok: true, errors: [] });
+  teamEditorConfig.validationOutput.textContent = "Team JSON downloaded.";
 }
 
-function renderTeamEditor(teamKey) {
-  const editor = teamConfigs[teamKey].editor;
-  const team = appState.teamConfigs[teamKey];
+function renderTeamEditor() {
+  const editor = teamEditorConfig.editor;
+  const team = appState.teamConfig;
   if (!team) {
     editor.innerHTML = '<div class="board-empty-state">Load a team to edit it here.</div>';
     return;
   }
 
-  const characterMarkup = team.characters.map((character, characterIndex) => renderCharacterEditor(teamKey, character, characterIndex)).join("");
+  const characterMarkup = team.characters.map((character, characterIndex) => renderCharacterEditor(character, characterIndex)).join("");
 
   editor.innerHTML = `
     <div class="editor-toolbar">
@@ -1125,7 +1000,7 @@ function renderTeamEditor(teamKey) {
   `;
 }
 
-function renderCharacterEditor(teamKey, character, characterIndex) {
+function renderCharacterEditor(character, characterIndex) {
   const passiveOptions = buildSelectOptions(
     appState.catalogs.passives,
     character.passive ?? "",
@@ -1139,7 +1014,7 @@ function renderCharacterEditor(teamKey, character, characterIndex) {
       `No active ${activeIndex + 1}`,
     ),
   );
-  const rulesMarkup = (character.rules ?? []).map((rule, ruleIndex) => renderRuleEditor(teamKey, characterIndex, rule, ruleIndex)).join("");
+  const rulesMarkup = (character.rules ?? []).map((rule, ruleIndex) => renderRuleEditor(characterIndex, rule, ruleIndex)).join("");
 
   return `
     <article class="editor-card">
@@ -1216,7 +1091,7 @@ function renderCharacterEditor(teamKey, character, characterIndex) {
   `;
 }
 
-function renderRuleEditor(teamKey, characterIndex, rule, ruleIndex) {
+function renderRuleEditor(characterIndex, rule, ruleIndex) {
   const conditionsMarkup = (rule.when ?? []).map((condition, conditionIndex) => renderConditionEditor(characterIndex, ruleIndex, condition, conditionIndex)).join("");
 
   return `
@@ -1307,8 +1182,8 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
   `;
 }
 
-function handleTeamEditorInput(teamKey, event) {
-  const team = appState.teamConfigs[teamKey];
+function handleTeamEditorInput(event) {
+  const team = appState.teamConfig;
   if (!team) {
     return;
   }
@@ -1318,11 +1193,11 @@ function handleTeamEditorInput(teamKey, event) {
   const ruleIndex = Number(target.dataset.ruleIndex);
   const conditionIndex = Number(target.dataset.conditionIndex);
 
-  if (target.dataset.teamField === "name") {
-    team.name = target.value;
-    syncTeamUI(teamKey);
-    return;
-  }
+    if (target.dataset.teamField === "name") {
+      team.name = target.value;
+      syncTeamUI();
+      return;
+    }
 
   if (target.dataset.characterField) {
     const character = team.characters[characterIndex];
@@ -1341,7 +1216,7 @@ function handleTeamEditorInput(teamKey, event) {
       character[target.dataset.characterField] = target.value;
     }
 
-    syncTeamUI(teamKey);
+    syncTeamUI();
     return;
   }
 
@@ -1351,7 +1226,7 @@ function handleTeamEditorInput(teamKey, event) {
       return;
     }
     character.position[target.dataset.positionField] = Number(target.value);
-    syncTeamUI(teamKey);
+    syncTeamUI();
     return;
   }
 
@@ -1361,7 +1236,7 @@ function handleTeamEditorInput(teamKey, event) {
       return;
     }
     character.stats[target.dataset.statField] = Number(target.value);
-    syncTeamUI(teamKey);
+    syncTeamUI();
     return;
   }
 
@@ -1371,7 +1246,7 @@ function handleTeamEditorInput(teamKey, event) {
       return;
     }
     rule.ability = target.value;
-    syncTeamUI(teamKey);
+    syncTeamUI();
     return;
   }
 
@@ -1408,17 +1283,17 @@ function handleTeamEditorInput(teamKey, event) {
       condition.threshold = Number(target.value);
     }
 
-    syncTeamUI(teamKey);
+    syncTeamUI();
   }
 }
 
-function handleTeamEditorAction(teamKey, event) {
+function handleTeamEditorAction(event) {
   const action = event.target.dataset.teamAction;
   if (!action) {
     return;
   }
 
-  const team = appState.teamConfigs[teamKey];
+  const team = appState.teamConfig;
   if (!team) {
     return;
   }
@@ -1456,7 +1331,7 @@ function handleTeamEditorAction(teamKey, event) {
       return;
   }
 
-  syncTeamUI(teamKey);
+  syncTeamUI();
 }
 
 function createEmptyCharacter(index) {
