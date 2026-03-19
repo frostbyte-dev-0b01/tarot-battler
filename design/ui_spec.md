@@ -264,6 +264,10 @@ Current sample-team loop:
 2. edit the structured team form or raw JSON
 3. export the team JSON for the engine
 
+Current bundled sample note:
+
+- the built-in sample teams mirror the live bundled 3v3 matchup, currently Team A versus the Team B omen roster
+
 ## Recommended File Structure
 
 The first implementation can stay very small:

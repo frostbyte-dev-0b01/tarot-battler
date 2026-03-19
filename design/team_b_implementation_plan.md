@@ -513,6 +513,10 @@ The sample should demonstrate:
 
 ## Phase 8: Replay and UI Support
 
+Status:
+
+- implemented
+
 ### Goal
 
 Ensure the replay viewer and team builder expose `Omen` clearly.
@@ -526,6 +530,12 @@ Ensure the replay viewer and team builder expose `Omen` clearly.
 ### Recommendation
 
 If `Omen` consumption gets its own replay event, add viewer support for it. If not, ensure the resulting status removal and bonus-damage sequence is still legible in the timeline.
+
+Implemented result:
+
+- the replay viewer already handled `status_applied`, `status_damage`, retarget, and movement events from earlier work, so no new replay rendering features were required for Team B
+- the built-in team builder demo teams now mirror the bundled Team A and Team B sample rosters and rules
+- the default generated replay path now reflects the live omen matchup without any manual JSON editing
 
 ## Recommended Implementation Order
 

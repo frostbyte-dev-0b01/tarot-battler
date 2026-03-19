@@ -90,11 +90,17 @@ const demoTeams = {
         rules: [
           {
             ability: "Hold the Line",
-            when: [{ subject: "world", value: "tick_count", op: "lte", threshold: 1 }],
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 2 },
+              { subject: "self", value: "use_count", op: "lte", threshold: 0 },
+            ],
           },
           {
             ability: "Taunt",
-            when: [{ subject: "world", value: "tick_count", op: "lte", threshold: 3 }],
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 2 },
+              { subject: "self", value: "use_count", op: "lte", threshold: 0 },
+            ],
           },
         ],
       },
@@ -109,7 +115,10 @@ const demoTeams = {
         rules: [
           {
             ability: "Blessing",
-            when: [{ subject: "world", value: "tick_count", op: "lte", threshold: 2 }],
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 2 },
+              { subject: "self", value: "use_count", op: "lte", threshold: 0 },
+            ],
           },
           {
             ability: "Consecrate",
@@ -136,7 +145,7 @@ const demoTeams = {
           },
           {
             ability: "Charge",
-            when: [{ subject: "world", value: "tick_count", op: "lte", threshold: 1 }],
+            when: [{ subject: "self", value: "use_count", op: "lte", threshold: 0 }],
           },
           {
             ability: "Withdraw",
@@ -148,37 +157,100 @@ const demoTeams = {
   },
   team_b: {
     version: 1,
-    name: "Trial Opposition",
+    name: "Omen Tribunal",
     characters: [
       {
-        id: "the_fool",
-        display_name: "The Fool",
-        position: { row: 0, col: 0 },
-        stats: { vit: 7, mgt: 4, mag: 4, arm: 3, res: 3, spd: 7, wil: 6 },
-        passive: "",
-        actives: [],
+        id: "justice",
+        display_name: "Justice",
+        position: { row: 0, col: 1 },
+        stats: { vit: 12, mgt: 6, mag: 3, arm: 6, res: 6, spd: 3, wil: 5 },
+        passive: "Sentence",
+        actives: ["Condemn", "Verdict", "Rebuke"],
         item: null,
-        rules: [],
+        rules: [
+          {
+            ability: "Verdict",
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 3 },
+              { subject: "target", value: { status_stacks: "Omen" }, op: "gte", threshold: 3 },
+            ],
+          },
+          {
+            ability: "Rebuke",
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 2 },
+              { subject: "self", value: "use_count", op: "lte", threshold: 0 },
+            ],
+          },
+          {
+            ability: "Condemn",
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 2 },
+              { subject: "target", value: { has_status: "Omen" }, op: "gte", threshold: 1 },
+            ],
+          },
+        ],
+      },
+      {
+        id: "the_moon",
+        display_name: "The Moon",
+        position: { row: 1, col: 1 },
+        stats: { vit: 8, mgt: 3, mag: 8, arm: 3, res: 6, spd: 5, wil: 7 },
+        passive: "Foreboding",
+        actives: ["Hex", "Eclipse", "Harvest Night"],
+        item: null,
+        rules: [
+          {
+            ability: "Harvest Night",
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 3 },
+              { subject: "target", value: { status_stacks: "Omen" }, op: "gte", threshold: 4 },
+            ],
+          },
+          {
+            ability: "Eclipse",
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 3 },
+              { subject: "self", value: "use_count", op: "lte", threshold: 0 },
+            ],
+          },
+          {
+            ability: "Hex",
+            when: [{ subject: "self", value: "mp", op: "gte", threshold: 2 }],
+          },
+        ],
       },
       {
         id: "the_magician",
         display_name: "The Magician",
-        position: { row: 0, col: 1 },
-        stats: { vit: 5, mgt: 3, mag: 9, arm: 2, res: 5, spd: 6, wil: 6 },
-        passive: "",
-        actives: [],
+        position: { row: 2, col: 1 },
+        stats: { vit: 7, mgt: 3, mag: 7, arm: 3, res: 5, spd: 6, wil: 8 },
+        passive: "Catalyst",
+        actives: ["Channel", "Distill", "Transmute"],
         item: null,
-        rules: [],
-      },
-      {
-        id: "strength",
-        display_name: "Strength",
-        position: { row: 1, col: 1 },
-        stats: { vit: 10, mgt: 7, mag: 2, arm: 6, res: 5, spd: 4, wil: 5 },
-        passive: "",
-        actives: [],
-        item: null,
-        rules: [],
+        rules: [
+          {
+            ability: "Channel",
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 1 },
+              { subject: "companion", value: "mp", op: "lte", threshold: 1 },
+            ],
+          },
+          {
+            ability: "Distill",
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 2 },
+              { subject: "target", value: { status_stacks: "Omen" }, op: "gte", threshold: 2 },
+            ],
+          },
+          {
+            ability: "Transmute",
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 2 },
+              { subject: "target", value: { has_status: "Omen" }, op: "gte", threshold: 1 },
+            ],
+          },
+        ],
       },
     ],
   },
