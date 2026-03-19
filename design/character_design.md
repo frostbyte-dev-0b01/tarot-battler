@@ -288,6 +288,115 @@ Abilities:
 - `Blessing`
   Restore MP to allies in the user's row.
 
+#### The Chariot
+
+Role:
+
+- payoff striker
+- movement-based physical carry
+- focus-fire beneficiary
+
+Passive:
+
+- `Pursuit`
+  When an ally damages Chariot's current target, Chariot gains `Empower MGT 1`.
+
+Abilities:
+
+- `Charge`
+  Deal physical damage to the user's current target. If the tile one row forward in the same column is empty, move there.
+- `Withdraw`
+  Deal physical damage to the user's current target. If the tile one row backward in the same column is empty, move there.
+- `Breakthrough`
+  Deal physical damage to the user's current target. `Empower MGT` on the user counts double for this attack.
+
+### Team A Game Plan
+
+- Emperor and Hierophant establish row-based support in the front line
+- Chariot begins in the middle row and moves forward with `Charge`
+- if Chariot has `Ward`, it can `Withdraw` back to safety
+- the team tries to stack row-based effects and cash out with `Breakthrough`
+
+### Team B
+
+#### The Moon
+
+Role:
+
+- primary omen engine
+- magical setup caster
+- delayed-damage payoff
+
+Passive:
+
+- `Foreboding`
+  When The Moon deals magical damage to an enemy, apply `Omen 1` to that enemy.
+
+Abilities:
+
+- `Hex`
+  Deal magical damage to the user's current target. Apply `Omen 2` to that target.
+- `Eclipse`
+  Deal magical damage to the user's current target and all of that target's companions. Apply `Omen 1` to each damaged target.
+- `Harvest Night`
+  Deal magical damage to the user's current target. Consume all `Omen` on that target and add bonus damage equal to the consumed stacks.
+
+#### The Magician
+
+Role:
+
+- omen amplifier
+- MP support caster
+- consistency engine
+
+Passive:
+
+- `Catalyst`
+  The first time each tick an ally applies `Omen` to an enemy, apply `Omen 1` to that enemy.
+
+Abilities:
+
+- `Channel`
+  Restore MP to the user or one ally.
+- `Distill`
+  Remove 1 buff from the user's current target. Apply `Omen 2` to that target.
+- `Transmute`
+  Deal magical damage to the user's current target. If that target has `Omen`, restore `MP 2` to the user.
+
+#### Justice
+
+Role:
+
+- frontline control anchor
+- omen-aware execution bruiser
+- target disruption
+
+Passive:
+
+- `Sentence`
+  Enemies with `Omen` deal `Weaken MGT 1` to themselves while targeting Justice.
+
+Abilities:
+
+- `Condemn`
+  Deal physical damage to the user's current target. If that target has `Omen`, this attack deals bonus damage.
+- `Verdict`
+  Deal heavy damage to the user's current target. This ability can only be used if that target has at least `Omen 3`.
+- `Rebuke`
+  Force the user's current target to choose a new target using default retargeting.
+
+### Team B Game Plan
+
+- Justice holds the line and disrupts enemy targeting
+- Moon steadily applies `Omen`
+- Magician amplifies `Omen` application and keeps the team fueled with MP
+- Moon and Justice cash out marked targets with payoff attacks
+
+### Team A vs Team B Contrast
+
+- Team A is a formation-and-focus-fire team built around row support and an Empower payoff striker
+- Team B is a setup-and-payoff control team built around `Omen`, MP support, and selective executions
+
 ## Pivot Unit Design
 
 ### Why Pivot Units Matter
