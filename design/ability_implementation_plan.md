@@ -72,6 +72,11 @@ This stage unlocks:
 
 - `Invocation`
 
+Status:
+
+- completed
+- engine now supports `if_target_lacks_status`
+
 ### Stage 3: Consume-Own-Statuses Damage Primitive
 
 Add a reusable physical damage primitive that:

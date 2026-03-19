@@ -209,6 +209,13 @@ pub enum Primitive {
         stat: Option<Stat>,
         primitives: Vec<Primitive>,
     },
+    IfTargetLacksStatus {
+        target: AbilityTarget,
+        status: String,
+        #[serde(default)]
+        stat: Option<Stat>,
+        primitives: Vec<Primitive>,
+    },
 }
 
 /// A complete ability definition.
@@ -805,6 +812,30 @@ pub fn execute_primitives_with_context(
                 let should_execute = target_indices
                     .iter()
                     .any(|tidx| ctx.enemy_team[*tidx].is_alive() && ctx.enemy_team[*tidx].has_status(&key));
+                if should_execute {
+                    let nested_damage =
+                        execute_primitives_with_context(ctx, actor_idx, _source_name, primitives);
+                    damage_dealt.extend(nested_damage);
+                }
+            }
+            Primitive::IfTargetLacksStatus {
+                target,
+                status,
+                stat,
+                primitives,
+            } => {
+                let key = status_key(status, stat.as_ref());
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    ctx.actor_team,
+                    ctx.enemy_team,
+                    ctx.rng,
+                    ctx.trigger_target_id,
+                );
+                let should_execute = target_indices
+                    .iter()
+                    .any(|tidx| ctx.enemy_team[*tidx].is_alive() && !ctx.enemy_team[*tidx].has_status(&key));
                 if should_execute {
                     let nested_damage =
                         execute_primitives_with_context(ctx, actor_idx, _source_name, primitives);

@@ -677,6 +677,46 @@ fn remove_one_buff_removes_highest_stack_buff() {
 }
 
 #[test]
+fn if_target_lacks_status_executes_nested_primitives() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let statuses = test_statuses();
+    let mut actor_team =
+        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MAG, 8)])];
+    let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::RES, 3)])];
+    actor_team[0].set_target(1);
+
+    let ability = AbilityDef {
+        mp_cost: 2,
+        primitives: vec![Primitive::IfTargetLacksStatus {
+            target: SimpleAbilityTarget::CurrentTarget.into(),
+            status: "Omen".to_string(),
+            stat: None,
+            primitives: vec![Primitive::ApplyStatus {
+                target: SimpleAbilityTarget::CurrentTarget.into(),
+                status: "Omen".to_string(),
+                stat: None,
+                stacks: 1,
+            }],
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Invocation",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &statuses,
+    );
+
+    assert_eq!(enemy_team[0].status_stacks("Omen"), 1);
+}
+
+#[test]
 fn all_enemies_target_resolves_to_all_living() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
