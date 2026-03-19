@@ -400,6 +400,19 @@ fn validate_primitives(
                     ));
                 }
             }
+            Primitive::DealMagicalDamageConsumeStatus {
+                status, stat, ..
+            } => {
+                let Some(def) = statuses.get(status) else {
+                    errors.push(format!(
+                        "{} references unknown status '{}'",
+                        source_name, status
+                    ));
+                    continue;
+                };
+
+                validate_status_stat_usage(source_name, status, stat.as_ref(), def, errors);
+            }
             Primitive::Retarget { target, .. } => {
                 if !is_enemy_target(target) {
                     errors.push(format!(

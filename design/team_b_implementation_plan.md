@@ -150,6 +150,10 @@ Current v1 note:
 
 ## Phase 2: Omen Consumption Payoff
 
+Status:
+
+- implemented
+
 ### Goal
 
 Support abilities that consume `Omen` stacks for bonus damage.
@@ -179,10 +183,11 @@ This can be implemented either:
   - `consume_all`
   - `bonus_per_stack`
 
-Recommendation:
+Implemented result:
 
-- use the reusable version if it stays small
-- avoid a bespoke Moon-only code path
+- the engine now supports a reusable magical consume-status damage primitive
+- it reads current stacks of a named status, adds flat bonus damage per stack, then removes the status from the target
+- this is sufficient for `Harvest Night` without introducing a wider general-purpose rider system yet
 
 ### Tests
 

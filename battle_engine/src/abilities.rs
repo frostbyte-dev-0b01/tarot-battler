@@ -137,6 +137,14 @@ pub enum Primitive {
         target: AbilityTarget,
         multiplier: f64,
     },
+    DealMagicalDamageConsumeStatus {
+        target: AbilityTarget,
+        multiplier: f64,
+        status: String,
+        #[serde(default)]
+        stat: Option<Stat>,
+        bonus_per_stack: u32,
+    },
     RestoreHp {
         target: AbilityTarget,
         amount: u32,
@@ -329,6 +337,44 @@ pub fn execute_primitives(
                     let base = (actor_int as i32 - defender_wis as i32).max(1) as u32;
                     let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
                     let damage = enemy_team[tidx].take_hit(raw_damage);
+                    let tid = enemy_team[tidx].id();
+                    let tname = enemy_team[tidx].base_name().to_string();
+                    let hp = enemy_team[tidx].current_hp();
+                    log.push(BattleEvent::AbilityDamage {
+                        tick_count: step,
+                        actor_id,
+                        target_id: tid,
+                        target_name: tname,
+                        damage,
+                        target_hp_remaining: hp,
+                    });
+                    damage_dealt.push(DamageRecord {
+                        source_id: actor_id,
+                        target_id: tid,
+                        damage,
+                    });
+                }
+            }
+            Primitive::DealMagicalDamageConsumeStatus {
+                target,
+                multiplier,
+                status,
+                stat,
+                bonus_per_stack,
+            } => {
+                let key = status_key(status, stat.as_ref());
+                let target_indices =
+                    resolve_enemy_targets(target, actor_idx, actor_team, enemy_team, _rng);
+                for tidx in target_indices {
+                    let defender_res = enemy_team[tidx].get_eff_stat(&Stat::RES);
+                    let base = (actor_int as i32 - defender_res as i32).max(1) as u32;
+                    let consumed_stacks = enemy_team[tidx].status_stacks(&key);
+                    let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32
+                        + consumed_stacks.saturating_mul(*bonus_per_stack);
+                    let damage = enemy_team[tidx].take_hit(raw_damage);
+                    if consumed_stacks > 0 {
+                        enemy_team[tidx].remove_status(&key, consumed_stacks);
+                    }
                     let tid = enemy_team[tidx].id();
                     let tname = enemy_team[tidx].base_name().to_string();
                     let hp = enemy_team[tidx].current_hp();
@@ -1045,6 +1091,14 @@ mod tests {
             },
         );
         map.insert(
+            "Omen".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::DamagePerStack { value: 1 },
+                stack_type: StackType::TickDown,
+                opposes: None,
+            },
+        );
+        map.insert(
             "Empower".to_string(),
             StatusDef {
                 behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
@@ -1357,6 +1411,83 @@ mod tests {
         );
         assert_eq!(enemy_team[0].status_stacks("Bleed"), 0);
         assert_eq!(enemy_team[1].status_stacks("Bleed"), 0);
+    }
+
+    #[test]
+    fn magical_consume_status_damage_scales_with_consumed_stacks() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MAG, 8)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::RES, 3)])];
+        actor_team[0].set_target(1);
+
+        let omen = statuses.get("Omen").unwrap();
+        enemy_team[0].add_status("Omen", 4, 99, omen, None);
+
+        let ability = AbilityDef {
+            mp_cost: 3,
+            primitives: vec![Primitive::DealMagicalDamageConsumeStatus {
+                target: SimpleAbilityTarget::CurrentTarget.into(),
+                multiplier: 1.0,
+                status: "Omen".to_string(),
+                stat: None,
+                bonus_per_stack: 1,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "Harvest Night",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        // base magical damage: 8 - 3 = 5, plus 4 consumed Omen = 9
+        assert_eq!(enemy_team[0].current_hp(), 11);
+        assert_eq!(enemy_team[0].status_stacks("Omen"), 0);
+    }
+
+    #[test]
+    fn magical_consume_status_damage_leaves_target_unchanged_without_status() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MAG, 8)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::RES, 3)])];
+        actor_team[0].set_target(1);
+
+        let ability = AbilityDef {
+            mp_cost: 3,
+            primitives: vec![Primitive::DealMagicalDamageConsumeStatus {
+                target: SimpleAbilityTarget::CurrentTarget.into(),
+                multiplier: 1.0,
+                status: "Omen".to_string(),
+                stat: None,
+                bonus_per_stack: 1,
+            }],
+        };
+
+        execute_ability(
+            0,
+            "Harvest Night",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        // base magical damage only: 8 - 3 = 5
+        assert_eq!(enemy_team[0].current_hp(), 15);
+        assert_eq!(enemy_team[0].status_stacks("Omen"), 0);
     }
 
     #[test]
