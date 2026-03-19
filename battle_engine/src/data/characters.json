@@ -14,10 +14,16 @@
         "ability": "Hold the Line",
         "when": [
           {
-            "subject": "world",
-            "value": "tick_count",
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 2
+          },
+          {
+            "subject": "self",
+            "value": "use_count",
             "op": "lte",
-            "threshold": 1
+            "threshold": 0
           }
         ]
       },
@@ -25,10 +31,16 @@
         "ability": "Taunt",
         "when": [
           {
-            "subject": "world",
-            "value": "tick_count",
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 2
+          },
+          {
+            "subject": "self",
+            "value": "use_count",
             "op": "lte",
-            "threshold": 3
+            "threshold": 0
           }
         ]
       }
@@ -49,10 +61,16 @@
         "ability": "Blessing",
         "when": [
           {
-            "subject": "world",
-            "value": "tick_count",
-            "op": "lte",
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
             "threshold": 2
+          },
+          {
+            "subject": "self",
+            "value": "use_count",
+            "op": "lte",
+            "threshold": 0
           }
         ]
       },
@@ -99,10 +117,10 @@
         "ability": "Charge",
         "when": [
           {
-            "subject": "world",
-            "value": "tick_count",
+            "subject": "self",
+            "value": "use_count",
             "op": "lte",
-            "threshold": 1
+            "threshold": 0
           }
         ]
       },
@@ -120,39 +138,189 @@
     ]
   },
   {
-    "base_name": "The Fool",
-    "passive": "",
-    "actives": [],
-    "item": null,
-    "position": { "row": 0, "col": 0 },
-    "stats": {
-      "vit": 7, "mgt": 4, "mag": 4, "arm": 3, "res": 3,
-      "spd": 7, "wil": 6
-    },
-    "rules": []
-  },
-  {
-    "base_name": "The Magician",
-    "passive": "",
-    "actives": [],
+    "base_name": "Justice",
+    "passive": "Sentence",
+    "actives": ["Condemn", "Verdict", "Rebuke"],
     "item": null,
     "position": { "row": 0, "col": 1 },
     "stats": {
-      "vit": 5, "mgt": 3, "mag": 9, "arm": 2, "res": 5,
-      "spd": 6, "wil": 6
+      "vit": 12, "mgt": 6, "mag": 3, "arm": 6, "res": 6,
+      "spd": 3, "wil": 5
     },
-    "rules": []
+    "rules": [
+      {
+        "ability": "Verdict",
+        "when": [
+          {
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 3
+          },
+          {
+            "subject": "target",
+            "value": { "status_stacks": "Omen" },
+            "op": "gte",
+            "threshold": 3
+          }
+        ]
+      },
+      {
+        "ability": "Rebuke",
+        "when": [
+          {
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 2
+          },
+          {
+            "subject": "self",
+            "value": "use_count",
+            "op": "lte",
+            "threshold": 0
+          }
+        ]
+      },
+      {
+        "ability": "Condemn",
+        "when": [
+          {
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 2
+          },
+          {
+            "subject": "target",
+            "value": { "has_status": "Omen" },
+            "op": "gte",
+            "threshold": 1
+          }
+        ]
+      }
+    ]
   },
   {
-    "base_name": "Strength",
-    "passive": "",
-    "actives": [],
+    "base_name": "The Moon",
+    "passive": "Foreboding",
+    "actives": ["Hex", "Eclipse", "Harvest Night"],
     "item": null,
     "position": { "row": 1, "col": 1 },
     "stats": {
-      "vit": 10, "mgt": 7, "mag": 2, "arm": 6, "res": 5,
-      "spd": 4, "wil": 5
+      "vit": 8, "mgt": 3, "mag": 8, "arm": 3, "res": 6,
+      "spd": 5, "wil": 7
     },
-    "rules": []
+    "rules": [
+      {
+        "ability": "Harvest Night",
+        "when": [
+          {
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 3
+          },
+          {
+            "subject": "target",
+            "value": { "status_stacks": "Omen" },
+            "op": "gte",
+            "threshold": 4
+          }
+        ]
+      },
+      {
+        "ability": "Eclipse",
+        "when": [
+          {
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 3
+          },
+          {
+            "subject": "self",
+            "value": "use_count",
+            "op": "lte",
+            "threshold": 0
+          }
+        ]
+      },
+      {
+        "ability": "Hex",
+        "when": [
+          {
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 2
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "base_name": "The Magician",
+    "passive": "Catalyst",
+    "actives": ["Channel", "Distill", "Transmute"],
+    "item": null,
+    "position": { "row": 2, "col": 1 },
+    "stats": {
+      "vit": 7, "mgt": 3, "mag": 7, "arm": 3, "res": 5,
+      "spd": 6, "wil": 8
+    },
+    "rules": [
+      {
+        "ability": "Channel",
+        "when": [
+          {
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 1
+          },
+          {
+            "subject": "companion",
+            "value": "mp",
+            "op": "lte",
+            "threshold": 1
+          }
+        ]
+      },
+      {
+        "ability": "Distill",
+        "when": [
+          {
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 2
+          },
+          {
+            "subject": "target",
+            "value": { "status_stacks": "Omen" },
+            "op": "gte",
+            "threshold": 2
+          }
+        ]
+      },
+      {
+        "ability": "Transmute",
+        "when": [
+          {
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 2
+          },
+          {
+            "subject": "target",
+            "value": { "has_status": "Omen" },
+            "op": "gte",
+            "threshold": 1
+          }
+        ]
+      }
+    ]
   }
 ]

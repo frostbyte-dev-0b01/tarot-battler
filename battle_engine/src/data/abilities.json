@@ -107,5 +107,134 @@
         "double_empower_stat": "mgt"
       }
     ]
+  },
+  "Hex": {
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "deal_magical_damage",
+        "target": "current_target",
+        "multiplier": 1.0
+      },
+      {
+        "kind": "apply_status",
+        "target": "current_target",
+        "status": "Omen",
+        "stacks": 2
+      }
+    ]
+  },
+  "Eclipse": {
+    "mp_cost": 3,
+    "primitives": [
+      {
+        "kind": "deal_magical_damage",
+        "target": "current_target_and_companions",
+        "multiplier": 0.7
+      },
+      {
+        "kind": "apply_status",
+        "target": "current_target_and_companions",
+        "status": "Omen",
+        "stacks": 1
+      }
+    ]
+  },
+  "Harvest Night": {
+    "mp_cost": 3,
+    "primitives": [
+      {
+        "kind": "deal_magical_damage_consume_status",
+        "target": "current_target",
+        "multiplier": 1.0,
+        "status": "Omen",
+        "bonus_per_stack": 1
+      }
+    ]
+  },
+  "Channel": {
+    "mp_cost": 1,
+    "primitives": [
+      {
+        "kind": "restore_mp",
+        "target": {
+          "category": "ally",
+          "selector": {
+            "kind": "lowest_mp"
+          }
+        },
+        "amount": 3
+      }
+    ]
+  },
+  "Distill": {
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "remove_one_buff",
+        "target": "current_target"
+      },
+      {
+        "kind": "apply_status",
+        "target": "current_target",
+        "status": "Omen",
+        "stacks": 2
+      }
+    ]
+  },
+  "Transmute": {
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "deal_magical_damage",
+        "target": "current_target",
+        "multiplier": 1.0
+      },
+      {
+        "kind": "if_target_has_status",
+        "target": "current_target",
+        "status": "Omen",
+        "primitives": [
+          {
+            "kind": "restore_mp",
+            "target": "self",
+            "amount": 2
+          }
+        ]
+      }
+    ]
+  },
+  "Condemn": {
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "deal_physical_damage_bonus_vs_status",
+        "target": "current_target",
+        "multiplier": 1.0,
+        "status": "Omen",
+        "bonus_damage": 3
+      }
+    ]
+  },
+  "Verdict": {
+    "mp_cost": 3,
+    "primitives": [
+      {
+        "kind": "deal_physical_damage",
+        "target": "current_target",
+        "multiplier": 2.0,
+        "double_empower_stat": null
+      }
+    ]
+  },
+  "Rebuke": {
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "retarget",
+        "target": "current_target",
+        "mode": "default_retarget"
+      }
+    ]
   }
 }

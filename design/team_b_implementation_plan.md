@@ -445,6 +445,10 @@ Implemented result:
 
 ## Phase 7: Data Integration
 
+Status:
+
+- implemented
+
 ### Goal
 
 Add the drafted Team B passives and abilities to the content catalogs and sample teams.
@@ -479,6 +483,20 @@ Recommended initial Team B sample:
 
 - Justice in the front row
 - Moon in the middle or back row
+- Magician behind Moon as the backline omen support
+
+Implemented result:
+
+- the bundled catalogs now include `Foreboding`, `Catalyst`, `Sentence`, and the full Team B active set
+- the default bundled 3v3 sample is now Team A versus Justice / The Moon / The Magician
+- the sample rules now use `use_count` and omen-state checks instead of raw `tick_count` gates for opening actions
+- current prototype note:
+  - `Channel` is implemented as "restore MP to the lowest-MP ally" rather than the broader "self or one ally" wording from the draft
+
+### Verification
+
+- the bundled sample battle now shows real omen setup and payoff play
+- `cargo test` and a seeded sample run both pass with the new content
 - Magician protected but close enough to support
 
 The sample should demonstrate:

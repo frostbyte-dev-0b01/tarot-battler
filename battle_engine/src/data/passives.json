@@ -33,5 +33,50 @@
         "stacks": 1
       }
     ]
+  },
+  "Foreboding": {
+    "type": "triggered",
+    "trigger": "on_deal_damage",
+    "primitives": [
+      {
+        "kind": "apply_status",
+        "target": "trigger_target",
+        "status": "Omen",
+        "stacks": 1
+      }
+    ]
+  },
+  "Catalyst": {
+    "type": "triggered",
+    "trigger": "on_ally_apply_omen",
+    "once_per_tick": true,
+    "primitives": [
+      {
+        "kind": "apply_status",
+        "target": "trigger_target",
+        "status": "Omen",
+        "stacks": 1
+      }
+    ]
+  },
+  "Sentence": {
+    "type": "triggered",
+    "trigger": "on_deal_damage",
+    "primitives": [
+      {
+        "kind": "if_target_has_status",
+        "target": "trigger_target",
+        "status": "Omen",
+        "primitives": [
+          {
+            "kind": "apply_status",
+            "target": "trigger_target",
+            "status": "Weaken",
+            "stat": "mgt",
+            "stacks": 1
+          }
+        ]
+      }
+    ]
   }
 }
