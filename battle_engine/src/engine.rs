@@ -5,12 +5,10 @@ use std::collections::HashSet;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-use crate::abilities::{
-    AbilityMap, DamageRecord, ExecutionContext, PassiveDef, PassiveMap, PassiveTrigger,
-    execute_primitives_with_context,
-};
+use crate::abilities::{AbilityMap, DamageRecord, PassiveMap, PassiveTrigger};
 use crate::logger::{BattleEvent, BattleLog};
-use crate::models::{CharacterConfig, CharacterState, StatusTick, TraitEffect};
+use crate::models::{CharacterConfig, CharacterState, StatusTick};
+use crate::passive_system::{self, PassiveRuntime};
 use crate::statuses::StatusMap;
 use crate::targeting::select_target;
 use crate::turns::{self, TurnRuntime};
@@ -148,61 +146,55 @@ impl BattleState {
 
     /// Fire on_battle_start passives and apply permanent traits for all characters.
     fn execute_battle_start_passives(&mut self) {
-        // Collect passive info first to avoid borrow issues
-        let team_a_passives: Vec<(usize, String)> = self
-            .team_a
-            .iter()
-            .enumerate()
-            .filter(|(_, c)| !c.passive().is_empty())
-            .map(|(i, c)| (i, c.passive().to_string()))
-            .collect();
-        let team_b_passives: Vec<(usize, String)> = self
-            .team_b
-            .iter()
-            .enumerate()
-            .filter(|(_, c)| !c.passive().is_empty())
-            .map(|(i, c)| (i, c.passive().to_string()))
-            .collect();
-
+        let team_a_passives = passive_system::collect_passive_names(&self.team_a);
+        let team_b_passives = passive_system::collect_passive_names(&self.team_b);
         let trigger = PassiveTrigger::OnBattleStart;
 
         for (idx, passive_name) in team_a_passives {
-            if let Some(passive_def) = self.passives.get(&passive_name).cloned() {
-                let mut ctx = ExecutionContext::new(
-                    &mut self.team_a,
-                    &mut self.team_b,
-                    &mut self.rng,
-                    &mut self.log,
-                    0,
-                    &self.status_defs,
-                );
-                let damage_dealt = Self::fire_passive_if_matches(
+            let mut runtime = PassiveRuntime::new(
+                &self.passives,
+                &self.status_defs,
+                &mut self.rng,
+                &mut self.log,
+                0,
+                &mut self.in_passive_phase,
+                &mut self.passive_fired_this_tick,
+            );
+            if let Some(passive_def) = passive_system::load_passive(&runtime, &passive_name) {
+                let damage_dealt = passive_system::fire_passive_if_matches(
                     idx,
                     &passive_name,
                     &passive_def,
                     &trigger,
-                    &mut ctx,
+                    &mut runtime,
+                    &mut self.team_a,
+                    &mut self.team_b,
+                    None,
                 );
                 self.resolve_defeats_from_damage(&damage_dealt, false);
             }
         }
 
         for (idx, passive_name) in team_b_passives {
-            if let Some(passive_def) = self.passives.get(&passive_name).cloned() {
-                let mut ctx = ExecutionContext::new(
-                    &mut self.team_b,
-                    &mut self.team_a,
-                    &mut self.rng,
-                    &mut self.log,
-                    0,
-                    &self.status_defs,
-                );
-                let damage_dealt = Self::fire_passive_if_matches(
+            let mut runtime = PassiveRuntime::new(
+                &self.passives,
+                &self.status_defs,
+                &mut self.rng,
+                &mut self.log,
+                0,
+                &mut self.in_passive_phase,
+                &mut self.passive_fired_this_tick,
+            );
+            if let Some(passive_def) = passive_system::load_passive(&runtime, &passive_name) {
+                let damage_dealt = passive_system::fire_passive_if_matches(
                     idx,
                     &passive_name,
                     &passive_def,
                     &trigger,
-                    &mut ctx,
+                    &mut runtime,
+                    &mut self.team_b,
+                    &mut self.team_a,
+                    None,
                 );
                 self.resolve_defeats_from_damage(&damage_dealt, true);
             }
@@ -211,85 +203,17 @@ impl BattleState {
         self.refresh_auras();
     }
 
-    /// Fire a triggered passive if it matches the expected trigger. Returns damage dealt.
-    fn fire_passive_if_matches(
-        idx: usize,
-        passive_name: &str,
-        passive_def: &PassiveDef,
-        expected: &PassiveTrigger,
-        ctx: &mut ExecutionContext<'_>,
-    ) -> Vec<DamageRecord> {
-        match passive_def {
-            PassiveDef::Triggered {
-                trigger,
-                primitives,
-                ..
-            } if std::mem::discriminant(trigger) == std::mem::discriminant(expected) => {
-                let char_id = ctx.actor_team[idx].id();
-                let char_name = ctx.actor_team[idx].base_name().to_string();
-                ctx.log.push(BattleEvent::PassiveTriggered {
-                    tick_count: ctx.step,
-                    character_id: char_id,
-                    character_name: char_name,
-                    passive_name: passive_name.to_string(),
-                });
-                execute_primitives_with_context(ctx, idx, passive_name, primitives)
-            }
-            PassiveDef::Trait { effect } if matches!(expected, PassiveTrigger::OnBattleStart) => {
-                let char_id = ctx.actor_team[idx].id();
-                let char_name = ctx.actor_team[idx].base_name().to_string();
-                ctx.log.push(BattleEvent::PassiveTriggered {
-                    tick_count: ctx.step,
-                    character_id: char_id,
-                    character_name: char_name,
-                    passive_name: passive_name.to_string(),
-                });
-                ctx.actor_team[idx].add_trait(effect.clone());
-                Vec::new()
-            }
-            PassiveDef::RowAura { .. } => Vec::new(),
-            _ => Vec::new(),
-        }
-    }
-
     fn refresh_auras(&mut self) {
         Self::clear_team_auras(&mut self.team_a);
         Self::clear_team_auras(&mut self.team_b);
 
-        Self::apply_team_row_auras(&mut self.team_a, &self.passives);
-        Self::apply_team_row_auras(&mut self.team_b, &self.passives);
+        passive_system::apply_row_auras(&mut self.team_a, &self.passives);
+        passive_system::apply_row_auras(&mut self.team_b, &self.passives);
     }
 
     fn clear_team_auras(team: &mut [CharacterState]) {
         for character in team {
             character.clear_aura_traits();
-        }
-    }
-
-    fn apply_team_row_auras(team: &mut [CharacterState], passives: &PassiveMap) {
-        let sources: Vec<(usize, Vec<crate::abilities::AuraStatEffect>)> = team
-            .iter()
-            .enumerate()
-            .filter(|(_, character)| character.is_alive())
-            .filter_map(|(idx, character)| match passives.get(character.passive()) {
-                Some(PassiveDef::RowAura { effects }) => Some((idx, effects.clone())),
-                _ => None,
-            })
-            .collect();
-
-        for (source_idx, effects) in sources {
-            let source_row = team[source_idx].position().row;
-            for (idx, target) in team.iter_mut().enumerate() {
-                if idx == source_idx || !target.is_alive() || target.position().row != source_row {
-                    continue;
-                }
-                for effect in &effects {
-                    target.add_trait(TraitEffect::AuraStatMod {
-                        stat: effect.stat.clone(),
-                        amount: effect.amount,
-                    });
-                }
-            }
         }
     }
 
@@ -311,96 +235,58 @@ impl BattleState {
         actor_team_is_a: bool,
         trigger_target_id: Option<u32>,
     ) -> Vec<DamageRecord> {
-        if self.in_passive_phase {
-            return Vec::new();
-        }
-
-        let passive_name = {
-            let (actor_team, _) = if actor_team_is_a {
-                (
-                    &mut self.team_a as &mut [CharacterState],
-                    &mut self.team_b as &mut [CharacterState],
-                )
-            } else {
-                (
-                    &mut self.team_b as &mut [CharacterState],
-                    &mut self.team_a as &mut [CharacterState],
-                )
-            };
-            actor_team[char_idx].passive().to_string()
+        let (actor_team, enemy_team) = if actor_team_is_a {
+            (
+                &mut self.team_a as &mut [CharacterState],
+                &mut self.team_b as &mut [CharacterState],
+            )
+        } else {
+            (
+                &mut self.team_b as &mut [CharacterState],
+                &mut self.team_a as &mut [CharacterState],
+            )
         };
+
+        let passive_name = actor_team[char_idx].passive().to_string();
         if passive_name.is_empty() {
             return Vec::new();
         }
 
-        let passive_def = match self.passives.get(&passive_name).cloned() {
+        let mut runtime = PassiveRuntime::new(
+            &self.passives,
+            &self.status_defs,
+            &mut self.rng,
+            &mut self.log,
+            self.step,
+            &mut self.in_passive_phase,
+            &mut self.passive_fired_this_tick,
+        );
+        let passive_def = match passive_system::load_passive(&runtime, &passive_name) {
             Some(def) => def,
             None => return Vec::new(),
         };
-
-        if matches!(
+        if !passive_system::begin_passive_trigger(
+            &mut runtime,
+            actor_team,
+            char_idx,
+            &passive_name,
             &passive_def,
-            PassiveDef::Triggered {
-                once_per_tick: true,
-                ..
-            }
         ) {
-            let owner_id = {
-                let (actor_team, _) = if actor_team_is_a {
-                    (
-                        &mut self.team_a as &mut [CharacterState],
-                        &mut self.team_b as &mut [CharacterState],
-                    )
-                } else {
-                    (
-                        &mut self.team_b as &mut [CharacterState],
-                        &mut self.team_a as &mut [CharacterState],
-                    )
-                };
-                actor_team[char_idx].id()
-            };
-            let key = (owner_id, passive_name.clone(), self.step);
-            if self.passive_fired_this_tick.contains(&key) {
-                return Vec::new();
-            }
-            self.passive_fired_this_tick.insert(key);
+            return Vec::new();
         }
 
-        self.in_passive_phase = true;
-        let damage_dealt = {
-            let (actor_team, enemy_team) = if actor_team_is_a {
-                (
-                    &mut self.team_a as &mut [CharacterState],
-                    &mut self.team_b as &mut [CharacterState],
-                )
-            } else {
-                (
-                    &mut self.team_b as &mut [CharacterState],
-                    &mut self.team_a as &mut [CharacterState],
-                )
-            };
-
-            let mut ctx = ExecutionContext::new(
-                actor_team,
-                enemy_team,
-                &mut self.rng,
-                &mut self.log,
-                self.step,
-                &self.status_defs,
-            )
-            .with_trigger_target(trigger_target_id);
-
-            Self::fire_passive_if_matches(
-                char_idx,
-                &passive_name,
-                &passive_def,
-                trigger,
-                &mut ctx,
-            )
-        };
-
+        let damage_dealt = passive_system::fire_passive_if_matches(
+            char_idx,
+            &passive_name,
+            &passive_def,
+            trigger,
+            &mut runtime,
+            actor_team,
+            enemy_team,
+            trigger_target_id,
+        );
+        passive_system::end_passive_trigger(&mut runtime);
         self.resolve_defeats_from_damage(&damage_dealt, !actor_team_is_a);
-        self.in_passive_phase = false;
         damage_dealt
     }
 
@@ -903,7 +789,8 @@ impl BattleState {
 mod tests {
     use super::*;
     use crate::abilities::{
-        AbilityDef, AuraStatEffect, PassiveMap, Primitive, SimpleAbilityTarget, execute_ability,
+        AbilityDef, AuraStatEffect, PassiveDef, PassiveMap, Primitive, SimpleAbilityTarget,
+        execute_ability,
     };
     use crate::logger::BattleEvent;
     use crate::models::{
