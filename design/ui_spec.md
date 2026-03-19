@@ -50,9 +50,8 @@ The recommended replay layout is:
 
 The recommended team builder layout is:
 
-- left panel: Team A editor
-- right panel: Team B editor
-- optional bottom panel: raw JSON import/export and validation messages
+- main editor panel: single-team structured editor
+- optional lower panels: raw JSON import/export, validation, and saved-character workflow
 
 ## Replay Viewer
 
@@ -152,9 +151,9 @@ The viewer should also render replay events for movement and retargeting in both
 
 ### Team Editor
 
-The initial version should edit two separate team JSON documents using the interim full-loadout schema.
+The initial version should edit one team JSON document at a time using the interim full-loadout schema.
 
-Each team panel should allow:
+The team editor should allow:
 
 - editing team name
 - adding a character
@@ -182,6 +181,30 @@ The builder does not need:
 - advanced visual polish
 
 Structured forms are enough for v1.
+
+### Future Team Builder Layout
+
+The eventual Team Builder UI should move toward a more compact, composition-first layout similar to established monster-team builders:
+
+- top strip with one tab or card per character on the team
+- add and remove character actions directly in that top strip
+- center pane for the selected character
+- middle pane fields for:
+  - active abilities
+  - item
+  - passive
+  - previewed stats
+- a details panel where the current mockup image places character details
+- a stats and rules area where the current mockup image places EV and stat controls
+- a lower browsing panel for the currently edited slot type:
+  - active abilities
+  - passives
+  - items
+  - each with readable descriptions
+
+This is not the immediate implementation target.
+
+It is a longer-term direction once the current editor has enough roster depth to justify a denser, character-first workflow.
 
 ### Rules Editor
 
@@ -241,9 +264,9 @@ The board state is the primary visualization.
 ### Team Builder Flow
 
 1. user loads or edits Team A JSON
-2. user loads or edits Team B JSON
-3. tool validates both against the team builder schema
-4. tool exports JSON for use by the engine
+2. tool validates it against the team builder schema
+3. user optionally saves or reuses individual character configs through the character library workflow
+4. tool exports team JSON for use by the engine
 
 ### Replay Viewer Flow
 
