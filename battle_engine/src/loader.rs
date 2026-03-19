@@ -447,6 +447,7 @@ fn validate_primitives(
                     ));
                 }
             }
+            Primitive::Cleanse { .. } | Primitive::Dispel { .. } => {}
             Primitive::IfTargetHasStatus {
                 target,
                 status,

@@ -608,6 +608,36 @@ impl CharacterState {
         true
     }
 
+    pub fn cleanse(&mut self, amount: u32) -> bool {
+        self.reduce_matching_timed_effects(amount, EffectPolarity::Debuff)
+    }
+
+    pub fn dispel(&mut self, amount: u32) -> bool {
+        self.reduce_matching_timed_effects(amount, EffectPolarity::Buff)
+    }
+
+    fn reduce_matching_timed_effects(&mut self, amount: u32, polarity: EffectPolarity) -> bool {
+        if amount == 0 {
+            return false;
+        }
+
+        let keys: Vec<String> = self
+            .statuses
+            .iter()
+            .filter(|(_, inst)| matches!(inst.stack_type, StackType::TickDown))
+            .filter(|(_, inst)| effect_polarity(inst) == Some(polarity))
+            .map(|(key, _)| key.clone())
+            .collect();
+
+        let mut changed = false;
+        for key in keys {
+            let before = self.status_stacks(&key);
+            self.remove_status(&key, amount);
+            changed |= self.status_stacks(&key) != before;
+        }
+        changed
+    }
+
     /// Consume one stack of each skip-turn status after it actually prevents an action.
     pub fn consume_skip_turn_statuses(&mut self) {
         self.statuses.retain(|_, inst| match inst.behavior {
@@ -676,6 +706,29 @@ impl CharacterState {
             });
 
         ticks
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EffectPolarity {
+    Buff,
+    Debuff,
+}
+
+fn effect_polarity(inst: &StatusInstance) -> Option<EffectPolarity> {
+    match inst.behavior {
+        StatusBehavior::DamagePerStack { .. } => Some(EffectPolarity::Debuff),
+        StatusBehavior::HealPerStack { .. } => Some(EffectPolarity::Buff),
+        StatusBehavior::StatModPerStack { magnitude } => {
+            if magnitude > 0 {
+                Some(EffectPolarity::Buff)
+            } else if magnitude < 0 {
+                Some(EffectPolarity::Debuff)
+            } else {
+                None
+            }
+        }
+        StatusBehavior::Ward | StatusBehavior::SkipTurn => None,
     }
 }
 

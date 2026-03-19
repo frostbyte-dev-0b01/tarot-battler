@@ -56,6 +56,12 @@ This stage unlocks:
 
 - `Sanctify`
 
+Status:
+
+- completed
+- engine now supports broad `cleanse` and `dispel` primitives for timed effects
+- conditions and permanent effects remain untouched
+
 ### Stage 2: Conditional Target-Lacks-Status Primitive
 
 Add a conditional primitive for:
@@ -122,4 +128,3 @@ Then verify:
 - This plan intentionally stops at reusable primitives and the seven new abilities.
 - It does not yet implement the full grouped `Body / Mind / Fate` removal model beyond the broad generic cleanse/dispel behavior needed immediately.
 - The long-term grouped-removal model should stay documented in [game_spec.md](/home/frostbyte/Work/tarot-battler/design/game_spec.md) even if the first engine implementation is narrower internally.
-

@@ -293,6 +293,107 @@ fn remove_status_clears_all_enemy_statuses() {
 }
 
 #[test]
+fn cleanse_reduces_all_timed_debuffs_on_allies() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let statuses = test_statuses();
+    let mut actor_team = vec![
+        make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
+        make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 10)]),
+    ];
+    actor_team[0].set_companions(vec![1]);
+    actor_team[1].add_status("Bleed", 3, 99, statuses.get("Bleed").unwrap(), None);
+    actor_team[1].add_status(
+        &crate::statuses::status_key("Weaken", Some(&Stat::MGT)),
+        2,
+        99,
+        statuses.get("Weaken").unwrap(),
+        Some(Stat::MGT),
+    );
+    let stun = StatusDef {
+        behavior: StatusBehavior::SkipTurn,
+        stack_type: StackType::NoStack,
+        opposes: None,
+    };
+    actor_team[1].add_status("Stun", 1, 99, &stun, None);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::Cleanse {
+            target: SimpleAbilityTarget::Companions.into(),
+            amount: 1,
+        }],
+    };
+
+    let mut enemy_team = vec![make_char(10, vec![(Stat::VIT, 5)])];
+    execute_ability(
+        0,
+        "Sanctify",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &statuses,
+    );
+
+    assert_eq!(actor_team[1].status_stacks("Bleed"), 2);
+    assert_eq!(
+        actor_team[1].status_stacks(&crate::statuses::status_key("Weaken", Some(&Stat::MGT))),
+        1
+    );
+    assert_eq!(actor_team[1].status_stacks("Stun"), 1);
+}
+
+#[test]
+fn dispel_reduces_all_timed_buffs_on_enemies() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let statuses = test_statuses();
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::MGT, 10)])];
+    actor_team[0].set_target(1);
+
+    enemy_team[0].add_status(
+        &crate::statuses::status_key("Empower", Some(&Stat::MGT)),
+        3,
+        99,
+        statuses.get("Empower").unwrap(),
+        Some(Stat::MGT),
+    );
+    enemy_team[0].add_status("Regen", 2, 99, statuses.get("Regen").unwrap(), None);
+    enemy_team[0].add_status("Ward", 1, 99, statuses.get("Ward").unwrap(), None);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::Dispel {
+            target: SimpleAbilityTarget::CurrentTarget.into(),
+            amount: 1,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Dispel",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &statuses,
+    );
+
+    assert_eq!(
+        enemy_team[0].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
+        2
+    );
+    assert_eq!(enemy_team[0].status_stacks("Regen"), 1);
+    assert_eq!(enemy_team[0].status_stacks("Ward"), 1);
+}
+
+#[test]
 fn magical_consume_status_damage_scales_with_consumed_stacks() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();

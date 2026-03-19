@@ -182,6 +182,14 @@ pub enum Primitive {
     RemoveOneBuff {
         target: AbilityTarget,
     },
+    Cleanse {
+        target: AbilityTarget,
+        amount: u32,
+    },
+    Dispel {
+        target: AbilityTarget,
+        amount: u32,
+    },
     Retarget {
         target: AbilityTarget,
         mode: RetargetMode,
@@ -624,6 +632,48 @@ pub fn execute_primitives_with_context(
                 );
                 for tidx in target_indices {
                     ctx.enemy_team[tidx].remove_one_buff();
+                }
+            }
+            Primitive::Cleanse { target, amount } => {
+                if target_is_enemy_side(target) {
+                    let target_indices = resolve_enemy_targets(
+                        target,
+                        actor_idx,
+                        ctx.actor_team,
+                        ctx.enemy_team,
+                        ctx.rng,
+                        ctx.trigger_target_id,
+                    );
+                    for tidx in target_indices {
+                        ctx.enemy_team[tidx].cleanse(*amount);
+                    }
+                } else {
+                    let target_indices =
+                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                    for tidx in target_indices {
+                        ctx.actor_team[tidx].cleanse(*amount);
+                    }
+                }
+            }
+            Primitive::Dispel { target, amount } => {
+                if target_is_enemy_side(target) {
+                    let target_indices = resolve_enemy_targets(
+                        target,
+                        actor_idx,
+                        ctx.actor_team,
+                        ctx.enemy_team,
+                        ctx.rng,
+                        ctx.trigger_target_id,
+                    );
+                    for tidx in target_indices {
+                        ctx.enemy_team[tidx].dispel(*amount);
+                    }
+                } else {
+                    let target_indices =
+                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                    for tidx in target_indices {
+                        ctx.actor_team[tidx].dispel(*amount);
+                    }
                 }
             }
             Primitive::Retarget {
