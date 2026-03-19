@@ -38,7 +38,7 @@ fn deal_physical_damage_with_multiplier() {
     assert_eq!(dealt.len(), 1);
     assert_eq!(dealt[0].target_id, 1);
     assert_eq!(dealt[0].damage, 9);
-    assert_eq!(enemy_team[0].current_hp(), 40 - 9);
+    assert_eq!(enemy_team[0].current_hp(), 60 - 9);
 }
 
 #[test]
@@ -429,7 +429,7 @@ fn magical_consume_status_damage_scales_with_consumed_stacks() {
         &statuses,
     );
 
-    assert_eq!(enemy_team[0].current_hp(), 11);
+    assert_eq!(enemy_team[0].current_hp(), 21);
     assert_eq!(enemy_team[0].status_stacks("Omen"), 0);
 }
 
@@ -466,7 +466,7 @@ fn magical_consume_status_damage_leaves_target_unchanged_without_status() {
         &statuses,
     );
 
-    assert_eq!(enemy_team[0].current_hp(), 15);
+    assert_eq!(enemy_team[0].current_hp(), 25);
     assert_eq!(enemy_team[0].status_stacks("Omen"), 0);
 }
 
@@ -506,7 +506,7 @@ fn physical_damage_bonus_vs_status_applies_only_when_present() {
         &statuses,
     );
 
-    assert_eq!(enemy_team[0].current_hp(), 12);
+    assert_eq!(enemy_team[0].current_hp(), 22);
     assert_eq!(enemy_team[0].status_stacks("Omen"), 1);
 }
 
@@ -543,7 +543,7 @@ fn physical_damage_bonus_vs_status_does_not_apply_without_status() {
         &statuses,
     );
 
-    assert_eq!(enemy_team[0].current_hp(), 15);
+    assert_eq!(enemy_team[0].current_hp(), 25);
 }
 
 #[test]
@@ -771,7 +771,7 @@ fn physical_consume_self_statuses_adds_bonus_damage_and_removes_statuses() {
         &statuses,
     );
 
-    assert_eq!(enemy_team[0].current_hp(), 10);
+    assert_eq!(enemy_team[0].current_hp(), 20);
     assert_eq!(
         actor_team[0].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
         0
@@ -896,8 +896,8 @@ fn ally_selector_targets_lowest_hp_ally() {
         1,
         &empty_statuses(),
     );
-    assert_eq!(actor_team[1].current_hp(), 17);
-    assert_eq!(actor_team[2].current_hp(), 16);
+    assert_eq!(actor_team[1].current_hp(), 27);
+    assert_eq!(actor_team[2].current_hp(), 26);
 }
 
 #[test]
@@ -1461,7 +1461,7 @@ fn command_attack_uses_highest_str_living_companion() {
     assert_eq!(dealt.len(), 1);
     assert_eq!(dealt[0].source_id, 1);
     assert_eq!(dealt[0].target_id, 10);
-    assert_eq!(enemy_team[0].current_hp(), 15);
+    assert_eq!(enemy_team[0].current_hp(), 25);
 }
 
 #[test]
@@ -1499,7 +1499,7 @@ fn ward_negates_physical_ability_damage() {
     );
 
     assert_eq!(dealt[0].damage, 0);
-    assert_eq!(enemy_team[0].current_hp(), 40);
+    assert_eq!(enemy_team[0].current_hp(), 60);
     assert_eq!(enemy_team[0].status_stacks("Ward"), 0);
 }
 
@@ -1537,7 +1537,7 @@ fn ward_negates_magical_ability_damage() {
     );
 
     assert_eq!(dealt[0].damage, 0);
-    assert_eq!(enemy_team[0].current_hp(), 40);
+    assert_eq!(enemy_team[0].current_hp(), 60);
     assert_eq!(enemy_team[0].status_stacks("Ward"), 0);
 }
 

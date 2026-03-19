@@ -203,13 +203,13 @@ mod tests {
         let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
         let abilities = make_abilities();
 
-        // Target HP=20 → doesn't match
-        let target_high = make_char(1, vec![(Stat::VIT, 10)]); // HP=20
+        // Target HP=30 → doesn't match
+        let target_high = make_char(1, vec![(Stat::VIT, 10)]); // HP=30
         assert!(evaluate_rules(&actor, Some(&target_high), &[], world(), &abilities).is_none());
 
         // Target HP=4 → matches
         let mut target_low = make_char(1, vec![(Stat::VIT, 10)]);
-        target_low.take_damage(16); // HP=4
+        target_low.take_damage(26); // HP=4
         assert_eq!(
             evaluate_rules(&actor, Some(&target_low), &[], world(), &abilities).as_deref(),
             Some("Crush")
@@ -295,7 +295,7 @@ mod tests {
 
         // Target HP low → first rule matches
         let mut target_low = make_char(1, vec![(Stat::VIT, 10)]);
-        target_low.take_damage(18); // HP=2
+        target_low.take_damage(28); // HP=2
         assert_eq!(
             evaluate_rules(&actor, Some(&target_low), &[], world(), &abilities).as_deref(),
             Some("Crush")

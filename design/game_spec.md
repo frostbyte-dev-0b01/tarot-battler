@@ -63,12 +63,14 @@ The current intended base stat set is:
 
 These are the intended v1 stat names and roles.
 
+Provisional starting stat ranges are still being tuned, but the current design expectation is that most characters begin with `WIL` somewhere in the `8-16` range. This keeps starting MP and `Rest` recovery large enough to support more granular ability pricing.
+
 Conceptually, the long-term design likely lands on much larger total stat budgets than the current prototype, with each character having a fixed base spread plus a smaller flexible adjustment budget. Those larger totals are a balance target, not a current engine requirement.
 
 ### Derived Resources
 
 - `HP` is expected to scale as a multiple of `VIT`
-- the current prototype uses `HP = 2 * VIT` as a working model
+- the current prototype uses `HP = 3 * VIT` as a working model
 - `MP` = spendable battle resource used to cast abilities
 - characters begin battle with `MP = WIL`
 - characters do not passively regain MP between turns

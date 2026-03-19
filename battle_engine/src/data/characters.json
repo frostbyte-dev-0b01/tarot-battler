@@ -6,8 +6,8 @@
     "item": null,
     "position": { "row": 0, "col": 0 },
     "stats": {
-      "vit": 10, "mgt": 6, "mag": 4, "arm": 5, "res": 3,
-      "spd": 4, "wil": 6
+      "vit": 12, "mgt": 12, "mag": 8, "arm": 7, "res": 5,
+      "spd": 8, "wil": 12
     },
     "rules": [
       {
@@ -17,7 +17,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 2
+            "threshold": 4
           },
           {
             "subject": "self",
@@ -34,7 +34,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 2
+            "threshold": 4
           },
           {
             "subject": "self",
@@ -53,8 +53,8 @@
     "item": null,
     "position": { "row": 0, "col": 2 },
     "stats": {
-      "vit": 11, "mgt": 3, "mag": 7, "arm": 4, "res": 7,
-      "spd": 3, "wil": 7
+      "vit": 14, "mgt": 8, "mag": 12, "arm": 5, "res": 8,
+      "spd": 8, "wil": 14
     },
     "rules": [
       {
@@ -64,7 +64,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 2
+            "threshold": 4
           },
           {
             "subject": "self",
@@ -98,8 +98,8 @@
     "item": null,
     "position": { "row": 1, "col": 1 },
     "stats": {
-      "vit": 9, "mgt": 8, "mag": 3, "arm": 4, "res": 3,
-      "spd": 6, "wil": 5
+      "vit": 10, "mgt": 15, "mag": 8, "arm": 5, "res": 4,
+      "spd": 14, "wil": 10
     },
     "rules": [
       {
@@ -144,8 +144,8 @@
     "item": null,
     "position": { "row": 0, "col": 1 },
     "stats": {
-      "vit": 12, "mgt": 6, "mag": 3, "arm": 6, "res": 6,
-      "spd": 3, "wil": 5
+      "vit": 15, "mgt": 12, "mag": 8, "arm": 7, "res": 7,
+      "spd": 8, "wil": 10
     },
     "rules": [
       {
@@ -155,7 +155,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 3
+            "threshold": 8
           },
           {
             "subject": "target",
@@ -172,7 +172,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 2
+            "threshold": 4
           },
           {
             "subject": "self",
@@ -189,7 +189,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 2
+            "threshold": 4
           },
           {
             "subject": "target",
@@ -208,8 +208,8 @@
     "item": null,
     "position": { "row": 1, "col": 1 },
     "stats": {
-      "vit": 8, "mgt": 3, "mag": 8, "arm": 3, "res": 6,
-      "spd": 5, "wil": 7
+      "vit": 10, "mgt": 8, "mag": 15, "arm": 4, "res": 6,
+      "spd": 12, "wil": 14
     },
     "rules": [
       {
@@ -219,7 +219,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 3
+            "threshold": 8
           },
           {
             "subject": "target",
@@ -236,7 +236,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 3
+            "threshold": 6
           },
           {
             "subject": "self",
@@ -253,7 +253,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 2
+            "threshold": 4
           }
         ]
       }
@@ -266,8 +266,8 @@
     "item": null,
     "position": { "row": 2, "col": 1 },
     "stats": {
-      "vit": 7, "mgt": 3, "mag": 7, "arm": 3, "res": 5,
-      "spd": 6, "wil": 8
+      "vit": 8, "mgt": 8, "mag": 14, "arm": 4, "res": 5,
+      "spd": 12, "wil": 16
     },
     "rules": [
       {
@@ -277,7 +277,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 1
+            "threshold": 2
           },
           {
             "subject": "companion",
@@ -294,13 +294,13 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 2
+            "threshold": 4
           },
           {
             "subject": "target",
             "value": { "status_stacks": "Omen" },
             "op": "gte",
-            "threshold": 2
+            "threshold": 4
           }
         ]
       },

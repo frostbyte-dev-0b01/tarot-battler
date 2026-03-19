@@ -1991,7 +1991,7 @@ mod tests {
 
         battle.step_once();
 
-        assert_eq!(battle.team_a[0].current_hp(), 39);
+        assert_eq!(battle.team_a[0].current_hp(), 59);
         assert_eq!(battle.team_a[0].current_mp(), 0);
         assert!(!battle.team_a[0].is_incapacitated());
 
@@ -2660,7 +2660,7 @@ mod tests {
             })
             .expect("attacker should receive reflect event");
 
-        assert_eq!(reflect_event, (0, 20));
+        assert_eq!(reflect_event, (0, 30));
     }
 
     #[test]

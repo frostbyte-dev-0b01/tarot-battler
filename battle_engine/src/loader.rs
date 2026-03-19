@@ -644,7 +644,7 @@ mod tests {
         let chars = load_characters(&path).unwrap();
         assert!(chars.len() >= 2);
         assert_eq!(chars[0].base_name, "The Emperor");
-        assert_eq!(*chars[0].stats.get(&Stat::VIT).unwrap(), 10);
+        assert_eq!(*chars[0].stats.get(&Stat::VIT).unwrap(), 12);
     }
 
     #[test]

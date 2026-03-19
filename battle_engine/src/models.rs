@@ -9,7 +9,7 @@ use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusInstance, oppo
 #[allow(clippy::upper_case_acronyms)]
 pub enum Stat {
     #[serde(rename = "vit")]
-    VIT, // Max HP = 2 * VIT
+    VIT, // Max HP = 3 * VIT
     #[serde(rename = "mgt")]
     MGT, // Base physical damage
     #[serde(rename = "mag")]
@@ -21,7 +21,7 @@ pub enum Stat {
     #[serde(rename = "spd")]
     SPD, // Determines how often to act
     #[serde(rename = "wil")]
-    WIL, // Will stat: max MP and MP regen
+    WIL, // Will stat: max MP and Rest recovery
 }
 
 /// Cell on the battle grid (rows 0-2, cols 0-3).
@@ -162,7 +162,7 @@ pub struct CharacterState {
 
 impl CharacterState {
     pub fn from_config(id: u32, config: &CharacterConfig) -> Self {
-        let hp = config.stats.get(&Stat::VIT).copied().unwrap_or(0) * 2;
+        let hp = config.stats.get(&Stat::VIT).copied().unwrap_or(0) * 3;
         let mp = config.stats.get(&Stat::WIL).copied().unwrap_or(0);
         let dex = config.stats.get(&Stat::SPD).copied().unwrap_or(0) as i32;
         let max_ticks = 10 - dex;
@@ -317,9 +317,9 @@ impl CharacterState {
         amount
     }
 
-    /// Heals up to max HP (2 * VIT).
+    /// Heals up to max HP (3 * VIT).
     pub fn heal(&mut self, amount: u32) {
-        let max_hp = self.get_base_stat(&Stat::VIT) * 2;
+        let max_hp = self.get_base_stat(&Stat::VIT) * 3;
         self.curr_hp = (self.curr_hp + amount).min(max_hp);
     }
 
@@ -816,10 +816,10 @@ mod tests {
     }
 
     #[test]
-    fn from_config_sets_hp_to_twice_con() {
+    fn from_config_sets_hp_to_triple_vit() {
         let config = make_config(vec![(Stat::VIT, 10), (Stat::SPD, 5), (Stat::WIL, 3)]);
         let state = CharacterState::from_config(0, &config);
-        assert_eq!(state.current_hp(), 20);
+        assert_eq!(state.current_hp(), 30);
     }
 
     #[test]
@@ -835,7 +835,7 @@ mod tests {
     fn take_damage_saturates_at_zero() {
         let config = make_config(vec![(Stat::VIT, 5)]);
         let mut state = CharacterState::from_config(0, &config);
-        assert_eq!(state.current_hp(), 10);
+        assert_eq!(state.current_hp(), 15);
         state.take_damage(100);
         assert_eq!(state.current_hp(), 0);
         assert!(!state.is_alive());
@@ -846,9 +846,9 @@ mod tests {
         let config = make_config(vec![(Stat::VIT, 5)]);
         let mut state = CharacterState::from_config(0, &config);
         state.take_damage(3);
-        assert_eq!(state.current_hp(), 7);
+        assert_eq!(state.current_hp(), 12);
         state.heal(100);
-        assert_eq!(state.current_hp(), 10);
+        assert_eq!(state.current_hp(), 15);
     }
 
     #[test]
@@ -877,7 +877,7 @@ mod tests {
         state.add_status("Ward", 1, 99, &ward_def(), None);
 
         assert_eq!(state.take_hit(4), 0);
-        assert_eq!(state.current_hp(), 10);
+        assert_eq!(state.current_hp(), 15);
         assert_eq!(state.status_stacks("Ward"), 0);
     }
 
@@ -892,7 +892,7 @@ mod tests {
         assert_eq!(state.take_hit(3), 0);
         assert_eq!(state.status_stacks("Ward"), 0);
         assert_eq!(state.take_hit(2), 2);
-        assert_eq!(state.current_hp(), 8);
+        assert_eq!(state.current_hp(), 13);
     }
 
     #[test]
@@ -904,7 +904,7 @@ mod tests {
 
         state.tick_statuses();
 
-        assert_eq!(state.current_hp(), 18);
+        assert_eq!(state.current_hp(), 28);
         assert_eq!(state.status_stacks("Ward"), 1);
     }
 
@@ -1010,17 +1010,17 @@ mod tests {
             &ticks[0],
             StatusTick::DamageDealt { damage: 3, .. }
         ));
-        assert_eq!(state.current_hp(), 37); // 40 - 3
+        assert_eq!(state.current_hp(), 57); // 60 - 3
         assert_eq!(state.status_stacks("Bleed"), 2);
 
         // Turn 2: 2 stacks fire (2 dmg), then 2→1
         state.tick_statuses();
-        assert_eq!(state.current_hp(), 35);
+        assert_eq!(state.current_hp(), 55);
         assert_eq!(state.status_stacks("Bleed"), 1);
 
         // Turn 3: 1 stack fires (1 dmg), then 1→0, removed
         state.tick_statuses();
-        assert_eq!(state.current_hp(), 34);
+        assert_eq!(state.current_hp(), 54);
         assert!(!state.has_status("Bleed"));
     }
 
@@ -1036,13 +1036,13 @@ mod tests {
             &ticks[0],
             StatusTick::DamageDealt { name, damage } if name == "Omen" && *damage == 4
         ));
-        assert_eq!(state.current_hp(), 36);
+        assert_eq!(state.current_hp(), 56);
         assert_eq!(state.status_stacks("Omen"), 3);
     }
 
     #[test]
     fn omen_can_kill_on_turn_start_tick() {
-        let config = make_config(vec![(Stat::VIT, 2)]);
+        let config = make_config(vec![(Stat::VIT, 1)]);
         let mut state = CharacterState::from_config(0, &config);
         state.add_status("Omen", 4, 99, &omen_def(), None);
 
@@ -1149,7 +1149,7 @@ mod tests {
         // 1 HP, 1 bleed (1 dmg), 3 regen (6 heal). Should survive.
         let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
-        state.take_damage(19); // 1 HP
+        state.take_damage(29); // 1 HP
         assert_eq!(state.current_hp(), 1);
 
         state.add_status("Bleed", 1, 99, &bleed_def(), None);

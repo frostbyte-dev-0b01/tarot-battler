@@ -1,7 +1,7 @@
 {
   "Hold the Line": {
     "description": "Apply Ward 1 to allies in the user's row.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "apply_status",
@@ -16,7 +16,7 @@
   },
   "Command": {
     "description": "One companion immediately makes a standard physical attack against the user's current target.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "command_attack"
@@ -25,7 +25,7 @@
   },
   "Taunt": {
     "description": "Enemies with stronger MGT than MAG change their target to the user.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "retarget",
@@ -37,7 +37,7 @@
   },
   "Smite": {
     "description": "Deal magical damage to the user's current target.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
@@ -48,7 +48,7 @@
   },
   "Consecrate": {
     "description": "Deal magical damage to the user's current target and that target's companions.",
-    "mp_cost": 3,
+    "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_magical_damage",
@@ -59,7 +59,7 @@
   },
   "Blessing": {
     "description": "Restore MP to allies in the user's row.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "restore_mp",
@@ -73,7 +73,7 @@
   },
   "Charge": {
     "description": "Deal physical damage, then move one row forward in the same column if the tile is empty.",
-    "mp_cost": 1,
+    "mp_cost": 2,
     "primitives": [
       {
         "kind": "deal_physical_damage",
@@ -90,7 +90,7 @@
   },
   "Withdraw": {
     "description": "Deal physical damage, then move one row backward in the same column if the tile is empty.",
-    "mp_cost": 1,
+    "mp_cost": 2,
     "primitives": [
       {
         "kind": "deal_physical_damage",
@@ -107,7 +107,7 @@
   },
   "Breakthrough": {
     "description": "Deal physical damage. Empower MGT on the user counts double for this attack.",
-    "mp_cost": 3,
+    "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_physical_damage",
@@ -119,7 +119,7 @@
   },
   "Hex": {
     "description": "Deal magical damage to the user's current target and apply Omen 2.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
@@ -136,7 +136,7 @@
   },
   "Eclipse": {
     "description": "Deal magical damage to the user's current target and companions, then apply Omen 1 to each.",
-    "mp_cost": 3,
+    "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_magical_damage",
@@ -153,7 +153,7 @@
   },
   "Harvest Night": {
     "description": "Deal magical damage to the user's current target, consume all Omen on that target, and add bonus damage equal to the consumed stacks.",
-    "mp_cost": 3,
+    "mp_cost": 8,
     "primitives": [
       {
         "kind": "deal_magical_damage_consume_status",
@@ -166,7 +166,7 @@
   },
   "Channel": {
     "description": "Restore MP to the lowest-MP ally.",
-    "mp_cost": 1,
+    "mp_cost": 2,
     "primitives": [
       {
         "kind": "restore_mp",
@@ -182,7 +182,7 @@
   },
   "Distill": {
     "description": "Remove one buff from the user's current target, then apply Omen 2.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "remove_one_buff",
@@ -198,7 +198,7 @@
   },
   "Transmute": {
     "description": "Deal magical damage to the user's current target. If that target has Omen, restore MP 2 to the user.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
@@ -221,7 +221,7 @@
   },
   "Condemn": {
     "description": "Deal physical damage to the user's current target. This attack deals bonus damage if the target has Omen.",
-    "mp_cost": 2,
+    "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_physical_damage_bonus_vs_status",
@@ -234,7 +234,7 @@
   },
   "Verdict": {
     "description": "Deal heavy physical damage to the user's current target.",
-    "mp_cost": 3,
+    "mp_cost": 8,
     "primitives": [
       {
         "kind": "deal_physical_damage",
@@ -246,7 +246,7 @@
   },
   "Rebuke": {
     "description": "Force the user's current target to choose a new target using default retargeting.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "retarget",
@@ -257,7 +257,7 @@
   },
   "Sanctify": {
     "description": "Cleanse allies in the user's column.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "cleanse",
@@ -271,7 +271,7 @@
   },
   "Sunder": {
     "description": "Deal physical damage and apply Weaken ARM.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_physical_damage",
@@ -290,7 +290,7 @@
   },
   "Invocation": {
     "description": "Deal magical damage. If the target has no Omen, apply Omen 1; otherwise restore MP 1 to the user.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
@@ -326,7 +326,7 @@
   },
   "Sever": {
     "description": "Deal physical damage. Consume the user's Empower MGT and Empower ARM for bonus damage based on the consumed stacks.",
-    "mp_cost": 3,
+    "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_physical_damage_consume_self_statuses",
@@ -348,7 +348,7 @@
   },
   "Restoration": {
     "description": "Restore HP to one companion.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "restore_hp",
@@ -364,7 +364,7 @@
   },
   "Interpose": {
     "description": "Enemies targeting the user's companion change their target to the user.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "retarget",
@@ -376,7 +376,7 @@
   },
   "Decoy": {
     "description": "Enemies targeting the user change their target to one of the user's companions.",
-    "mp_cost": 2,
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "retarget",
