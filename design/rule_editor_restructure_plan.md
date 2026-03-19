@@ -162,6 +162,12 @@ Result:
 
 - the full rule editor feels more deliberate and less form-heavy
 
+Status:
+
+- completed
+- rule ability selection now uses the loaded ability catalog
+- rule and condition empty states now guide the user more clearly
+
 ## Out of Scope
 
 This cleanup does not yet include:

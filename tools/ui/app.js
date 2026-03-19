@@ -1108,13 +1108,18 @@ function renderCharacterEditor(character, characterIndex) {
             <button type="button" class="button-secondary" data-team-action="add-rule" data-character-index="${characterIndex}">Add Rule</button>
           </div>
         </div>
-        <div class="rule-editor-list">${rulesMarkup || '<div class="board-empty-state">No rules yet.</div>'}</div>
+        <div class="rule-editor-list">${rulesMarkup || '<div class="board-empty-state">Add a rule to script this character.</div>'}</div>
       </section>
     </article>
   `;
 }
 
 function renderRuleEditor(characterIndex, rule, ruleIndex) {
+  const abilityOptions = buildSelectOptions(
+    appState.catalogs.abilities,
+    rule.ability ?? "",
+    "No ability selected",
+  );
   const conditionsMarkup = (rule.when ?? []).map((condition, conditionIndex) => renderConditionEditor(characterIndex, ruleIndex, condition, conditionIndex)).join("");
 
   return `
@@ -1129,7 +1134,9 @@ function renderRuleEditor(characterIndex, rule, ruleIndex) {
       </div>
       <label class="field-group">
         <span>Ability</span>
-        <input type="text" data-rule-field="ability" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" value="${escapeHtml(rule.ability ?? "")}">
+        <select data-rule-field="ability" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">
+          ${abilityOptions}
+        </select>
       </label>
       <div class="editor-card-header">
         <span class="editor-subsection-label">Conditions</span>
@@ -1137,7 +1144,7 @@ function renderRuleEditor(characterIndex, rule, ruleIndex) {
           <button type="button" class="button-secondary" data-team-action="add-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Add Condition</button>
         </div>
       </div>
-      <div class="condition-editor-list">${conditionsMarkup || '<div class="board-empty-state">No conditions yet.</div>'}</div>
+      <div class="condition-editor-list">${conditionsMarkup || '<div class="board-empty-state">Add a condition to decide when this rule fires.</div>'}</div>
     </article>
   `;
 }
