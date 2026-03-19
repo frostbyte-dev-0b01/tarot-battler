@@ -60,11 +60,6 @@ The design now distinguishes:
 
 The code and sample data now use this terminology. Remaining references should be treated as cleanup bugs.
 
-## Engine Alignment Tasks
-
-These design decisions are now settled and should be reflected in the engine before further major combat expansion:
-
-
 ## Open Balance and Tuning Questions
 
 These are real design questions but not yet settled enough to be part of the core spec:
@@ -188,5 +183,8 @@ The intended design is now split across:
 - [game_spec.md](/home/frostbyte/Work/tarot-battler/design/game_spec.md)
 - [character_design.md](/home/frostbyte/Work/tarot-battler/design/character_design.md)
 - [implementation_notes.md](/home/frostbyte/Work/tarot-battler/design/implementation_notes.md)
+- [team_builder_schema.md](/home/frostbyte/Work/tarot-battler/design/team_builder_schema.md)
+- [replay_schema.md](/home/frostbyte/Work/tarot-battler/design/replay_schema.md)
+- [ui_spec.md](/home/frostbyte/Work/tarot-battler/design/ui_spec.md)
 
 Older brainstorming has been consolidated into this file and the current design docs.

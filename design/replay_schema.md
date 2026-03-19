@@ -41,7 +41,7 @@ cargo run -- --json-out path/to/replay.json
       "characters": []
     },
     "team_b": {
-      "name": "Arcane Gambit",
+      "name": "Omen Tribunal",
       "characters": []
     }
   },
@@ -85,8 +85,8 @@ cargo run -- --json-out path/to/replay.json
         "spd": 4,
         "wil": 4
       },
-      "passive": "Authority",
-      "actives": ["Crush", "Embolden"]
+      "passive": "Imperial Formation",
+      "actives": ["Hold the Line", "Command", "Taunt"]
     }
   ]
 }
@@ -175,7 +175,7 @@ Example:
   "tick": 4,
   "type": "ability_used",
   "actor_id": "the_emperor",
-  "ability": "Crush",
+  "ability": "Hold the Line",
   "mp_cost": 2
 }
 ```
@@ -186,12 +186,12 @@ Example:
 {
   "tick": 4,
   "type": "damage",
-  "source_id": "the_emperor",
-  "target_id": "the_fool",
+  "source_id": "justice",
+  "target_id": "the_hierophant",
   "amount": 6,
   "damage_kind": "physical",
   "source_kind": "ability",
-  "source_name": "Crush",
+  "source_name": "Condemn",
   "target_hp_after": 0
 }
 ```
@@ -202,11 +202,11 @@ Example:
 {
   "tick": 7,
   "type": "healing",
-  "source_id": "the_star",
-  "target_id": "strength",
-  "amount": 4,
+  "source_id": "the_hierophant",
+  "target_id": "the_emperor",
+  "amount": 3,
   "source_kind": "ability",
-  "source_name": "Restore",
+  "source_name": "Blessing",
   "target_hp_after": 6
 }
 ```
@@ -218,8 +218,8 @@ Example:
   "tick": 8,
   "type": "status_applied",
   "source_id": "the_moon",
-  "target_id": "the_tower",
-  "status": "Poison",
+  "target_id": "the_hierophant",
+  "status": "Omen",
   "stacks_added": 2,
   "stacks_after": 3
 }
@@ -245,8 +245,8 @@ Example:
 {
   "tick": 10,
   "type": "status_tick",
-  "target_id": "the_tower",
-  "status": "Poison",
+  "target_id": "the_hierophant",
+  "status": "Omen",
   "amount": 2,
   "kind": "damage",
   "target_hp_after": 5

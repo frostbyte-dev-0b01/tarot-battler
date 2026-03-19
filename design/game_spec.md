@@ -161,6 +161,25 @@ A character keeps its sticky target until:
 
 When the sticky target is lost, a new one is selected using the same rules.
 
+### Retargeting
+
+Retargeting effects mutate a character's sticky target directly.
+
+Current supported retargeting modes are:
+
+- `to_self`
+- `to_companion`
+- `default_retarget`
+
+These effects are intentionally narrow:
+
+- they change the current sticky target
+- they do not add target locks
+- they do not permanently rewrite row-protection rules
+- they do not create a broader control subsystem by themselves
+
+This keeps battlefield control effects like taunt and forced retargeting legible without overcomplicating the core targeting model.
+
 ## Ability Targeting Model
 
 Abilities define their own targets independent of rules.
@@ -462,10 +481,10 @@ Design rules:
 
 Examples:
 
-- `Crush`: high `VIT` could add self-healing, turning it toward bruiser play
-- `Execute`: high `SPD` could grant a follow-up turn if it kills, turning it toward assassin play
+- `Breakthrough`: high `VIT` could add self-healing, turning it toward bruiser play
+- `Harvest Night`: high `SPD` could refund MP or grant a follow-up effect if it secures a kill, turning it toward assassin play
 - `Taunt`: high `MAG` could also Weaken enemy `MAG`, turning it toward a hexblade/control angle
-- `Embolden`: high `MGT` could also grant `Fortify MGT`, turning it toward battle support
+- `Blessing`: high `MGT` could also grant `Fortify MGT`, turning it toward battle support
 
 ### Items
 

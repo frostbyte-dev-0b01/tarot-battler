@@ -63,8 +63,8 @@ For now, full loadouts are easier to edit by hand and simpler to support in dev 
     "spd": 4,
     "wil": 4
   },
-  "passive": "Authority",
-  "actives": ["Crush", "Embolden"],
+  "passive": "Imperial Formation",
+  "actives": ["Hold the Line", "Command", "Taunt"],
   "item": null,
   "rules": []
 }
@@ -132,7 +132,7 @@ Required stats:
 
 ```json
 {
-  "ability": "Crush",
+  "ability": "Hold the Line",
   "when": [
     {
       "subject": "self",
@@ -202,12 +202,12 @@ Allowed values:
         "spd": 4,
         "wil": 4
       },
-      "passive": "Authority",
-      "actives": ["Crush", "Embolden"],
+      "passive": "Imperial Formation",
+      "actives": ["Hold the Line", "Command", "Taunt"],
       "item": null,
       "rules": [
         {
-          "ability": "Crush",
+          "ability": "Hold the Line",
           "when": [
             {
               "subject": "self",
@@ -220,24 +220,24 @@ Allowed values:
       ]
     },
     {
-      "id": "the_tower",
-      "display_name": "The Tower",
-      "position": { "row": 0, "col": 1 },
+      "id": "the_hierophant",
+      "display_name": "The Hierophant",
+      "position": { "row": 0, "col": 2 },
       "stats": {
-        "vit": 8,
-        "mgt": 7,
-        "mag": 2,
-        "arm": 8,
-        "res": 3,
-        "spd": 2,
-        "wil": 2
+        "vit": 11,
+        "mgt": 3,
+        "mag": 7,
+        "arm": 4,
+        "res": 7,
+        "spd": 3,
+        "wil": 7
       },
-      "passive": "Collapse",
-      "actives": ["Rubble", "Shatter"],
+      "passive": "Sanctuary",
+      "actives": ["Smite", "Consecrate", "Blessing"],
       "item": null,
       "rules": [
         {
-          "ability": "Shatter",
+          "ability": "Blessing",
           "when": [
             {
               "subject": "self",

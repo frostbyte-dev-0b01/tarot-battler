@@ -15,7 +15,6 @@ Primary design references:
 - `design/team_builder_schema.md` — interim JSON contract for team builder and replay tooling
 - `design/replay_schema.md` — proposed replay JSON contract for battle viewer tooling
 - `design/ui_spec.md` — lightweight dev-tool UI structure for team editing and replay viewing
-- `design/ui_implementation_checklist.md` — phased UI build checklist and execution order
 
 ## Build Commands
 
@@ -30,9 +29,7 @@ All cargo commands should be run from `battle_engine/`.
 
 ## Architecture
 
-**Current state:** Early-stage Rust battle engine with a lightweight static UI scaffold in `tools/ui/`. No API or database layers yet.
-
-**Planned stack:** Rust engine → Python/FastAPI API → React/Svelte frontend, with PostgreSQL for persistence.
+**Current state:** Rust battle engine with a lightweight static UI dev tool in `tools/ui/`. No API or database layers yet.
 
 ### UI Dev Tools (`tools/ui/`)
 
@@ -46,17 +43,17 @@ All cargo commands should be run from `battle_engine/`.
 - `src/models.rs` — Core data types: `Stat`, `Position`, `CharacterConfig`, `CharacterState`, `StatusTick`, `TraitEffect`, rule/condition types (`Rule`, `Condition`, `ConditionSubject`, `QueryValue`, `Comparator`).
 - `src/statuses.rs` — Named status effect system: `StackType` (TickDown, NoStack, Permanent), `StatusBehavior` (DamagePerStack, HealPerStack, StatModPerStack, SkipTurn), `StatusDef`, `StatusInstance`, `StatusMap`. Helper functions `status_key()` and `opposite_key()` for key construction.
 - `src/engine.rs` — `BattleState` drives the simulation loop: speed ticking, turn execution, on-turn-start passive hooks, start-of-turn status ticks, rule evaluation → ability or basic attack, stunned-turn skips, end-of-turn MP regen, win conditions, and death-side effect handling. Re-entrancy guard (`in_passive_phase`) prevents passive cascading.
-- `src/abilities.rs` — `AbilityDef`, `Primitive` (6 types: `DealPhysicalDamage`, `DealMagicalDamage`, `RestoreHp`, `RestoreMp`, `ApplyStatus`, `RemoveStatus`), `AbilityMap`, `PassiveDef` (tagged enum: `Triggered` or `Trait`), `PassiveMap`, `execute_ability()`, `execute_primitives()`. Targeting supports legacy simple categories plus detailed single-target specs with selectors and positional enemy conditions.
+- `src/abilities.rs` — `AbilityDef`, `Primitive`, `AbilityMap`, `PassiveDef`, and `PassiveMap`, plus execution for damage, healing, MP restoration, status application/removal, retargeting, movement, commanded attacks, conditional primitives, and other kit-specific building blocks. Targeting supports legacy simple categories plus detailed selector-based specs.
 - `src/rules.rs` — `evaluate_rules()` iterates a character's ordered rules, checking conditions and MP cost (reduced by `MpCostReduction` trait, minimum 1). Returns first matching ability or None (basic attack fallback).
 - `src/damage.rs` — Physical/magical damage calculation, basic attack type resolution.
 - `src/targeting.rs` — Offensive/defensive type computation, front-row target selection with weakness preference.
 - `src/loader.rs` — `load_characters()`, `load_abilities()`, `load_passives()`, and `load_statuses()` from JSON, plus content validation for references, positions, target legality, and status-shape correctness.
-- `src/logger.rs` — `BattleEvent` enum (`BattleStart`, `BasicAttack`, `AbilityUsed`, `AbilityDamage`, `StatusDamage`, `StatusHeal`, `TurnSkipped`, `PassiveTriggered`, `DamageReflect`, `Defeat`, `BattleEnd`) and `BattleLog` with JSON and human-readable replay formatting grouped by `tick_count`.
+- `src/logger.rs` — `BattleEvent` and `BattleLog`, including replay-schema JSON export and human-readable replay formatting grouped by `tick_count`.
 - `src/main.rs` — Entry point: loads JSON data (characters, abilities, passives, statuses), validates content, splits teams, runs battle, prints readable text replay by default or JSON with `--json`.
 - `src/data/characters.json` — Current 3v3 sample roster used for trial battles and replay-tool iteration.
-- `src/data/abilities.json` — Ability definitions including direct attacks, buffs, healing, MP support, cleanse/dispel, and status payoff tools.
+- `src/data/abilities.json` — Ability definitions for the current sample teams, including descriptions used by the UI hover tooltips.
 - `src/data/passives.json` — Passive definitions: triggered passives and permanent traits used by the sample roster.
-- `src/data/statuses.json` — Named status effect definitions (Bleed, Poison, Regen, Empower/Weaken, Fortify/Enfeeble, Stun).
+- `src/data/statuses.json` — Named status effect definitions used by the prototype, including `Omen`, `Ward`, and the current placeholder status vocabulary.
 
 ### Key Design Decisions
 
@@ -72,8 +69,8 @@ All cargo commands should be run from `battle_engine/`.
 - **Targeting:** The intended design uses sticky targets for basic attacks and `current_target` abilities, with ability-side targeting kept separate from rule evaluation. See `design/game_spec.md`.
 - **Speed system:** The engine uses `max_ticks = 10 - SPD`, clamps `ticks_until_turn` to at least `1`, then adds `+2` to `max_ticks` after each turn before resetting the countdown. This preserves fast openers while softening high-SPD advantage over time.
 - **Rule system:** Rule groups are `SelfChar`, `Companion`, `Target`, and `World`. `Companion` means any adjacent ally and does not imply that same companion becomes the ability target. World queries currently support live `ally_count`, `enemy_count`, and step-based `tick_count`.
-- **Abilities:** Tier 1 composed from JSON-defined primitives (`DealPhysicalDamage`, `DealMagicalDamage`, `RestoreHp`, `RestoreMp`, `ApplyStatus`, `RemoveStatus`). Target definitions support both simple categories and detailed selector-based targeting, and content validation enforces legal buff/debuff targeting. Tier 2 (custom Rust handlers) planned but not yet implemented.
-- **Passives:** Each character has an optional passive ability. Two kinds: **triggered** passives fire on specific game events and execute primitives like abilities; **permanent traits** are applied at battle start and modify engine rules for the duration of the battle. Six triggers: `on_battle_start` (step 0), `on_turn_start` (each turn, even when stunned), `on_deal_damage` (once per action if any damage dealt), `on_take_damage` (from defender's perspective), `on_kill` (for the killer), `on_death` (from dead character's perspective). Re-entrancy guard prevents passive cascading — passives triggered during passive execution only log defeats, no further passives fire. Trait types: `MpCostReduction` (reduces ability MP cost, minimum 1), `DebuffResistance` (negates first N debuffs — DamagePerStack, SkipTurn, or negative StatModPerStack), `DamageReflect` (flat damage back to attackers, can kill). Defined in `passives.json` as a tagged enum (`"type": "triggered"` or `"type": "trait"`).
+- **Abilities:** JSON-defined primitives now cover direct damage, healing, MP restoration, status application/removal, retargeting, movement, commanded attacks, conditional execution, and status-based payoff effects. Target definitions support both simple categories and detailed selector-based targeting, and content validation enforces legal buff/debuff targeting.
+- **Passives:** Each character has an optional passive ability. Current passive forms are **triggered**, **trait**, and **row aura**. Triggered passives can react to battle start, turn start, dealing damage, taking damage, kills, death, ally damage to the owner's target, and ally `Omen` application. Re-entrancy guard prevents passive cascading during passive execution.
 - **Damage formulas:** Physical: `max(MGT - ARM, 1)`, Magical: `max(MAG - RES, 1)`.
 - **Named status effects:** Data-driven definitions in `statuses.json`. Each status has a `behavior` (DamagePerStack, HealPerStack, StatModPerStack, SkipTurn), a `stack_type` (TickDown, NoStack, Permanent), and an optional `opposes` field for cancellation. Status keys include the stat for stat-mod statuses (e.g. `"Empower:MGT"`), plain name otherwise (e.g. `"Bleed"`).
   - **TickDown:** All stacks fire each turn, then one stack falls off (3 Bleed = 3+2+1 = 6 total damage over 3 turns).
@@ -81,7 +78,7 @@ All cargo commands should be run from `battle_engine/`.
   - **Permanent:** Never decays; only removed by `RemoveStatus`.
   - **Opposing cancellation:** Empower/Weaken and Fortify/Enfeeble cancel each other on the same stat (e.g. applying 5 Weaken:MGT against 2 Empower:MGT = 3 Weaken:MGT).
   - **Batch-resolve ticking:** All damage/heal from statuses is collected, applied as a net HP change, then death is checked. Order of evaluation never matters.
-- **Current statuses:** Bleed, Poison, Regen, Empower (opposes Weaken), Weaken (opposes Empower), Fortify (opposes Enfeeble), Enfeeble (opposes Fortify), Stun. These are prototype statuses, not necessarily the final thematic vocabulary.
+- **Current statuses:** Bleed, Poison, Omen, Regen, Empower (opposes Weaken), Weaken (opposes Empower), Fortify (opposes Enfeeble), Enfeeble (opposes Fortify), Ward, and Stun. These remain prototype statuses, not necessarily the final thematic vocabulary.
 
 ### Design Principles
 
