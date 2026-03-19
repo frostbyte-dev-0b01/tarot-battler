@@ -1178,6 +1178,7 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
           <button type="button" class="button-quiet" data-team-action="remove-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">Remove</button>
         </div>
       </div>
+      <div class="condition-preview">${escapeHtml(formatConditionPreview(condition))}</div>
       <div class="editor-grid">
         <label class="field-group">
           <span>Subject</span>
@@ -1433,6 +1434,31 @@ function getConditionValueType(condition) {
     return "status_stacks";
   }
   return String(value ?? "hp");
+}
+
+function formatConditionPreview(condition) {
+  const subjectLabel = getRuleOptionLabel(ruleSubjectOptions, condition.subject ?? "self");
+  const valueType = getConditionValueType(condition);
+  const operatorLabel = getRuleOptionLabel(ruleOperatorOptions, condition.op ?? condition.comparator ?? "gte");
+  const threshold = condition.threshold ?? 0;
+
+  if (valueType === "stat") {
+    return `${subjectLabel} ${String(condition.value?.stat ?? "vit").toUpperCase()} ${operatorLabel} ${threshold}`;
+  }
+
+  if (valueType === "has_status") {
+    return `${subjectLabel} Has Status ${condition.value?.has_status ?? "Ward"} ${operatorLabel} ${threshold}`;
+  }
+
+  if (valueType === "status_stacks") {
+    return `${subjectLabel} Status Stacks ${condition.value?.status_stacks ?? "Empower:MGT"} ${operatorLabel} ${threshold}`;
+  }
+
+  return `${subjectLabel} ${getRuleOptionLabel(ruleValueTypeOptions, valueType)} ${operatorLabel} ${threshold}`;
+}
+
+function getRuleOptionLabel(options, value) {
+  return options.find((option) => option.value === value)?.label ?? String(value);
 }
 
 function isPlainObject(value) {

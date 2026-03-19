@@ -362,6 +362,17 @@ select {
   color: var(--muted);
 }
 
+.condition-preview {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(38, 70, 83, 0.08);
+  color: var(--accent-2);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .button-row button,
 .panel-controls button {
   border: 0;

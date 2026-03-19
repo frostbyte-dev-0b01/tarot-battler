@@ -142,6 +142,11 @@ Result:
 - rules are easier to scan and debug
 - players can read the rule without mentally translating the raw fields
 
+Status:
+
+- completed
+- each condition now shows a compact human-readable preview
+
 ### Phase 4: Rule-Level Readability Pass
 
 Polish the whole rule block after the condition cleanup lands.
