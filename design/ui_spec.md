@@ -73,6 +73,7 @@ Each character tile should display:
 - current MP
 - alive or defeated state
 - short status summary
+- passive name with hover text from the passive catalog when available
 
 Optional but useful:
 
@@ -94,6 +95,7 @@ Suggested fields:
 - alive or defeated state
 - passive
 - actives
+- passive and active descriptions via hover tooltip when available
 - current statuses with stacks
 - base stats
 - effective stats

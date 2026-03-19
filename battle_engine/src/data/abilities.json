@@ -1,5 +1,6 @@
 {
   "Hold the Line": {
+    "description": "Apply Ward 1 to allies in the user's row.",
     "mp_cost": 2,
     "primitives": [
       {
@@ -14,6 +15,7 @@
     ]
   },
   "Command": {
+    "description": "One companion immediately makes a basic attack against the user's current target.",
     "mp_cost": 2,
     "primitives": [
       {
@@ -22,6 +24,7 @@
     ]
   },
   "Taunt": {
+    "description": "Enemies with stronger MGT than MAG change their target to the user.",
     "mp_cost": 2,
     "primitives": [
       {
@@ -33,6 +36,7 @@
     ]
   },
   "Smite": {
+    "description": "Deal magical damage to the user's current target.",
     "mp_cost": 2,
     "primitives": [
       {
@@ -43,6 +47,7 @@
     ]
   },
   "Consecrate": {
+    "description": "Deal magical damage to the user's current target and that target's companions.",
     "mp_cost": 3,
     "primitives": [
       {
@@ -53,6 +58,7 @@
     ]
   },
   "Blessing": {
+    "description": "Restore MP to allies in the user's row.",
     "mp_cost": 2,
     "primitives": [
       {
@@ -66,6 +72,7 @@
     ]
   },
   "Charge": {
+    "description": "Deal physical damage, then move one row forward in the same column if the tile is empty.",
     "mp_cost": 1,
     "primitives": [
       {
@@ -82,6 +89,7 @@
     ]
   },
   "Withdraw": {
+    "description": "Deal physical damage, then move one row backward in the same column if the tile is empty.",
     "mp_cost": 1,
     "primitives": [
       {
@@ -98,6 +106,7 @@
     ]
   },
   "Breakthrough": {
+    "description": "Deal physical damage. Empower MGT on the user counts double for this attack.",
     "mp_cost": 3,
     "primitives": [
       {
@@ -109,6 +118,7 @@
     ]
   },
   "Hex": {
+    "description": "Deal magical damage to the user's current target and apply Omen 2.",
     "mp_cost": 2,
     "primitives": [
       {
@@ -125,6 +135,7 @@
     ]
   },
   "Eclipse": {
+    "description": "Deal magical damage to the user's current target and companions, then apply Omen 1 to each.",
     "mp_cost": 3,
     "primitives": [
       {
@@ -141,6 +152,7 @@
     ]
   },
   "Harvest Night": {
+    "description": "Deal magical damage to the user's current target, consume all Omen on that target, and add bonus damage equal to the consumed stacks.",
     "mp_cost": 3,
     "primitives": [
       {
@@ -153,6 +165,7 @@
     ]
   },
   "Channel": {
+    "description": "Restore MP to the lowest-MP ally.",
     "mp_cost": 1,
     "primitives": [
       {
@@ -168,6 +181,7 @@
     ]
   },
   "Distill": {
+    "description": "Remove one buff from the user's current target, then apply Omen 2.",
     "mp_cost": 2,
     "primitives": [
       {
@@ -183,6 +197,7 @@
     ]
   },
   "Transmute": {
+    "description": "Deal magical damage to the user's current target. If that target has Omen, restore MP 2 to the user.",
     "mp_cost": 2,
     "primitives": [
       {
@@ -205,6 +220,7 @@
     ]
   },
   "Condemn": {
+    "description": "Deal physical damage to the user's current target. This attack deals bonus damage if the target has Omen.",
     "mp_cost": 2,
     "primitives": [
       {
@@ -217,6 +233,7 @@
     ]
   },
   "Verdict": {
+    "description": "Deal heavy physical damage to the user's current target.",
     "mp_cost": 3,
     "primitives": [
       {
@@ -228,6 +245,7 @@
     ]
   },
   "Rebuke": {
+    "description": "Force the user's current target to choose a new target using default retargeting.",
     "mp_cost": 2,
     "primitives": [
       {

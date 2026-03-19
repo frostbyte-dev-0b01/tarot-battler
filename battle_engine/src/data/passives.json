@@ -1,5 +1,6 @@
 {
   "Imperial Formation": {
+    "description": "Allies in The Emperor's row gain Empower MGT 1 and Empower MAG 1.",
     "type": "row_aura",
     "effects": [
       {
@@ -13,6 +14,7 @@
     ]
   },
   "Sanctuary": {
+    "description": "Allies in The Hierophant's row gain Empower RES 1.",
     "type": "row_aura",
     "effects": [
       {
@@ -22,6 +24,7 @@
     ]
   },
   "Pursuit": {
+    "description": "When an ally damages The Chariot's current target, The Chariot gains Empower MGT 1.",
     "type": "triggered",
     "trigger": "on_ally_damage_my_target",
     "primitives": [
@@ -35,6 +38,7 @@
     ]
   },
   "Foreboding": {
+    "description": "When The Moon deals magical damage to an enemy, apply Omen 1 to that enemy.",
     "type": "triggered",
     "trigger": "on_deal_damage",
     "primitives": [
@@ -47,6 +51,7 @@
     ]
   },
   "Catalyst": {
+    "description": "The first time each tick an ally applies Omen to an enemy, apply Omen 1 to that enemy.",
     "type": "triggered",
     "trigger": "on_ally_apply_omen",
     "once_per_tick": true,
@@ -60,6 +65,7 @@
     ]
   },
   "Sentence": {
+    "description": "When Justice deals damage to an enemy with Omen, apply Weaken MGT 1 to that enemy.",
     "type": "triggered",
     "trigger": "on_deal_damage",
     "primitives": [

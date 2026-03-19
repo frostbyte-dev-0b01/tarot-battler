@@ -64,6 +64,8 @@ const appState = {
   catalogs: {
     passives: [],
     abilities: [],
+    passiveDescriptions: {},
+    abilityDescriptions: {},
   },
 };
 const metadataFields = {
@@ -493,11 +495,19 @@ async function loadEditorCatalogs() {
 
     appState.catalogs.passives = Object.keys(passives).sort();
     appState.catalogs.abilities = Object.keys(abilities).sort();
+    appState.catalogs.passiveDescriptions = Object.fromEntries(
+      Object.entries(passives).map(([name, definition]) => [name, definition?.description ?? ""]),
+    );
+    appState.catalogs.abilityDescriptions = Object.fromEntries(
+      Object.entries(abilities).map(([name, definition]) => [name, definition?.description ?? ""]),
+    );
     renderTeamEditor("team_a");
     renderTeamEditor("team_b");
   } catch (_error) {
     appState.catalogs.passives = [];
     appState.catalogs.abilities = [];
+    appState.catalogs.passiveDescriptions = {};
+    appState.catalogs.abilityDescriptions = {};
   }
 }
 
@@ -808,6 +818,7 @@ function renderUnitCard(character) {
   const hpValue = Number(character.current_hp) || 0;
   const mpValue = Number(character.current_mp) || 0;
   const statusesText = formatStatuses(character.statuses);
+  const passiveDescription = character.passive ? getPassiveDescription(character.passive) : "";
 
   return `
     <button class="grid-cell-button" type="button" data-character-id="${escapeHtml(character.id)}">
@@ -820,7 +831,7 @@ function renderUnitCard(character) {
         ${renderBar("HP", hpValue, character.max_hp, "hp")}
         ${renderBar("MP", mpValue, character.max_mp, "mp")}
       </div>
-      <div class="unit-card-passive">${escapeHtml(character.passive || "No passive")}</div>
+      <div class="unit-card-passive"${renderTitleAttribute(passiveDescription)}>${escapeHtml(character.passive || "No passive")}</div>
       <div class="unit-card-statuses">${escapeHtml(statusesText)}</div>
       </article>
     </button>
@@ -1797,6 +1808,26 @@ function formatStatuses(statuses) {
   return entries.map(([status, stacks]) => `${status} x${stacks}`).join(" • ");
 }
 
+function getPassiveDescription(passiveName) {
+  if (!passiveName) {
+    return "";
+  }
+
+  return appState.catalogs.passiveDescriptions?.[passiveName] ?? "";
+}
+
+function getAbilityDescription(abilityName) {
+  if (!abilityName) {
+    return "";
+  }
+
+  return appState.catalogs.abilityDescriptions?.[abilityName] ?? "";
+}
+
+function renderTitleAttribute(text) {
+  return text ? ` title="${escapeHtml(text)}"` : "";
+}
+
 function renderInspector(character) {
   if (!character) {
     inspectorPanel.innerHTML = '<div class="board-empty-state">Select a unit on the board or load a replay event that references one.</div>';
@@ -1805,7 +1836,9 @@ function renderInspector(character) {
 
   const effectiveStats = calculateEffectiveStats(character);
   const statusMarkup = renderStatusList(character.statuses);
-  const activeMarkup = (character.actives ?? []).map((active) => `<span>${escapeHtml(active)}</span>`).join("");
+  const activeMarkup = (character.actives ?? [])
+    .map((active) => `<span${renderTitleAttribute(getAbilityDescription(active))}>${escapeHtml(active)}</span>`)
+    .join("");
   const aliveLabel = character.alive ? "Alive" : "Defeated";
   const targetLabel = character.current_target_id ? escapeHtml(character.current_target_id) : "No sticky target tracked";
 
@@ -1825,7 +1858,7 @@ function renderInspector(character) {
     </div>
     <section class="inspector-section">
       <h5>Passive</h5>
-      <div class="pill-list"><span>${escapeHtml(character.passive || "No passive")}</span></div>
+      <div class="pill-list"><span${renderTitleAttribute(getPassiveDescription(character.passive))}>${escapeHtml(character.passive || "No passive")}</span></div>
     </section>
     <section class="inspector-section">
       <h5>Actives</h5>
