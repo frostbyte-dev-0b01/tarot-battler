@@ -8,6 +8,29 @@ const replayValidationOutput = document.querySelector("#replay-validation-output
 const latestReplayPath = "./sample-data/latest_replay.json";
 const passiveCatalogPath = "../../battle_engine/src/data/passives.json";
 const abilityCatalogPath = "../../battle_engine/src/data/abilities.json";
+const ruleSubjectOptions = [
+  { value: "self", label: "Self" },
+  { value: "target", label: "Target" },
+  { value: "companion", label: "Any Companion" },
+  { value: "world", label: "World" },
+];
+const ruleValueTypeOptions = [
+  { value: "hp", label: "HP" },
+  { value: "mp", label: "MP" },
+  { value: "use_count", label: "Uses" },
+  { value: "turns_since_use", label: "Turns Since Use" },
+  { value: "tick_count", label: "Tick Count" },
+  { value: "ally_count", label: "Allies Alive" },
+  { value: "enemy_count", label: "Enemies Alive" },
+  { value: "stat", label: "Stat" },
+  { value: "has_status", label: "Has Status" },
+  { value: "status_stacks", label: "Status Stacks" },
+];
+const ruleOperatorOptions = [
+  { value: "gte", label: ">=" },
+  { value: "lte", label: "<=" },
+];
+const statFieldOptions = ["vit", "mgt", "mag", "arm", "res", "spd", "wil"];
 const teamEditorConfig = {
   fileInput: document.querySelector("#team-file-input"),
   jsonInput: document.querySelector("#team-json-input"),
@@ -1134,7 +1157,7 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
         <label class="field-group">
           <span>Stat</span>
           <select data-condition-field="value_stat" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
-            ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((option) => `<option value="${option}" ${statValue === option ? "selected" : ""}>${option}</option>`).join("")}
+            ${statFieldOptions.map((option) => `<option value="${option}" ${statValue === option ? "selected" : ""}>${option.toUpperCase()}</option>`).join("")}
           </select>
         </label>
       `
@@ -1159,20 +1182,20 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
         <label class="field-group">
           <span>Subject</span>
           <select data-condition-field="subject" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
-            ${["self", "target", "companion", "world"].map((option) => `<option value="${option}" ${condition.subject === option ? "selected" : ""}>${option}</option>`).join("")}
+            ${ruleSubjectOptions.map((option) => `<option value="${option.value}" ${condition.subject === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
           </select>
         </label>
         <label class="field-group">
           <span>Value</span>
           <select data-condition-field="value_type" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
-            ${["hp", "mp", "use_count", "turns_since_use", "tick_count", "ally_count", "enemy_count", "stat", "has_status", "status_stacks"].map((option) => `<option value="${option}" ${valueType === option ? "selected" : ""}>${option}</option>`).join("")}
+            ${ruleValueTypeOptions.map((option) => `<option value="${option.value}" ${valueType === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
           </select>
         </label>
         ${detailFieldMarkup}
         <label class="field-group">
           <span>Operator</span>
           <select data-condition-field="op" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
-            ${["gte", "lte"].map((option) => `<option value="${option}" ${(condition.op ?? condition.comparator) === option ? "selected" : ""}>${option}</option>`).join("")}
+            ${ruleOperatorOptions.map((option) => `<option value="${option.value}" ${(condition.op ?? condition.comparator) === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
           </select>
         </label>
         <label class="field-group">

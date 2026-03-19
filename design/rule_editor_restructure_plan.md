@@ -116,6 +116,11 @@ Result:
 
 - the editor reads more like game logic and less like raw JSON
 
+Status:
+
+- completed
+- subject, value-type, operator, and stat labels now use friendlier UI wording
+
 ### Phase 3: Condition Preview Text
 
 Add a compact human-readable preview for each condition.
