@@ -6,6 +6,7 @@ use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusInstance, oppo
 
 /// The current character attributes.
 #[derive(Hash, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum Stat {
     #[serde(rename = "vit")]
     VIT, // Max HP = 2 * VIT
@@ -420,11 +421,11 @@ impl CharacterState {
     /// Try to negate a debuff using DebuffResistance charges. Returns true if negated.
     pub fn try_negate_debuff(&mut self) -> bool {
         for t in &mut self.traits {
-            if let TraitEffect::DebuffResistance { count } = t {
-                if *count > 0 {
-                    *count -= 1;
-                    return true;
-                }
+            if let TraitEffect::DebuffResistance { count } = t
+                && *count > 0
+            {
+                *count -= 1;
+                return true;
             }
         }
         false
@@ -506,12 +507,11 @@ impl CharacterState {
         }
 
         // Reject stat mods on pool stats
-        if matches!(&def.behavior, StatusBehavior::StatModPerStack { .. }) {
-            if let Some(ref s) = stat {
-                if matches!(s, Stat::VIT | Stat::SPD | Stat::WIL) {
-                    return false;
-                }
-            }
+        if matches!(&def.behavior, StatusBehavior::StatModPerStack { .. })
+            && let Some(ref s) = stat
+            && matches!(s, Stat::VIT | Stat::SPD | Stat::WIL)
+        {
+            return false;
         }
 
         // Handle Empower/Weaken cancellation

@@ -6,8 +6,8 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use crate::abilities::{
-    AbilityMap, DamageRecord, PassiveDef, PassiveMap, PassiveTrigger, execute_ability,
-    execute_primitives,
+    AbilityMap, DamageRecord, ExecutionContext, PassiveDef, PassiveMap, PassiveTrigger,
+    execute_ability, execute_primitives_with_context,
 };
 use crate::damage::calc_basic_attack_damage;
 use crate::logger::{BattleEvent, BattleLog};
@@ -169,18 +169,20 @@ impl BattleState {
 
         for (idx, passive_name) in team_a_passives {
             if let Some(passive_def) = self.passives.get(&passive_name).cloned() {
-                let damage_dealt = Self::fire_passive_if_matches(
-                    idx,
-                    &passive_name,
-                    &passive_def,
-                    &trigger,
+                let mut ctx = ExecutionContext::new(
                     &mut self.team_a,
                     &mut self.team_b,
                     &mut self.rng,
                     &mut self.log,
                     0,
                     &self.status_defs,
-                    None,
+                );
+                let damage_dealt = Self::fire_passive_if_matches(
+                    idx,
+                    &passive_name,
+                    &passive_def,
+                    &trigger,
+                    &mut ctx,
                 );
                 self.resolve_defeats_from_damage(&damage_dealt, false);
             }
@@ -188,18 +190,20 @@ impl BattleState {
 
         for (idx, passive_name) in team_b_passives {
             if let Some(passive_def) = self.passives.get(&passive_name).cloned() {
-                let damage_dealt = Self::fire_passive_if_matches(
-                    idx,
-                    &passive_name,
-                    &passive_def,
-                    &trigger,
+                let mut ctx = ExecutionContext::new(
                     &mut self.team_b,
                     &mut self.team_a,
                     &mut self.rng,
                     &mut self.log,
                     0,
                     &self.status_defs,
-                    None,
+                );
+                let damage_dealt = Self::fire_passive_if_matches(
+                    idx,
+                    &passive_name,
+                    &passive_def,
+                    &trigger,
+                    &mut ctx,
                 );
                 self.resolve_defeats_from_damage(&damage_dealt, true);
             }
@@ -214,13 +218,7 @@ impl BattleState {
         passive_name: &str,
         passive_def: &PassiveDef,
         expected: &PassiveTrigger,
-        actor_team: &mut [CharacterState],
-        enemy_team: &mut [CharacterState],
-        rng: &mut StdRng,
-        log: &mut BattleLog,
-        step: u32,
-        status_defs: &StatusMap,
-        trigger_target_id: Option<u32>,
+        ctx: &mut ExecutionContext<'_>,
     ) -> Vec<DamageRecord> {
         match passive_def {
             PassiveDef::Triggered {
@@ -228,37 +226,26 @@ impl BattleState {
                 primitives,
                 ..
             } if std::mem::discriminant(trigger) == std::mem::discriminant(expected) => {
-                let char_id = actor_team[idx].id();
-                let char_name = actor_team[idx].base_name().to_string();
-                log.push(BattleEvent::PassiveTriggered {
-                    tick_count: step,
+                let char_id = ctx.actor_team[idx].id();
+                let char_name = ctx.actor_team[idx].base_name().to_string();
+                ctx.log.push(BattleEvent::PassiveTriggered {
+                    tick_count: ctx.step,
                     character_id: char_id,
                     character_name: char_name,
                     passive_name: passive_name.to_string(),
                 });
-                execute_primitives(
-                    idx,
-                    passive_name,
-                    primitives,
-                    actor_team,
-                    enemy_team,
-                    rng,
-                    log,
-                    step,
-                    status_defs,
-                    trigger_target_id,
-                )
+                execute_primitives_with_context(ctx, idx, passive_name, primitives)
             }
             PassiveDef::Trait { effect } if matches!(expected, PassiveTrigger::OnBattleStart) => {
-                let char_id = actor_team[idx].id();
-                let char_name = actor_team[idx].base_name().to_string();
-                log.push(BattleEvent::PassiveTriggered {
-                    tick_count: step,
+                let char_id = ctx.actor_team[idx].id();
+                let char_name = ctx.actor_team[idx].base_name().to_string();
+                ctx.log.push(BattleEvent::PassiveTriggered {
+                    tick_count: ctx.step,
                     character_id: char_id,
                     character_name: char_name,
                     passive_name: passive_name.to_string(),
                 });
-                actor_team[idx].add_trait(effect.clone());
+                ctx.actor_team[idx].add_trait(effect.clone());
                 Vec::new()
             }
             PassiveDef::RowAura { .. } => Vec::new(),
@@ -394,18 +381,22 @@ impl BattleState {
                 )
             };
 
-            Self::fire_passive_if_matches(
-                char_idx,
-                &passive_name,
-                &passive_def,
-                trigger,
+            let mut ctx = ExecutionContext::new(
                 actor_team,
                 enemy_team,
                 &mut self.rng,
                 &mut self.log,
                 self.step,
                 &self.status_defs,
-                trigger_target_id,
+            )
+            .with_trigger_target(trigger_target_id);
+
+            Self::fire_passive_if_matches(
+                char_idx,
+                &passive_name,
+                &passive_def,
+                trigger,
+                &mut ctx,
             )
         };
 
@@ -574,45 +565,45 @@ impl BattleState {
             &self.abilities,
         );
 
-        if let Some(ref name) = ability_name {
-            if let Some(ability_def) = self.abilities.get(name).cloned() {
-                let (actor_team, enemy_team) =
-                    Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-                // Spend MP (reduced by trait) and record usage
-                let effective_cost = ability_def
-                    .mp_cost
-                    .saturating_sub(actor_team[actor_idx].mp_cost_reduction())
-                    .max(1);
-                actor_team[actor_idx].spend_mp(effective_cost);
-                actor_team[actor_idx].record_ability_use(name);
+        if let Some(ref name) = ability_name
+            && let Some(ability_def) = self.abilities.get(name).cloned()
+        {
+            let (actor_team, enemy_team) =
+                Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+            // Spend MP (reduced by trait) and record usage
+            let effective_cost = ability_def
+                .mp_cost
+                .saturating_sub(actor_team[actor_idx].mp_cost_reduction())
+                .max(1);
+            actor_team[actor_idx].spend_mp(effective_cost);
+            actor_team[actor_idx].record_ability_use(name);
 
-                // Execute ability
-                let event_start = self.log.len();
-                let damage_dealt = execute_ability(
-                    actor_idx,
-                    name,
-                    &ability_def,
-                    actor_team,
-                    enemy_team,
-                    &mut self.rng,
-                    &mut self.log,
-                    self.step,
-                    &self.status_defs,
-                );
+            // Execute ability
+            let event_start = self.log.len();
+            let damage_dealt = execute_ability(
+                actor_idx,
+                name,
+                &ability_def,
+                actor_team,
+                enemy_team,
+                &mut self.rng,
+                &mut self.log,
+                self.step,
+                &self.status_defs,
+            );
 
-                self.process_status_application_events(event_start, is_team_a);
+            self.process_status_application_events(event_start, is_team_a);
 
-                // Process damage results: defeats, reflect, and passive triggers
-                self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
+            // Process damage results: defeats, reflect, and passive triggers
+            self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
 
-                // Reassign target if current target is dead
-                let (actor_team, enemy_team) =
-                    Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-                Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng);
+            // Reassign target if current target is dead
+            let (actor_team, enemy_team) =
+                Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+            Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng);
 
-                self.finish_turn(actor_idx, is_team_a);
-                return;
-            }
+            self.finish_turn(actor_idx, is_team_a);
+            return;
         }
 
         // Fallback: basic attack
@@ -699,17 +690,16 @@ impl BattleState {
         enemy_team: &[CharacterState],
         rng: &mut StdRng,
     ) {
-        if let Some(ct) = actor_team[actor_idx].target() {
-            if enemy_team
+        if let Some(ct) = actor_team[actor_idx].target()
+            && enemy_team
                 .iter()
                 .find(|c| c.id() == ct)
-                .map_or(true, |c| !c.is_alive())
-            {
-                if let Some(tid) = select_target(&actor_team[actor_idx], enemy_team, rng) {
-                    actor_team[actor_idx].set_target(tid);
-                } else {
-                    actor_team[actor_idx].clear_target();
-                }
+                .is_none_or(|c| !c.is_alive())
+        {
+            if let Some(tid) = select_target(&actor_team[actor_idx], enemy_team, rng) {
+                actor_team[actor_idx].set_target(tid);
+            } else {
+                actor_team[actor_idx].clear_target();
             }
         }
     }
@@ -823,7 +813,9 @@ impl BattleState {
 
         for (source_id, eidx) in kills_by_source {
             let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            if let Some(source_idx) = actor_team.iter().position(|c| c.id() == source_id && c.is_alive())
+            if let Some(source_idx) = actor_team
+                .iter()
+                .position(|c| c.id() == source_id && c.is_alive())
             {
                 self.try_fire_passive(source_idx, &PassiveTrigger::OnKill, is_team_a);
             }
@@ -940,7 +932,7 @@ impl BattleState {
             Some(tid) => enemy_team
                 .iter()
                 .find(|c| c.id() == tid)
-                .map_or(true, |t| !t.is_alive()),
+                .is_none_or(|t| !t.is_alive()),
             None => true,
         };
 

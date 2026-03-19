@@ -266,10 +266,13 @@ fn validate_team(
                 );
             }
         }
-        if let Some(id) = &character.id {
-            if id.trim().is_empty() {
-                errors.push(format!("{} in team '{}' has an empty id", character.base_name, team_name));
-            }
+        if let Some(id) = &character.id
+            && id.trim().is_empty()
+        {
+            errors.push(format!(
+                "{} in team '{}' has an empty id",
+                character.base_name, team_name
+            ));
         }
     }
 }
