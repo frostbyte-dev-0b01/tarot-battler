@@ -42,10 +42,10 @@ All cargo commands should be run from `battle_engine/`.
 
 - `src/models.rs` — Core data types: `Stat`, `Position`, `CharacterConfig`, `CharacterState`, `StatusTick`, `TraitEffect`, rule/condition types (`Rule`, `Condition`, `ConditionSubject`, `QueryValue`, `Comparator`).
 - `src/statuses.rs` — Named status effect system: `StackType` (TickDown, NoStack, Permanent), `StatusBehavior` (DamagePerStack, HealPerStack, StatModPerStack, SkipTurn), `StatusDef`, `StatusInstance`, `StatusMap`. Helper functions `status_key()` and `opposite_key()` for key construction.
-- `src/engine.rs` — `BattleState` drives the simulation loop: speed ticking, turn execution, on-turn-start passive hooks, start-of-turn status ticks, rule evaluation → ability or basic attack, stunned-turn skips, end-of-turn MP regen, win conditions, and death-side effect handling. Re-entrancy guard (`in_passive_phase`) prevents passive cascading.
+- `src/engine.rs` — `BattleState` drives the simulation loop: speed ticking, turn execution, on-turn-start passive hooks, start-of-turn status ticks, rule evaluation → ability or Rest fallback, stunned-turn skips, win conditions, and death-side effect handling. Re-entrancy guard (`in_passive_phase`) prevents passive cascading.
 - `src/abilities.rs` — `AbilityDef`, `Primitive`, `AbilityMap`, `PassiveDef`, and `PassiveMap`, plus execution for damage, healing, MP restoration, status application/removal, retargeting, movement, commanded attacks, conditional primitives, and other kit-specific building blocks. Targeting supports legacy simple categories plus detailed selector-based specs.
-- `src/rules.rs` — `evaluate_rules()` iterates a character's ordered rules, checking conditions and MP cost (reduced by `MpCostReduction` trait, minimum 1). Returns first matching ability or None (basic attack fallback).
-- `src/damage.rs` — Physical/magical damage calculation, basic attack type resolution.
+- `src/rules.rs` — `evaluate_rules()` iterates a character's ordered rules, checking conditions and MP cost (reduced by `MpCostReduction` trait, minimum 1). Returns first matching ability or None (Rest fallback in the intended design).
+- `src/damage.rs` — Physical/magical damage calculation.
 - `src/targeting.rs` — Offensive/defensive type computation, front-row target selection with weakness preference.
 - `src/loader.rs` — `load_characters()`, `load_abilities()`, `load_passives()`, and `load_statuses()` from JSON, plus content validation for references, positions, target legality, and status-shape correctness.
 - `src/logger.rs` — `BattleEvent` and `BattleLog`, including replay-schema JSON export and human-readable replay formatting grouped by `tick_count`.

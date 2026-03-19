@@ -66,7 +66,7 @@ The code and sample data now use this terminology. Remaining references should b
 
 These are real design questions but not yet settled enough to be part of the core spec:
 
-- exact MP regeneration rate
+- exact `Rest` recovery rate
 - final SPD curve and escalation tuning
 - exact stat point budgets and adjustment caps
 - exact team point budget size
@@ -76,25 +76,6 @@ These are real design questions but not yet settled enough to be part of the cor
 ## Future Design Ideas
 
 These are intentionally not part of the core game spec yet.
-
-### Rest as Default Action
-
-Alternative to basic attacks as the fallback action:
-
-- if no rule fires, the character `Rests`
-- `Rest` restores `floor(WIL / 2)` MP
-
-Potential upside:
-
-- makes failed rule matches less mindless
-- creates natural charge-and-burst pacing
-- gives expensive loadouts a clearer identity
-
-Potential downside:
-
-- slows battle pace
-- reduces baseline pressure
-- requires a larger rebalance of ability costs and action expectations
 
 ### Additional or Revised Stats
 

@@ -59,7 +59,7 @@ The current intended base stat set is:
 - `ARM` — physical defense
 - `RES` — magical defense
 - `SPD` — speed
-- `WIL` — will; determines MP pool size and MP regeneration
+- `WIL` — will; determines MP pool size and Rest recovery
 
 These are the intended v1 stat names and roles.
 
@@ -71,8 +71,9 @@ Conceptually, the long-term design likely lands on much larger total stat budget
 - the current prototype uses `HP = 2 * VIT` as a working model
 - `MP` = spendable battle resource used to cast abilities
 - characters begin battle with `MP = WIL`
-- characters regenerate MP at the end of their own turns
-- current intended regeneration rate is `floor(WIL / 2)` as a placeholder rate, though this will likely change during balance tuning
+- characters do not passively regain MP between turns
+- every character has a default `Rest` action
+- `Rest` restores `floor(WIL / 2)` MP
 
 `WIL` is the base stat. `MP` is the runtime resource.
 
@@ -123,8 +124,7 @@ Each character turn resolves in this order:
 3. if the character is stunned, it skips its action; otherwise it evaluates rules and acts
 4. death resolution completes for anything killed by that turn
 5. end-of-turn effects resolve
-6. MP regeneration resolves
-7. speed reset and escalation resolve
+6. speed reset and escalation resolve
 
 ## Targeting
 
@@ -236,7 +236,7 @@ Rules answer only one question:
 
 - should this ability be used right now
 
-If the first rule's conditions are met and the character has enough MP to pay the cost, that ability is used. Otherwise the next rule is checked. If no rule is satisfied, the character uses a basic attack against its sticky target.
+If the first rule's conditions are met and the character has enough MP to pay the cost, that ability is used. Otherwise the next rule is checked. If no rule is satisfied, the character uses `Rest`.
 
 ### Rule Condition Groups
 
@@ -292,14 +292,17 @@ Rules do not observe half-resolved action states.
 
 ## Combat Actions
 
+### Rest
+
+- every character has a default `Rest` action
+- `Rest` restores `floor(WIL / 2)` MP
+- `Rest` is the fallback action when no rule is satisfied
+
 ### Basic Attacks
 
-- basic attacks use the actor's sticky target
-- physical basic attacks use `MGT` against `ARM`
-- magical basic attacks use `MAG` against `RES`
-- fallback action is currently a basic attack
-
-The idea of replacing basic attacks with a `Rest` action remains a future design option, not part of the current spec.
+- attacks are expected to come primarily from active abilities rather than a universal fallback attack
+- when a character makes an attack, physical attacks use `MGT` against `ARM`
+- when a character makes an attack, magical attacks use `MAG` against `RES`
 
 ### Active Abilities
 
@@ -580,7 +583,7 @@ If a character is stunned when its turn arrives:
 - it skips its action
 - its speed counter still resets normally
 - the normal escalation still applies
-- end-of-turn effects still occur normally, including MP regeneration and other turn processing
+- end-of-turn effects still occur normally, including other turn processing
 
 Stun denies actions. It does not freeze the speed system.
 

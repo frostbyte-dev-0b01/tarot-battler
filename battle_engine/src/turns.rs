@@ -2,8 +2,7 @@
 
 use rand::rngs::StdRng;
 
-use crate::abilities::{AbilityMap, AbilityDef, DamageRecord, execute_ability};
-use crate::damage::calc_basic_attack_damage;
+use crate::abilities::{AbilityDef, AbilityMap, DamageRecord, execute_ability};
 use crate::logger::{BattleEvent, BattleLog};
 use crate::models::{CharacterState, Stat};
 use crate::rules::{WorldState, evaluate_rules};
@@ -36,25 +35,13 @@ impl<'a> TurnRuntime<'a> {
     }
 }
 
-pub(crate) struct TurnStart {
-    pub actor_id: u32,
-    pub actor_name: String,
-}
-
 pub(crate) fn log_turn_start(
     runtime: &mut TurnRuntime<'_>,
     actor_team: &[CharacterState],
     actor_idx: usize,
-) -> TurnStart {
+) {
     let actor = &actor_team[actor_idx];
-    let actor_id = actor.id();
-    let actor_name = actor.base_name().to_string();
     runtime.log.push_turn_start(runtime.step, actor);
-
-    TurnStart {
-        actor_id,
-        actor_name,
-    }
 }
 
 pub(crate) fn log_turn_skipped(
@@ -151,36 +138,14 @@ pub(crate) fn execute_ability_action(
     (event_start, damage_dealt)
 }
 
-pub(crate) fn execute_basic_attack_action(
+pub(crate) fn execute_rest_action(
     runtime: &mut TurnRuntime<'_>,
     actor_idx: usize,
-    actor_id: u32,
-    actor_name: String,
-    target_id: u32,
     actor_team: &mut [CharacterState],
-    enemy_team: &mut [CharacterState],
-) -> Vec<DamageRecord> {
-    let target_idx = enemy_team.iter().position(|c| c.id() == target_id).unwrap();
-    let damage = calc_basic_attack_damage(&actor_team[actor_idx], &enemy_team[target_idx], runtime.rng);
-    let damage = enemy_team[target_idx].take_hit(damage);
-    let target_name = enemy_team[target_idx].base_name().to_string();
-    let hp_remaining = enemy_team[target_idx].current_hp();
-
-    runtime.log.push(BattleEvent::BasicAttack {
-        tick_count: runtime.step,
-        actor_id,
-        actor_name,
-        target_id,
-        target_name,
-        damage,
-        target_hp_remaining: hp_remaining,
-    });
-
-    vec![DamageRecord {
-        source_id: actor_id,
-        target_id,
-        damage,
-    }]
+) {
+    let restored = actor_team[actor_idx].get_base_stat(&Stat::WIL) / 2;
+    actor_team[actor_idx].restore_mp(restored);
+    runtime.log.push_rest(runtime.step, &actor_team[actor_idx], restored);
 }
 
 pub(crate) fn finish_turn(

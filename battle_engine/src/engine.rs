@@ -378,7 +378,7 @@ impl BattleState {
             return;
         }
 
-        let turn_start = {
+        {
             let mut runtime = TurnRuntime::new(
                 &self.abilities,
                 &self.status_defs,
@@ -386,8 +386,8 @@ impl BattleState {
                 &mut self.log,
                 self.step,
             );
-            turns::log_turn_start(&mut runtime, actor_team, actor_idx)
-        };
+            turns::log_turn_start(&mut runtime, actor_team, actor_idx);
+        }
 
         // Incapacitate check happens after start-of-turn passives and status ticks.
         if actor_team[actor_idx].is_incapacitated() {
@@ -470,34 +470,16 @@ impl BattleState {
             return;
         }
 
-        // Fallback: basic attack
-        let (actor_team, enemy_team) =
-            Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        let damage_dealt = {
-            let mut runtime = TurnRuntime::new(
-                &self.abilities,
-                &self.status_defs,
-                &mut self.rng,
-                &mut self.log,
-                self.step,
-            );
-            turns::execute_basic_attack_action(
-                &mut runtime,
-                actor_idx,
-                turn_start.actor_id,
-                turn_start.actor_name,
-                target_id,
-                actor_team,
-                enemy_team,
-            )
-        };
-        self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
-
-        // Reassign target if dead
-        let (actor_team, enemy_team) =
-            Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng);
-
+        // Fallback: Rest
+        let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+        let mut runtime = TurnRuntime::new(
+            &self.abilities,
+            &self.status_defs,
+            &mut self.rng,
+            &mut self.log,
+            self.step,
+        );
+        turns::execute_rest_action(&mut runtime, actor_idx, actor_team);
         self.finish_turn(actor_idx, is_team_a);
     }
 
@@ -1354,7 +1336,11 @@ mod tests {
         let unique_actors: std::collections::HashSet<u32> = events
             .iter()
             .filter_map(|e| match e {
-                BattleEvent::BasicAttack { actor_id, .. } => Some(*actor_id),
+                BattleEvent::AbilityUsed {
+                    actor_id,
+                    ability_name,
+                    ..
+                } if ability_name == "Strike" => Some(*actor_id),
                 _ => None,
             })
             .collect();
@@ -1600,7 +1586,7 @@ mod tests {
     }
 
     fn test_abilities() -> AbilityMap {
-        let mut map = HashMap::new();
+        let mut map = empty_abilities();
         map.insert("Crush".to_string(), crush_ability());
         map.insert("Embolden".to_string(), embolden_ability());
         map
@@ -1691,8 +1677,8 @@ mod tests {
     }
 
     #[test]
-    fn emperor_falls_back_to_basic_attack_when_spi_exhausted() {
-        // Emperor with only 2 max MP from WIL — can Crush once, then basic attacks
+    fn emperor_rests_when_mp_exhausted() {
+        // Emperor with only 2 max MP from WIL — can Crush once, then Rest
         let mut emperor = emperor_config();
         emperor.stats.insert(Stat::WIL, 2);
 
@@ -1729,26 +1715,26 @@ mod tests {
                 )
             })
             .count();
-        let basic_count = events
+        let rest_count = events
             .iter()
             .filter(|e| {
                 matches!(e,
-                    BattleEvent::BasicAttack { actor_id, .. } if *actor_id == 0
+                    BattleEvent::Rest { actor_id, .. } if *actor_id == 0
                 )
             })
             .count();
 
         assert!(crush_count >= 1, "Should use Crush at least once");
         assert!(
-            basic_count >= 1,
-            "Should fall back to basic attack when MP runs out"
+            rest_count >= 1,
+            "Should fall back to Rest when MP runs out"
         );
     }
 
     #[test]
-    fn characters_without_rules_only_basic_attack() {
-        // Two characters with no rules — should only produce BasicAttack events
-        let a = make_config(
+    fn characters_without_rules_rest() {
+        // Two characters with no rules — should Rest instead of attacking.
+        let mut a = make_config(
             "A",
             0,
             vec![
@@ -1761,7 +1747,9 @@ mod tests {
                 (Stat::WIL, 5),
             ],
         );
-        let b = make_config(
+        a.actives.clear();
+        a.rules.clear();
+        let mut b = make_config(
             "B",
             0,
             vec![
@@ -1774,6 +1762,8 @@ mod tests {
                 (Stat::WIL, 5),
             ],
         );
+        b.actives.clear();
+        b.rules.clear();
 
         let log = BattleState::new(
             &[a],
@@ -1788,9 +1778,19 @@ mod tests {
             .events()
             .iter()
             .any(|e| matches!(e, BattleEvent::AbilityUsed { .. }));
+        let has_rest = log.events().iter().any(|e| matches!(e, BattleEvent::Rest { .. }));
+        let has_basic = log
+            .events()
+            .iter()
+            .any(|e| matches!(e, BattleEvent::BasicAttack { .. }));
         assert!(
             !has_ability,
             "Characters without rules should not use abilities"
+        );
+        assert!(has_rest, "Characters without rules should Rest");
+        assert!(
+            !has_basic,
+            "Characters without rules should not produce fallback basic attacks"
         );
     }
 

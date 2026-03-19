@@ -2,13 +2,25 @@
 
 use std::collections::HashMap;
 
-use crate::abilities::{AbilityMap, PassiveMap};
+use crate::abilities::{AbilityDef, AbilityMap, PassiveMap, Primitive, SimpleAbilityTarget};
 use crate::engine::BattleState;
-use crate::models::{CharacterConfig, CharacterState, Position, Stat};
+use crate::models::{CharacterConfig, CharacterState, Condition, Position, Rule, Stat};
 use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusMap};
 
 pub fn empty_abilities() -> AbilityMap {
-    HashMap::new()
+    let mut map = HashMap::new();
+    map.insert(
+        "Strike".to_string(),
+        AbilityDef {
+            mp_cost: 1,
+            primitives: vec![Primitive::DealPhysicalDamage {
+                target: SimpleAbilityTarget::CurrentTarget.into(),
+                multiplier: 1.0,
+                double_empower_stat: None,
+            }],
+        },
+    );
+    map
 }
 
 pub fn empty_passives() -> PassiveMap {
@@ -95,11 +107,14 @@ pub fn make_config_at(name: &str, row: u8, col: u8, stats: Vec<(Stat, u32)>) -> 
         base_name: name.to_string(),
         display_name: None,
         passive: String::new(),
-        actives: Vec::new(),
+        actives: vec!["Strike".to_string()],
         item: None,
         position: Position { row, col },
         stats: stats.into_iter().collect(),
-        rules: Vec::new(),
+        rules: vec![Rule {
+            ability: "Strike".to_string(),
+            conditions: Vec::<Condition>::new(),
+        }],
     }
 }
 

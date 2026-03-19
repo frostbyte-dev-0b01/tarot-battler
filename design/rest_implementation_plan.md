@@ -60,6 +60,12 @@ Result:
 - only explicit attack effects and active abilities generate attacks
 - fallback behavior matches the current game spec
 
+Status:
+
+- completed
+- the battle loop now falls back to `Rest`
+- test fixtures now use an explicit `Strike` ability instead of relying on removed implicit attacks
+
 ### Stage 3: Remove Passive End-of-Turn MP Regeneration
 
 Remove automatic MP restoration at end of turn.
@@ -86,5 +92,4 @@ After each stage:
 ## Notes
 
 - `basic_attack` replay events should remain for commanded attacks and any future explicit attack effects
-- `damage.rs` can remain, since the engine still needs standard attack damage resolution for commanded attacks
 - once this plan is complete, the prototype and the design docs should match on the fallback/resource model

@@ -12,7 +12,7 @@ pub struct WorldState {
 
 /// Evaluate the actor's rules in order. Returns the name of the first ability
 /// whose conditions are all met AND whose MP cost the actor can afford.
-/// Returns None if no rule matches (caller should fall back to basic attack).
+/// Returns None if no rule matches (caller should fall back to Rest).
 pub fn evaluate_rules(
     actor: &CharacterState,
     target: Option<&CharacterState>,
