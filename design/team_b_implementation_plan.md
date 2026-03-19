@@ -280,6 +280,10 @@ Long-term note:
 
 ## Phase 5: Tick-Limited Ally-Event Passives
 
+Status:
+
+- implemented
+
 ### Goal
 
 Support "first time each tick" limits on passive triggers.
@@ -294,20 +298,11 @@ Add lightweight per-tick passive trigger tracking for a passive owner, such as:
 
 - passive trigger fired this tick
 
-Recommended v1:
+Implemented result:
 
-- keep it simple and scoped to passive triggers
-- reset tracking each world tick
-- allow `Catalyst` to state its once-per-tick limit in data if possible
-
-Alternative:
-
-- defer the generic limiter and encode `Catalyst` as an uncapped trigger for the first prototype
-
-Recommendation:
-
-- if the generic limiter is small, add it now
-- otherwise, ship `Catalyst` uncapped first and treat the cap as a tuning pass
+- triggered passives now support `once_per_tick` in data
+- the battle engine tracks passive firings by owner, passive name, and tick
+- this is sufficient to cap `Catalyst` cleanly without affecting unrelated passives
 
 ### Tests
 

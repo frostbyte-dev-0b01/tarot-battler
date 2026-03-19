@@ -27,6 +27,7 @@ pub struct BattleState {
     log: BattleLog,
     rng: StdRng,
     in_passive_phase: bool,
+    passive_fired_this_tick: HashSet<(u32, String, u32)>,
 }
 
 impl BattleState {
@@ -63,6 +64,7 @@ impl BattleState {
             log: BattleLog::new(),
             rng,
             in_passive_phase: false,
+            passive_fired_this_tick: HashSet::new(),
         };
         state.assign_companions();
         state.assign_all_targets();
@@ -224,6 +226,7 @@ impl BattleState {
             PassiveDef::Triggered {
                 trigger,
                 primitives,
+                ..
             } if std::mem::discriminant(trigger) == std::mem::discriminant(expected) => {
                 let char_id = actor_team[idx].id();
                 let char_name = actor_team[idx].base_name().to_string();
@@ -348,6 +351,34 @@ impl BattleState {
             Some(def) => def,
             None => return Vec::new(),
         };
+
+        if matches!(
+            &passive_def,
+            PassiveDef::Triggered {
+                once_per_tick: true,
+                ..
+            }
+        ) {
+            let owner_id = {
+                let (actor_team, _) = if actor_team_is_a {
+                    (
+                        &mut self.team_a as &mut [CharacterState],
+                        &mut self.team_b as &mut [CharacterState],
+                    )
+                } else {
+                    (
+                        &mut self.team_b as &mut [CharacterState],
+                        &mut self.team_a as &mut [CharacterState],
+                    )
+                };
+                actor_team[char_idx].id()
+            };
+            let key = (owner_id, passive_name.clone(), self.step);
+            if self.passive_fired_this_tick.contains(&key) {
+                return Vec::new();
+            }
+            self.passive_fired_this_tick.insert(key);
+        }
 
         self.in_passive_phase = true;
         let damage_dealt = {
@@ -1106,6 +1137,7 @@ mod tests {
             "Pursuit".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnAllyDamageMyTarget,
+                once_per_tick: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -1175,6 +1207,7 @@ mod tests {
             "Pursuit".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnAllyDamageMyTarget,
+                once_per_tick: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -1270,6 +1303,7 @@ mod tests {
             "Catalyst".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnAllyApplyOmen,
+                once_per_tick: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::TriggerTarget.into(),
                     status: "Omen".to_string(),
@@ -1298,6 +1332,92 @@ mod tests {
             0,
             "Hex",
             battle.abilities.get("Hex").unwrap(),
+            &mut battle.team_a,
+            &mut battle.team_b,
+            &mut battle.rng,
+            &mut battle.log,
+            1,
+            &battle.status_defs,
+        );
+        battle.process_status_application_events(event_start, true);
+
+        assert_eq!(battle.team_b[0].status_stacks("Omen"), 3);
+    }
+
+    #[test]
+    fn once_per_tick_passive_only_fires_once_for_multiple_omen_applications() {
+        let mut moon = make_config_at(
+            "Moon",
+            0,
+            0,
+            vec![(Stat::MAG, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
+        );
+        moon.actives = vec!["DoubleHex".to_string()];
+        let mut magician = make_config_at(
+            "Magician",
+            0,
+            1,
+            vec![(Stat::MAG, 6), (Stat::VIT, 10), (Stat::WIL, 5)],
+        );
+        magician.passive = "Catalyst".to_string();
+        let enemy = make_config_at("Target", 0, 0, vec![(Stat::RES, 3), (Stat::VIT, 10)]);
+
+        let mut abilities = AbilityMap::new();
+        abilities.insert(
+            "DoubleHex".to_string(),
+            crate::abilities::AbilityDef {
+                mp_cost: 2,
+                primitives: vec![
+                    Primitive::ApplyStatus {
+                        target: SimpleAbilityTarget::CurrentTarget.into(),
+                        status: "Omen".to_string(),
+                        stat: None,
+                        stacks: 1,
+                    },
+                    Primitive::ApplyStatus {
+                        target: SimpleAbilityTarget::CurrentTarget.into(),
+                        status: "Omen".to_string(),
+                        stat: None,
+                        stacks: 1,
+                    },
+                ],
+            },
+        );
+
+        let mut passives = PassiveMap::new();
+        passives.insert(
+            "Catalyst".to_string(),
+            PassiveDef::Triggered {
+                trigger: PassiveTrigger::OnAllyApplyOmen,
+                once_per_tick: true,
+                primitives: vec![Primitive::ApplyStatus {
+                    target: SimpleAbilityTarget::TriggerTarget.into(),
+                    status: "Omen".to_string(),
+                    stat: None,
+                    stacks: 1,
+                }],
+            },
+        );
+
+        let statuses = [(
+            "Omen".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::DamagePerStack { value: 1 },
+                stack_type: StackType::TickDown,
+                opposes: None,
+            },
+        )]
+        .into_iter()
+        .collect();
+
+        let mut battle = BattleState::new(&[moon, magician], &[enemy], abilities, passives, statuses, 42);
+        battle.team_a[0].set_target(battle.team_b[0].id());
+
+        let event_start = battle.log.len();
+        execute_ability(
+            0,
+            "DoubleHex",
+            battle.abilities.get("DoubleHex").unwrap(),
             &mut battle.team_a,
             &mut battle.team_b,
             &mut battle.rng,
@@ -2408,6 +2528,7 @@ mod tests {
             "Meditation".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnTurnStart,
+                once_per_tick: false,
                 primitives: vec![Primitive::RestoreMp {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     amount: 1,
@@ -2498,6 +2619,7 @@ mod tests {
             "TestPassive".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnBattleStart,
+                once_per_tick: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -2576,6 +2698,7 @@ mod tests {
             "PowerUp".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnBattleStart,
+                once_per_tick: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -2886,6 +3009,7 @@ mod tests {
             "Collapse".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
+                once_per_tick: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
@@ -2974,6 +3098,7 @@ mod tests {
             "Barrier".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnBattleStart,
+                once_per_tick: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Ward".to_string(),
@@ -3115,6 +3240,7 @@ mod tests {
             "Meditation".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnTurnStart,
+                once_per_tick: false,
                 primitives: vec![Primitive::RestoreMp {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     amount: 1,
@@ -3180,6 +3306,7 @@ mod tests {
             "Momentum".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDealDamage,
+                once_per_tick: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -3262,6 +3389,7 @@ mod tests {
             "Vengeance".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnTakeDamage,
+                once_per_tick: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -3337,6 +3465,7 @@ mod tests {
             "Reaper".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnKill,
+                once_per_tick: false,
                 primitives: vec![Primitive::RestoreHp {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     amount: 5,
@@ -3406,6 +3535,7 @@ mod tests {
             "Collapse".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
+                once_per_tick: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
@@ -3477,6 +3607,7 @@ mod tests {
             "Collapse".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
+                once_per_tick: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
@@ -3567,6 +3698,7 @@ mod tests {
             "Collapse".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
+                once_per_tick: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 1.0,
@@ -3654,6 +3786,7 @@ mod tests {
             "Splash".to_string(),
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDealDamage,
+                once_per_tick: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     multiplier: 0.5,

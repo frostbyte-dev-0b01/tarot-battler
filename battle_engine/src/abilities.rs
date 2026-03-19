@@ -225,6 +225,8 @@ pub struct AuraStatEffect {
 pub enum PassiveDef {
     Triggered {
         trigger: PassiveTrigger,
+        #[serde(default)]
+        once_per_tick: bool,
         primitives: Vec<Primitive>,
     },
     Trait {
