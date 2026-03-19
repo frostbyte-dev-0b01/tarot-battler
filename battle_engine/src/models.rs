@@ -584,6 +584,30 @@ impl CharacterState {
         }
     }
 
+    pub fn remove_one_buff(&mut self) -> bool {
+        let selected = self
+            .statuses
+            .iter()
+            .filter(|(_, inst)| match inst.behavior {
+                StatusBehavior::HealPerStack { .. } | StatusBehavior::Ward => true,
+                StatusBehavior::StatModPerStack { magnitude } => magnitude > 0,
+                _ => false,
+            })
+            .max_by(|(left_key, left), (right_key, right)| {
+                left.stacks
+                    .cmp(&right.stacks)
+                    .then_with(|| left_key.cmp(right_key))
+            })
+            .map(|(key, inst)| (key.clone(), inst.stacks));
+
+        let Some((key, stacks)) = selected else {
+            return false;
+        };
+
+        self.remove_status(&key, stacks);
+        true
+    }
+
     /// Consume one stack of each skip-turn status after it actually prevents an action.
     pub fn consume_skip_turn_statuses(&mut self) {
         self.statuses.retain(|_, inst| match inst.behavior {

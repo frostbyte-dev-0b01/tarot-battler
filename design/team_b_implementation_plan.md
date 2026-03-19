@@ -95,6 +95,7 @@ Additional bridge capability discovered during implementation:
 - this is currently used for effects like `Transmute` and the simplified `Sentence`
 - long-term, if conditional ability composition expands, this may want a broader condition-wrapper system
 - `Foreboding` also wants per-target `on_deal_damage` context, not just a source-level trigger
+- `Distill` wants a generic enemy buff dispel instead of a hard-coded status list
 
 ## Design Decisions To Preserve
 
@@ -411,6 +412,36 @@ Implemented result:
 
 - an `on_deal_damage` passive can apply a status to `trigger_target`
 - multi-target damage can trigger that passive separately for each damaged enemy
+
+## Phase 6C: Generic Enemy Buff Dispel
+
+Status:
+
+- implemented
+
+### Goal
+
+Support abilities that remove one buff from an enemy without encoding a specific status list in content.
+
+### Needed for
+
+- `Distill`
+
+### Implementation
+
+Add a primitive:
+
+- `remove_one_buff`
+
+Implemented result:
+
+- the primitive resolves enemy targets and removes the single highest-stack buff from each one
+- this keeps `Distill` shareable and data-driven instead of baking Team A-specific buffs into Team B content
+
+### Tests
+
+- dispel removes one buff from the target
+- when multiple buffs exist, the highest-stack buff is removed first
 
 ## Phase 7: Data Integration
 

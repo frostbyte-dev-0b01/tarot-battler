@@ -435,6 +435,15 @@ fn validate_primitives(
                     ));
                 }
             }
+            Primitive::RemoveOneBuff { target } => {
+                if !is_enemy_target(target) {
+                    errors.push(format!(
+                        "{} removes a buff from invalid target side '{}'",
+                        source_name,
+                        target_label(target),
+                    ));
+                }
+            }
             Primitive::IfTargetHasStatus {
                 target,
                 status,

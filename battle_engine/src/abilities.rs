@@ -176,6 +176,9 @@ pub enum Primitive {
         stat: Option<Stat>,
         stacks: u32,
     },
+    RemoveOneBuff {
+        target: AbilityTarget,
+    },
     Retarget {
         target: AbilityTarget,
         mode: RetargetMode,
@@ -572,6 +575,19 @@ pub fn execute_primitives(
                     for tidx in target_indices {
                         actor_team[tidx].remove_status(&key, *stacks);
                     }
+                }
+            }
+            Primitive::RemoveOneBuff { target } => {
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    actor_team,
+                    enemy_team,
+                    _rng,
+                    trigger_target_id,
+                );
+                for tidx in target_indices {
+                    enemy_team[tidx].remove_one_buff();
                 }
             }
             Primitive::Retarget {
@@ -1813,6 +1829,43 @@ mod tests {
         );
 
         assert_eq!(actor_team[0].current_mp(), 1);
+    }
+
+    #[test]
+    fn remove_one_buff_removes_highest_stack_buff() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::ARM, 3)])];
+        actor_team[0].set_target(1);
+
+        let empower = statuses.get("Empower").unwrap();
+        let ward = statuses.get("Ward").unwrap();
+        enemy_team[0].add_status("Empower:MGT", 3, 99, empower, Some(Stat::MGT));
+        enemy_team[0].add_status("Ward", 1, 99, ward, None);
+
+        let ability = AbilityDef {
+            mp_cost: 2,
+            primitives: vec![Primitive::RemoveOneBuff {
+                target: SimpleAbilityTarget::CurrentTarget.into(),
+            }],
+        };
+
+        execute_ability(
+            0,
+            "Distill",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        assert_eq!(enemy_team[0].status_stacks("Empower:MGT"), 0);
+        assert_eq!(enemy_team[0].status_stacks("Ward"), 1);
     }
 
     #[test]
