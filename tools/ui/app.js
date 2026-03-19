@@ -1946,40 +1946,72 @@ function formatEventType(type) {
   return type.replaceAll("_", " ");
 }
 
+function getReplayCharacterName(characterId) {
+  if (!appState.replay || !characterId) {
+    return null;
+  }
+
+  for (const team of Object.values(appState.replay.teams ?? {})) {
+    const match = team.characters.find((character) => character.id === characterId);
+    if (match) {
+      return match.display_name || match.id || null;
+    }
+  }
+
+  return null;
+}
+
+function formatCharacterLabel(characterId, fallbackName) {
+  return fallbackName || getReplayCharacterName(characterId) || characterId || "Unknown";
+}
+
+function formatWinnerLabel(winner) {
+  if (!appState.replay || !winner) {
+    return winner || "no one";
+  }
+
+  const team = appState.replay.teams?.[winner];
+  return team?.name || winner;
+}
+
 function formatTimelineText(event) {
   switch (event.type) {
     case "battle_start":
       return "Battle starts.";
     case "turn_start":
-      return `${event.actor_id ?? "Unknown"} begins a turn at ${event.current_hp ?? "?"} HP and ${event.current_mp ?? "?"} MP.`;
+      return `${formatCharacterLabel(event.actor_id, event.actor_name)} begins a turn at ${event.current_hp ?? "?"} HP and ${event.current_mp ?? "?"} MP.`;
     case "basic_attack":
-      return `${event.actor_id ?? "Unknown"} attacks ${event.target_id ?? "Unknown"} with a ${event.damage_kind ?? "basic"} hit.`;
+      return `${formatCharacterLabel(event.actor_id, event.actor_name)} attacks ${formatCharacterLabel(event.target_id, event.target_name)} with a ${event.damage_kind ?? "basic"} hit.`;
     case "ability_used":
-      return `${event.actor_id ?? "Unknown"} uses ${event.ability ?? "an ability"} for ${event.mp_cost ?? "?"} MP.`;
+      return `${formatCharacterLabel(event.actor_id, event.actor_name)} uses ${event.ability ?? "an ability"} for ${event.mp_cost ?? "?"} MP.`;
     case "damage":
-      return `${event.source_id ?? "Unknown"} deals ${event.amount ?? "?"} ${event.damage_kind ?? ""} damage to ${event.target_id ?? "Unknown"}.`;
+      return `${formatCharacterLabel(event.source_id, event.source_name)} deals ${event.amount ?? "?"} ${event.damage_kind ?? ""} damage to ${formatCharacterLabel(event.target_id, event.target_name)}.`;
     case "healing":
-      return `${event.source_id ?? "Unknown"} restores ${event.amount ?? "?"} HP to ${event.target_id ?? "Unknown"}.`;
+      return `${formatCharacterLabel(event.source_id, event.source_name)} restores ${event.amount ?? "?"} HP to ${formatCharacterLabel(event.target_id, event.target_name)}.`;
     case "status_applied":
-      return `${event.target_id ?? "Unknown"} gains ${event.status ?? "a status"} (${event.stacks_after ?? "?"} stacks).`;
+      return `${formatCharacterLabel(event.target_id, event.target_name)} gains ${event.status ?? "a status"} (${event.stacks_after ?? "?"} stacks).`;
     case "status_removed":
-      return `${event.target_id ?? "Unknown"} loses ${event.status ?? "a status"} (${event.stacks_after ?? 0} stacks remain).`;
+      return `${formatCharacterLabel(event.target_id, event.target_name)} loses ${event.status ?? "a status"} (${event.stacks_after ?? 0} stacks remain).`;
     case "status_tick":
-      return `${event.target_id ?? "Unknown"} resolves ${event.status ?? "a status"} for ${event.amount ?? "?"} ${event.kind ?? "effect"}.`;
+      return `${formatCharacterLabel(event.target_id, event.target_name)} resolves ${event.status ?? "a status"} for ${event.amount ?? "?"} ${event.kind ?? "effect"}.`;
     case "passive_triggered":
-      return `${event.actor_id ?? "Unknown"} triggers ${event.passive ?? "a passive"} on ${event.trigger ?? "an event"}.`;
+      return `${formatCharacterLabel(event.actor_id, event.actor_name)} triggers ${event.passive ?? "a passive"} on ${event.trigger ?? "an event"}.`;
     case "turn_skipped":
-      return `${event.actor_id ?? "Unknown"} skips a turn because of ${event.reason ?? "an effect"}.`;
+      return `${formatCharacterLabel(event.actor_id, event.actor_name)} skips a turn because of ${event.reason ?? "an effect"}.`;
     case "resource_changed":
-      return `${event.actor_id ?? "Unknown"} ${event.delta >= 0 ? "gains" : "spends"} ${Math.abs(event.delta ?? 0)} ${event.resource ?? "resource"}.`;
+      return `${formatCharacterLabel(event.actor_id, event.actor_name)} ${event.delta >= 0 ? "gains" : "spends"} ${Math.abs(event.delta ?? 0)} ${event.resource ?? "resource"}.`;
     case "retargeted":
-      return `${event.actor_id ?? "Unknown"} retargets to ${event.new_target_id ?? "no target"} (${event.mode ?? "retarget"}).`;
+      return `${formatCharacterLabel(event.actor_id ?? event.character_id, event.actor_name ?? event.character_name)} retargets to ${
+        event.new_target_id || event.new_target_name
+          ? formatCharacterLabel(event.new_target_id, event.new_target_name)
+          : "no target"
+      } (${event.mode ?? "retarget"}).`;
     case "moved":
-      return `${event.actor_id ?? "Unknown"} moves to row ${event.to_row ?? "?"}, col ${event.to_col ?? "?"}.`;
+      return `${formatCharacterLabel(event.actor_id ?? event.character_id, event.actor_name ?? event.character_name)} moves to row ${event.to_row ?? "?"}, col ${event.to_col ?? "?"}.`;
     case "defeat":
-      return `${event.actor_id ?? "Unknown"} is defeated.`;
+      return `${formatCharacterLabel(event.actor_id, event.actor_name)} is defeated.`;
     case "battle_end":
-      return `Battle ends with ${event.winner ?? "no one"} winning.`;
+      return `Battle ends with ${formatWinnerLabel(event.winner)} winning.`;
     default:
       return JSON.stringify(event);
   }
