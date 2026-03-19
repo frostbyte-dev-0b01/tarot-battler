@@ -150,6 +150,7 @@ pub(crate) fn target_is_enemy_side(target: &AbilityTarget) -> bool {
 
 pub(crate) fn retarget_filter_matches(
     target: &CharacterState,
+    actor: &CharacterState,
     filter: Option<&RetargetFilter>,
 ) -> bool {
     match filter {
@@ -157,6 +158,10 @@ pub(crate) fn retarget_filter_matches(
         Some(RetargetFilter::PhysicalAttackers) => {
             target.get_eff_stat(&Stat::MGT) > target.get_eff_stat(&Stat::MAG)
         }
+        Some(RetargetFilter::TargetingSelf) => target.target() == Some(actor.id()),
+        Some(RetargetFilter::TargetingCompanion) => target
+            .target()
+            .is_some_and(|target_id| actor.companions().contains(&target_id)),
     }
 }
 

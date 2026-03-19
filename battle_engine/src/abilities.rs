@@ -93,6 +93,8 @@ pub enum RetargetMode {
 #[serde(rename_all = "snake_case")]
 pub enum RetargetFilter {
     PhysicalAttackers,
+    TargetingSelf,
+    TargetingCompanion,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -765,7 +767,11 @@ pub fn execute_primitives_with_context(
                 };
                 for tidx in target_indices {
                     if !ctx.enemy_team[tidx].is_alive()
-                        || !retarget_filter_matches(&ctx.enemy_team[tidx], filter.as_ref())
+                        || !retarget_filter_matches(
+                            &ctx.enemy_team[tidx],
+                            &ctx.actor_team[actor_idx],
+                            filter.as_ref(),
+                        )
                     {
                         continue;
                     }

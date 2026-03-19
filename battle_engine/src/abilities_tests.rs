@@ -1338,6 +1338,92 @@ fn default_retarget_uses_normal_target_selection() {
 }
 
 #[test]
+fn retarget_to_self_only_affects_enemies_targeting_companions() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let mut actor_team = vec![
+        make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10)]),
+    ];
+    actor_team[0].set_companions(vec![1]);
+    actor_team[1].set_companions(vec![0]);
+
+    let mut enemy_team = vec![
+        make_adjacent_char(10, 0, 2, vec![(Stat::MGT, 7), (Stat::VIT, 10)]),
+        make_adjacent_char(11, 1, 2, vec![(Stat::MGT, 7), (Stat::VIT, 10)]),
+    ];
+    enemy_team[0].set_target(1);
+    enemy_team[1].set_target(0);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::Retarget {
+            target: SimpleAbilityTarget::AllEnemies.into(),
+            mode: RetargetMode::ToSelf,
+            filter: Some(RetargetFilter::TargetingCompanion),
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Interpose",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+
+    assert_eq!(enemy_team[0].target(), Some(0));
+    assert_eq!(enemy_team[1].target(), Some(0));
+}
+
+#[test]
+fn retarget_to_companion_only_affects_enemies_targeting_self() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let mut actor_team = vec![
+        make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10)]),
+    ];
+    actor_team[0].set_companions(vec![1]);
+    actor_team[1].set_companions(vec![0]);
+
+    let mut enemy_team = vec![
+        make_adjacent_char(10, 0, 2, vec![(Stat::MGT, 7), (Stat::VIT, 10)]),
+        make_adjacent_char(11, 1, 2, vec![(Stat::MGT, 7), (Stat::VIT, 10)]),
+    ];
+    enemy_team[0].set_target(0);
+    enemy_team[1].set_target(1);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::Retarget {
+            target: SimpleAbilityTarget::AllEnemies.into(),
+            mode: RetargetMode::ToCompanion,
+            filter: Some(RetargetFilter::TargetingSelf),
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Decoy",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+
+    assert_eq!(enemy_team[0].target(), Some(1));
+    assert_eq!(enemy_team[1].target(), Some(1));
+}
+
+#[test]
 fn command_attack_uses_highest_str_living_companion() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();

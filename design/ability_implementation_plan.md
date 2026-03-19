@@ -106,6 +106,12 @@ This stage unlocks:
 - `Interpose`
 - `Decoy`
 
+Status:
+
+- completed
+- retarget filters now support enemies targeting the user
+- retarget filters now support enemies targeting the user's companions
+
 ### Stage 5: Data Integration
 
 Add the new abilities to:
