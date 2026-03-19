@@ -94,6 +94,7 @@ Additional bridge capability discovered during implementation:
 - the engine now supports this through an `if_target_has_status` primitive wrapper
 - this is currently used for effects like `Transmute` and the simplified `Sentence`
 - long-term, if conditional ability composition expands, this may want a broader condition-wrapper system
+- `Foreboding` also wants per-target `on_deal_damage` context, not just a source-level trigger
 
 ## Design Decisions To Preserve
 
@@ -381,6 +382,35 @@ Implemented result:
 - nested primitives execute when the target has the named status
 - nested primitives do not execute when the target lacks the status
 - nested primitives still participate in normal validation
+
+## Phase 6B: Target-Aware On-Deal-Damage Trigger Context
+
+Status:
+
+- implemented
+
+### Goal
+
+Allow `on_deal_damage` passives to target the specific enemy that was just damaged.
+
+### Needed for
+
+- `Foreboding`
+
+### Implementation
+
+Adjust `on_deal_damage` resolution so it fires once per positive-damage record and passes the damaged enemy through `trigger_target`.
+
+Implemented result:
+
+- `on_deal_damage` now carries per-target context
+- passives can use `trigger_target` to affect every enemy actually hit by a multi-target attack
+- loader validation also recognizes `current_target_and_companions` as a valid enemy-side target for status application and conditional checks
+
+### Tests
+
+- an `on_deal_damage` passive can apply a status to `trigger_target`
+- multi-target damage can trigger that passive separately for each damaged enemy
 
 ## Phase 7: Data Integration
 

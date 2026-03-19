@@ -506,6 +506,7 @@ fn is_enemy_target(target: &AbilityTarget) -> bool {
     matches!(
         target,
         AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget)
+            | AbilityTarget::Simple(SimpleAbilityTarget::CurrentTargetAndCompanions)
             | AbilityTarget::Simple(SimpleAbilityTarget::TriggerTarget)
             | AbilityTarget::Simple(SimpleAbilityTarget::FrontRow)
             | AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies)

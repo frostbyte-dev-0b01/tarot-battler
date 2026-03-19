@@ -726,7 +726,6 @@ impl BattleState {
             return;
         }
 
-        let mut any_damage_by_source: HashSet<u32> = HashSet::new();
         let mut damaged_enemy_indices: HashSet<usize> = HashSet::new();
         let mut defeated_enemy_indices: HashSet<usize> = HashSet::new();
         let mut kills_by_source: Vec<(u32, usize)> = Vec::new();
@@ -736,9 +735,6 @@ impl BattleState {
             let (actor_team, enemy_team) =
                 Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
             for record in damage_dealt {
-                if record.damage > 0 {
-                    any_damage_by_source.insert(record.source_id);
-                }
                 if let Some(eidx) = enemy_team.iter().position(|c| c.id() == record.target_id) {
                     if record.damage > 0 {
                         damaged_enemy_indices.insert(eidx);
@@ -787,11 +783,18 @@ impl BattleState {
             }
         }
 
-        for source_id in any_damage_by_source {
+        for record in damage_dealt.iter().filter(|record| record.damage > 0) {
             let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            if let Some(source_idx) = actor_team.iter().position(|c| c.id() == source_id && c.is_alive())
+            if let Some(source_idx) = actor_team
+                .iter()
+                .position(|c| c.id() == record.source_id && c.is_alive())
             {
-                self.try_fire_passive(source_idx, &PassiveTrigger::OnDealDamage, is_team_a);
+                self.try_fire_passive_with_target(
+                    source_idx,
+                    &PassiveTrigger::OnDealDamage,
+                    is_team_a,
+                    Some(record.target_id),
+                );
             }
         }
 
@@ -3348,6 +3351,106 @@ mod tests {
             passive_count >= 1,
             "on_deal_damage should fire when dealing damage"
         );
+    }
+
+    #[test]
+    fn on_deal_damage_passes_target_context_to_trigger_target() {
+        use crate::abilities::{PassiveDef, PassiveTrigger};
+        use crate::statuses::{StackType, StatusBehavior, StatusDef};
+
+        let mut attacker = make_config(
+            "Moon",
+            0,
+            vec![
+                (Stat::VIT, 20),
+                (Stat::MGT, 3),
+                (Stat::MAG, 8),
+                (Stat::ARM, 3),
+                (Stat::RES, 4),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
+            ],
+        );
+        attacker.passive = "Foreboding".to_string();
+        attacker.actives = vec!["Eclipse".to_string()];
+        attacker.rules = vec![Rule {
+            ability: "Eclipse".to_string(),
+            conditions: vec![],
+        }];
+
+        let mut enemy_a = make_config(
+            "Enemy A",
+            0,
+            vec![
+                (Stat::VIT, 20),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 2),
+                (Stat::RES, 2),
+                (Stat::SPD, 4),
+                (Stat::WIL, 4),
+            ],
+        );
+        enemy_a.position = Position { row: 0, col: 0 };
+        let mut enemy_b = make_config(
+            "Enemy B",
+            0,
+            vec![
+                (Stat::VIT, 20),
+                (Stat::MGT, 4),
+                (Stat::MAG, 3),
+                (Stat::ARM, 2),
+                (Stat::RES, 2),
+                (Stat::SPD, 4),
+                (Stat::WIL, 4),
+            ],
+        );
+        enemy_b.position = Position { row: 0, col: 1 };
+
+        let mut abilities = AbilityMap::new();
+        abilities.insert(
+            "Eclipse".to_string(),
+            AbilityDef {
+                mp_cost: 1,
+                primitives: vec![Primitive::DealMagicalDamage {
+                    target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
+                    multiplier: 1.0,
+                }],
+            },
+        );
+
+        let mut passives: PassiveMap = HashMap::new();
+        passives.insert(
+            "Foreboding".to_string(),
+            PassiveDef::Triggered {
+                trigger: PassiveTrigger::OnDealDamage,
+                once_per_tick: false,
+                primitives: vec![Primitive::ApplyStatus {
+                    target: SimpleAbilityTarget::TriggerTarget.into(),
+                    status: "Omen".to_string(),
+                    stat: None,
+                    stacks: 1,
+                }],
+            },
+        );
+
+        let mut statuses: StatusMap = HashMap::new();
+        statuses.insert(
+            "Omen".to_string(),
+            StatusDef {
+                behavior: StatusBehavior::DamagePerStack { value: 1 },
+                stack_type: StackType::TickDown,
+                opposes: None,
+            },
+        );
+
+        let mut battle = BattleState::new(&[attacker], &[enemy_a, enemy_b], abilities, passives, statuses, 42);
+        battle.team_a[0].restore_mp(5);
+        battle.step = 1;
+        battle.execute_turn(0, true);
+
+        assert_eq!(battle.team_b[0].status_stacks("Omen"), 1);
+        assert_eq!(battle.team_b[1].status_stacks("Omen"), 1);
     }
 
     #[test]
