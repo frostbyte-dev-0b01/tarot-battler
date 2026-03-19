@@ -298,10 +298,41 @@ select {
 
 .team-editor-shell,
 .character-editor-list,
+.character-library-list,
 .rule-editor-list,
 .condition-editor-list {
   display: grid;
   gap: 14px;
+}
+
+.character-library-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.character-library-card {
+  gap: 10px;
+}
+
+.library-card-meta {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.library-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.library-card-tags span {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(33, 25, 16, 0.05);
+  font-size: 0.84rem;
 }
 
 .editor-toolbar {

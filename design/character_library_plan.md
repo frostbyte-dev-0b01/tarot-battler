@@ -129,6 +129,13 @@ Result:
 - building variant teams gets much faster
 - no filesystem-backed catalog is required yet
 
+Status:
+
+- completed
+- the Team Builder now includes a lightweight in-memory character library panel
+- characters can be saved from a team slot into the current session library
+- saved library entries can be removed without affecting the current team
+
 ### Phase 3: Compose Team JSON from Saved Characters
 
 Make it easy to assemble a team from saved character configs without editing raw JSON.

@@ -43,6 +43,7 @@ const teamEditorConfig = {
   metaName: document.querySelector('[data-team-meta="team_name"]'),
   metaCount: document.querySelector('[data-team-meta="team_count"]'),
 };
+const characterLibraryShell = document.querySelector("#character-library");
 const replayPreviousButton = document.querySelector("#replay-previous-button");
 const replayPlayButton = document.querySelector("#replay-play-button");
 const replayPauseButton = document.querySelector("#replay-pause-button");
@@ -67,6 +68,7 @@ const appState = {
   selectedCharacterId: null,
   playbackTimerId: null,
   teamConfig: null,
+  characterLibrary: [],
   catalogs: {
     passives: [],
     abilities: [],
@@ -366,6 +368,10 @@ teamEditorConfig.editor.addEventListener("click", (event) => {
   handleTeamEditorAction(event);
 });
 
+characterLibraryShell?.addEventListener("click", (event) => {
+  handleTeamEditorAction(event);
+});
+
 resetMetadata();
 resetBoards();
 renderPlaybackControls();
@@ -373,6 +379,7 @@ renderTimeline();
 renderInspector(null);
 resetTeamSummary();
 renderTeamEditor();
+renderCharacterLibrary();
 void loadEditorCatalogs();
 void loadLatestReplay();
 
@@ -1061,6 +1068,7 @@ function renderCharacterEditor(character, characterIndex) {
       <div class="editor-card-header">
         <h5>${escapeHtml(character.display_name || character.id || `Character ${characterIndex + 1}`)}</h5>
         <div class="editor-card-actions">
+          <button type="button" class="button-quiet" data-team-action="save-character-to-library" data-character-index="${characterIndex}">Save to Library</button>
           <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}">Save Character</button>
           <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}">Load Character</button>
           <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Remove</button>
@@ -1372,10 +1380,16 @@ function handleTeamEditorAction(event) {
     case "save-character":
       downloadCharacterJson(characterIndex);
       return;
+    case "save-character-to-library":
+      saveCharacterToLibrary(characterIndex);
+      return;
     case "load-character":
       teamEditorConfig.editor
         .querySelector(`[data-team-action="load-character-file"][data-character-index="${characterIndex}"]`)
         ?.click();
+      return;
+    case "remove-library-character":
+      removeCharacterFromLibrary(Number(event.target.dataset.libraryIndex));
       return;
     case "remove-character":
       team.characters.splice(characterIndex, 1);
@@ -1456,6 +1470,73 @@ async function loadCharacterFromFileInput(fileInput) {
   } finally {
     fileInput.value = "";
   }
+}
+
+function renderCharacterLibrary() {
+  if (!characterLibraryShell) {
+    return;
+  }
+
+  if (appState.characterLibrary.length === 0) {
+    characterLibraryShell.innerHTML = '<div class="board-empty-state">Save a character from a team slot to build a reusable library here.</div>';
+    return;
+  }
+
+  const markup = appState.characterLibrary
+    .map((character, libraryIndex) => renderCharacterLibraryCard(character, libraryIndex))
+    .join("");
+  characterLibraryShell.innerHTML = `<div class="character-library-list">${markup}</div>`;
+}
+
+function renderCharacterLibraryCard(character, libraryIndex) {
+  const actives = Array.isArray(character.actives) && character.actives.length > 0
+    ? character.actives.join(" · ")
+    : "No actives";
+
+  return `
+    <article class="editor-card character-library-card">
+      <div class="editor-card-header">
+        <div>
+          <h5>${escapeHtml(character.display_name || character.id || `Character ${libraryIndex + 1}`)}</h5>
+          <div class="library-card-meta">${escapeHtml(character.id || "No id")} · row ${character.position?.row ?? "?"}, col ${character.position?.col ?? "?"}</div>
+        </div>
+        <div class="editor-card-actions">
+          <button type="button" class="button-quiet" data-team-action="remove-library-character" data-library-index="${libraryIndex}">Remove</button>
+        </div>
+      </div>
+      <div class="library-card-tags">
+        <span${renderTitleAttribute(getPassiveDescription(character.passive))}>${escapeHtml(character.passive || "No passive")}</span>
+        <span>${escapeHtml(actives)}</span>
+      </div>
+    </article>
+  `;
+}
+
+function saveCharacterToLibrary(characterIndex) {
+  const team = appState.teamConfig;
+  const character = team?.characters?.[characterIndex];
+  if (!character) {
+    renderTeamValidation({ ok: false, errors: ["No character is available to save to the library."] });
+    return;
+  }
+
+  appState.characterLibrary.push(cloneCharacterConfig(character));
+  renderCharacterLibrary();
+  renderTeamValidation({ ok: true, errors: [] });
+  teamEditorConfig.validationOutput.textContent = `${character.display_name || character.id || `Character ${characterIndex + 1}`} saved to the library.`;
+}
+
+function removeCharacterFromLibrary(libraryIndex) {
+  const [removed] = appState.characterLibrary.splice(libraryIndex, 1);
+  renderCharacterLibrary();
+  renderTeamValidation({ ok: true, errors: [] });
+  teamEditorConfig.validationOutput.textContent = removed
+    ? `${removed.display_name || removed.id || `Character ${libraryIndex + 1}`} removed from the library.`
+    : "Character removed from the library.";
+}
+
+function cloneCharacterConfig(character) {
+  return JSON.parse(JSON.stringify(character));
 }
 
 function createEmptyCharacter(index) {
