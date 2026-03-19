@@ -10,12 +10,8 @@
     <div class="app-shell">
       <header class="app-header">
         <div>
-          <p class="eyebrow">Developer Tools</p>
-          <h1>Tarot Battler Workshop</h1>
+          <p class="eyebrow">Tarot Battler Developer Workshop</p>
         </div>
-        <p class="header-note">
-          Team editing and replay viewing for local iteration.
-        </p>
       </header>
 
       <nav class="tab-bar" aria-label="Workspace sections">
@@ -33,21 +29,17 @@
             <div>
               <h2 id="team-builder-heading">Team Builder</h2>
             </div>
-            <p class="workspace-summary">
-              Build one team, edit loadouts, and export JSON for the engine.
-            </p>
           </div>
 
           <div class="team-builder-layout">
             <section class="panel panel-team" aria-labelledby="team-editor-heading">
               <div class="panel-header">
-                <p class="panel-kicker">Editor</p>
-                <h3 id="team-editor-heading">Team</h3>
+                <h3 id="team-editor-heading">Team Builder</h3>
               </div>
               <div class="panel-body team-loader-body">
                 <div class="team-loader-topline">
                   <label class="field-group">
-                    <span>Team file</span>
+                    <span class="visually-hidden">Team file</span>
                     <input id="team-file-input" type="file" accept=".json,application/json">
                   </label>
                   <div class="button-row button-row-three">
@@ -56,30 +48,13 @@
                     <button id="team-copy-button" type="button" class="button-quiet">Copy JSON</button>
                     <button id="team-download-button" type="button" class="button-quiet">Download JSON</button>
                   </div>
-                </div>
-                <div class="team-status-row">
-                  <section class="status-panel" aria-labelledby="team-summary-heading">
-                    <h4 id="team-summary-heading">Team Summary</h4>
-                    <dl class="metadata-grid">
-                      <div>
-                        <dt>Name</dt>
-                        <dd data-team-meta="team_name">-</dd>
-                      </div>
-                      <div>
-                        <dt>Characters</dt>
-                        <dd data-team-meta="team_count">-</dd>
-                      </div>
-                    </dl>
-                  </section>
-                  <section class="status-panel" aria-labelledby="team-validation-heading">
-                    <h4 id="team-validation-heading">Validation</h4>
-                    <div id="team-validation-output" class="message-panel message-panel-idle">
-                      Load a team JSON file or paste JSON to validate it.
-                    </div>
-                  </section>
+                  <div id="team-validation-output" class="validation-inline validation-inline-idle">
+                    <span class="validation-inline-icon">•</span>
+                    <span class="validation-inline-text">No team loaded</span>
+                  </div>
                 </div>
                 <section class="status-panel" aria-labelledby="team-editor-structured-heading">
-                  <h4 id="team-editor-structured-heading">Structured Editor</h4>
+                  <h4 id="team-editor-structured-heading" class="visually-hidden">Structured Editor</h4>
                   <div id="team-editor" class="team-editor-shell">
                     <div class="board-empty-state">Load a team to edit it here.</div>
                   </div>

@@ -41,8 +41,6 @@ const teamEditorConfig = {
   downloadButton: document.querySelector("#team-download-button"),
   validationOutput: document.querySelector("#team-validation-output"),
   editor: document.querySelector("#team-editor"),
-  metaName: document.querySelector('[data-team-meta="team_name"]'),
-  metaCount: document.querySelector('[data-team-meta="team_count"]'),
 };
 const characterLibraryShell = document.querySelector("#character-library");
 const replayPreviousButton = document.querySelector("#replay-previous-button");
@@ -958,13 +956,11 @@ function validateCharacterConfig(candidate, prefix = "character") {
 }
 
 function renderTeamSummary(teamConfig) {
-  teamEditorConfig.metaName.textContent = teamConfig.name;
-  teamEditorConfig.metaCount.textContent = String(teamConfig.characters.length);
+  void teamConfig;
 }
 
 function resetTeamSummary() {
-  teamEditorConfig.metaName.textContent = "-";
-  teamEditorConfig.metaCount.textContent = "-";
+  return;
 }
 
 function syncTeamUI() {
@@ -995,22 +991,39 @@ function syncTeamUI() {
 
 function renderTeamValidation(result) {
   const output = teamEditorConfig.validationOutput;
-  output.className = "message-panel";
-
   if (result.ok) {
-    output.classList.add("message-panel-success");
-    output.textContent = "Team JSON is valid at the top level.";
+    setTeamValidationStatus("success", "Valid");
     return;
   }
 
   if (result.errors.length === 0) {
-    output.classList.add("message-panel-idle");
-    output.textContent = "Load a team JSON file or paste JSON to validate it.";
+    setTeamValidationStatus("idle", "No team loaded");
     return;
   }
 
-  output.classList.add("message-panel-error");
-  output.textContent = result.errors.map((error) => `- ${error}`).join("\n");
+  setTeamValidationStatus("error", `${result.errors.length} issue${result.errors.length === 1 ? "" : "s"}`, result.errors);
+}
+
+function setTeamValidationStatus(kind, label, errors = []) {
+  const output = teamEditorConfig.validationOutput;
+  output.className = `validation-inline validation-inline-${kind}`;
+  const icon = kind === "success" ? "✓" : kind === "error" ? "✕" : "•";
+
+  if (kind === "error" && errors.length > 0) {
+    output.innerHTML = `
+      <span class="validation-inline-icon">${icon}</span>
+      <details>
+        <summary><span class="validation-inline-text">${escapeHtml(label)}</span></summary>
+        <div class="validation-inline-errors">${escapeHtml(errors.map((error) => `- ${error}`).join("\n"))}</div>
+      </details>
+    `;
+    return;
+  }
+
+  output.innerHTML = `
+    <span class="validation-inline-icon">${icon}</span>
+    <span class="validation-inline-text">${escapeHtml(label)}</span>
+  `;
 }
 
 async function copyTeamJson() {
@@ -1025,8 +1038,7 @@ async function copyTeamJson() {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(jsonText);
-      renderTeamValidation({ ok: true, errors: [] });
-      teamEditorConfig.validationOutput.textContent = "Team JSON copied to clipboard.";
+      setTeamValidationStatus("success", "Team copied");
       return;
     }
   } catch (error) {
@@ -1054,8 +1066,7 @@ function downloadTeamJson() {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  renderTeamValidation({ ok: true, errors: [] });
-  teamEditorConfig.validationOutput.textContent = "Team JSON downloaded.";
+  setTeamValidationStatus("success", "Team downloaded");
 }
 
 function renderTeamEditor() {
@@ -1068,8 +1079,7 @@ function renderTeamEditor() {
 
   const selectedIndex = appState.selectedTeamCharacterIndex;
   const selectedCharacter = team.characters[selectedIndex];
-  const characterTabs = team.characters.map((character, characterIndex) => renderCharacterTab(character, characterIndex)).join("");
-  const canAddCharacter = team.characters.length < 5;
+  const characterStrip = renderCharacterStrip(team);
 
   editor.innerHTML = `
     <section class="team-builder-workspace">
@@ -1079,13 +1089,21 @@ function renderTeamEditor() {
           <input type="text" data-team-field="name" value="${escapeHtml(team.name)}">
         </label>
       </div>
-      <div class="character-strip" role="tablist" aria-label="Team characters">
-        ${characterTabs}
-        <button type="button" class="character-strip-add ${canAddCharacter ? "" : "is-disabled"}" data-team-action="add-character" ${canAddCharacter ? "" : "disabled"}>+</button>
-      </div>
+      ${characterStrip}
       ${selectedCharacter ? renderSelectedCharacterWorkspace(selectedCharacter, selectedIndex) : '<div class="board-empty-state">Add a character to begin editing.</div>'}
       ${selectedCharacter ? renderSelectionBrowser(selectedCharacter) : ""}
     </section>
+  `;
+}
+
+function renderCharacterStrip(team) {
+  const characterTabs = team.characters.map((character, characterIndex) => renderCharacterTab(character, characterIndex)).join("");
+  const canAddCharacter = team.characters.length < 5;
+  return `
+    <div class="character-strip character-strip-inline" role="tablist" aria-label="Team characters">
+      ${characterTabs}
+      <button type="button" class="character-strip-add ${canAddCharacter ? "" : "is-disabled"}" data-team-action="add-character" ${canAddCharacter ? "" : "disabled"}>+</button>
+    </div>
   `;
 }
 
@@ -1126,15 +1144,11 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
         <div class="portrait-card">
           <div class="portrait-placeholder">${escapeHtml(getCharacterInitials(character))}</div>
           <div class="portrait-meta">
-            <div>${escapeHtml(character.id || "No id")}</div>
+            <div>${escapeHtml(character.display_name || `Character ${characterIndex + 1}`)}</div>
             <div>row ${character.position?.row ?? 0}, col ${character.position?.col ?? 0}</div>
           </div>
         </div>
         <div class="editor-grid">
-          <label class="field-group">
-            <span>ID</span>
-            <input type="text" data-character-field="id" data-character-index="${characterIndex}" value="${escapeHtml(character.id ?? "")}">
-          </label>
           <label class="field-group">
             <span>Display Name</span>
             <input type="text" data-character-field="display_name" data-character-index="${characterIndex}" value="${escapeHtml(character.display_name ?? "")}">
@@ -1660,8 +1674,7 @@ function downloadCharacterJson(characterIndex) {
 
   const jsonText = JSON.stringify(character, null, 2);
   triggerJsonDownload(jsonText, buildCharacterFilename(character, `character_${characterIndex + 1}`));
-  renderTeamValidation({ ok: true, errors: [] });
-  teamEditorConfig.validationOutput.textContent = `Character JSON downloaded for ${character.display_name || character.id || `character ${characterIndex + 1}`}.`;
+  setTeamValidationStatus("success", `${character.display_name || character.id || `Character ${characterIndex + 1}`} downloaded`);
 }
 
 async function loadCharacterFromFileInput(fileInput) {
@@ -1686,8 +1699,7 @@ async function loadCharacterFromFileInput(fileInput) {
 
     team.characters[characterIndex] = parsedCharacter;
     syncTeamUI();
-    renderTeamValidation({ ok: true, errors: [] });
-    teamEditorConfig.validationOutput.textContent = `Loaded character JSON into slot ${characterIndex + 1}.`;
+    setTeamValidationStatus("success", `Loaded into slot ${characterIndex + 1}`);
   } catch (error) {
     renderTeamValidation({ ok: false, errors: [`Could not load character JSON: ${error.message}`] });
   } finally {
@@ -1762,17 +1774,15 @@ function saveCharacterToLibrary(characterIndex) {
 
   appState.characterLibrary.push(cloneCharacterConfig(character));
   renderCharacterLibrary();
-  renderTeamValidation({ ok: true, errors: [] });
-  teamEditorConfig.validationOutput.textContent = `${character.display_name || character.id || `Character ${characterIndex + 1}`} saved to the library.`;
+  setTeamValidationStatus("success", `${character.display_name || character.id || `Character ${characterIndex + 1}`} saved`);
 }
 
 function removeCharacterFromLibrary(libraryIndex) {
   const [removed] = appState.characterLibrary.splice(libraryIndex, 1);
   renderCharacterLibrary();
-  renderTeamValidation({ ok: true, errors: [] });
-  teamEditorConfig.validationOutput.textContent = removed
-    ? `${removed.display_name || removed.id || `Character ${libraryIndex + 1}`} removed from the library.`
-    : "Character removed from the library.";
+  setTeamValidationStatus("success", removed
+    ? `${removed.display_name || removed.id || `Character ${libraryIndex + 1}`} removed`
+    : "Library entry removed");
 }
 
 function downloadLibraryCharacterJson(libraryIndex) {
@@ -1783,8 +1793,7 @@ function downloadLibraryCharacterJson(libraryIndex) {
   }
 
   triggerJsonDownload(JSON.stringify(character, null, 2), buildCharacterFilename(character, `library_character_${libraryIndex + 1}`));
-  renderTeamValidation({ ok: true, errors: [] });
-  teamEditorConfig.validationOutput.textContent = `${character.display_name || character.id || "Character"} downloaded from the library.`;
+  setTeamValidationStatus("success", `${character.display_name || character.id || "Character"} downloaded`);
 }
 
 function addLibraryCharacterToTeam(libraryIndex) {
@@ -1811,8 +1820,7 @@ function addLibraryCharacterToTeam(libraryIndex) {
   appState.selectedTeamCharacterIndex = appState.teamConfig.characters.length - 1;
   appState.expandedRuleIndex = null;
   syncTeamUI();
-  renderTeamValidation({ ok: true, errors: [] });
-  teamEditorConfig.validationOutput.textContent = `${character.display_name || character.id || "Character"} added to the team from the library.`;
+  setTeamValidationStatus("success", `${character.display_name || character.id || "Character"} added`);
 }
 
 function replaceTeamCharacterFromLibrary(button) {
@@ -1831,8 +1839,7 @@ function replaceTeamCharacterFromLibrary(button) {
   appState.selectedTeamCharacterIndex = replaceIndex;
   appState.expandedRuleIndex = null;
   syncTeamUI();
-  renderTeamValidation({ ok: true, errors: [] });
-  teamEditorConfig.validationOutput.textContent = `${character.display_name || character.id || "Character"} replaced slot ${replaceIndex + 1} from the library.`;
+  setTeamValidationStatus("success", `${character.display_name || character.id || "Character"} replaced slot ${replaceIndex + 1}`);
 }
 
 function cloneCharacterConfig(character) {
