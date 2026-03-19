@@ -90,6 +90,11 @@ Result:
 - condition rows become significantly cleaner
 - the UI better matches the schema
 
+Status:
+
+- completed
+- irrelevant `Stat` and `Status` controls are no longer shown for simple value types
+
 ### Phase 2: Human-Friendly Labels
 
 Improve the wording in dropdowns and labels.

@@ -1121,13 +1121,7 @@ function renderRuleEditor(characterIndex, rule, ruleIndex) {
 
 function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIndex) {
   const value = condition.value;
-  const valueType = isPlainObject(value) && typeof value.stat === "string"
-    ? "stat"
-    : isPlainObject(value) && typeof value.has_status === "string"
-      ? "has_status"
-      : isPlainObject(value) && typeof value.status_stacks === "string"
-        ? "status_stacks"
-        : String(value ?? "hp");
+  const valueType = getConditionValueType(condition);
   const statValue = valueType === "stat" ? value.stat : "vit";
   const statusValue =
     valueType === "has_status"
@@ -1135,6 +1129,23 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
       : valueType === "status_stacks"
         ? value.status_stacks
         : "Ward";
+  const detailFieldMarkup = valueType === "stat"
+    ? `
+        <label class="field-group">
+          <span>Stat</span>
+          <select data-condition-field="value_stat" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
+            ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((option) => `<option value="${option}" ${statValue === option ? "selected" : ""}>${option}</option>`).join("")}
+          </select>
+        </label>
+      `
+    : valueType === "has_status" || valueType === "status_stacks"
+      ? `
+        <label class="field-group">
+          <span>Status</span>
+          <input type="text" data-condition-field="value_status" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}" value="${escapeHtml(statusValue)}">
+        </label>
+      `
+      : "";
 
   return `
     <div class="editor-card">
@@ -1157,16 +1168,7 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
             ${["hp", "mp", "use_count", "turns_since_use", "tick_count", "ally_count", "enemy_count", "stat", "has_status", "status_stacks"].map((option) => `<option value="${option}" ${valueType === option ? "selected" : ""}>${option}</option>`).join("")}
           </select>
         </label>
-        <label class="field-group">
-          <span>Stat</span>
-          <select data-condition-field="value_stat" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
-            ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((option) => `<option value="${option}" ${statValue === option ? "selected" : ""}>${option}</option>`).join("")}
-          </select>
-        </label>
-        <label class="field-group">
-          <span>Status</span>
-          <input type="text" data-condition-field="value_status" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}" value="${escapeHtml(statusValue)}">
-        </label>
+        ${detailFieldMarkup}
         <label class="field-group">
           <span>Operator</span>
           <select data-condition-field="op" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
@@ -1394,6 +1396,20 @@ function moveArrayItem(array, fromIndex, toIndex) {
   }
   const [item] = array.splice(fromIndex, 1);
   array.splice(toIndex, 0, item);
+}
+
+function getConditionValueType(condition) {
+  const value = condition?.value;
+  if (isPlainObject(value) && typeof value.stat === "string") {
+    return "stat";
+  }
+  if (isPlainObject(value) && typeof value.has_status === "string") {
+    return "has_status";
+  }
+  if (isPlainObject(value) && typeof value.status_stacks === "string") {
+    return "status_stacks";
+  }
+  return String(value ?? "hp");
 }
 
 function isPlainObject(value) {
