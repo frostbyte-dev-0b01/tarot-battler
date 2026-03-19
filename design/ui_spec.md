@@ -50,8 +50,14 @@ The recommended replay layout is:
 
 The recommended team builder layout is:
 
-- main editor panel: single-team structured editor
-- optional lower panels: raw JSON import/export, validation, and saved-character workflow
+- top controls for team load/save and validation
+- top character strip with one tab per team member plus an add-character slot
+- a three-pane selected-character workspace:
+  - left: portrait placeholder, identity fields, position, and stats
+  - middle: passive, active slots, and item slot
+  - right: compact priority-rule list
+- lower selection browser that swaps between passive, active, and item choices
+- optional lower panels: raw JSON import/export and saved-character workflow
 
 ## Replay Viewer
 
@@ -151,11 +157,12 @@ The viewer should also render replay events for movement and retargeting in both
 
 ### Team Editor
 
-The initial version should edit one team JSON document at a time using the interim full-loadout schema.
+The current version edits one team JSON document at a time using the interim full-loadout schema.
 
 The team editor should allow:
 
 - editing team name
+- switching between up to 5 characters from a top strip
 - adding a character
 - removing a character
 - editing character fields
@@ -168,10 +175,14 @@ Each character editor should include:
 - `display_name`
 - position
 - stats
-- passive chosen from the passive catalog, or left empty
-- `active_1`, `active_2`, and `active_3` style slots backed by the ability catalog, each optional
+- passive selected through the lower browser
+- `active_1`, `active_2`, and `active_3` style slots selected through the lower browser
 - item
 - rules
+
+The lower browser should now be the primary way to choose passives, actives, and items.
+
+The current UI may still keep lightweight fallback controls internally where useful, but the intended user interaction is browser-first.
 
 The builder does not need:
 

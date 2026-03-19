@@ -8,6 +8,7 @@ const replayValidationOutput = document.querySelector("#replay-validation-output
 const latestReplayPath = "./sample-data/latest_replay.json";
 const passiveCatalogPath = "../../battle_engine/src/data/passives.json";
 const abilityCatalogPath = "../../battle_engine/src/data/abilities.json";
+const itemCatalogPath = "../../battle_engine/src/data/items.json";
 const ruleSubjectOptions = [
   { value: "self", label: "Self" },
   { value: "target", label: "Target" },
@@ -69,11 +70,17 @@ const appState = {
   playbackTimerId: null,
   teamConfig: null,
   characterLibrary: [],
+  selectedTeamCharacterIndex: 0,
+  teamBrowserMode: "active",
+  teamBrowserSlotIndex: 0,
+  expandedRuleIndex: null,
   catalogs: {
     passives: [],
     abilities: [],
+    items: [],
     passiveDescriptions: {},
     abilityDescriptions: {},
+    itemDescriptions: {},
   },
 };
 const metadataFields = {
@@ -385,9 +392,10 @@ void loadLatestReplay();
 
 async function loadEditorCatalogs() {
   try {
-    const [passiveResponse, abilityResponse] = await Promise.all([
+    const [passiveResponse, abilityResponse, itemResponse] = await Promise.all([
       fetch(passiveCatalogPath, { cache: "no-store" }),
       fetch(abilityCatalogPath, { cache: "no-store" }),
+      fetch(itemCatalogPath, { cache: "no-store" }).catch(() => null),
     ]);
 
     if (!passiveResponse.ok || !abilityResponse.ok) {
@@ -396,25 +404,32 @@ async function loadEditorCatalogs() {
       );
     }
 
-    const [passives, abilities] = await Promise.all([
+    const [passives, abilities, items] = await Promise.all([
       passiveResponse.json(),
       abilityResponse.json(),
+      itemResponse?.ok ? itemResponse.json() : Promise.resolve({}),
     ]);
 
     appState.catalogs.passives = Object.keys(passives).sort();
     appState.catalogs.abilities = Object.keys(abilities).sort();
+    appState.catalogs.items = Object.keys(items).sort();
     appState.catalogs.passiveDescriptions = Object.fromEntries(
       Object.entries(passives).map(([name, definition]) => [name, definition?.description ?? ""]),
     );
     appState.catalogs.abilityDescriptions = Object.fromEntries(
       Object.entries(abilities).map(([name, definition]) => [name, definition?.description ?? ""]),
     );
+    appState.catalogs.itemDescriptions = Object.fromEntries(
+      Object.entries(items).map(([name, definition]) => [name, definition?.description ?? ""]),
+    );
     renderTeamEditor();
   } catch (_error) {
     appState.catalogs.passives = [];
     appState.catalogs.abilities = [];
+    appState.catalogs.items = [];
     appState.catalogs.passiveDescriptions = {};
     appState.catalogs.abilityDescriptions = {};
+    appState.catalogs.itemDescriptions = {};
   }
 }
 
@@ -808,6 +823,10 @@ function loadTeamFromText(sourceText) {
 
     if (validation.ok) {
       appState.teamConfig = parsedTeam;
+      appState.selectedTeamCharacterIndex = 0;
+      appState.teamBrowserMode = "active";
+      appState.teamBrowserSlotIndex = 0;
+      appState.expandedRuleIndex = null;
       syncTeamUI();
     } else {
       appState.teamConfig = null;
@@ -952,14 +971,26 @@ function syncTeamUI() {
   const teamConfig = appState.teamConfig;
   if (!teamConfig) {
     resetTeamSummary();
+    appState.selectedTeamCharacterIndex = 0;
+    appState.expandedRuleIndex = null;
     renderTeamEditor();
+    renderCharacterLibrary();
     return;
   }
 
+  appState.selectedTeamCharacterIndex = clampValue(
+    appState.selectedTeamCharacterIndex,
+    0,
+    Math.max((teamConfig.characters?.length ?? 1) - 1, 0),
+  );
+  if ((teamConfig.characters?.[appState.selectedTeamCharacterIndex]?.rules?.length ?? 0) <= (appState.expandedRuleIndex ?? -1)) {
+    appState.expandedRuleIndex = null;
+  }
   teamEditorConfig.jsonInput.value = JSON.stringify(teamConfig, null, 2);
   renderTeamSummary(teamConfig);
   renderTeamValidation(validateTeamConfig(teamConfig));
   renderTeamEditor();
+  renderCharacterLibrary();
 }
 
 function renderTeamValidation(result) {
@@ -1035,115 +1066,252 @@ function renderTeamEditor() {
     return;
   }
 
-  const characterMarkup = team.characters.map((character, characterIndex) => renderCharacterEditor(character, characterIndex)).join("");
+  const selectedIndex = appState.selectedTeamCharacterIndex;
+  const selectedCharacter = team.characters[selectedIndex];
+  const characterTabs = team.characters.map((character, characterIndex) => renderCharacterTab(character, characterIndex)).join("");
+  const canAddCharacter = team.characters.length < 5;
 
   editor.innerHTML = `
-    <div class="editor-toolbar">
-      <button type="button" class="button-secondary" data-team-action="add-character">Add Character</button>
-    </div>
-    <label class="field-group">
-      <span>Team Name</span>
-      <input type="text" data-team-field="name" value="${escapeHtml(team.name)}">
-    </label>
-    <div class="character-editor-list">${characterMarkup}</div>
+    <section class="team-builder-workspace">
+      <div class="team-builder-topbar">
+        <label class="field-group team-name-field">
+          <span>Team Name</span>
+          <input type="text" data-team-field="name" value="${escapeHtml(team.name)}">
+        </label>
+      </div>
+      <div class="character-strip" role="tablist" aria-label="Team characters">
+        ${characterTabs}
+        <button type="button" class="character-strip-add ${canAddCharacter ? "" : "is-disabled"}" data-team-action="add-character" ${canAddCharacter ? "" : "disabled"}>+</button>
+      </div>
+      ${selectedCharacter ? renderSelectedCharacterWorkspace(selectedCharacter, selectedIndex) : '<div class="board-empty-state">Add a character to begin editing.</div>'}
+      ${selectedCharacter ? renderSelectionBrowser(selectedCharacter) : ""}
+    </section>
   `;
 }
 
-function renderCharacterEditor(character, characterIndex) {
-  const passiveOptions = buildSelectOptions(
-    appState.catalogs.passives,
-    character.passive ?? "",
-    "No passive",
-  );
-  const activeSelections = normalizeActiveSelections(character.actives);
-  const activeOptions = activeSelections.map((selection, activeIndex) =>
-    buildSelectOptions(
-      appState.catalogs.abilities,
-      selection,
-      `No active ${activeIndex + 1}`,
-    ),
-  );
-  const rulesMarkup = (character.rules ?? []).map((rule, ruleIndex) => renderRuleEditor(characterIndex, rule, ruleIndex)).join("");
-  const ruleCount = character.rules?.length ?? 0;
-  const canAddRule = ruleCount < 5;
-
+function renderCharacterTab(character, characterIndex) {
+  const isSelected = characterIndex === appState.selectedTeamCharacterIndex;
   return `
-    <article class="editor-card">
-      <div class="editor-card-header">
-        <h5>${escapeHtml(character.display_name || character.id || `Character ${characterIndex + 1}`)}</h5>
-        <div class="editor-card-actions">
-          <button type="button" class="button-quiet" data-team-action="save-character-to-library" data-character-index="${characterIndex}">Save to Library</button>
-          <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}">Save Character</button>
-          <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}">Load Character</button>
-          <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Remove</button>
-        </div>
-      </div>
-      <input class="visually-hidden" type="file" accept=".json,application/json" data-team-action="load-character-file" data-character-index="${characterIndex}">
-      <div class="editor-grid">
-        <label class="field-group">
-          <span>ID</span>
-          <input type="text" data-character-field="id" data-character-index="${characterIndex}" value="${escapeHtml(character.id ?? "")}">
-        </label>
-        <label class="field-group">
-          <span>Display Name</span>
-          <input type="text" data-character-field="display_name" data-character-index="${characterIndex}" value="${escapeHtml(character.display_name ?? "")}">
-        </label>
-        <label class="field-group">
-          <span>Passive</span>
-          <select data-character-field="passive" data-character-index="${characterIndex}">
-            ${passiveOptions}
-          </select>
-        </label>
-        <label class="field-group">
-          <span>Item</span>
-          <input type="text" data-character-field="item" data-character-index="${characterIndex}" value="${escapeHtml(character.item ?? "")}">
-        </label>
-        <label class="field-group">
-          <span>Row</span>
-          <input type="number" min="0" max="2" data-position-field="row" data-character-index="${characterIndex}" value="${character.position?.row ?? 0}">
-        </label>
-        <label class="field-group">
-          <span>Col</span>
-          <input type="number" min="0" max="3" data-position-field="col" data-character-index="${characterIndex}" value="${character.position?.col ?? 0}">
-        </label>
-        <label class="field-group">
-          <span>Active 1</span>
-          <select data-character-field="active_0" data-character-index="${characterIndex}">
-            ${activeOptions[0]}
-          </select>
-        </label>
-        <label class="field-group">
-          <span>Active 2</span>
-          <select data-character-field="active_1" data-character-index="${characterIndex}">
-            ${activeOptions[1]}
-          </select>
-        </label>
-        <label class="field-group">
-          <span>Active 3</span>
-          <select data-character-field="active_2" data-character-index="${characterIndex}">
-            ${activeOptions[2]}
-          </select>
-        </label>
-      </div>
-      <div class="editor-inline-grid">
-        ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((statKey) => `
-          <label class="field-group">
-            <span>${statKey.toUpperCase()}</span>
-            <input type="number" data-stat-field="${statKey}" data-character-index="${characterIndex}" value="${character.stats?.[statKey] ?? 0}">
-          </label>
-        `).join("")}
-      </div>
-      <section class="editor-rule-section">
-        <div class="editor-card-header">
-          <span class="editor-subsection-label">Priority Rules</span>
+    <button
+      type="button"
+      class="character-strip-tab ${isSelected ? "is-selected" : ""}"
+      data-team-action="select-character"
+      data-character-index="${characterIndex}"
+      role="tab"
+      aria-selected="${isSelected ? "true" : "false"}"
+    >
+      <span class="character-strip-name">${escapeHtml(character.display_name || character.id || `Character ${characterIndex + 1}`)}</span>
+      <span class="character-strip-subtle">${escapeHtml(character.id || `slot_${characterIndex + 1}`)}</span>
+    </button>
+  `;
+}
+
+function renderSelectedCharacterWorkspace(character, characterIndex) {
+  return `
+    <article class="builder-character-workspace">
+      <section class="builder-pane builder-pane-stats">
+        <div class="builder-pane-header">
+          <div>
+            <p class="panel-kicker">Selected Character</p>
+            <h4>${escapeHtml(character.display_name || character.id || `Character ${characterIndex + 1}`)}</h4>
+          </div>
           <div class="editor-card-actions">
-            <span class="rule-count-label">${ruleCount}/5</span>
-            <button type="button" class="button-secondary" data-team-action="add-rule" data-character-index="${characterIndex}" ${canAddRule ? "" : "disabled"}>Add Rule</button>
+            <button type="button" class="button-quiet" data-team-action="save-character-to-library" data-character-index="${characterIndex}">Save to Library</button>
+            <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}">Save Character</button>
+            <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}">Load Character</button>
+            <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Delete</button>
           </div>
         </div>
-        <div class="rule-editor-list">${rulesMarkup || '<div class="board-empty-state">Add a priority rule to script this character. If none match, the character rests.</div>'}</div>
+        <input class="visually-hidden" type="file" accept=".json,application/json" data-team-action="load-character-file" data-character-index="${characterIndex}">
+        <div class="portrait-card">
+          <div class="portrait-placeholder">${escapeHtml(getCharacterInitials(character))}</div>
+          <div class="portrait-meta">
+            <div>${escapeHtml(character.id || "No id")}</div>
+            <div>row ${character.position?.row ?? 0}, col ${character.position?.col ?? 0}</div>
+          </div>
+        </div>
+        <div class="editor-grid">
+          <label class="field-group">
+            <span>ID</span>
+            <input type="text" data-character-field="id" data-character-index="${characterIndex}" value="${escapeHtml(character.id ?? "")}">
+          </label>
+          <label class="field-group">
+            <span>Display Name</span>
+            <input type="text" data-character-field="display_name" data-character-index="${characterIndex}" value="${escapeHtml(character.display_name ?? "")}">
+          </label>
+          <label class="field-group">
+            <span>Row</span>
+            <input type="number" min="0" max="2" data-position-field="row" data-character-index="${characterIndex}" value="${character.position?.row ?? 0}">
+          </label>
+          <label class="field-group">
+            <span>Col</span>
+            <input type="number" min="0" max="3" data-position-field="col" data-character-index="${characterIndex}" value="${character.position?.col ?? 0}">
+          </label>
+        </div>
+        <div class="editor-inline-grid">
+          ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((statKey) => `
+            <label class="field-group">
+              <span>${statKey.toUpperCase()}</span>
+              <input type="number" data-stat-field="${statKey}" data-character-index="${characterIndex}" value="${character.stats?.[statKey] ?? 0}">
+            </label>
+          `).join("")}
+        </div>
+      </section>
+      <section class="builder-pane builder-pane-loadout">
+        <div class="builder-pane-header">
+          <div>
+            <p class="panel-kicker">Loadout</p>
+            <h4>Passive, Actives, Item</h4>
+          </div>
+        </div>
+        ${renderLoadoutSlot("Passive", character.passive, "passive", characterIndex)}
+        ${normalizeActiveSelections(character.actives).map((abilityName, activeIndex) =>
+          renderLoadoutSlot(`Active ${activeIndex + 1}`, abilityName, "active", characterIndex, activeIndex)).join("")}
+        ${renderLoadoutSlot("Item", character.item, "item", characterIndex)}
+      </section>
+      <section class="builder-pane builder-pane-rules">
+        ${renderCompactRules(character, characterIndex)}
       </section>
     </article>
+  `;
+}
+
+function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null) {
+  const isSelectedBrowser =
+    appState.teamBrowserMode === mode &&
+    appState.teamBrowserSlotIndex === (slotIndex ?? 0);
+  const description =
+    mode === "passive"
+      ? getPassiveDescription(value)
+      : mode === "item"
+        ? getItemDescription(value)
+        : getAbilityDescription(value);
+
+  return `
+    <section class="loadout-slot ${isSelectedBrowser ? "is-selected" : ""}">
+      <div class="loadout-slot-header">
+        <span class="editor-subsection-label">${label}</span>
+        <button
+          type="button"
+          class="button-secondary"
+          data-team-action="focus-browser"
+          data-browser-mode="${mode}"
+          data-browser-slot-index="${slotIndex ?? 0}"
+          data-character-index="${characterIndex}"
+        >Browse</button>
+      </div>
+      <div class="loadout-slot-value"${renderTitleAttribute(description)}>
+        ${escapeHtml(value || `No ${label.toLowerCase()} selected`)}
+      </div>
+    </section>
+  `;
+}
+
+function renderCompactRules(character, characterIndex) {
+  const rules = character.rules ?? [];
+  const ruleCount = rules.length;
+  const canAddRule = ruleCount < 5;
+  const rulesMarkup = rules.map((rule, ruleIndex) => {
+    const isExpanded = appState.expandedRuleIndex === ruleIndex;
+    return `
+      <article class="compact-rule-card ${isExpanded ? "is-expanded" : ""}">
+        <div class="compact-rule-header">
+          <div>
+            <div class="compact-rule-index">Priority ${ruleIndex + 1}</div>
+            <div class="compact-rule-text">${escapeHtml(formatRulePreview(rule))}</div>
+          </div>
+          <div class="editor-card-actions">
+            <button type="button" class="button-quiet" data-team-action="move-rule-up" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Up</button>
+            <button type="button" class="button-quiet" data-team-action="move-rule-down" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Down</button>
+            <button type="button" class="button-quiet" data-team-action="toggle-rule-edit" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">${isExpanded ? "Done" : "Edit"}</button>
+            <button type="button" class="button-quiet" data-team-action="remove-rule" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Remove</button>
+          </div>
+        </div>
+        ${isExpanded ? renderRuleEditor(characterIndex, rule, ruleIndex) : ""}
+      </article>
+    `;
+  }).join("");
+
+  return `
+    <div class="builder-pane-header">
+      <div>
+        <p class="panel-kicker">Rules</p>
+        <h4>Priority Rules</h4>
+      </div>
+      <div class="editor-card-actions">
+        <span class="rule-count-label">${ruleCount}/5</span>
+        <button type="button" class="button-secondary" data-team-action="add-rule" data-character-index="${characterIndex}" ${canAddRule ? "" : "disabled"}>Add Rule</button>
+      </div>
+    </div>
+    <div class="compact-rule-list">
+      ${rulesMarkup || '<div class="board-empty-state">Add a priority rule to script this character. If none match, the character rests.</div>'}
+    </div>
+  `;
+}
+
+function renderSelectionBrowser(character) {
+  const mode = appState.teamBrowserMode;
+  const slotIndex = appState.teamBrowserSlotIndex;
+  const entries = getBrowserEntries(mode);
+  const currentValue =
+    mode === "passive"
+      ? character.passive ?? ""
+      : mode === "item"
+        ? character.item ?? ""
+        : normalizeActiveSelections(character.actives)[slotIndex] ?? "";
+  const title =
+    mode === "passive"
+      ? "Passive Browser"
+      : mode === "item"
+        ? "Item Browser"
+        : `Active ${slotIndex + 1} Browser`;
+
+  return `
+    <section class="selection-browser">
+      <div class="builder-pane-header">
+        <div>
+          <p class="panel-kicker">Selection Browser</p>
+          <h4>${title}</h4>
+        </div>
+        <div class="editor-card-actions">
+          <span class="browser-current-label">${escapeHtml(currentValue || "Nothing selected")}</span>
+        </div>
+      </div>
+      <div class="selection-browser-list">
+        <button
+          type="button"
+          class="selection-browser-entry ${currentValue === "" || currentValue == null ? "is-selected" : ""}"
+          data-team-action="select-browser-entry"
+          data-browser-mode="${mode}"
+          data-browser-slot-index="${slotIndex}"
+          data-entry-value=""
+        >
+          <strong>Clear Selection</strong>
+          <span>Remove the current ${mode === "active" ? `Active ${slotIndex + 1}` : mode}.</span>
+        </button>
+        ${
+          entries.length === 0
+            ? `<div class="board-empty-state">${mode === "item" ? "Items are not in the catalog yet." : "No entries are available for this browser."}</div>`
+            : entries.map((entry) => renderBrowserEntry(entry, mode, slotIndex, currentValue)).join("")
+        }
+      </div>
+    </section>
+  `;
+}
+
+function renderBrowserEntry(entry, mode, slotIndex, currentValue) {
+  return `
+    <button
+      type="button"
+      class="selection-browser-entry ${entry.name === currentValue ? "is-selected" : ""}"
+      data-team-action="select-browser-entry"
+      data-browser-mode="${mode}"
+      data-browser-slot-index="${slotIndex}"
+      data-entry-value="${escapeHtml(entry.name)}"
+    >
+      <strong>${escapeHtml(entry.name)}</strong>
+      <span>${escapeHtml(entry.description || "No description yet.")}</span>
+    </button>
   `;
 }
 
@@ -1367,14 +1535,15 @@ async function handleTeamEditorChange(event) {
 }
 
 function handleTeamEditorAction(event) {
-  const action = event.target.dataset.teamAction;
-  if (!action) {
+  const actionTarget = event.target.closest?.("[data-team-action]");
+  const action = actionTarget?.dataset.teamAction;
+  if (!action || !(actionTarget instanceof HTMLElement)) {
     return;
   }
 
-  const characterIndex = Number(event.target.dataset.characterIndex);
-  const ruleIndex = Number(event.target.dataset.ruleIndex);
-  const conditionIndex = Number(event.target.dataset.conditionIndex);
+  const characterIndex = Number(actionTarget.dataset.characterIndex);
+  const ruleIndex = Number(actionTarget.dataset.ruleIndex);
+  const conditionIndex = Number(actionTarget.dataset.conditionIndex);
   const team = appState.teamConfig;
 
   if (!team && !["add-library-character", "replace-library-character", "remove-library-character"].includes(action)) {
@@ -1383,7 +1552,29 @@ function handleTeamEditorAction(event) {
 
   switch (action) {
     case "add-character":
-      team.characters.push(createEmptyCharacter(team.characters.length));
+      if (team.characters.length < 5) {
+        team.characters.push(createEmptyCharacter(team.characters.length));
+        appState.selectedTeamCharacterIndex = team.characters.length - 1;
+        appState.expandedRuleIndex = null;
+      }
+      break;
+    case "select-character":
+      appState.selectedTeamCharacterIndex = characterIndex;
+      appState.expandedRuleIndex = null;
+      break;
+    case "focus-browser":
+      appState.teamBrowserMode = actionTarget.dataset.browserMode ?? "active";
+      appState.teamBrowserSlotIndex = Number(actionTarget.dataset.browserSlotIndex ?? 0);
+      appState.selectedTeamCharacterIndex = characterIndex;
+      break;
+    case "select-browser-entry":
+      applyBrowserSelection(actionTarget);
+      return;
+    case "copy-team":
+      void copyTeamJson();
+      return;
+    case "download-team":
+      downloadTeamJson();
       break;
     case "save-character":
       downloadCharacterJson(characterIndex);
@@ -1397,33 +1588,54 @@ function handleTeamEditorAction(event) {
         ?.click();
       return;
     case "remove-library-character":
-      removeCharacterFromLibrary(Number(event.target.dataset.libraryIndex));
+      removeCharacterFromLibrary(Number(actionTarget.dataset.libraryIndex));
       return;
     case "download-library-character":
-      downloadLibraryCharacterJson(Number(event.target.dataset.libraryIndex));
+      downloadLibraryCharacterJson(Number(actionTarget.dataset.libraryIndex));
       return;
     case "add-library-character":
-      addLibraryCharacterToTeam(Number(event.target.dataset.libraryIndex));
+      addLibraryCharacterToTeam(Number(actionTarget.dataset.libraryIndex));
       return;
     case "replace-library-character":
-      replaceTeamCharacterFromLibrary(event.target);
+      replaceTeamCharacterFromLibrary(actionTarget);
       return;
     case "remove-character":
       team.characters.splice(characterIndex, 1);
+      appState.selectedTeamCharacterIndex = Math.max(0, Math.min(appState.selectedTeamCharacterIndex, team.characters.length - 1));
+      appState.expandedRuleIndex = null;
       break;
     case "add-rule":
       if ((team.characters[characterIndex]?.rules?.length ?? 0) < 5) {
         team.characters[characterIndex]?.rules.push(createEmptyRule());
+        appState.expandedRuleIndex = team.characters[characterIndex].rules.length - 1;
       }
       break;
     case "remove-rule":
       team.characters[characterIndex]?.rules.splice(ruleIndex, 1);
+      if (appState.expandedRuleIndex === ruleIndex) {
+        appState.expandedRuleIndex = null;
+      } else if ((appState.expandedRuleIndex ?? -1) > ruleIndex) {
+        appState.expandedRuleIndex -= 1;
+      }
       break;
     case "move-rule-up":
       moveArrayItem(team.characters[characterIndex]?.rules, ruleIndex, ruleIndex - 1);
+      if (appState.expandedRuleIndex === ruleIndex) {
+        appState.expandedRuleIndex = ruleIndex - 1;
+      } else if (appState.expandedRuleIndex === ruleIndex - 1) {
+        appState.expandedRuleIndex = ruleIndex;
+      }
       break;
     case "move-rule-down":
       moveArrayItem(team.characters[characterIndex]?.rules, ruleIndex, ruleIndex + 1);
+      if (appState.expandedRuleIndex === ruleIndex) {
+        appState.expandedRuleIndex = ruleIndex + 1;
+      } else if (appState.expandedRuleIndex === ruleIndex + 1) {
+        appState.expandedRuleIndex = ruleIndex;
+      }
+      break;
+    case "toggle-rule-edit":
+      appState.expandedRuleIndex = appState.expandedRuleIndex === ruleIndex ? null : ruleIndex;
       break;
     case "add-condition":
       team.characters[characterIndex]?.rules[ruleIndex]?.when.push(createEmptyCondition());
@@ -1590,7 +1802,14 @@ function addLibraryCharacterToTeam(libraryIndex) {
     };
   }
 
+  if (appState.teamConfig.characters.length >= 5) {
+    renderTeamValidation({ ok: false, errors: ["A team can have at most 5 characters."] });
+    return;
+  }
+
   appState.teamConfig.characters.push(cloneCharacterConfig(character));
+  appState.selectedTeamCharacterIndex = appState.teamConfig.characters.length - 1;
+  appState.expandedRuleIndex = null;
   syncTeamUI();
   renderTeamValidation({ ok: true, errors: [] });
   teamEditorConfig.validationOutput.textContent = `${character.display_name || character.id || "Character"} added to the team from the library.`;
@@ -1609,6 +1828,8 @@ function replaceTeamCharacterFromLibrary(button) {
   }
 
   appState.teamConfig.characters[replaceIndex] = cloneCharacterConfig(character);
+  appState.selectedTeamCharacterIndex = replaceIndex;
+  appState.expandedRuleIndex = null;
   syncTeamUI();
   renderTeamValidation({ ok: true, errors: [] });
   teamEditorConfig.validationOutput.textContent = `${character.display_name || character.id || "Character"} replaced slot ${replaceIndex + 1} from the library.`;
@@ -1662,6 +1883,41 @@ function normalizeActiveSelections(actives) {
     values.push("");
   }
   return values;
+}
+
+function applyBrowserSelection(target) {
+  const team = appState.teamConfig;
+  const character = team?.characters?.[appState.selectedTeamCharacterIndex];
+  if (!character) {
+    renderTeamValidation({ ok: false, errors: ["No character is selected for browser assignment."] });
+    return;
+  }
+
+  const mode = target.dataset.browserMode ?? appState.teamBrowserMode;
+  const slotIndex = Number(target.dataset.browserSlotIndex ?? appState.teamBrowserSlotIndex ?? 0);
+  const value = target.dataset.entryValue ?? "";
+
+  if (mode === "passive") {
+    character.passive = value;
+  } else if (mode === "item") {
+    character.item = value || null;
+  } else {
+    const nextActives = normalizeActiveSelections(character.actives);
+    nextActives[slotIndex] = value;
+    character.actives = nextActives.filter(Boolean);
+  }
+
+  syncTeamUI();
+}
+
+function getBrowserEntries(mode) {
+  if (mode === "passive") {
+    return appState.catalogs.passives.map((name) => ({ name, description: getPassiveDescription(name) }));
+  }
+  if (mode === "item") {
+    return appState.catalogs.items.map((name) => ({ name, description: getItemDescription(name) }));
+  }
+  return appState.catalogs.abilities.map((name) => ({ name, description: getAbilityDescription(name) }));
 }
 
 function buildSelectOptions(options, currentValue, emptyLabel) {
@@ -2056,6 +2312,29 @@ function getAbilityDescription(abilityName) {
   }
 
   return appState.catalogs.abilityDescriptions?.[abilityName] ?? "";
+}
+
+function getItemDescription(itemName) {
+  if (!itemName) {
+    return "";
+  }
+
+  return appState.catalogs.itemDescriptions?.[itemName] ?? "";
+}
+
+function getCharacterInitials(character) {
+  const source = String(character.display_name || character.id || "?")
+    .replace(/^the\s+/i, "")
+    .trim();
+  if (!source) {
+    return "?";
+  }
+
+  return source
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 }
 
 function renderTitleAttribute(text) {

@@ -45,44 +45,39 @@
                 <h3 id="team-editor-heading">Team</h3>
               </div>
               <div class="panel-body team-loader-body">
-                <label class="field-group">
-                  <span>Team file</span>
-                  <input id="team-file-input" type="file" accept=".json,application/json">
-                </label>
-                <div class="button-row button-row-three">
-                  <button id="team-load-button" type="button">Load Pasted Team</button>
-                  <button id="team-demo-button" type="button" class="button-secondary">Load Sample Team</button>
-                  <button id="team-copy-button" type="button" class="button-quiet">Copy JSON</button>
-                  <button id="team-download-button" type="button" class="button-quiet">Download JSON</button>
-                </div>
-                <label class="field-group field-group-textarea" for="team-json-input">
-                  <span>Team JSON</span>
-                  <textarea
-                    id="team-json-input"
-                    rows="12"
-                    spellcheck="false"
-                    placeholder='Paste team JSON here, then click "Load Pasted Team".'
-                  ></textarea>
-                </label>
-                <section class="status-panel" aria-labelledby="team-summary-heading">
-                  <h4 id="team-summary-heading">Team Summary</h4>
-                  <dl class="metadata-grid">
-                    <div>
-                      <dt>Name</dt>
-                      <dd data-team-meta="team_name">-</dd>
-                    </div>
-                    <div>
-                      <dt>Characters</dt>
-                      <dd data-team-meta="team_count">-</dd>
-                    </div>
-                  </dl>
-                </section>
-                <section class="status-panel" aria-labelledby="team-validation-heading">
-                  <h4 id="team-validation-heading">Validation</h4>
-                  <div id="team-validation-output" class="message-panel message-panel-idle">
-                    Load a team JSON file or paste JSON to validate it.
+                <div class="team-loader-topline">
+                  <label class="field-group">
+                    <span>Team file</span>
+                    <input id="team-file-input" type="file" accept=".json,application/json">
+                  </label>
+                  <div class="button-row button-row-three">
+                    <button id="team-load-button" type="button">Load Pasted Team</button>
+                    <button id="team-demo-button" type="button" class="button-secondary">Load Sample Team</button>
+                    <button id="team-copy-button" type="button" class="button-quiet">Copy JSON</button>
+                    <button id="team-download-button" type="button" class="button-quiet">Download JSON</button>
                   </div>
-                </section>
+                </div>
+                <div class="team-status-row">
+                  <section class="status-panel" aria-labelledby="team-summary-heading">
+                    <h4 id="team-summary-heading">Team Summary</h4>
+                    <dl class="metadata-grid">
+                      <div>
+                        <dt>Name</dt>
+                        <dd data-team-meta="team_name">-</dd>
+                      </div>
+                      <div>
+                        <dt>Characters</dt>
+                        <dd data-team-meta="team_count">-</dd>
+                      </div>
+                    </dl>
+                  </section>
+                  <section class="status-panel" aria-labelledby="team-validation-heading">
+                    <h4 id="team-validation-heading">Validation</h4>
+                    <div id="team-validation-output" class="message-panel message-panel-idle">
+                      Load a team JSON file or paste JSON to validate it.
+                    </div>
+                  </section>
+                </div>
                 <section class="status-panel" aria-labelledby="team-editor-structured-heading">
                   <h4 id="team-editor-structured-heading">Structured Editor</h4>
                   <div id="team-editor" class="team-editor-shell">
@@ -98,16 +93,28 @@
               <p class="panel-kicker">Import / Export</p>
               <h3 id="team-json-heading">Raw JSON and Validation</h3>
             </div>
-            <div class="panel-body placeholder-stack">
-              <div class="placeholder-block">
-                <strong>Import paths</strong>
-                <p>Teams can be loaded from pasted JSON, local files, or the bundled sample lineup. Saved character JSON can be reused across teams.</p>
+            <details class="panel-body collapsible-panel">
+              <summary>Open raw JSON tools</summary>
+              <div class="placeholder-stack">
+                <div class="placeholder-block">
+                  <strong>Import paths</strong>
+                  <p>Teams can be loaded from pasted JSON, local files, or the bundled sample lineup. Saved character JSON can be reused across teams.</p>
+                </div>
+                <div class="placeholder-block">
+                  <strong>Export paths</strong>
+                  <p>The editor supports copy-to-clipboard and JSON download. A practical local convention is keeping reusable character files under <code>tools/ui/characters/</code>.</p>
+                </div>
+                <label class="field-group field-group-textarea" for="team-json-input">
+                  <span>Team JSON</span>
+                  <textarea
+                    id="team-json-input"
+                    rows="12"
+                    spellcheck="false"
+                    placeholder='Paste team JSON here, then click "Load Pasted Team".'
+                  ></textarea>
+                </label>
               </div>
-              <div class="placeholder-block">
-                <strong>Export paths</strong>
-                <p>The editor supports copy-to-clipboard and JSON download. A practical local convention is keeping reusable character files under <code>tools/ui/characters/</code>.</p>
-              </div>
-            </div>
+            </details>
           </section>
 
           <section class="panel panel-wide" aria-labelledby="character-library-heading">
