@@ -100,6 +100,12 @@ Result:
 - character loadouts become reusable
 - no separate team-library UI is required yet
 
+Status:
+
+- completed
+- character cards now support direct JSON save/load
+- loaded character files are validated before replacing the slot
+
 ### Phase 2: Add a Lightweight Character Library Panel
 
 Add a builder-side character library workspace or panel.

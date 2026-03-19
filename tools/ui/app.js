@@ -359,7 +359,7 @@ teamEditorConfig.editor.addEventListener("input", (event) => {
 });
 
 teamEditorConfig.editor.addEventListener("change", (event) => {
-  handleTeamEditorInput(event);
+  void handleTeamEditorChange(event);
 });
 
 teamEditorConfig.editor.addEventListener("click", (event) => {
@@ -851,65 +851,82 @@ function validateTeamConfig(candidate) {
 function validateTeamCharacters(characters, errors) {
   const seenIds = new Set();
   const seenPositions = new Set();
-  const requiredStats = ["vit", "mgt", "mag", "arm", "res", "spd", "wil"];
 
   characters.forEach((character, index) => {
     const prefix = `characters[${index}]`;
-    if (!isPlainObject(character)) {
-      errors.push(`${prefix} must be an object.`);
-      return;
+    const characterErrors = validateCharacterConfig(character, prefix);
+    for (const error of characterErrors) {
+      errors.push(error);
     }
 
-    if (typeof character.id !== "string" || character.id.trim() === "") {
-      errors.push(`${prefix}.id must be a non-empty string.`);
-    } else if (seenIds.has(character.id)) {
-      errors.push(`${prefix}.id must be unique within the team.`);
-    } else {
-      seenIds.add(character.id);
-    }
-
-    if (!isPlainObject(character.position)) {
-      errors.push(`${prefix}.position must be an object.`);
-    } else {
-      const { row, col } = character.position;
-      if (!Number.isInteger(row) || row < 0 || row > 2) {
-        errors.push(`${prefix}.position.row must be an integer from 0 to 2.`);
-      }
-      if (!Number.isInteger(col) || col < 0 || col > 3) {
-        errors.push(`${prefix}.position.col must be an integer from 0 to 3.`);
-      }
-      if (Number.isInteger(row) && Number.isInteger(col)) {
-        const positionKey = `${row}:${col}`;
-        if (seenPositions.has(positionKey)) {
-          errors.push(`${prefix}.position must be unique within the team.`);
-        } else {
-          seenPositions.add(positionKey);
-        }
+    if (typeof character?.id === "string" && character.id.trim() !== "") {
+      if (seenIds.has(character.id)) {
+        errors.push(`${prefix}.id must be unique within the team.`);
+      } else {
+        seenIds.add(character.id);
       }
     }
 
-    if (!isPlainObject(character.stats)) {
-      errors.push(`${prefix}.stats must be an object.`);
-    } else {
-      for (const statKey of requiredStats) {
-        if (typeof character.stats[statKey] !== "number") {
-          errors.push(`${prefix}.stats.${statKey} must be a number.`);
-        }
+    const row = character?.position?.row;
+    const col = character?.position?.col;
+    if (Number.isInteger(row) && Number.isInteger(col)) {
+      const positionKey = `${row}:${col}`;
+      if (seenPositions.has(positionKey)) {
+        errors.push(`${prefix}.position must be unique within the team.`);
+      } else {
+        seenPositions.add(positionKey);
       }
-    }
-
-    if (typeof character.passive !== "string") {
-      errors.push(`${prefix}.passive must be a string.`);
-    }
-
-    if (!Array.isArray(character.actives)) {
-      errors.push(`${prefix}.actives must be an array.`);
-    }
-
-    if (!Array.isArray(character.rules)) {
-      errors.push(`${prefix}.rules must be an array.`);
     }
   });
+}
+
+function validateCharacterConfig(candidate, prefix = "character") {
+  const errors = [];
+  const requiredStats = ["vit", "mgt", "mag", "arm", "res", "spd", "wil"];
+
+  if (!isPlainObject(candidate)) {
+    return [`${prefix} must be an object.`];
+  }
+
+  if (typeof candidate.id !== "string" || candidate.id.trim() === "") {
+    errors.push(`${prefix}.id must be a non-empty string.`);
+  }
+
+  if (!isPlainObject(candidate.position)) {
+    errors.push(`${prefix}.position must be an object.`);
+  } else {
+    const { row, col } = candidate.position;
+    if (!Number.isInteger(row) || row < 0 || row > 2) {
+      errors.push(`${prefix}.position.row must be an integer from 0 to 2.`);
+    }
+    if (!Number.isInteger(col) || col < 0 || col > 3) {
+      errors.push(`${prefix}.position.col must be an integer from 0 to 3.`);
+    }
+  }
+
+  if (!isPlainObject(candidate.stats)) {
+    errors.push(`${prefix}.stats must be an object.`);
+  } else {
+    for (const statKey of requiredStats) {
+      if (typeof candidate.stats[statKey] !== "number") {
+        errors.push(`${prefix}.stats.${statKey} must be a number.`);
+      }
+    }
+  }
+
+  if (typeof candidate.passive !== "string") {
+    errors.push(`${prefix}.passive must be a string.`);
+  }
+
+  if (!Array.isArray(candidate.actives)) {
+    errors.push(`${prefix}.actives must be an array.`);
+  }
+
+  if (!Array.isArray(candidate.rules)) {
+    errors.push(`${prefix}.rules must be an array.`);
+  }
+
+  return errors;
 }
 
 function renderTeamSummary(teamConfig) {
@@ -1044,9 +1061,12 @@ function renderCharacterEditor(character, characterIndex) {
       <div class="editor-card-header">
         <h5>${escapeHtml(character.display_name || character.id || `Character ${characterIndex + 1}`)}</h5>
         <div class="editor-card-actions">
+          <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}">Save Character</button>
+          <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}">Load Character</button>
           <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Remove</button>
         </div>
       </div>
+      <input class="visually-hidden" type="file" accept=".json,application/json" data-team-action="load-character-file" data-character-index="${characterIndex}">
       <div class="editor-grid">
         <label class="field-group">
           <span>ID</span>
@@ -1320,6 +1340,16 @@ function handleTeamEditorInput(event) {
   }
 }
 
+async function handleTeamEditorChange(event) {
+  const target = event.target;
+  if (target.dataset.teamAction === "load-character-file") {
+    await loadCharacterFromFileInput(target);
+    return;
+  }
+
+  handleTeamEditorInput(event);
+}
+
 function handleTeamEditorAction(event) {
   const action = event.target.dataset.teamAction;
   if (!action) {
@@ -1339,6 +1369,14 @@ function handleTeamEditorAction(event) {
     case "add-character":
       team.characters.push(createEmptyCharacter(team.characters.length));
       break;
+    case "save-character":
+      downloadCharacterJson(characterIndex);
+      return;
+    case "load-character":
+      teamEditorConfig.editor
+        .querySelector(`[data-team-action="load-character-file"][data-character-index="${characterIndex}"]`)
+        ?.click();
+      return;
     case "remove-character":
       team.characters.splice(characterIndex, 1);
       break;
@@ -1365,6 +1403,59 @@ function handleTeamEditorAction(event) {
   }
 
   syncTeamUI();
+}
+
+function downloadCharacterJson(characterIndex) {
+  const team = appState.teamConfig;
+  const character = team?.characters?.[characterIndex];
+  if (!character) {
+    renderTeamValidation({ ok: false, errors: ["No character is available to download."] });
+    return;
+  }
+
+  const jsonText = JSON.stringify(character, null, 2);
+  const blob = new Blob([jsonText], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${character.id || `character_${characterIndex + 1}`}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  renderTeamValidation({ ok: true, errors: [] });
+  teamEditorConfig.validationOutput.textContent = `Character JSON downloaded for ${character.display_name || character.id || `character ${characterIndex + 1}`}.`;
+}
+
+async function loadCharacterFromFileInput(fileInput) {
+  const team = appState.teamConfig;
+  const characterIndex = Number(fileInput.dataset.characterIndex);
+  const [file] = fileInput.files ?? [];
+
+  if (!team || !file) {
+    return;
+  }
+
+  try {
+    const content = await file.text();
+    const parsedCharacter = JSON.parse(content);
+    const validationErrors = validateCharacterConfig(parsedCharacter, "character");
+
+    if (validationErrors.length > 0) {
+      renderTeamValidation({ ok: false, errors: validationErrors });
+      fileInput.value = "";
+      return;
+    }
+
+    team.characters[characterIndex] = parsedCharacter;
+    syncTeamUI();
+    renderTeamValidation({ ok: true, errors: [] });
+    teamEditorConfig.validationOutput.textContent = `Loaded character JSON into slot ${characterIndex + 1}.`;
+  } catch (error) {
+    renderTeamValidation({ ok: false, errors: [`Could not load character JSON: ${error.message}`] });
+  } finally {
+    fileInput.value = "";
+  }
 }
 
 function createEmptyCharacter(index) {
