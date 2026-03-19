@@ -931,6 +931,8 @@ function validateCharacterConfig(candidate, prefix = "character") {
 
   if (!Array.isArray(candidate.rules)) {
     errors.push(`${prefix}.rules must be an array.`);
+  } else if (candidate.rules.length > 5) {
+    errors.push(`${prefix}.rules must contain at most 5 rules.`);
   }
 
   return errors;
@@ -1062,6 +1064,8 @@ function renderCharacterEditor(character, characterIndex) {
     ),
   );
   const rulesMarkup = (character.rules ?? []).map((rule, ruleIndex) => renderRuleEditor(characterIndex, rule, ruleIndex)).join("");
+  const ruleCount = character.rules?.length ?? 0;
+  const canAddRule = ruleCount < 5;
 
   return `
     <article class="editor-card">
@@ -1131,12 +1135,13 @@ function renderCharacterEditor(character, characterIndex) {
       </div>
       <section class="editor-rule-section">
         <div class="editor-card-header">
-          <span class="editor-subsection-label">Rules</span>
+          <span class="editor-subsection-label">Priority Rules</span>
           <div class="editor-card-actions">
-            <button type="button" class="button-secondary" data-team-action="add-rule" data-character-index="${characterIndex}">Add Rule</button>
+            <span class="rule-count-label">${ruleCount}/5</span>
+            <button type="button" class="button-secondary" data-team-action="add-rule" data-character-index="${characterIndex}" ${canAddRule ? "" : "disabled"}>Add Rule</button>
           </div>
         </div>
-        <div class="rule-editor-list">${rulesMarkup || '<div class="board-empty-state">Add a rule to script this character.</div>'}</div>
+        <div class="rule-editor-list">${rulesMarkup || '<div class="board-empty-state">Add a priority rule to script this character. If none match, the character rests.</div>'}</div>
       </section>
     </article>
   `;
@@ -1153,7 +1158,10 @@ function renderRuleEditor(characterIndex, rule, ruleIndex) {
   return `
     <article class="editor-card">
       <div class="editor-card-header">
-        <h6>Rule ${ruleIndex + 1}</h6>
+        <div>
+          <h6>Priority ${ruleIndex + 1}</h6>
+          <div class="rule-preview">${escapeHtml(formatRulePreview(rule))}</div>
+        </div>
         <div class="editor-card-actions">
           <button type="button" class="button-quiet" data-team-action="move-rule-up" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Up</button>
           <button type="button" class="button-quiet" data-team-action="move-rule-down" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Down</button>
@@ -1172,7 +1180,7 @@ function renderRuleEditor(characterIndex, rule, ruleIndex) {
           <button type="button" class="button-secondary" data-team-action="add-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Add Condition</button>
         </div>
       </div>
-      <div class="condition-editor-list">${conditionsMarkup || '<div class="board-empty-state">Add a condition to decide when this rule fires.</div>'}</div>
+      <div class="condition-editor-list">${conditionsMarkup || '<div class="board-empty-state">Add a condition to decide when this priority fires.</div>'}</div>
     </article>
   `;
 }
@@ -1404,7 +1412,9 @@ function handleTeamEditorAction(event) {
       team.characters.splice(characterIndex, 1);
       break;
     case "add-rule":
-      team.characters[characterIndex]?.rules.push(createEmptyRule());
+      if ((team.characters[characterIndex]?.rules?.length ?? 0) < 5) {
+        team.characters[characterIndex]?.rules.push(createEmptyRule());
+      }
       break;
     case "remove-rule":
       team.characters[characterIndex]?.rules.splice(ruleIndex, 1);
@@ -1728,6 +1738,16 @@ function formatConditionPreview(condition) {
   }
 
   return `${subjectLabel} ${getRuleOptionLabel(ruleValueTypeOptions, valueType)} ${operatorLabel} ${threshold}`;
+}
+
+function formatRulePreview(rule) {
+  const abilityLabel = rule?.ability || "an ability";
+  const conditions = Array.isArray(rule?.when) ? rule.when : [];
+  if (conditions.length === 0) {
+    return `Use ${abilityLabel} if always available`;
+  }
+
+  return `Use ${abilityLabel} if ${conditions.map((condition) => formatConditionPreview(condition)).join(" and ")}`;
 }
 
 function getRuleOptionLabel(options, value) {

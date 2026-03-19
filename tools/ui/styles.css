@@ -412,6 +412,24 @@ select {
   color: var(--muted);
 }
 
+.rule-count-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(33, 25, 16, 0.06);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.rule-preview {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
 .condition-preview {
   margin: 0 0 12px;
   padding: 10px 12px;

@@ -234,6 +234,10 @@ Enemy targeting should also support positional conditions such as:
 
 Each character has up to 5 ordered rules.
 
+These rules form one shared priority list for the character.
+
+They are not grouped per ability.
+
 Rules answer only one question:
 
 - should this ability be used right now

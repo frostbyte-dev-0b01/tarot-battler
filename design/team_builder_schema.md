@@ -144,6 +144,16 @@ Required stats:
 }
 ```
 
+Rules are character-level priorities, not per-ability subprograms.
+
+Each character may have up to 5 rules total.
+
+They are evaluated in array order:
+
+- the first satisfied rule is used
+- later rules are ignored once one rule fires
+- if no rule is satisfied, the character uses `Rest`
+
 ### Fields
 
 - `ability: string`

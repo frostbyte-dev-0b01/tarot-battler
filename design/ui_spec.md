@@ -213,10 +213,20 @@ Rules are the most complex editable part of the team schema, so the UI should ke
 A rule editor should support:
 
 - ordered list of rules
+- up to 5 rules per character
 - ability name
 - list of conditions under `when`
 - add/remove condition
 - move rules up and down
+
+The UI should present these as one readable priority list per character, not as ability-specific rule groups.
+
+Each rule should read like:
+
+- `Use Heal if Self HP <= 3`
+- `Use Taunt if Enemies Alive >= 2`
+
+The first matching rule should be visually understood as the action the character will take.
 
 A condition editor should support:
 
