@@ -369,16 +369,69 @@ Statuses are a core team-building axis, and the intended vocabulary should suppo
 
 ### Official Status Direction
 
-The current intended core effect families are:
+The current intended core effects are:
 
-- `Fortify(stat)` — positive stack-based modifier to `MGT`, `MAG`, `ARM`, or `RES`
+- `Empower(stat)` — positive stack-based modifier to `MGT`, `MAG`, `ARM`, or `RES`
 - `Weaken(stat)` — negative stack-based modifier to `MGT`, `MAG`, `ARM`, or `RES`
 - `Lethality` — flat post-mitigation bonus damage on the attacker
 - `Omen` — true-damage setup effect that triggers at start of turn
-- `Regen` — HP restoration over time
+- `Restoration` — HP restoration over time
 - `Stunned` — skips the next action
 
 `Omen` is the official name for the intended true-damage setup effect.
+
+### Status Groups
+
+Buffs and debuffs are grouped for cleanse and dispel behavior.
+
+The current intended groups are:
+
+- `Body`
+  - `Empower MGT`
+  - `Weaken MGT`
+  - `Empower ARM`
+  - `Weaken ARM`
+  - `Lethality`
+- `Mind`
+  - `Empower MAG`
+  - `Weaken MAG`
+  - `Empower RES`
+  - `Weaken RES`
+- `Fate`
+  - `Omen`
+  - `Restoration`
+
+`Stunned` is a separate `Condition`, not part of the `Body`, `Mind`, or `Fate` groups.
+
+### Cleanse and Dispel
+
+These terms have specific meanings:
+
+- `cleanse` means remove `1 tick` of debuffs
+- `dispel` means remove `1 tick` of buffs
+
+Abilities can scale that amount explicitly:
+
+- `cleanse 2` means remove `2 ticks` of debuffs
+- `dispel 2` means remove `2 ticks` of buffs
+
+Default generic removal behavior is intentionally broad but incremental:
+
+- ally-side `cleanse` reduces all debuffs on the affected allies by `1 tick`
+- enemy-side `dispel` reduces all buffs on the affected enemies by `1 tick`
+
+This means:
+
+- each matching timed effect loses `1` current stack or tick
+- if an effect reaches `0`, it is removed
+- permanent effects are not removed unless an ability explicitly says it can remove permanent effects
+- conditions such as `Stunned` are not removed unless an ability explicitly says it removes conditions
+
+More specialized abilities can still target a specific group:
+
+- remove `1 tick` of all `Body` debuffs
+- remove `1 tick` of all `Mind` buffs
+- remove all `Fate` debuffs
 
 ### Current Engine Prototype
 
@@ -422,8 +475,8 @@ This creates a self-limiting equilibrium when the same effect is applied repeate
 Current intended timing:
 
 - start of turn: `Omen` deals damage, then halves
-- start of turn: `Regen` heals, then halves
-- end of turn: `Fortify`, `Weaken`, and `Lethality` halve
+- start of turn: `Restoration` heals, then halves
+- end of turn: `Empower`, `Weaken`, and `Lethality` halve
 - `Stunned` is removed after it successfully denies an action
 
 The older prototype tick-down-by-1 behavior is an implementation detail, not the intended long-term design.

@@ -30,12 +30,14 @@ This is useful for prototyping, but the intended design direction is now:
 
 - `Omen` as the official true-damage setup effect
 - `Lethality` as a post-mitigation offensive stack
-- `Fortify` / `Weaken` as the main offensive and defensive stat-mod families
-- `Regen` and `Stunned` as the main sustain and turn-denial effects
+- `Empower` / `Weaken` as the main offensive and defensive stat-mod families
+- `Restoration` and `Stunned` as the main sustain and turn-denial effects
 
 `Omen` now exists in the engine as the intended named setup effect, but it still uses the prototype tick-down status model rather than the long-term halving-decay design.
 
 `Bleed` and `Poison` should still be treated as implementation placeholders so the design docs and engine behavior do not get confused.
+
+The intended design now also groups timed effects into `Body`, `Mind`, and `Fate`, with generic ally cleanse reducing all debuffs by `1 tick` and generic enemy dispel reducing all buffs by `1 tick`. The engine does not implement that grouped removal model yet.
 
 ### Stat Naming
 
