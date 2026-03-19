@@ -88,6 +88,13 @@ Not yet supported:
 - conditional bonus damage based on target status without fully consuming the status
 - a clean way to model "while targeting Justice" passive behavior
 
+Additional bridge capability discovered during implementation:
+
+- some Team B effects need to run nested primitives only when the current target has `Omen`
+- the engine now supports this through an `if_target_has_status` primitive wrapper
+- this is currently used for effects like `Transmute` and the simplified `Sentence`
+- long-term, if conditional ability composition expands, this may want a broader condition-wrapper system
+
 ## Design Decisions To Preserve
 
 The implementation should preserve these gameplay intentions:
@@ -341,6 +348,39 @@ This keeps Justice omen-aware and control-oriented while fitting existing trigge
 ### Tests
 
 - covered during Team B data integration
+
+## Phase 6A: Conditional Primitive Wrapper
+
+Status:
+
+- implemented
+
+### Goal
+
+Support simple "if the target has status X, then run these nested effects" patterns without hard-coding one-off abilities.
+
+### Needed for
+
+- `Transmute`
+- simplified `Sentence`
+
+### Implementation
+
+Add a primitive wrapper:
+
+- `if_target_has_status`
+
+Implemented result:
+
+- the wrapper resolves enemy targets, checks whether any of them have the named status, and only then executes its nested primitives
+- loader validation now checks the referenced status and recursively validates nested primitives
+- this keeps Team B data-driven without introducing a larger general-purpose condition language yet
+
+### Tests
+
+- nested primitives execute when the target has the named status
+- nested primitives do not execute when the target lacks the status
+- nested primitives still participate in normal validation
 
 ## Phase 7: Data Integration
 

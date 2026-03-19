@@ -188,6 +188,13 @@ pub enum Primitive {
         #[serde(default = "default_true")]
         if_empty: bool,
     },
+    IfTargetHasStatus {
+        target: AbilityTarget,
+        status: String,
+        #[serde(default)]
+        stat: Option<Stat>,
+        primitives: Vec<Primitive>,
+    },
 }
 
 /// A complete ability definition.
@@ -677,6 +684,40 @@ pub fn execute_primitives(
                 if_empty,
             } => {
                 try_move_actor(actor_idx, actor_team, direction, *if_empty, log, step);
+            }
+            Primitive::IfTargetHasStatus {
+                target,
+                status,
+                stat,
+                primitives,
+            } => {
+                let key = status_key(status, stat.as_ref());
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    actor_team,
+                    enemy_team,
+                    _rng,
+                    trigger_target_id,
+                );
+                let should_execute = target_indices
+                    .iter()
+                    .any(|tidx| enemy_team[*tidx].is_alive() && enemy_team[*tidx].has_status(&key));
+                if should_execute {
+                    let nested_damage = execute_primitives(
+                        actor_idx,
+                        _source_name,
+                        primitives,
+                        actor_team,
+                        enemy_team,
+                        _rng,
+                        log,
+                        step,
+                        status_defs,
+                        trigger_target_id,
+                    );
+                    damage_dealt.extend(nested_damage);
+                }
             }
         }
     }
@@ -1681,6 +1722,97 @@ mod tests {
         );
 
         assert_eq!(enemy_team[0].current_hp(), 15);
+    }
+
+    #[test]
+    fn conditional_primitives_execute_only_when_target_has_status() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MAG, 8)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::RES, 3)])];
+        actor_team[0].set_target(1);
+
+        let omen = statuses.get("Omen").unwrap();
+        enemy_team[0].add_status("Omen", 1, 99, omen, None);
+
+        let ability = AbilityDef {
+            mp_cost: 2,
+            primitives: vec![
+                Primitive::DealMagicalDamage {
+                    target: SimpleAbilityTarget::CurrentTarget.into(),
+                    multiplier: 1.0,
+                },
+                Primitive::IfTargetHasStatus {
+                    target: SimpleAbilityTarget::CurrentTarget.into(),
+                    status: "Omen".to_string(),
+                    stat: None,
+                    primitives: vec![Primitive::RestoreMp {
+                        target: SimpleAbilityTarget::SelfChar.into(),
+                        amount: 2,
+                    }],
+                },
+            ],
+        };
+
+        actor_team[0].spend_mp(4);
+        execute_ability(
+            0,
+            "Transmute",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        assert_eq!(actor_team[0].current_mp(), 3);
+    }
+
+    #[test]
+    fn conditional_primitives_do_not_execute_without_matching_status() {
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut log = BattleLog::new();
+        let statuses = test_statuses();
+        let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MAG, 8)])];
+        let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::RES, 3)])];
+        actor_team[0].set_target(1);
+
+        let ability = AbilityDef {
+            mp_cost: 2,
+            primitives: vec![
+                Primitive::DealMagicalDamage {
+                    target: SimpleAbilityTarget::CurrentTarget.into(),
+                    multiplier: 1.0,
+                },
+                Primitive::IfTargetHasStatus {
+                    target: SimpleAbilityTarget::CurrentTarget.into(),
+                    status: "Omen".to_string(),
+                    stat: None,
+                    primitives: vec![Primitive::RestoreMp {
+                        target: SimpleAbilityTarget::SelfChar.into(),
+                        amount: 2,
+                    }],
+                },
+            ],
+        };
+
+        actor_team[0].spend_mp(4);
+        execute_ability(
+            0,
+            "Transmute",
+            &ability,
+            &mut actor_team,
+            &mut enemy_team,
+            &mut rng,
+            &mut log,
+            1,
+            &statuses,
+        );
+
+        assert_eq!(actor_team[0].current_mp(), 1);
     }
 
     #[test]

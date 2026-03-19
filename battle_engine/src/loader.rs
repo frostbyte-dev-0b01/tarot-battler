@@ -435,6 +435,33 @@ fn validate_primitives(
                     ));
                 }
             }
+            Primitive::IfTargetHasStatus {
+                target,
+                status,
+                stat,
+                primitives,
+            } => {
+                let Some(def) = statuses.get(status) else {
+                    errors.push(format!(
+                        "{} references unknown status '{}'",
+                        source_name, status
+                    ));
+                    continue;
+                };
+
+                validate_status_stat_usage(source_name, status, stat.as_ref(), def, errors);
+
+                if !is_enemy_target(target) {
+                    errors.push(format!(
+                        "{} checks status '{}' on invalid target side '{}'",
+                        source_name,
+                        status,
+                        target_label(target),
+                    ));
+                }
+
+                validate_primitives(source_name, primitives, statuses, errors);
+            }
             _ => {}
         }
     }
