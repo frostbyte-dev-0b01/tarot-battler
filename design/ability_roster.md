@@ -22,6 +22,16 @@ Current first-pass multiplier bands:
 - `1.2x-1.4x` for strong standard single-target damage
 - `1.6x-2.0x` for heavy payoff attacks
 
+Current damage-shape principle:
+
+- most damaging abilities should eventually use `flat base damage + stat multiplier`
+- this keeps low-multiplier attacks relevant through defense
+- it also creates healthier differentiation between:
+  - reliable low-scaling attacks
+  - pure scaling attacks
+  - splash/setup attacks
+  - payoff finishers
+
 Current balancing shorthand:
 
 - `1 MP` is roughly worth a light attack, `cleanse 1`, `dispel 1`, `Omen 1`, or `restore 2-3 MP`
@@ -121,8 +131,9 @@ Current design direction for economy:
 
 - `Consecrate`
   `MP 6`
-  Deal magical damage to the user's current target and that target's companions.
-  Uses `0.7x MAG` per target.
+  Deal magical damage to the user's focused enemy and that enemy's companions.
+  Uses `1.0x MAG` on the focused enemy and `0.7x MAG` on each companion.
+  Balance notes: intended to be a real bomb when enemy formation clusters, not just light splash
 
 - `Hex`
   `MP 4`
@@ -135,9 +146,8 @@ Current design direction for economy:
   Uses `0.7x MAG` per target.
 
 - `Harvest Night`
-  `MP 8`
-  Deal magical damage to the user's current target, consume all `Omen` on that target, and add bonus damage equal to the consumed stacks.
-  Uses `1.2x MAG`, then gains `Lethality 1` per consumed `Omen`.
+  `MP 6`
+  Deal `1.0x MAG` damage to the user's focused enemy. Then consume all `Omen` on that enemy and deal `2` true damage per stack consumed.
 
 - `Invocation`
   `MP 4`

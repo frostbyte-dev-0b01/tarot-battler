@@ -277,6 +277,7 @@ This triggers if any companion is below 4 HP. The ability still picks its own ta
 - any effective stat
 - current HP
 - current MP
+- companion count for `self` and `target`
 - stack count of a named effect using a status key such as `Empower:MGT`
 - whether a named effect is present or absent using a key such as `Ward`
 
@@ -285,6 +286,11 @@ This triggers if any companion is below 4 HP. The ability still picks its own ta
 - `tick_count`
 - `ally_count`
 - `enemy_count`
+
+This is expected to include queries such as:
+
+- `self_companion_count`
+- `target_companion_count`
 
 ### Rule Operators
 
