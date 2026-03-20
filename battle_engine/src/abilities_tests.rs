@@ -1502,6 +1502,34 @@ fn deal_true_damage_bypasses_ward() {
 }
 
 #[test]
+fn lose_current_hp_percent_costs_current_hp() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
+    actor_team[0].take_damage(10);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::LoseCurrentHpPercent { percent: 20 }],
+    };
+
+    execute_ability(
+        0,
+        "Offer",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+
+    assert_eq!(actor_team[0].current_hp(), 16);
+}
+
+#[test]
 fn split_magical_damage_uses_separate_primary_and_companion_values() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();

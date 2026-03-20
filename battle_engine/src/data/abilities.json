@@ -1,7 +1,7 @@
 {
   "Hold the Line": {
     "description": "Apply Ward 1 to allies in the user's row.",
-    "mp_cost": 4,
+    "mp_cost": 5,
     "primitives": [
       {
         "kind": "apply_status",
@@ -15,7 +15,7 @@
     ]
   },
   "Command": {
-    "description": "One companion immediately makes a standard physical attack against the user's current target.",
+    "description": "One companion immediately makes a 1.0x MGT physical attack against the user's focused enemy.",
     "mp_cost": 4,
     "primitives": [
       {
@@ -24,7 +24,7 @@
     ]
   },
   "Taunt": {
-    "description": "Enemies with stronger MGT than MAG change their target to the user.",
+    "description": "Enemies with higher MGT than MAG focus the user.",
     "mp_cost": 4,
     "primitives": [
       {
@@ -36,29 +36,29 @@
     ]
   },
   "Smite": {
-    "description": "Deal magical damage to the user's current target.",
+    "description": "Deal 1.4x MAG damage to the user's focused enemy.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "multiplier": 1.0
+        "multiplier": 1.4
       }
     ]
   },
   "Consecrate": {
-    "description": "Deal magical damage to the user's current target and that target's companions.",
+    "description": "Deal 1.0x MAG damage to the user's focused enemy and 0.7x MAG damage to that enemy's companions.",
     "mp_cost": 6,
     "primitives": [
       {
-        "kind": "deal_magical_damage",
-        "target": "current_target_and_companions",
-        "multiplier": 0.7
+        "kind": "deal_magical_damage_current_target_and_companions",
+        "primary_multiplier": 1.0,
+        "companion_multiplier": 0.7
       }
     ]
   },
   "Blessing": {
-    "description": "Restore MP to allies in the user's row.",
+    "description": "Allies in the user's row restore MP 2 and refocus on the user's focused enemy.",
     "mp_cost": 4,
     "primitives": [
       {
@@ -68,40 +68,55 @@
           "position": "same_row"
         },
         "amount": 2
+      },
+      {
+        "kind": "refocus_allies_to_actors_target",
+        "target": {
+          "category": "ally",
+          "position": "same_row"
+        }
       }
     ]
   },
   "Charge": {
-    "description": "Deal physical damage, then move one row forward in the same column if the tile is empty.",
-    "mp_cost": 2,
+    "description": "Deal 1.2x MGT damage to the user's focused enemy. Then move one row forward if the tile is empty and refocus.",
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.0,
+        "multiplier": 1.2,
         "double_empower_stat": null
       },
       {
         "kind": "move",
         "direction": "forward",
         "if_empty": true
+      },
+      {
+        "kind": "refocus_self"
       }
     ]
   },
   "Withdraw": {
-    "description": "Deal physical damage, then move one row backward in the same column if the tile is empty.",
-    "mp_cost": 2,
+    "description": "Deal 0.8x MGT damage to the user's focused enemy. Then move one row backward if the tile is empty and enemies focusing the user refocus.",
+    "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.0,
+        "multiplier": 0.8,
         "double_empower_stat": null
       },
       {
         "kind": "move",
         "direction": "backward",
         "if_empty": true
+      },
+      {
+        "kind": "retarget_enemies_focusing_targets",
+        "target": "self",
+        "mode": "default_retarget"
       }
     ]
   },
@@ -118,13 +133,13 @@
     ]
   },
   "Hex": {
-    "description": "Deal magical damage to the user's current target and apply Omen 2.",
+    "description": "Deal 0.8x MAG damage to the user's focused enemy. Apply Omen 2.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "multiplier": 1.0
+        "multiplier": 0.8
       },
       {
         "kind": "apply_status",
@@ -135,13 +150,13 @@
     ]
   },
   "Eclipse": {
-    "description": "Deal magical damage to the user's current target and companions, then apply Omen 1 to each.",
+    "description": "Deal 0.8x MAG damage to the user's focused enemy and that enemy's companions. Apply Omen 1 to each.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target_and_companions",
-        "multiplier": 0.7
+        "multiplier": 0.8
       },
       {
         "kind": "apply_status",
@@ -152,15 +167,41 @@
     ]
   },
   "Harvest Night": {
-    "description": "Deal magical damage to the user's current target, consume all Omen on that target, and add bonus damage equal to the consumed stacks.",
-    "mp_cost": 8,
+    "description": "Deal 1.0x MAG damage to the user's focused enemy. Then consume all Omen on that enemy and deal 2 true damage per stack consumed.",
+    "mp_cost": 6,
     "primitives": [
       {
-        "kind": "deal_magical_damage_consume_status",
+        "kind": "deal_magical_damage",
         "target": "current_target",
-        "multiplier": 1.0,
+        "multiplier": 1.0
+      },
+      {
+        "kind": "deal_true_damage_consume_target_status",
+        "target": "current_target",
         "status": "Omen",
-        "bonus_per_stack": 1
+        "damage_per_stack": 2
+      }
+    ]
+  },
+  "Offer": {
+    "description": "Lose 20% current HP. Gain MP 4 and Empower MAG 4.",
+    "mp_cost": 2,
+    "primitives": [
+      {
+        "kind": "lose_current_hp_percent",
+        "percent": 20
+      },
+      {
+        "kind": "restore_mp",
+        "target": "self",
+        "amount": 4
+      },
+      {
+        "kind": "apply_status",
+        "target": "self",
+        "status": "Empower",
+        "stat": "mag",
+        "stacks": 4
       }
     ]
   },
@@ -181,12 +222,13 @@
     ]
   },
   "Distill": {
-    "description": "Remove one buff from the user's current target, then apply Omen 2.",
+    "description": "Dispel 1 from the user's focused enemy. Apply Omen 2.",
     "mp_cost": 4,
     "primitives": [
       {
-        "kind": "remove_one_buff",
-        "target": "current_target"
+        "kind": "dispel",
+        "target": "current_target",
+        "amount": 1
       },
       {
         "kind": "apply_status",
@@ -197,7 +239,7 @@
     ]
   },
   "Transmute": {
-    "description": "Deal magical damage to the user's current target. If that target has Omen, restore MP 2 to the user.",
+    "description": "Deal 1.0x MAG damage to the user's focused enemy. Transform that enemy's Empower MGT and Empower ARM into equal Weaken MGT and Weaken ARM.",
     "mp_cost": 4,
     "primitives": [
       {
@@ -206,77 +248,98 @@
         "multiplier": 1.0
       },
       {
+        "kind": "transform_statuses",
+        "target": "current_target",
+        "from_status": "Empower",
+        "to_status": "Weaken",
+        "stats": ["mgt", "arm"]
+      }
+    ]
+  },
+  "Condemn": {
+    "description": "Deal 1.4x MGT damage to the user's focused enemy. If that enemy has Omen, this attack instead uses 1.6x MGT.",
+    "mp_cost": 6,
+    "primitives": [
+      {
+        "kind": "if_target_lacks_status",
+        "target": "current_target",
+        "status": "Omen",
+        "primitives": [
+          {
+            "kind": "deal_physical_damage",
+            "target": "current_target",
+            "multiplier": 1.4,
+            "double_empower_stat": null
+          }
+        ]
+      },
+      {
         "kind": "if_target_has_status",
         "target": "current_target",
         "status": "Omen",
         "primitives": [
           {
-            "kind": "restore_mp",
-            "target": "self",
-            "amount": 2
+            "kind": "deal_physical_damage",
+            "target": "current_target",
+            "multiplier": 1.6,
+            "double_empower_stat": null
           }
         ]
       }
     ]
   },
-  "Condemn": {
-    "description": "Deal physical damage to the user's current target. This attack deals bonus damage if the target has Omen.",
-    "mp_cost": 6,
-    "primitives": [
-      {
-        "kind": "deal_physical_damage_bonus_vs_status",
-        "target": "current_target",
-        "multiplier": 1.0,
-        "status": "Omen",
-        "bonus_damage": 3
-      }
-    ]
-  },
   "Verdict": {
-    "description": "Deal heavy physical damage to the user's current target.",
+    "description": "Deal 1.8x MGT damage to the user's focused enemy.",
     "mp_cost": 8,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 2.0,
+        "multiplier": 1.8,
         "double_empower_stat": null
       }
     ]
   },
   "Rebuke": {
-    "description": "Force the user's current target to choose a new target using default retargeting.",
-    "mp_cost": 4,
+    "description": "Deal 0.8x MAG damage to the user's focused enemy. That enemy is disoriented.",
+    "mp_cost": 3,
     "primitives": [
+      {
+        "kind": "deal_magical_damage",
+        "target": "current_target",
+        "multiplier": 0.8
+      },
       {
         "kind": "retarget",
         "target": "current_target",
-        "mode": "default_retarget"
+        "mode": "disorient"
       }
     ]
   },
   "Sanctify": {
-    "description": "Cleanse allies in the user's column.",
+    "description": "Cleanse allies in the user's column. Allies cleansed this way gain Ward 1.",
     "mp_cost": 4,
     "primitives": [
       {
-        "kind": "cleanse",
+        "kind": "cleanse_and_apply_status_if_changed",
         "target": {
           "category": "ally",
           "position": "same_column"
         },
-        "amount": 1
+        "amount": 1,
+        "status": "Ward",
+        "stacks": 1
       }
     ]
   },
   "Sunder": {
-    "description": "Deal physical damage and apply Weaken ARM.",
-    "mp_cost": 4,
+    "description": "Deal 0.8x MGT damage to the user's focused enemy. Apply Weaken ARM 2.",
+    "mp_cost": 2,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.0,
+        "multiplier": 0.8,
         "double_empower_stat": null
       },
       {
@@ -284,7 +347,32 @@
         "target": "current_target",
         "status": "Weaken",
         "stat": "arm",
-        "stacks": 1
+        "stacks": 2
+      }
+    ]
+  },
+  "Seal": {
+    "description": "Deal 0.8x MAG damage to the user's focused enemy. Apply Weaken MAG 4 and Weaken RES 2.",
+    "mp_cost": 4,
+    "primitives": [
+      {
+        "kind": "deal_magical_damage",
+        "target": "current_target",
+        "multiplier": 0.8
+      },
+      {
+        "kind": "apply_status",
+        "target": "current_target",
+        "status": "Weaken",
+        "stat": "mag",
+        "stacks": 4
+      },
+      {
+        "kind": "apply_status",
+        "target": "current_target",
+        "status": "Weaken",
+        "stat": "res",
+        "stacks": 2
       }
     ]
   },
@@ -325,13 +413,13 @@
     ]
   },
   "Sever": {
-    "description": "Deal physical damage. Consume the user's Empower MGT and Empower ARM for bonus damage based on the consumed stacks.",
+    "description": "Deal 1.4x MGT damage to the user's focused enemy. Consume the user's Empower MGT and Empower ARM, then deal 1 true damage per consumed stack.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_physical_damage_consume_self_statuses",
         "target": "current_target",
-        "multiplier": 1.0,
+        "multiplier": 1.4,
         "statuses": [
           {
             "status": "Empower",
@@ -342,7 +430,59 @@
             "stat": "arm"
           }
         ],
-        "bonus_per_stack": 1
+        "bonus_per_stack": 0
+      },
+      {
+        "kind": "deal_true_damage_consume_self_statuses",
+        "target": "current_target",
+        "statuses": [
+          {
+            "status": "Empower",
+            "stat": "mgt"
+          },
+          {
+            "status": "Empower",
+            "stat": "arm"
+          }
+        ],
+        "damage_per_stack": 1
+      }
+    ]
+  },
+  "Rescue": {
+    "description": "Restore 6 HP to one companion. If the tile one row backward in the same column is empty, move that companion there. Enemies focusing that companion refocus.",
+    "mp_cost": 4,
+    "primitives": [
+      {
+        "kind": "restore_hp",
+        "target": {
+          "category": "companion",
+          "selector": {
+            "kind": "lowest_hp"
+          }
+        },
+        "amount": 6
+      },
+      {
+        "kind": "move_target",
+        "target": {
+          "category": "companion",
+          "selector": {
+            "kind": "lowest_hp"
+          }
+        },
+        "direction": "backward",
+        "if_empty": true
+      },
+      {
+        "kind": "retarget_enemies_focusing_targets",
+        "target": {
+          "category": "companion",
+          "selector": {
+            "kind": "lowest_hp"
+          }
+        },
+        "mode": "default_retarget"
       }
     ]
   },
@@ -363,8 +503,8 @@
     ]
   },
   "Interpose": {
-    "description": "Enemies targeting the user's companion change their target to the user.",
-    "mp_cost": 4,
+    "description": "Enemies focusing any of the user's companions focus the user instead.",
+    "mp_cost": 2,
     "primitives": [
       {
         "kind": "retarget",
@@ -375,8 +515,8 @@
     ]
   },
   "Decoy": {
-    "description": "Enemies targeting the user change their target to one of the user's companions.",
-    "mp_cost": 4,
+    "description": "Enemies focusing the user focus one of the user's companions instead.",
+    "mp_cost": 2,
     "primitives": [
       {
         "kind": "retarget",

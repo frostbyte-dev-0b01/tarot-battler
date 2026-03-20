@@ -500,6 +500,7 @@ fn validate_primitives(
                     ));
                 }
             }
+            Primitive::RefocusSelf => {}
             Primitive::CleanseAndApplyStatusIfChanged {
                 target,
                 status,
@@ -564,6 +565,7 @@ fn validate_primitives(
             }
             Primitive::DealTrueDamage { .. }
             | Primitive::DealMagicalDamageCurrentTargetAndCompanions { .. } => {}
+            Primitive::LoseCurrentHpPercent { .. } => {}
             Primitive::RemoveOneBuff { target } => {
                 if !is_enemy_target(target) {
                     errors.push(format!(

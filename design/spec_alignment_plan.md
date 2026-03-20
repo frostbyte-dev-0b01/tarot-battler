@@ -151,6 +151,8 @@ Verification:
 
 ### Stage 5: Core Ability Data Alignment
 
+Status: completed in `core ability data alignment` stage commit.
+
 Update bundled live abilities to their current intended versions, including at least:
 
 - `Hold the Line`

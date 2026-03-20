@@ -193,6 +193,9 @@ pub enum Primitive {
         statuses: Vec<StatusRef>,
         damage_per_stack: u32,
     },
+    LoseCurrentHpPercent {
+        percent: u32,
+    },
     RestoreHp {
         target: AbilityTarget,
         amount: u32,
@@ -236,6 +239,7 @@ pub enum Primitive {
         target: AbilityTarget,
         mode: RetargetMode,
     },
+    RefocusSelf,
     RefocusAlliesToActorsTarget {
         target: AbilityTarget,
     },
@@ -824,6 +828,20 @@ pub fn execute_primitives_with_context(
                     });
                 }
             }
+            Primitive::LoseCurrentHpPercent { percent } => {
+                let current_hp = ctx.actor_team[actor_idx].current_hp();
+                let amount = current_hp.saturating_mul(*percent) / 100;
+                if amount > 0 {
+                    let damage = ctx.actor_team[actor_idx].current_hp().min(amount);
+                    ctx.actor_team[actor_idx].take_damage(amount);
+                    log_ability_damage(ctx, actor_id, actor_idx, damage, false);
+                    damage_dealt.push(DamageRecord {
+                        source_id: actor_id,
+                        target_id: ctx.actor_team[actor_idx].id(),
+                        damage,
+                    });
+                }
+            }
             Primitive::RestoreHp { target, amount } => {
                 let target_indices = resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
                 for tidx in target_indices {
@@ -1099,6 +1117,21 @@ pub fn execute_primitives_with_context(
                         retarget_mode_label(mode).to_string(),
                     );
                 }
+            }
+            Primitive::RefocusSelf => {
+                let actor_clone = ctx.actor_team[actor_idx].clone();
+                let new_target = select_target(&actor_clone, ctx.enemy_team, ctx.rng);
+                if let Some(new_target_id) = new_target {
+                    ctx.actor_team[actor_idx].set_target(new_target_id);
+                }
+                log_retarget_event(
+                    ctx,
+                    ctx.actor_team[actor_idx].id(),
+                    ctx.actor_team[actor_idx].base_name().to_string(),
+                    ctx.actor_team[actor_idx].target(),
+                    lookup_name(ctx.enemy_team, ctx.actor_team[actor_idx].target()),
+                    "default_retarget".to_string(),
+                );
             }
             Primitive::RefocusAlliesToActorsTarget { target } => {
                 let Some(actor_target_id) = ctx.actor_team[actor_idx].target() else {
