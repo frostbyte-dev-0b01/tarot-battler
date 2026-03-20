@@ -55,6 +55,7 @@ const replayEventSlider = document.querySelector("#replay-event-slider");
 const replayEventLabel = document.querySelector("#replay-event-label");
 const replayTickDisplay = document.querySelector("#replay-tick-display");
 const replaySpeedButtons = document.querySelectorAll(".speed-button");
+const replayInlineActions = document.querySelector("#replay-inline-actions");
 const currentEventTick = document.querySelector("#current-event-tick");
 const currentEventIndex = document.querySelector("#current-event-index");
 const currentEventText = document.querySelector("#current-event-text");
@@ -64,6 +65,8 @@ const timelineSelectedOnlyLabel = timelineSelectedOnlyInput.closest(".toggle-pil
 const timelineList = document.querySelector("#timeline-list");
 const inspectorPanel = document.querySelector("#inspector-panel");
 const battleBoard = document.querySelector("#battle-board");
+const replaySidebarPanels = document.querySelectorAll("[data-replay-panel]");
+const replaySidebarToggles = document.querySelectorAll("[data-replay-panel-toggle]");
 const appState = {
   replay: null,
   selectedEventIndex: -1,
@@ -192,6 +195,29 @@ for (const button of tabButtons) {
     for (const tabButton of tabButtons) {
       tabButton.classList.toggle("is-active", tabButton === button);
     }
+
+    replayInlineActions?.classList.toggle("is-visible", targetId === "replay-viewer");
+  });
+}
+
+replayInlineActions?.classList.remove("is-visible");
+
+function setActiveReplaySidebarPanel(panelName) {
+  for (const panel of replaySidebarPanels) {
+    const isActive = panel.dataset.replayPanel === panelName;
+    panel.classList.toggle("is-open", isActive);
+    panel.classList.toggle("is-collapsed", !isActive);
+  }
+
+  for (const toggle of replaySidebarToggles) {
+    const isActive = toggle.dataset.replayPanelToggle === panelName;
+    toggle.setAttribute("aria-expanded", isActive ? "true" : "false");
+  }
+}
+
+for (const toggle of replaySidebarToggles) {
+  toggle.addEventListener("click", () => {
+    setActiveReplaySidebarPanel(toggle.dataset.replayPanelToggle);
   });
 }
 
@@ -587,16 +613,18 @@ function validateReplaySnapshot(snapshot, index, errors) {
 }
 
 function renderReplayMetadata(replay) {
-  metadataFields.seed.textContent = String(replay.seed);
-  metadataFields.winner.textContent = replay.winner;
-  metadataFields.tick_count.textContent = String(replay.tick_count);
-  metadataFields.team_a.textContent = replay.teams.team_a.name;
-  metadataFields.team_b.textContent = replay.teams.team_b.name;
+  metadataFields.seed && (metadataFields.seed.textContent = String(replay.seed));
+  metadataFields.winner && (metadataFields.winner.textContent = replay.winner);
+  metadataFields.tick_count && (metadataFields.tick_count.textContent = String(replay.tick_count));
+  metadataFields.team_a && (metadataFields.team_a.textContent = replay.teams.team_a.name);
+  metadataFields.team_b && (metadataFields.team_b.textContent = replay.teams.team_b.name);
 }
 
 function resetMetadata() {
   for (const field of Object.values(metadataFields)) {
-    field.textContent = "-";
+    if (field) {
+      field.textContent = "-";
+    }
   }
 }
 
@@ -726,6 +754,9 @@ function setSelectedEventIndex(nextEventIndex) {
 
 function setSelectedCharacterId(characterId) {
   appState.selectedCharacterId = characterId ?? null;
+  if (characterId) {
+    setActiveReplaySidebarPanel("detail");
+  }
   renderCurrentReplay();
   renderPlaybackControls();
 }
@@ -947,6 +978,10 @@ function bindBoardSelection(container) {
 }
 
 function renderReplayValidation(result) {
+  if (!replayValidationOutput) {
+    return;
+  }
+
   replayValidationOutput.className = "message-panel";
 
   if (result.ok) {
@@ -2504,8 +2539,8 @@ function renderInspector(character) {
       ${renderBar("MP", character.current_mp, character.max_mp, "mp")}
     </div>
     <section class="inspector-section">
-      <h5>Passive</h5>
-      <div class="pill-list"><span${renderTitleAttribute(getPassiveDescription(passiveName))}>${escapeHtml(passiveName || "No passive")}</span></div>
+      <div class="inspector-inline-detail"><strong>Passive:</strong> <span${renderTitleAttribute(getPassiveDescription(passiveName))}>${escapeHtml(passiveName || "No passive")}</span></div>
+      <div class="inspector-inline-detail"><strong>Focus:</strong> <span>${escapeHtml(focusLabel)}</span></div>
     </section>
     <section class="inspector-section">
       <h5>Effective Stats</h5>
@@ -2514,16 +2549,8 @@ function renderInspector(character) {
       </div>
     </section>
     <section class="inspector-section">
-      <h5>Statuses</h5>
-      <div class="status-list">${statusMarkup}</div>
-    </section>
-    <section class="inspector-section">
-      <h5>Conditions</h5>
-      <div class="status-list">${conditionMarkup}</div>
-    </section>
-    <section class="inspector-section">
-      <h5>Current Focus</h5>
-      <div class="pill-list"><span>${escapeHtml(focusLabel)}</span></div>
+      <h5>Status / Conditions</h5>
+      <div class="status-list">${statusMarkup}${conditionMarkup}</div>
     </section>
     <section class="inspector-section">
       <h5>Rules</h5>

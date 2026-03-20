@@ -8,20 +8,23 @@
   </head>
   <body>
     <div class="app-shell">
-      <header class="app-header">
-        <div>
-          <p class="eyebrow">Tarot Battler Developer Workshop</p>
-        </div>
-      </header>
+      <div class="workspace-topline">
+        <nav class="tab-bar" aria-label="Workspace sections">
+          <button class="tab-button is-active" type="button" data-tab-target="team-builder">
+            Team Builder
+          </button>
+          <button class="tab-button" type="button" data-tab-target="replay-viewer">
+            Replay Viewer
+          </button>
+        </nav>
 
-      <nav class="tab-bar" aria-label="Workspace sections">
-        <button class="tab-button is-active" type="button" data-tab-target="team-builder">
-          Team Builder
-        </button>
-        <button class="tab-button" type="button" data-tab-target="replay-viewer">
-          Replay Viewer
-        </button>
-      </nav>
+        <div class="replay-inline-actions" id="replay-inline-actions" aria-label="Replay loading actions">
+          <input id="replay-file-input" class="visually-hidden" type="file" accept=".json,application/json">
+          <button id="replay-file-button" type="button" class="button-quiet">Open Replay</button>
+          <button id="replay-demo-button" type="button" class="button-secondary">Load Latest Replay</button>
+          <button id="replay-load-button" type="button">Load Pasted Replay</button>
+        </div>
+      </div>
 
       <main>
         <section class="workspace is-active" id="team-builder" aria-label="Team Builder">
@@ -92,70 +95,21 @@
 
         <section class="workspace" id="replay-viewer" aria-labelledby="replay-viewer-heading">
           <h2 id="replay-viewer-heading" class="visually-hidden">Replay Viewer</h2>
-
-          <div class="replay-topbar">
-            <div class="replay-topbar-actions">
-              <input id="replay-file-input" class="visually-hidden" type="file" accept=".json,application/json">
-              <button id="replay-file-button" type="button" class="button-quiet">Open Replay</button>
-              <button id="replay-demo-button" type="button" class="button-secondary">Load Latest Replay</button>
-              <button id="replay-load-button" type="button">Load Pasted Replay</button>
-            </div>
-            <details class="replay-data-toggle">
-              <summary>Replay JSON, Metadata, and Validation</summary>
-              <div class="replay-data-drawer">
-                <label class="field-group field-group-textarea" for="replay-json-input">
-                  <span>Replay JSON</span>
-                  <textarea
-                    id="replay-json-input"
-                    rows="10"
-                    spellcheck="false"
-                    placeholder='Paste replay JSON here, then click "Load Pasted Replay".'
-                  ></textarea>
-                </label>
-
-                <div class="status-panels">
-                  <section class="status-panel" aria-labelledby="replay-metadata-heading">
-                    <h4 id="replay-metadata-heading">Replay Metadata</h4>
-                    <dl id="replay-metadata" class="metadata-grid">
-                      <div>
-                        <dt>Seed</dt>
-                        <dd data-meta-field="seed">-</dd>
-                      </div>
-                      <div>
-                        <dt>Winner</dt>
-                        <dd data-meta-field="winner">-</dd>
-                      </div>
-                      <div>
-                        <dt>Final Tick</dt>
-                        <dd data-meta-field="tick_count">-</dd>
-                      </div>
-                      <div>
-                        <dt>Team A</dt>
-                        <dd data-meta-field="team_a">-</dd>
-                      </div>
-                      <div>
-                        <dt>Team B</dt>
-                        <dd data-meta-field="team_b">-</dd>
-                      </div>
-                    </dl>
-                  </section>
-
-                  <section class="status-panel" aria-labelledby="replay-validation-heading">
-                    <h4 id="replay-validation-heading">Validation</h4>
-                    <div id="replay-validation-output" class="message-panel message-panel-idle">
-                      Load a replay JSON file or paste JSON to validate it.
-                    </div>
-                  </section>
-                </div>
-              </div>
-            </details>
-          </div>
+          <textarea
+            id="replay-json-input"
+            class="visually-hidden"
+            rows="10"
+            spellcheck="false"
+            placeholder='Paste replay JSON here, then click "Load Pasted Replay".'
+          ></textarea>
 
           <div class="replay-stage">
             <aside class="replay-sidebar">
-              <section class="replay-side-panel replay-inspector-shell" aria-labelledby="inspector-heading">
+              <section class="replay-side-panel replay-inspector-shell is-open" data-replay-panel="detail" aria-labelledby="inspector-heading">
                 <div class="replay-side-header">
-                  <h3 id="inspector-heading">Character Detail</h3>
+                  <button class="replay-side-toggle" type="button" data-replay-panel-toggle="detail" aria-expanded="true">
+                    <h3 id="inspector-heading">Character Detail</h3>
+                  </button>
                 </div>
                 <div id="inspector-panel" class="replay-side-body inspector-panel">
                   <div class="board-empty-state">
@@ -164,9 +118,11 @@
                 </div>
               </section>
 
-              <section class="replay-side-panel replay-log-shell" aria-labelledby="timeline-heading">
+              <section class="replay-side-panel replay-log-shell is-collapsed" data-replay-panel="log" aria-labelledby="timeline-heading">
                 <div class="replay-side-header">
-                  <h3 id="timeline-heading">Battle Log</h3>
+                  <button class="replay-side-toggle" type="button" data-replay-panel-toggle="log" aria-expanded="false">
+                    <h3 id="timeline-heading">Battle Log</h3>
+                  </button>
                 </div>
                 <div class="replay-side-body timeline-panel-body">
                   <div id="timeline-list" class="timeline-list">
