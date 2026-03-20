@@ -985,6 +985,7 @@ fn build_team_snapshot(
                 "stats": config.stats,
                 "passive": if config.passive.is_empty() { None::<String> } else { Some(config.passive.clone()) },
                 "actives": config.actives,
+                "rules": config.rules,
             })
         }).collect::<Vec<_>>()
     })

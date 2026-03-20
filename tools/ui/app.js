@@ -1,6 +1,7 @@
 const tabButtons = document.querySelectorAll("[data-tab-target]");
 const workspaces = document.querySelectorAll(".workspace");
 const replayFileInput = document.querySelector("#replay-file-input");
+const replayFileButton = document.querySelector("#replay-file-button");
 const replayJsonInput = document.querySelector("#replay-json-input");
 const replayLoadButton = document.querySelector("#replay-load-button");
 const replayDemoButton = document.querySelector("#replay-demo-button");
@@ -53,6 +54,7 @@ const replayRestartButton = document.querySelector("#replay-restart-button");
 const replayEventSlider = document.querySelector("#replay-event-slider");
 const replayEventLabel = document.querySelector("#replay-event-label");
 const replayTickDisplay = document.querySelector("#replay-tick-display");
+const replaySpeedButtons = document.querySelectorAll(".speed-button");
 const currentEventTick = document.querySelector("#current-event-tick");
 const currentEventIndex = document.querySelector("#current-event-index");
 const currentEventText = document.querySelector("#current-event-text");
@@ -61,13 +63,13 @@ const timelineSelectedOnlyInput = document.querySelector("#timeline-selected-onl
 const timelineSelectedOnlyLabel = timelineSelectedOnlyInput.closest(".toggle-pill");
 const timelineList = document.querySelector("#timeline-list");
 const inspectorPanel = document.querySelector("#inspector-panel");
-const teamABoard = document.querySelector("#team-a-board");
-const teamBBoard = document.querySelector("#team-b-board");
+const battleBoard = document.querySelector("#battle-board");
 const appState = {
   replay: null,
   selectedEventIndex: -1,
   selectedCharacterId: null,
   playbackTimerId: null,
+  playbackSpeed: 1,
   dragPreviewElement: null,
   teamConfig: null,
   characterLibrary: [],
@@ -246,6 +248,10 @@ replayDemoButton.addEventListener("click", () => {
   void loadLatestReplay();
 });
 
+replayFileButton?.addEventListener("click", () => {
+  replayFileInput?.click();
+});
+
 replayFileInput.addEventListener("change", async (event) => {
   const [file] = event.target.files ?? [];
   if (!file) {
@@ -285,21 +291,13 @@ replayRestartButton.addEventListener("click", () => {
 });
 
 replayPlayButton.addEventListener("click", () => {
-  if (!appState.replay || appState.playbackTimerId !== null) {
+  if (appState.playbackTimerId !== null) {
+    stopPlayback();
+    renderPlaybackControls();
     return;
   }
 
-  appState.playbackTimerId = window.setInterval(() => {
-    const maxEventIndex = getMaxEventIndex();
-    if (appState.selectedEventIndex >= maxEventIndex) {
-      stopPlayback();
-      return;
-    }
-
-    setSelectedEventIndex(appState.selectedEventIndex + 1);
-  }, 700);
-
-  renderPlaybackControls();
+  startPlayback();
 });
 
 replayPauseButton.addEventListener("click", () => {
@@ -307,16 +305,33 @@ replayPauseButton.addEventListener("click", () => {
   renderPlaybackControls();
 });
 
-replayEventSlider.addEventListener("input", (event) => {
+for (const speedButton of replaySpeedButtons) {
+  speedButton.addEventListener("click", () => {
+    const nextSpeed = Number(speedButton.dataset.speed);
+    if (!Number.isFinite(nextSpeed) || nextSpeed <= 0) {
+      return;
+    }
+
+    const wasPlaying = appState.playbackTimerId !== null;
+    stopPlayback();
+    appState.playbackSpeed = nextSpeed;
+    renderPlaybackControls();
+    if (wasPlaying) {
+      startPlayback();
+    }
+  });
+}
+
+replayEventSlider?.addEventListener("input", (event) => {
   const sliderValue = Number(event.target.value);
   setSelectedEventIndex(sliderValue - 1);
 });
 
-timelineMajorOnlyInput.addEventListener("change", () => {
+timelineMajorOnlyInput?.addEventListener("change", () => {
   renderTimeline();
 });
 
-timelineSelectedOnlyInput.addEventListener("change", () => {
+timelineSelectedOnlyInput?.addEventListener("change", () => {
   renderTimeline();
 });
 
@@ -589,10 +604,10 @@ function renderCurrentReplay() {
   if (!appState.replay) {
     resetBoards();
     replayTickDisplay.textContent = "0";
-    replayEventLabel.textContent = "Event Index · Start";
+    replayEventLabel.textContent = "0 / 0";
     currentEventTick.textContent = "Tick 0";
-    currentEventIndex.textContent = "Start";
-    currentEventText.textContent = "Load a replay and move through events to see a compact summary here.";
+    currentEventIndex.textContent = "Step 0";
+    currentEventText.textContent = "Load a replay and move through events to see the current step here.";
     renderTimeline();
     renderInspector(null);
     return;
@@ -606,20 +621,18 @@ function renderCurrentReplay() {
   }
   renderBoards(replayState);
   replayTickDisplay.textContent = String(getCurrentTick());
-  replayEventLabel.textContent = `Event Index · ${formatEventIndexLabel()}`;
+  replayEventLabel.textContent = formatEventIndexLabel();
   renderCurrentEventSummary();
   renderTimeline();
   renderInspector(getSelectedCharacter(replayState));
 }
 
 function renderBoards(replayState) {
-  renderTeamBoard(teamABoard, replayState.teams.team_a.characters, "team_a");
-  renderTeamBoard(teamBBoard, replayState.teams.team_b.characters, "team_b");
+  renderBattleBoard(battleBoard, replayState);
 }
 
 function resetBoards() {
-  renderTeamBoard(teamABoard, [], "team_a");
-  renderTeamBoard(teamBBoard, [], "team_b");
+  renderBattleBoard(battleBoard, null);
 }
 
 function renderPlaybackControls() {
@@ -632,14 +645,20 @@ function renderPlaybackControls() {
   replayPreviousButton.disabled = !hasReplay || appState.selectedEventIndex < 0;
   replayNextButton.disabled = !hasReplay || appState.selectedEventIndex >= maxEventIndex;
   replayRestartButton.disabled = !hasReplay || appState.selectedEventIndex < 0;
-  replayPlayButton.disabled = !hasReplay || appState.playbackTimerId !== null || appState.selectedEventIndex >= maxEventIndex;
+  replayPlayButton.disabled = !hasReplay || (appState.playbackTimerId === null && appState.selectedEventIndex >= maxEventIndex);
   replayPauseButton.disabled = appState.playbackTimerId === null;
+  replayPlayButton.textContent = appState.playbackTimerId !== null ? "pause" : "▶ play";
   replayEventSlider.max = String(sliderMax);
   replayEventSlider.value = String(sliderValue);
+  replayFileButton.disabled = false;
   timelineSelectedOnlyInput.disabled = !appState.selectedCharacterId;
   timelineSelectedOnlyLabel?.classList.toggle("is-disabled", !appState.selectedCharacterId);
   if (!appState.selectedCharacterId) {
     timelineSelectedOnlyInput.checked = false;
+  }
+
+  for (const speedButton of replaySpeedButtons) {
+    speedButton.classList.toggle("is-active", Number(speedButton.dataset.speed) === appState.playbackSpeed);
   }
 }
 
@@ -758,20 +777,24 @@ function getCurrentTick() {
 }
 
 function formatEventIndexLabel() {
-  return appState.selectedEventIndex < 0 ? "Start" : `${appState.selectedEventIndex + 1} / ${appState.replay.events.length}`;
+  if (!appState.replay) {
+    return "0 / 0";
+  }
+
+  return appState.selectedEventIndex < 0 ? `0 / ${appState.replay.events.length}` : `${appState.selectedEventIndex + 1} / ${appState.replay.events.length}`;
 }
 
 function renderCurrentEventSummary() {
   if (!appState.replay || appState.selectedEventIndex < 0) {
     currentEventTick.textContent = "Tick 0";
-    currentEventIndex.textContent = "Start";
+    currentEventIndex.textContent = "Step 0";
     currentEventText.textContent = "Battle state before the first logged event.";
     return;
   }
 
   const event = appState.replay.events[appState.selectedEventIndex];
   currentEventTick.textContent = `Tick ${event.tick ?? 0}`;
-  currentEventIndex.textContent = `Event ${appState.selectedEventIndex + 1}/${appState.replay.events.length}`;
+  currentEventIndex.textContent = `Step ${appState.selectedEventIndex + 1}`;
   currentEventText.textContent = formatTimelineText(event);
 }
 
@@ -782,71 +805,118 @@ function stopPlayback() {
   }
 }
 
-function renderTeamBoard(container, characters, teamKey) {
-  const occupantMap = new Map();
+function startPlayback() {
+  if (!appState.replay || appState.playbackTimerId !== null) {
+    return;
+  }
+
+  const intervalMs = Math.max(120, Math.round(900 / appState.playbackSpeed));
+  appState.playbackTimerId = window.setInterval(() => {
+    const maxEventIndex = getMaxEventIndex();
+    if (appState.selectedEventIndex >= maxEventIndex) {
+      stopPlayback();
+      renderPlaybackControls();
+      return;
+    }
+
+    setSelectedEventIndex(appState.selectedEventIndex + 1);
+  }, intervalMs);
+
+  renderPlaybackControls();
+}
+
+function renderBattleBoard(container, replayState) {
+  if (!container) {
+    return;
+  }
+
   const currentEvent = appState.replay && appState.selectedEventIndex >= 0
     ? appState.replay.events[appState.selectedEventIndex]
     : null;
 
-  for (const character of characters) {
-    if (
-      isPlainObject(character.position) &&
-      Number.isInteger(character.position.row) &&
-      Number.isInteger(character.position.col)
-    ) {
-      occupantMap.set(`${character.position.row}:${character.position.col}`, character);
+  if (!replayState) {
+    container.innerHTML = '<div class="board-empty-state">Load a replay to view the battle grid.</div>';
+    return;
+  }
+
+  const occupantMap = new Map();
+  for (const character of replayState.teams.team_a.characters) {
+    if (isReplayPosition(character.position)) {
+      occupantMap.set(`${character.position.col}:${2 - character.position.row}`, character);
+    }
+  }
+  for (const character of replayState.teams.team_b.characters) {
+    if (isReplayPosition(character.position)) {
+      occupantMap.set(`${character.position.col}:${4 + character.position.row}`, character);
     }
   }
 
-  const rowsMarkup = Array.from({ length: 3 }, (_, rowIndex) => {
-    const cellsMarkup = Array.from({ length: 4 }, (_, colIndex) => {
-      const character = occupantMap.get(`${rowIndex}:${colIndex}`);
+  const rowLabels = Array.from({ length: 4 }, (_, rowIndex) => `
+    <div class="arena-row-label arena-row-label-${rowIndex}">row ${rowIndex + 1}</div>
+  `).join("");
+
+  const cellsMarkup = Array.from({ length: 4 }, (_, colIndex) => {
+    return Array.from({ length: 7 }, (_, depthIndex) => {
+      const isGap = depthIndex === 3;
+      const character = occupantMap.get(`${colIndex}:${depthIndex}`);
       const isSelected = character && character.id === appState.selectedCharacterId;
       const isSource = character && currentEvent && [currentEvent.actor_id, currentEvent.source_id].includes(character.id);
       const isTarget = character && currentEvent && currentEvent.target_id === character.id;
-      return `<div class="grid-cell ${character ? "grid-cell-occupied" : ""} ${
-        character && !character.alive ? "grid-cell-defeated" : ""
-      } ${isSelected ? "grid-cell-selected" : ""} ${isSource ? "grid-cell-source" : ""} ${
-        isTarget ? "grid-cell-target" : ""
-      }">${
-        character ? renderUnitCard(character) : ""
-      }</div>`;
+      return `
+        <div class="arena-cell ${isGap ? "arena-cell-gap" : ""} ${character ? "arena-cell-occupied" : ""} ${
+          character ? `arena-cell-${character.team_key}` : ""
+        } ${character && !character.alive ? "arena-cell-defeated" : ""} ${isSelected ? "arena-cell-selected" : ""} ${
+          isSource ? "arena-cell-source" : ""
+        } ${isTarget ? "arena-cell-target" : ""}">
+          ${character ? renderUnitCard(character) : ""}
+        </div>
+      `;
     }).join("");
-
-    return `
-      <div class="grid-row">${cellsMarkup}</div>
-    `;
   }).join("");
 
-  const emptyState = characters.length === 0
-    ? `<p class="board-empty-state">No ${teamKey === "team_a" ? "Team A" : "Team B"} snapshot loaded yet.</p>`
-    : "";
-
-  container.innerHTML = `${emptyState}${rowsMarkup}`;
+  container.innerHTML = `${rowLabels}${cellsMarkup}`;
   bindBoardSelection(container);
+}
+
+function isReplayPosition(position) {
+  return isPlainObject(position)
+    && Number.isInteger(position.row)
+    && Number.isInteger(position.col)
+    && position.row >= 0
+    && position.row < 3
+    && position.col >= 0
+    && position.col < 4;
 }
 
 function renderUnitCard(character) {
   const hpValue = Number(character.current_hp) || 0;
   const mpValue = Number(character.current_mp) || 0;
-  const statusesText = formatEffects(character.statuses, character.conditions);
-  const passiveDescription = character.passive ? getPassiveDescription(character.passive) : "";
+  const portraitGlyph = getCharacterInitials(character);
 
   return `
     <button class="grid-cell-button" type="button" data-character-id="${escapeHtml(character.id)}">
-      <article class="unit-card">
-      <div class="unit-card-header">
+      <article class="unit-card unit-card-compact">
+        <div class="unit-card-portrait">${escapeHtml(portraitGlyph)}</div>
         <h5 class="unit-card-name">${escapeHtml(character.display_name || character.id || "Unknown")}</h5>
-        <span class="unit-card-position">r${character.position.row} c${character.position.col}</span>
-      </div>
-      <div class="unit-card-bars">
-        ${renderBar("HP", hpValue, character.max_hp, "hp")}
-        ${renderBar("MP", mpValue, character.max_mp, "mp")}
-      </div>
-      <div class="unit-card-passive"${renderTitleAttribute(passiveDescription)}>${escapeHtml(character.passive || "No passive")}</div>
-      <div class="unit-card-statuses">${escapeHtml(statusesText)}</div>
+        <div class="unit-card-bars unit-card-bars-compact">
+          ${renderCompactBar("HP", hpValue, character.max_hp, "hp")}
+          ${renderCompactBar("MP", mpValue, character.max_mp, "mp")}
+        </div>
       </article>
     </button>
+  `;
+}
+
+function renderCompactBar(label, currentValue, maxValue, type) {
+  const safeMax = Math.max(maxValue, 1);
+  const percent = Math.max(0, Math.min(100, (currentValue / safeMax) * 100));
+  return `
+    <div class="compact-bar-row">
+      <span class="compact-bar-label">${label}</span>
+      <div class="compact-bar-track">
+        <span class="compact-bar-fill compact-bar-fill-${type}" style="width: ${percent}%;"></span>
+      </div>
+    </div>
   `;
 }
 
@@ -2404,40 +2474,44 @@ function renderTitleAttribute(text) {
 
 function renderInspector(character) {
   if (!character) {
-    inspectorPanel.innerHTML = '<div class="board-empty-state">Select a unit on the board or load a replay event that references one.</div>';
+    inspectorPanel.innerHTML = '<div class="board-empty-state">click any character to inspect</div>';
     return;
   }
 
-  const effectiveStats = calculateEffectiveStats(character);
+  const characterConfig = getReplayCharacterConfig(character.id);
+  const baseStats = normalizeStatBlock(characterConfig?.stats ?? character.stats);
+  const effectiveStats = normalizeStatBlock(calculateEffectiveStats(character));
   const statusMarkup = renderStatusList(character.statuses);
   const conditionMarkup = renderConditionList(character.conditions);
-  const activeMarkup = (character.actives ?? [])
-    .map((active) => `<span${renderTitleAttribute(getAbilityDescription(active))}>${escapeHtml(active)}</span>`)
-    .join("");
-  const aliveLabel = character.alive ? "Alive" : "Defeated";
-  const targetLabel = character.current_target_id ? escapeHtml(character.current_target_id) : "No sticky target tracked";
+  const passiveName = characterConfig?.passive ?? character.passive;
+  const focusLabel = character.current_target_id
+    ? formatCharacterLabel(character.current_target_id, getReplayCharacterName(character.current_target_id))
+    : "None";
+  const rules = Array.isArray(characterConfig?.rules) ? characterConfig.rules : [];
 
   inspectorPanel.innerHTML = `
-    <div class="inspector-header">
-      <div>
-        <h4>${escapeHtml(character.display_name || character.id)}</h4>
-        <div class="inspector-subtle">${escapeHtml(character.team_key === "team_a" ? "Team A" : "Team B")} · row ${character.position.row}, col ${character.position.col}</div>
-      </div>
-      <div class="inspector-status-line">
-        <span class="status-chip">${aliveLabel}</span>
+    <div class="inspector-header inspector-header-compact">
+      <div class="inspector-title-stack">
+        <div class="inspector-portrait">${escapeHtml(getCharacterInitials(character))}</div>
+        <div>
+          <h4>${escapeHtml(character.display_name || character.id)}</h4>
+          <div class="inspector-subtle">${escapeHtml(character.team_key === "team_a" ? "your team" : "opponent")} · row ${character.position.col + 1} · ${formatDepthLabel(character.position.row)}</div>
+        </div>
       </div>
     </div>
-    <div class="unit-card-bars">
+    <div class="unit-card-bars inspector-bars">
       ${renderBar("HP", character.current_hp, character.max_hp, "hp")}
       ${renderBar("MP", character.current_mp, character.max_mp, "mp")}
     </div>
     <section class="inspector-section">
       <h5>Passive</h5>
-      <div class="pill-list"><span${renderTitleAttribute(getPassiveDescription(character.passive))}>${escapeHtml(character.passive || "No passive")}</span></div>
+      <div class="pill-list"><span${renderTitleAttribute(getPassiveDescription(passiveName))}>${escapeHtml(passiveName || "No passive")}</span></div>
     </section>
     <section class="inspector-section">
-      <h5>Actives</h5>
-      <div class="pill-list">${activeMarkup || "<span>No actives</span>"}</div>
+      <h5>Effective Stats</h5>
+      <div class="inspector-stat-grid">
+        ${renderEffectiveStats(baseStats, effectiveStats)}
+      </div>
     </section>
     <section class="inspector-section">
       <h5>Statuses</h5>
@@ -2448,32 +2522,31 @@ function renderInspector(character) {
       <div class="status-list">${conditionMarkup}</div>
     </section>
     <section class="inspector-section">
-      <h5>Target</h5>
-      <div class="pill-list"><span>${targetLabel}</span></div>
+      <h5>Current Focus</h5>
+      <div class="pill-list"><span>${escapeHtml(focusLabel)}</span></div>
     </section>
     <section class="inspector-section">
-      <h5>Stats</h5>
-      <div class="stats-grid">
-        ${renderStatsBlock("Base", character.stats)}
-        ${renderStatsBlock("Effective", effectiveStats)}
-      </div>
+      <h5>Rules</h5>
+      <div class="replay-rule-list">${renderReplayRules(rules)}</div>
     </section>
   `;
 }
 
-function renderStatsBlock(label, stats) {
+function renderEffectiveStats(baseStats, effectiveStats) {
   const statOrder = ["vit", "mgt", "mag", "arm", "res", "spd", "wil"];
-  const markup = statOrder.map((statKey) => `
-    <dt>${statKey.toUpperCase()}</dt>
-    <dd>${stats?.[statKey] ?? "-"}</dd>
-  `).join("");
-
-  return `
-    <section class="stats-block">
-      <h6>${label}</h6>
-      <dl>${markup}</dl>
-    </section>
-  `;
+  return statOrder.map((statKey) => {
+    const baseValue = Number(baseStats?.[statKey] ?? 0);
+    const effectiveValue = Number(effectiveStats?.[statKey] ?? baseValue);
+    const delta = effectiveValue - baseValue;
+    const deltaText = delta === 0 ? "" : ` (${delta > 0 ? `+${delta}` : delta})`;
+    const valueClass = delta > 0 ? "stat-value-buff" : delta < 0 ? "stat-value-nerf" : "";
+    return `
+      <div class="inspector-stat-row">
+        <span class="inspector-stat-label">${statKey.toUpperCase()}</span>
+        <span class="inspector-stat-value ${valueClass}">${effectiveValue}${deltaText}</span>
+      </div>
+    `;
+  }).join("");
 }
 
 function renderStatusList(statuses) {
@@ -2515,6 +2588,18 @@ function calculateEffectiveStats(character) {
   }
 
   return effectiveStats;
+}
+
+function normalizeStatBlock(stats) {
+  if (!isPlainObject(stats)) {
+    return {};
+  }
+
+  const normalized = {};
+  for (const [key, value] of Object.entries(stats)) {
+    normalized[String(key).toLowerCase()] = Number(value ?? 0);
+  }
+  return normalized;
 }
 
 function applyStatusModifier(stats, rawStatKey, delta) {
@@ -2578,6 +2663,21 @@ function getReplayCharacterName(characterId) {
     const match = team.characters.find((character) => character.id === characterId);
     if (match) {
       return match.display_name || match.id || null;
+    }
+  }
+
+  return null;
+}
+
+function getReplayCharacterConfig(characterId) {
+  if (!appState.replay || !characterId) {
+    return null;
+  }
+
+  for (const team of Object.values(appState.replay.teams ?? {})) {
+    const match = team.characters?.find((character) => character.id === characterId);
+    if (match) {
+      return match;
     }
   }
 
@@ -2661,6 +2761,34 @@ function getSelectedCharacter(replayState) {
   }
 
   return null;
+}
+
+function renderReplayRules(rules) {
+  if (!Array.isArray(rules) || rules.length === 0) {
+    return '<div class="board-empty-state board-empty-state-inline">Rules are not available in this replay.</div>';
+  }
+
+  return rules
+    .map((rule, index) => `
+      <div class="replay-rule-entry">
+        <span class="replay-rule-index">${index + 1}.</span>
+        <span class="replay-rule-text">${escapeHtml(formatRulePreview(rule))}</span>
+      </div>
+    `)
+    .join("");
+}
+
+function formatDepthLabel(row) {
+  if (row === 0) {
+    return "front";
+  }
+  if (row === 1) {
+    return "middle";
+  }
+  if (row === 2) {
+    return "back";
+  }
+  return `row ${row}`;
 }
 
 function escapeHtml(value) {
