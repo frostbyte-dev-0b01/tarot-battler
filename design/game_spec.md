@@ -582,8 +582,8 @@ The older prototype tick-down-by-1 behavior is an implementation detail, not the
 
 Current implementation note:
 
-- the live engine still uses the older tick-down model
-- `Omen`, `Restoration`, `Empower`, `Weaken`, and `Lethality` do not yet use the intended halving decay model
+- the live engine now uses the intended halving decay model for `Omen`, `Restoration`, `Empower`, `Weaken`, and `Lethality`
+- legacy placeholder effects such as `Bleed` and `Poison` still use the older tick-down model
 
 ## Compound Ability Resolution
 

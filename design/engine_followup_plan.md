@@ -74,20 +74,18 @@ Remaining follow-up:
 
 ### 5. Halving Decay
 
-The intended decay model is still not live. The engine currently ticks down by `1`.
+Status: complete.
 
-Desired outcome:
+What landed:
 
 - `Omen` and `Restoration` halve after start-of-turn resolution
 - `Empower`, `Weaken`, and `Lethality` halve at end of turn
 - current conditions lose `1` stack at end of turn unless consumed or removed earlier
 
-Suggested implementation order:
+Remaining follow-up:
 
-1. add decay-mode support to status definitions or status runtime
-2. implement halving resolution points
-3. migrate bundled live statuses
-4. retune affected sample abilities if needed
+- retune affected bundled abilities if the new decay curve shifts balance too sharply
+- decide later whether legacy placeholder effects should also migrate away from tick-down-by-1
 
 ### 6. Damage Model Evolution
 

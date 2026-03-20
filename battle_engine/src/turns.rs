@@ -163,6 +163,7 @@ pub(crate) fn finish_turn(
     actor_idx: usize,
     actor_team: &mut [CharacterState],
 ) {
+    actor_team[actor_idx].decay_statuses_end_of_turn();
     actor_team[actor_idx].decay_conditions_end_of_turn();
     if !actor_team[actor_idx].is_alive() {
         return;

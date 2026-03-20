@@ -143,6 +143,18 @@ pub enum StatusTick {
     HealApplied { name: String, amount: u32 },
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum StatusDecayTiming {
+    StartOfTurn,
+    EndOfTurn,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum StatusDecayMode {
+    TickDown,
+    Halve,
+}
+
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConditionKind {
@@ -858,23 +870,34 @@ impl CharacterState {
             self.take_damage((-net) as u32);
         }
 
-        // Decrement stacks for TickDown and non-skip NoStack effects.
-        // SkipTurn statuses are consumed only when they actually deny an action.
-        self.statuses
-            .retain(|_, inst| match (&inst.stack_type, &inst.behavior) {
-                (StackType::TickDown, _) => {
-                    inst.stacks = inst.stacks.saturating_sub(1);
-                    inst.stacks > 0
-                }
-                (StackType::NoStack, StatusBehavior::SkipTurn) => true,
-                (StackType::NoStack, _) => {
-                    inst.stacks = inst.stacks.saturating_sub(1);
-                    inst.stacks > 0
-                }
-                (StackType::Permanent, _) => true,
-            });
+        self.decay_statuses(StatusDecayTiming::StartOfTurn);
 
         ticks
+    }
+
+    pub fn decay_statuses_end_of_turn(&mut self) {
+        self.decay_statuses(StatusDecayTiming::EndOfTurn);
+    }
+
+    fn decay_statuses(&mut self, timing: StatusDecayTiming) {
+        self.statuses.retain(|key, inst| {
+            let Some((expected_timing, mode)) = status_decay_rule(key, inst) else {
+                return true;
+            };
+            if expected_timing != timing {
+                return true;
+            }
+
+            match mode {
+                StatusDecayMode::TickDown => {
+                    inst.stacks = inst.stacks.saturating_sub(1);
+                }
+                StatusDecayMode::Halve => {
+                    inst.stacks /= 2;
+                }
+            }
+            inst.stacks > 0
+        });
     }
 }
 
@@ -911,6 +934,22 @@ fn effect_polarity(inst: &StatusInstance) -> Option<EffectPolarity> {
             }
         }
         StatusBehavior::Ward | StatusBehavior::SkipTurn => None,
+    }
+}
+
+fn status_decay_rule(key: &str, inst: &StatusInstance) -> Option<(StatusDecayTiming, StatusDecayMode)> {
+    if key == "Omen" || key == "Restoration" {
+        return Some((StatusDecayTiming::StartOfTurn, StatusDecayMode::Halve));
+    }
+    if key == "Lethality" || key.starts_with("Empower:") || key.starts_with("Weaken:") {
+        return Some((StatusDecayTiming::EndOfTurn, StatusDecayMode::Halve));
+    }
+
+    match (&inst.stack_type, &inst.behavior) {
+        (StackType::TickDown, _) => Some((StatusDecayTiming::StartOfTurn, StatusDecayMode::TickDown)),
+        (StackType::NoStack, StatusBehavior::SkipTurn) => None,
+        (StackType::NoStack, _) => Some((StatusDecayTiming::StartOfTurn, StatusDecayMode::TickDown)),
+        (StackType::Permanent, _) => None,
     }
 }
 
@@ -960,6 +999,15 @@ mod tests {
         }
     }
 
+    fn restoration_def() -> StatusDef {
+        StatusDef {
+            behavior: StatusBehavior::HealPerStack { value: 1 },
+            stack_type: StackType::TickDown,
+            group: Some(StatusGroup::Fate),
+            opposes: None,
+        }
+    }
+
     fn empower_def() -> StatusDef {
         StatusDef {
             behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
@@ -1001,6 +1049,15 @@ mod tests {
             behavior: StatusBehavior::Ward,
             stack_type: StackType::Permanent,
             group: None,
+            opposes: None,
+        }
+    }
+
+    fn lethality_def() -> StatusDef {
+        StatusDef {
+            behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
+            stack_type: StackType::TickDown,
+            group: Some(StatusGroup::Body),
             opposes: None,
         }
     }
@@ -1227,7 +1284,7 @@ mod tests {
             StatusTick::DamageDealt { name, damage } if name == "Omen" && *damage == 4
         ));
         assert_eq!(state.current_hp(), 56);
-        assert_eq!(state.status_stacks("Omen"), 3);
+        assert_eq!(state.status_stacks("Omen"), 2);
     }
 
     #[test]
@@ -1240,7 +1297,7 @@ mod tests {
 
         assert_eq!(state.current_hp(), 0);
         assert!(!state.is_alive());
-        assert_eq!(state.status_stacks("Omen"), 3);
+        assert_eq!(state.status_stacks("Omen"), 2);
     }
 
     #[test]
@@ -1376,19 +1433,55 @@ mod tests {
     }
 
     #[test]
-    fn empower_ticks_down() {
+    fn empower_halves_at_end_of_turn() {
         let config = make_config(vec![(Stat::MGT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         let key = status_key("Empower", Some(&Stat::MGT));
         state.add_status(&key, 3, 99, &empower_def(), Some(Stat::MGT));
 
         assert_eq!(state.get_eff_stat(&Stat::MGT), 13);
-        state.tick_statuses(); // 3→2
-        assert_eq!(state.get_eff_stat(&Stat::MGT), 12);
-        state.tick_statuses(); // 2→1
+        state.tick_statuses();
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 13);
+        state.decay_statuses_end_of_turn(); // 3→1
         assert_eq!(state.get_eff_stat(&Stat::MGT), 11);
-        state.tick_statuses(); // 1→0, removed
+        state.tick_statuses();
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 11);
+        state.decay_statuses_end_of_turn(); // 1→0, removed
         assert_eq!(state.get_eff_stat(&Stat::MGT), 10);
+    }
+
+    #[test]
+    fn restoration_halves_on_turn_start() {
+        let config = make_config(vec![(Stat::VIT, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.take_damage(15);
+        state.add_status("Restoration", 5, 99, &restoration_def(), None);
+
+        let ticks = state.tick_statuses();
+
+        assert_eq!(ticks.len(), 1);
+        assert!(matches!(
+            &ticks[0],
+            StatusTick::HealApplied { name, amount } if name == "Restoration" && *amount == 5
+        ));
+        assert_eq!(state.current_hp(), 20);
+        assert_eq!(state.status_stacks("Restoration"), 2);
+    }
+
+    #[test]
+    fn lethality_halves_at_end_of_turn() {
+        let config = make_config(vec![(Stat::MGT, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_status("Lethality", 5, 99, &lethality_def(), None);
+
+        state.decay_statuses_end_of_turn();
+        assert_eq!(state.status_stacks("Lethality"), 2);
+
+        state.decay_statuses_end_of_turn();
+        assert_eq!(state.status_stacks("Lethality"), 1);
+
+        state.decay_statuses_end_of_turn();
+        assert!(!state.has_status("Lethality"));
     }
 
     #[test]

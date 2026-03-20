@@ -33,7 +33,7 @@ This is useful for prototyping, but the intended design direction is now:
 - `Empower` / `Weaken` as the main offensive and defensive stat-mod families
 - `Restoration` and `Stunned` as the main sustain and turn-denial effects
 
-`Omen` now exists in the engine as the intended named setup effect, but it still uses the prototype tick-down status model rather than the long-term halving-decay design.
+`Omen` now exists in the engine as the intended named setup effect, and the live engine now uses the intended halving-decay behavior for `Omen`, `Restoration`, `Empower`, `Weaken`, and `Lethality`. Legacy placeholder effects such as `Bleed` and `Poison` still use the older tick-down status model.
 
 `Bleed` and `Poison` should still be treated as implementation placeholders so the design docs and engine behavior do not get confused.
 
