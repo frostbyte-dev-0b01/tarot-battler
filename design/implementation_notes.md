@@ -39,6 +39,14 @@ This is useful for prototyping, but the intended design direction is now:
 
 The intended design now also groups timed effects into `Body`, `Mind`, and `Fate`, with generic ally cleanse reducing all debuffs by `1 tick` and generic enemy dispel reducing all buffs by `1 tick`. The engine does not implement that grouped removal model yet.
 
+The design now also distinguishes:
+
+- `focus` as the sticky ongoing attack intent
+- `target` as the immediate ability target
+- `conditions` such as `Stunned`, `Muted`, `Marked`, and `Severed` as a separate layer from buffs and debuffs
+
+The engine still mostly expresses these as target/retarget and ordinary statuses internally.
+
 ### Stat Naming
 
 The current v1 stat set is:
@@ -147,6 +155,7 @@ Useful spaces to explore later:
 - move while attacking
 - sweep an entire row
 - ignore row protection to hit the lowest HP enemy
+- conditions and state transforms that create strong build-around or counter-tech stories
 
 ### UI / Tooling Implications
 

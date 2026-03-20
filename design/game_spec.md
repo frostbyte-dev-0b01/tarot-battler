@@ -340,17 +340,30 @@ Most abilities should be expressible through data-driven primitives. Unique one-
 
 Each ability should be impactful and notable in its own right. Filler actions that are only "deal ordinary damage with a slightly different multiplier" should be kept rare. The main reason to add abilities is to create team-building depth, role shifts, or tactical interaction.
 
+Ability design should begin from:
+
+- gameplay use
+- rule-scripting value
+- discovered synergies
+- counterplay
+- whether the ability creates a visible swing in replay or board state
+
+Names should generally come after the gameplay concept is clear.
+
 ### Ability Primitives
 
 The current primitive families are:
 
 - deal physical damage
 - deal magical damage
+- deal true damage
 - restore HP
 - restore MP
 - apply a status or effect
 - remove a status or effect
 - modify targeting
+- move or reposition units
+- transform one state into another
 
 This list can expand as the game's tactical needs become clearer.
 
@@ -362,6 +375,13 @@ Current intended formulas:
 - magical damage: `max(MAG * multiplier - RES, 1)`
 - omen damage: current stacks as true damage, with no mitigation
 - lethality: flat damage added after normal damage resolution, bypassing `ARM` and `RES`
+
+The current design direction is that many damaging abilities should eventually use:
+
+- flat base damage
+- plus a stat multiplier
+
+This helps low-multiplier attacks stay meaningful through defense and creates more room to differentiate reliable hits, splash attacks, and payoff abilities.
 
 ### Damage Resolution Order
 
@@ -425,6 +445,13 @@ Current intended condition list:
 - `Severed`
 
 More conditions can be added later, but the list should stay tight. Conditions should feel qualitatively different from ordinary buffs and debuffs, not just like another place to store small numeric modifiers.
+
+Current intended meanings:
+
+- `Stunned` — skips the next action
+- `Muted` — cannot reuse the same ability as the last turn
+- `Marked` — can be consumed or triggered by ally follow-up effects
+- `Severed` — the unit is treated as having no companions for scripted and ability purposes
 
 ### Status Groups
 

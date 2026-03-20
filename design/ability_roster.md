@@ -272,3 +272,15 @@ New ability ideas and balance experiments can be added here before they are prom
 
 - `Last Rites`
   Deal `1.2x MAG` damage to an enemy below `50% HP`. If that enemy is defeated, all allies refocus.
+
+- `Cleanse the Throne`
+  Target the enemy with the most buffs. Remove all buffs from that enemy. That enemy is disoriented.
+
+- `Wake the Dead`
+  Each defeated companion immediately makes a `1.0x MGT` physical attack against the user's focused enemy.
+
+- `Execution Order`
+  Target the lowest-HP enemy. All allies who refocus before your next turn must focus that enemy.
+
+- `Last Stand`
+  If the user is in the front row and below `50% HP`, all companions gain `Empower MGT 3` and `Empower MAG 3`.
