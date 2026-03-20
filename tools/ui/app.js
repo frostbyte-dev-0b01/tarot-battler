@@ -10,6 +10,9 @@ const archetypeCatalogPath = "../../battle_engine/src/data/archetypes.json";
 const passiveCatalogPath = "../../battle_engine/src/data/passives.json";
 const abilityCatalogPath = "../../battle_engine/src/data/abilities.json";
 const itemCatalogPath = "../../battle_engine/src/data/items.json";
+const statusCatalogPath = "../../battle_engine/src/data/statuses.json";
+const conditionCatalog = ["Stunned", "Marked", "Severed"];
+const ruleStatusCatalog = ["Omen", "Restoration", "Ward", "Empower:MGT", "Empower:MAG", "Empower:ARM", "Empower:RES", "Weaken:MGT", "Weaken:MAG", "Weaken:ARM", "Weaken:RES"];
 const TEAM_SLOT_POSITIONS = [
   { row: 0, col: 0 },
   { row: 0, col: 2 },
@@ -19,24 +22,30 @@ const TEAM_SLOT_POSITIONS = [
 const ruleSubjectOptions = [
   { value: "self", label: "Self" },
   { value: "target", label: "Target" },
-  { value: "companion", label: "Any Companion" },
-  { value: "world", label: "World" },
+  { value: "companion", label: "Companion" },
+  { value: "world", label: "Game State" },
 ];
 const ruleValueTypeOptions = [
   { value: "hp", label: "HP" },
   { value: "mp", label: "MP" },
   { value: "self_row", label: "Row" },
-  { value: "self_companion_count", label: "Own Companions" },
-  { value: "target_companion_count", label: "Target Companions" },
-  { value: "use_count", label: "Uses" },
+  { value: "self_companion_count", label: "Companion Count" },
+  { value: "target_companion_count", label: "Companion Count" },
+  { value: "use_count", label: "Use Count" },
   { value: "turns_since_use", label: "Turns Since Use" },
   { value: "tick_count", label: "Tick Count" },
   { value: "ally_count", label: "Allies Alive" },
   { value: "enemy_count", label: "Enemies Alive" },
   { value: "stat", label: "Stat" },
-  { value: "has_status", label: "Has Status" },
   { value: "status_stacks", label: "Status Stacks" },
+  { value: "condition_stacks", label: "Condition Stacks" },
 ];
+const ruleValueOptionsBySubject = {
+  self: ["hp", "mp", "self_row", "stat", "status_stacks", "condition_stacks", "self_companion_count"],
+  target: ["hp", "mp", "self_row", "stat", "status_stacks", "condition_stacks", "target_companion_count"],
+  companion: ["hp", "mp", "self_row", "stat", "status_stacks", "condition_stacks"],
+  world: ["use_count", "turns_since_use", "tick_count", "ally_count", "enemy_count"],
+};
 const ruleOperatorOptions = [
   { value: "gte", label: ">=" },
   { value: "lte", label: "<=" },
@@ -92,6 +101,8 @@ const appState = {
     passives: [],
     abilities: [],
     items: [],
+    statuses: [],
+    conditions: [...conditionCatalog],
     passiveDescriptions: {},
     abilityDescriptions: {},
     itemDescriptions: {},
@@ -455,11 +466,12 @@ void loadLatestReplay();
 
 async function loadEditorCatalogs() {
   try {
-    const [archetypeResponse, passiveResponse, abilityResponse, itemResponse] = await Promise.all([
+    const [archetypeResponse, passiveResponse, abilityResponse, itemResponse, statusResponse] = await Promise.all([
       fetch(archetypeCatalogPath, { cache: "no-store" }),
       fetch(passiveCatalogPath, { cache: "no-store" }),
       fetch(abilityCatalogPath, { cache: "no-store" }),
       fetch(itemCatalogPath, { cache: "no-store" }).catch(() => null),
+      fetch(statusCatalogPath, { cache: "no-store" }).catch(() => null),
     ]);
 
     if (!archetypeResponse.ok || !passiveResponse.ok || !abilityResponse.ok) {
@@ -468,11 +480,12 @@ async function loadEditorCatalogs() {
       );
     }
 
-    const [archetypes, passives, abilities, items] = await Promise.all([
+    const [archetypes, passives, abilities, items, statuses] = await Promise.all([
       archetypeResponse.json(),
       passiveResponse.json(),
       abilityResponse.json(),
       itemResponse?.ok ? itemResponse.json() : Promise.resolve({}),
+      statusResponse?.ok ? statusResponse.json() : Promise.resolve({}),
     ]);
 
     appState.catalogs.archetypes = archetypes;
@@ -480,6 +493,8 @@ async function loadEditorCatalogs() {
     appState.catalogs.passives = Object.keys(passives).sort();
     appState.catalogs.abilities = Object.keys(abilities).sort();
     appState.catalogs.items = Object.keys(items).sort();
+    appState.catalogs.statuses = buildRuleStatusOptions(statuses);
+    appState.catalogs.conditions = [...conditionCatalog];
     appState.catalogs.passiveDescriptions = Object.fromEntries(
       Object.entries(passives).map(([name, definition]) => [name, definition?.description ?? ""]),
     );
@@ -497,6 +512,8 @@ async function loadEditorCatalogs() {
     appState.catalogs.passives = [];
     appState.catalogs.abilities = [];
     appState.catalogs.items = [];
+    appState.catalogs.statuses = [...ruleStatusCatalog];
+    appState.catalogs.conditions = [...conditionCatalog];
     appState.catalogs.passiveDescriptions = {};
     appState.catalogs.abilityDescriptions = {};
     appState.catalogs.itemDescriptions = {};
@@ -1698,15 +1715,19 @@ function renderRuleEditor(characterIndex, rule, ruleIndex) {
 }
 
 function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIndex) {
+  const allowedValueOptions = getAllowedRuleValueOptions(condition.subject ?? "self");
   const value = condition.value;
   const valueType = getConditionValueType(condition);
   const statValue = valueType === "stat" ? value.stat : "vit";
   const statusValue =
-    valueType === "has_status"
-      ? value.has_status
-      : valueType === "status_stacks"
-        ? value.status_stacks
-        : "Ward";
+    valueType === "status_stacks"
+        ? (value.status_stacks ?? value.has_status)
+        : valueType === "condition_stacks"
+          ? (value.condition_stacks ?? value.has_condition)
+          : "Ward";
+  const statusOptions = valueType === "condition_stacks"
+    ? buildRequiredSelectOptions(appState.catalogs.conditions, statusValue)
+    : buildRequiredSelectOptions(appState.catalogs.statuses, statusValue);
   const detailFieldMarkup = valueType === "stat"
     ? `
         <label class="field-group">
@@ -1716,11 +1737,13 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
           </select>
         </label>
       `
-    : valueType === "has_status" || valueType === "status_stacks"
+    : valueType === "status_stacks" || valueType === "condition_stacks"
       ? `
         <label class="field-group">
-          <span>Status</span>
-          <input type="text" data-condition-field="value_status" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}" value="${escapeHtml(statusValue)}">
+          <span>${valueType === "condition_stacks" ? "Condition" : "Status"}</span>
+          <select data-condition-field="value_status" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
+            ${statusOptions}
+          </select>
         </label>
       `
       : "";
@@ -1743,7 +1766,7 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
         <label class="field-group">
           <span>Value</span>
           <select data-condition-field="value_type" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
-            ${ruleValueTypeOptions.map((option) => `<option value="${option.value}" ${valueType === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
+            ${allowedValueOptions.map((option) => `<option value="${option.value}" ${valueType === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
           </select>
         </label>
         ${detailFieldMarkup}
@@ -1835,21 +1858,22 @@ function handleTeamEditorInput(event) {
 
     if (target.dataset.conditionField === "subject") {
       condition.subject = target.value;
+      normalizeConditionForSubject(condition);
     } else if (target.dataset.conditionField === "value_type") {
       if (target.value === "stat") {
         condition.value = { stat: "vit" };
-      } else if (target.value === "has_status") {
-        condition.value = { has_status: "Ward" };
       } else if (target.value === "status_stacks") {
         condition.value = { status_stacks: "Empower:MGT" };
+      } else if (target.value === "condition_stacks") {
+        condition.value = { condition_stacks: "Stunned" };
       } else {
         condition.value = target.value;
       }
     } else if (target.dataset.conditionField === "value_stat") {
       condition.value = { stat: target.value };
     } else if (target.dataset.conditionField === "value_status") {
-      if (isPlainObject(condition.value) && typeof condition.value.has_status === "string") {
-        condition.value = { has_status: target.value };
+      if (isPlainObject(condition.value) && typeof condition.value.condition_stacks === "string") {
+        condition.value = { condition_stacks: target.value };
       } else {
         condition.value = { status_stacks: target.value };
       }
@@ -2251,6 +2275,42 @@ function buildSelectOptions(options, currentValue, emptyLabel) {
     .join("");
 }
 
+function buildRequiredSelectOptions(options, currentValue) {
+  const normalizedOptions = Array.isArray(options)
+    ? [...new Set(options.filter((option) => typeof option === "string" && option.trim() !== ""))]
+    : [];
+  if (currentValue && !normalizedOptions.includes(currentValue)) {
+    normalizedOptions.unshift(currentValue);
+  }
+
+  return normalizedOptions
+    .map((optionValue) => `<option value="${escapeHtml(optionValue)}" ${optionValue === currentValue ? "selected" : ""}>${escapeHtml(optionValue)}</option>`)
+    .join("");
+}
+
+function buildRuleStatusOptions(statusDefinitions) {
+  const available = [];
+  const hasBaseStatus = (name) => isPlainObject(statusDefinitions) && Object.hasOwn(statusDefinitions, name);
+
+  if (hasBaseStatus("Omen")) {
+    available.push("Omen");
+  }
+  if (hasBaseStatus("Restoration")) {
+    available.push("Restoration");
+  }
+  if (hasBaseStatus("Ward")) {
+    available.push("Ward");
+  }
+  if (hasBaseStatus("Empower")) {
+    available.push("Empower:MGT", "Empower:MAG", "Empower:ARM", "Empower:RES");
+  }
+  if (hasBaseStatus("Weaken")) {
+    available.push("Weaken:MGT", "Weaken:MAG", "Weaken:ARM", "Weaken:RES");
+  }
+
+  return available.length > 0 ? available : [...ruleStatusCatalog];
+}
+
 function buildArchetypeOptions(currentValue) {
   const options = [...(appState.catalogs.archetypeIds ?? [])];
   if (currentValue && !options.includes(currentValue)) {
@@ -2269,7 +2329,7 @@ function buildArchetypeOptions(currentValue) {
 function createEmptyRule() {
   return {
     ability: "",
-    when: [createEmptyCondition()],
+    when: [],
   };
 }
 
@@ -2280,6 +2340,42 @@ function createEmptyCondition() {
     op: "gte",
     threshold: 1,
   };
+}
+
+function getAllowedRuleValueOptions(subject) {
+  const optionValues = ruleValueOptionsBySubject[subject] ?? ruleValueOptionsBySubject.self;
+  return optionValues
+    .map((value) => ruleValueTypeOptions.find((option) => option.value === value))
+    .filter(Boolean);
+}
+
+function getDefaultRuleValueForSubject(subject) {
+  const [firstOption] = getAllowedRuleValueOptions(subject);
+  if (!firstOption) {
+    return "hp";
+  }
+  return firstOption.value;
+}
+
+function normalizeConditionForSubject(condition) {
+  const subject = condition.subject ?? "self";
+  const allowedOptionValues = new Set(getAllowedRuleValueOptions(subject).map((option) => option.value));
+  const currentValueType = getConditionValueType(condition);
+  if (!allowedOptionValues.has(currentValueType)) {
+    setConditionValueType(condition, getDefaultRuleValueForSubject(subject));
+  }
+}
+
+function setConditionValueType(condition, valueType) {
+  if (valueType === "stat") {
+    condition.value = { stat: "vit" };
+  } else if (valueType === "status_stacks") {
+    condition.value = { status_stacks: "Empower:MGT" };
+  } else if (valueType === "condition_stacks") {
+    condition.value = { condition_stacks: "Stunned" };
+  } else {
+    condition.value = valueType;
+  }
 }
 
 function moveArrayItem(array, fromIndex, toIndex) {
@@ -2296,43 +2392,62 @@ function getConditionValueType(condition) {
     return "stat";
   }
   if (isPlainObject(value) && typeof value.has_status === "string") {
-    return "has_status";
+    return "status_stacks";
   }
   if (isPlainObject(value) && typeof value.status_stacks === "string") {
     return "status_stacks";
+  }
+  if (isPlainObject(value) && typeof value.has_condition === "string") {
+    return "condition_stacks";
+  }
+  if (isPlainObject(value) && typeof value.condition_stacks === "string") {
+    return "condition_stacks";
   }
   return String(value ?? "hp");
 }
 
 function formatConditionPreview(condition) {
-  const subjectLabel = getRuleOptionLabel(ruleSubjectOptions, condition.subject ?? "self");
+  const subject = condition.subject ?? "self";
+  const subjectLabel = getRuleOptionLabel(ruleSubjectOptions, subject);
   const valueType = getConditionValueType(condition);
   const operatorLabel = getRuleOptionLabel(ruleOperatorOptions, condition.op ?? condition.comparator ?? "gte");
   const threshold = condition.threshold ?? 0;
+  const prefix = subject === "world" ? "" : `${subjectLabel} `;
 
   if (valueType === "stat") {
-    return `${subjectLabel} ${String(condition.value?.stat ?? "vit").toUpperCase()} ${operatorLabel} ${threshold}`;
-  }
-
-  if (valueType === "has_status") {
-    return `${subjectLabel} Has Status ${condition.value?.has_status ?? "Ward"} ${operatorLabel} ${threshold}`;
+    return `${prefix}${String(condition.value?.stat ?? "vit").toUpperCase()} ${operatorLabel} ${threshold}`;
   }
 
   if (valueType === "status_stacks") {
-    return `${subjectLabel} Status Stacks ${condition.value?.status_stacks ?? "Empower:MGT"} ${operatorLabel} ${threshold}`;
+    return `${prefix}${condition.value?.status_stacks ?? "Empower:MGT"} Stacks ${operatorLabel} ${threshold}`;
   }
 
-  return `${subjectLabel} ${getRuleOptionLabel(ruleValueTypeOptions, valueType)} ${operatorLabel} ${threshold}`;
+  if (valueType === "condition_stacks") {
+    return `${prefix}${condition.value?.condition_stacks ?? "Stunned"} Stacks ${operatorLabel} ${threshold}`;
+  }
+
+  const contextualLabel = getContextualRuleValueLabel(subject, valueType);
+  return `${prefix}${contextualLabel} ${operatorLabel} ${threshold}`;
 }
 
 function formatRulePreview(rule) {
   const abilityLabel = rule?.ability || "an ability";
   const conditions = Array.isArray(rule?.when) ? rule.when : [];
   if (conditions.length === 0) {
-    return `Use ${abilityLabel} if always available`;
+    return `Use ${abilityLabel} always`;
   }
 
   return `Use ${abilityLabel} if ${conditions.map((condition) => formatConditionPreview(condition)).join(" and ")}`;
+}
+
+function getContextualRuleValueLabel(subject, valueType) {
+  if (valueType === "self_row") {
+    return "Row";
+  }
+  if (valueType === "self_companion_count" || valueType === "target_companion_count") {
+    return "Companion Count";
+  }
+  return getRuleOptionLabel(ruleValueTypeOptions, valueType);
 }
 
 function getRuleOptionLabel(options, value) {
