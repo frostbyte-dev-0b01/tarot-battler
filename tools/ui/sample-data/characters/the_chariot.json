@@ -1,0 +1,59 @@
+{
+  "id": "the_chariot",
+  "template_id": "the_chariot",
+  "display_name": "The Chariot",
+  "position": {
+    "row": 0,
+    "col": 1
+  },
+  "passive": "Pursuit",
+  "actives": [
+    "Charge",
+    "Withdraw",
+    "Breakthrough"
+  ],
+  "item": null,
+  "rules": [
+    {
+      "ability": "Breakthrough",
+      "when": [
+        {
+          "subject": "self",
+          "value": {
+            "status_stacks": "Empower:MGT"
+          },
+          "op": "gte",
+          "threshold": 2
+        }
+      ]
+    },
+    {
+      "ability": "Withdraw",
+      "when": [
+        {
+          "subject": "self",
+          "value": "hp",
+          "op": "lte",
+          "threshold": 16
+        }
+      ]
+    },
+    {
+      "ability": "Charge",
+      "when": [
+        {
+          "subject": "target",
+          "value": {
+            "stat": "arm"
+          },
+          "op": "gte",
+          "threshold": 6
+        }
+      ]
+    },
+    {
+      "ability": "Charge",
+      "when": []
+    }
+  ]
+}

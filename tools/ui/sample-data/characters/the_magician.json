@@ -1,0 +1,22 @@
+{
+  "id": "new_character_4",
+  "template_id": "the_magician",
+  "display_name": "The Magician",
+  "position": {
+    "row": 2,
+    "col": 2
+  },
+  "passive": "Catalyst",
+  "actives": [
+    "Offer",
+    "Transmute",
+    "Seal"
+  ],
+  "item": null,
+  "rules": [
+    {
+      "ability": "Seal",
+      "when": []
+    }
+  ]
+}

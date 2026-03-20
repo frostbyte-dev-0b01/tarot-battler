@@ -1,0 +1,22 @@
+{
+  "id": "new_character_3",
+  "template_id": "the_hierophant",
+  "display_name": "The Hierophant",
+  "position": {
+    "row": 0,
+    "col": 2
+  },
+  "passive": "Sanctuary",
+  "actives": [
+    "Smite",
+    "Blessing",
+    "Sanctify"
+  ],
+  "item": null,
+  "rules": [
+    {
+      "ability": "Smite",
+      "when": []
+    }
+  ]
+}
