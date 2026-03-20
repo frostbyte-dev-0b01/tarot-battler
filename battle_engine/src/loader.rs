@@ -415,6 +415,16 @@ fn validate_primitives(
                     ));
                 }
             }
+            Primitive::BindTargets { target, primitives } => {
+                if !is_enemy_target(target) && !is_ally_target(target) {
+                    errors.push(format!(
+                        "{} binds invalid target side '{}'",
+                        source_name,
+                        target_label(target),
+                    ));
+                }
+                validate_primitives(source_name, primitives, statuses, errors);
+            }
             Primitive::ApplyCondition {
                 condition, target, ..
             }
@@ -725,6 +735,7 @@ fn is_enemy_target(target: &AbilityTarget) -> bool {
         AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget)
             | AbilityTarget::Simple(SimpleAbilityTarget::CurrentTargetAndCompanions)
             | AbilityTarget::Simple(SimpleAbilityTarget::TriggerTarget)
+            | AbilityTarget::Simple(SimpleAbilityTarget::BoundEnemy)
             | AbilityTarget::Simple(SimpleAbilityTarget::FrontRow)
             | AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies)
             | AbilityTarget::Detailed(crate::abilities::TargetSpec {
@@ -737,7 +748,8 @@ fn is_enemy_target(target: &AbilityTarget) -> bool {
 fn is_ally_target(target: &AbilityTarget) -> bool {
     matches!(
         target,
-        AbilityTarget::Simple(SimpleAbilityTarget::SelfChar)
+        AbilityTarget::Simple(SimpleAbilityTarget::BoundAlly)
+            | AbilityTarget::Simple(SimpleAbilityTarget::SelfChar)
             | AbilityTarget::Simple(SimpleAbilityTarget::Companions)
             | AbilityTarget::Simple(SimpleAbilityTarget::AllAllies)
             | AbilityTarget::Detailed(crate::abilities::TargetSpec {
@@ -775,6 +787,8 @@ fn target_label(target: &AbilityTarget) -> &'static str {
             "current_target_and_companions"
         }
         AbilityTarget::Simple(SimpleAbilityTarget::TriggerTarget) => "trigger_target",
+        AbilityTarget::Simple(SimpleAbilityTarget::BoundAlly) => "bound_ally",
+        AbilityTarget::Simple(SimpleAbilityTarget::BoundEnemy) => "bound_enemy",
         AbilityTarget::Simple(SimpleAbilityTarget::SelfChar) => "self",
         AbilityTarget::Simple(SimpleAbilityTarget::Companions) => "companions",
         AbilityTarget::Simple(SimpleAbilityTarget::FrontRow) => "front_row",

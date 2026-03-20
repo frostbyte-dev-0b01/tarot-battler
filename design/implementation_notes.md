@@ -55,7 +55,7 @@ Bundled roster data does not yet use `Marked` or `Severed`, and the older protot
 
 `Muted` is still a future candidate condition, not part of the intended near-term core set.
 
-`Rescue` also still has one known implementation shortcut: its move, heal, and enemy-refocus steps each resolve the companion selector separately instead of binding one selected companion for the whole ability. The current mitigation is to move before healing so the chosen companion is less likely to change mid-resolution. A future cleanup should support atomic multi-step execution with one bound target reused across the full ability.
+Compound abilities can now opt into atomic target binding. `Rescue` uses a bound companion target so its move, heal, and enemy-refocus steps stay on the same unit through the full sequence.
 
 ### Stat Naming
 

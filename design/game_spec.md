@@ -592,7 +592,12 @@ Default intended behavior:
 
 - an ability selects its targets for each step according to that step's own targeting text
 - if a later step depends on the result of an earlier step, that dependency should be explicit in the text
-- if an ability is intended to bind one target once and reuse it across all steps, that should be treated as atomic targeting and called out clearly in implementation notes or primitive design
+- if an ability is intended to bind one target once and reuse it across all steps, that should be treated as atomic targeting and called out clearly in primitive design
+
+Live implementation note:
+
+- atomic targeting is now a live opt-in behavior through bound-target primitives
+- if an ability does not opt into binding, each step still selects its targets when that step resolves
 
 This matters for abilities such as `Rescue`, where:
 
@@ -600,7 +605,7 @@ This matters for abilities such as `Rescue`, where:
 - heal
 - enemy refocus
 
-are conceptually about the same companion, even though the current prototype may still re-resolve the selector between steps.
+are conceptually about the same companion, and `Rescue` now binds that companion once for the full sequence.
 
 ## Passives and Traits
 

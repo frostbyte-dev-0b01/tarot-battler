@@ -29,19 +29,18 @@ Future candidate conditions:
 
 ### 2. Compound Ability Atomic Targeting
 
-Some multi-step abilities should bind a selected target once and reuse it across steps. `Rescue` is the clearest current example.
+Status: complete.
 
-Desired outcome:
+What landed:
 
 - primitives can opt into one bound target reused across nested steps
 - target identity is stable across move/heal/refocus style sequences
+- `Rescue` now binds its selected companion once and reuses it across move, heal, and enemy-refocus
 
-Suggested implementation order:
+Remaining follow-up:
 
-1. add a temporary bound-target slot to execution context
-2. add a primitive or wrapper to select and bind once
-3. update `Rescue`
-4. add tests for selector stability across chained steps
+- decide whether more bundled abilities should use bound targets
+- keep compound target binding in mind when adding future multi-step support abilities
 
 ### 3. Ability Catalog Cleanup
 

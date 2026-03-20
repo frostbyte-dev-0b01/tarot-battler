@@ -454,35 +454,31 @@
     "mp_cost": 4,
     "primitives": [
       {
-        "kind": "move_target",
+        "kind": "bind_targets",
         "target": {
           "category": "companion",
           "selector": {
             "kind": "lowest_hp"
           }
         },
-        "direction": "backward",
-        "if_empty": true
-      },
-      {
-        "kind": "restore_hp",
-        "target": {
-          "category": "companion",
-          "selector": {
-            "kind": "lowest_hp"
+        "primitives": [
+          {
+            "kind": "move_target",
+            "target": "bound_ally",
+            "direction": "backward",
+            "if_empty": true
+          },
+          {
+            "kind": "restore_hp",
+            "target": "bound_ally",
+            "amount": 6
+          },
+          {
+            "kind": "retarget_enemies_focusing_targets",
+            "target": "bound_ally",
+            "mode": "default_retarget"
           }
-        },
-        "amount": 6
-      },
-      {
-        "kind": "retarget_enemies_focusing_targets",
-        "target": {
-          "category": "companion",
-          "selector": {
-            "kind": "lowest_hp"
-          }
-        },
-        "mode": "default_retarget"
+        ]
       }
     ]
   },

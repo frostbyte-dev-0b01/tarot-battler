@@ -63,6 +63,7 @@ pub(crate) fn resolve_enemy_targets(
             .filter(|(_, c)| c.is_alive())
             .map(|(i, _)| i)
             .collect(),
+        AbilityTarget::Simple(SimpleAbilityTarget::BoundEnemy) => Vec::new(),
         AbilityTarget::Detailed(spec) if matches!(spec.category, TargetCategory::Enemy) => {
             let mut candidates = enemy_candidates(
                 actor_idx,
@@ -92,6 +93,7 @@ pub(crate) fn resolve_ally_targets(
 ) -> Vec<usize> {
     match target {
         AbilityTarget::Simple(SimpleAbilityTarget::SelfChar) => vec![actor_idx],
+        AbilityTarget::Simple(SimpleAbilityTarget::BoundAlly) => Vec::new(),
         AbilityTarget::Simple(SimpleAbilityTarget::Companions) => {
             let comp_ids = actor_team[actor_idx].effective_companion_ids();
             comp_ids
@@ -139,6 +141,7 @@ pub(crate) fn target_is_enemy_side(target: &AbilityTarget) -> bool {
         AbilityTarget::Simple(SimpleAbilityTarget::CurrentTarget)
             | AbilityTarget::Simple(SimpleAbilityTarget::CurrentTargetAndCompanions)
             | AbilityTarget::Simple(SimpleAbilityTarget::TriggerTarget)
+            | AbilityTarget::Simple(SimpleAbilityTarget::BoundEnemy)
             | AbilityTarget::Simple(SimpleAbilityTarget::FrontRow)
             | AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies)
             | AbilityTarget::Detailed(crate::abilities::TargetSpec {

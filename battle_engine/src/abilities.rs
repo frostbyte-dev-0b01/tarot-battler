@@ -20,6 +20,8 @@ pub enum SimpleAbilityTarget {
     CurrentTarget,
     CurrentTargetAndCompanions,
     TriggerTarget,
+    BoundAlly,
+    BoundEnemy,
     #[serde(rename = "self")]
     SelfChar,
     Companions,
@@ -141,6 +143,10 @@ impl From<SimpleAbilityTarget> for AbilityTarget {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Primitive {
+    BindTargets {
+        target: AbilityTarget,
+        primitives: Vec<Primitive>,
+    },
     DealPhysicalDamage {
         target: AbilityTarget,
         multiplier: f64,
@@ -371,6 +377,8 @@ pub struct ExecutionContext<'a> {
     pub status_defs: &'a StatusMap,
     pub actor_team_is_a: bool,
     pub trigger_target_id: Option<u32>,
+    pub bound_ally_target_ids: Option<Vec<u32>>,
+    pub bound_enemy_target_ids: Option<Vec<u32>>,
 }
 
 impl<'a> ExecutionContext<'a> {
@@ -392,12 +400,55 @@ impl<'a> ExecutionContext<'a> {
             status_defs,
             actor_team_is_a,
             trigger_target_id: None,
+            bound_ally_target_ids: None,
+            bound_enemy_target_ids: None,
         }
     }
 
     pub fn with_trigger_target(mut self, trigger_target_id: Option<u32>) -> Self {
         self.trigger_target_id = trigger_target_id;
         self
+    }
+}
+
+fn resolve_enemy_targets_for_context(
+    ctx: &mut ExecutionContext<'_>,
+    target: &AbilityTarget,
+    actor_idx: usize,
+) -> Vec<usize> {
+    match target {
+        AbilityTarget::Simple(SimpleAbilityTarget::BoundEnemy) => ctx
+            .bound_enemy_target_ids
+            .as_ref()
+            .into_iter()
+            .flatten()
+            .filter_map(|id| ctx.enemy_team.iter().position(|c| c.id() == *id && c.is_alive()))
+            .collect(),
+        _ => resolve_enemy_targets(
+            target,
+            actor_idx,
+            ctx.actor_team,
+            ctx.enemy_team,
+            ctx.rng,
+            ctx.trigger_target_id,
+        ),
+    }
+}
+
+fn resolve_ally_targets_for_context(
+    ctx: &mut ExecutionContext<'_>,
+    target: &AbilityTarget,
+    actor_idx: usize,
+) -> Vec<usize> {
+    match target {
+        AbilityTarget::Simple(SimpleAbilityTarget::BoundAlly) => ctx
+            .bound_ally_target_ids
+            .as_ref()
+            .into_iter()
+            .flatten()
+            .filter_map(|id| ctx.actor_team.iter().position(|c| c.id() == *id && c.is_alive()))
+            .collect(),
+        _ => resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng),
     }
 }
 
@@ -489,6 +540,43 @@ pub fn execute_primitives_with_context(
 
     for primitive in primitives {
         match primitive {
+            Primitive::BindTargets { target, primitives } => {
+                let previous_bound_allies = ctx.bound_ally_target_ids.clone();
+                let previous_bound_enemies = ctx.bound_enemy_target_ids.clone();
+
+                let bound_ally_ids = if target_is_enemy_side(target) {
+                    None
+                } else {
+                    Some(
+                        resolve_ally_targets_for_context(ctx, target, actor_idx)
+                            .into_iter()
+                            .filter_map(|idx| ctx.actor_team.get(idx))
+                            .filter(|character| character.is_alive())
+                            .map(CharacterState::id)
+                            .collect::<Vec<_>>(),
+                    )
+                };
+                let bound_enemy_ids = if target_is_enemy_side(target) {
+                    Some(
+                        resolve_enemy_targets_for_context(ctx, target, actor_idx)
+                            .into_iter()
+                            .filter_map(|idx| ctx.enemy_team.get(idx))
+                            .filter(|character| character.is_alive())
+                            .map(CharacterState::id)
+                            .collect::<Vec<_>>(),
+                    )
+                } else {
+                    None
+                };
+
+                ctx.bound_ally_target_ids = bound_ally_ids;
+                ctx.bound_enemy_target_ids = bound_enemy_ids;
+                let nested_damage =
+                    execute_primitives_with_context(ctx, actor_idx, _source_name, primitives);
+                damage_dealt.extend(nested_damage);
+                ctx.bound_ally_target_ids = previous_bound_allies;
+                ctx.bound_enemy_target_ids = previous_bound_enemies;
+            }
             Primitive::DealPhysicalDamage {
                 target,
                 multiplier,
@@ -498,14 +586,7 @@ pub fn execute_primitives_with_context(
                     Some(Stat::MGT) => ctx.actor_team[actor_idx].get_eff_stat_with_doubled_empower(&Stat::MGT),
                     _ => ctx.actor_team[actor_idx].get_eff_stat(&Stat::MGT),
                 };
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_for = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
                     let base = (actor_str as i32 - defender_for as i32).max(1) as u32;
@@ -539,14 +620,7 @@ pub fn execute_primitives_with_context(
             } => {
                 let key = status_key(status, stat.as_ref());
                 let actor_mgt = ctx.actor_team[actor_idx].get_eff_stat(&Stat::MGT);
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_arm = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
                     let base = (actor_mgt as i32 - defender_arm as i32).max(1) as u32;
@@ -575,14 +649,7 @@ pub fn execute_primitives_with_context(
                 }
             }
             Primitive::DealMagicalDamage { target, multiplier } => {
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_wis = ctx.enemy_team[tidx].get_eff_stat(&Stat::RES);
                     let base = (actor_int as i32 - defender_wis as i32).max(1) as u32;
@@ -651,14 +718,7 @@ pub fn execute_primitives_with_context(
             }
             Primitive::DealTrueDamage { target, amount } => {
                 if target_is_enemy_side(target) {
-                    let target_indices = resolve_enemy_targets(
-                        target,
-                        actor_idx,
-                        ctx.actor_team,
-                        ctx.enemy_team,
-                        ctx.rng,
-                        ctx.trigger_target_id,
-                    );
+                    let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         let damage = ctx.enemy_team[tidx].current_hp().min(*amount);
                         ctx.enemy_team[tidx].take_damage(*amount);
@@ -670,8 +730,7 @@ pub fn execute_primitives_with_context(
                         });
                     }
                 } else {
-                    let target_indices =
-                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                    let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         let damage = ctx.actor_team[tidx].current_hp().min(*amount);
                         ctx.actor_team[tidx].take_damage(*amount);
@@ -691,14 +750,7 @@ pub fn execute_primitives_with_context(
                 damage_per_stack,
             } => {
                 let key = status_key(status, stat.as_ref());
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let consumed_stacks = ctx.enemy_team[tidx].status_stacks(&key);
                     if consumed_stacks > 0 {
@@ -723,14 +775,7 @@ pub fn execute_primitives_with_context(
                 bonus_per_stack,
             } => {
                 let key = status_key(status, stat.as_ref());
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_res = ctx.enemy_team[tidx].get_eff_stat(&Stat::RES);
                     let base = (actor_int as i32 - defender_res as i32).max(1) as u32;
@@ -778,14 +823,7 @@ pub fn execute_primitives_with_context(
                     .sum();
 
                 let raw_damage = consumed_stacks.saturating_mul(*damage_per_stack);
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let damage = ctx.enemy_team[tidx].current_hp().min(raw_damage);
                     ctx.enemy_team[tidx].take_damage(raw_damage);
@@ -815,14 +853,7 @@ pub fn execute_primitives_with_context(
                         stacks
                     })
                     .sum();
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_arm = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
                     let base = (actor_mgt as i32 - defender_arm as i32).max(1) as u32;
@@ -863,7 +894,7 @@ pub fn execute_primitives_with_context(
                 }
             }
             Primitive::RestoreHp { target, amount } => {
-                let target_indices = resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     if ctx.actor_team[tidx].is_alive() {
                         let before = ctx.actor_team[tidx].current_hp();
@@ -885,7 +916,7 @@ pub fn execute_primitives_with_context(
                 }
             }
             Primitive::RestoreMp { target, amount } => {
-                let target_indices = resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     if ctx.actor_team[tidx].is_alive() {
                         let before = ctx.actor_team[tidx].current_mp();
@@ -915,14 +946,7 @@ pub fn execute_primitives_with_context(
                 if let Some(def) = ctx.status_defs.get(status) {
                     let key = status_key(status, stat.as_ref());
                     if target_is_enemy_side(target) {
-                        let target_indices = resolve_enemy_targets(
-                            target,
-                            actor_idx,
-                            ctx.actor_team,
-                            ctx.enemy_team,
-                            ctx.rng,
-                            ctx.trigger_target_id,
-                        );
+                        let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                         for tidx in target_indices {
                             if ctx.enemy_team[tidx].is_alive() {
                                 let applied = ctx.enemy_team[tidx].add_status(
@@ -948,8 +972,7 @@ pub fn execute_primitives_with_context(
                             }
                         }
                     } else {
-                        let target_indices =
-                            resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                        let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                         for tidx in target_indices {
                             if ctx.actor_team[tidx].is_alive() {
                                 let applied = ctx.actor_team[tidx].add_status(
@@ -984,14 +1007,7 @@ pub fn execute_primitives_with_context(
                     continue;
                 };
                 if target_is_enemy_side(target) {
-                    let target_indices = resolve_enemy_targets(
-                        target,
-                        actor_idx,
-                        ctx.actor_team,
-                        ctx.enemy_team,
-                        ctx.rng,
-                        ctx.trigger_target_id,
-                    );
+                    let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         if ctx.enemy_team[tidx].is_alive()
                             && ctx.enemy_team[tidx].add_condition(kind, *stacks, actor_id)
@@ -1008,8 +1024,7 @@ pub fn execute_primitives_with_context(
                         }
                     }
                 } else {
-                    let target_indices =
-                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                    let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         if ctx.actor_team[tidx].is_alive()
                             && ctx.actor_team[tidx].add_condition(kind, *stacks, actor_id)
@@ -1035,19 +1050,12 @@ pub fn execute_primitives_with_context(
             } => {
                 let key = status_key(status, stat.as_ref());
                 if target_is_enemy_side(target) {
-                    let target_indices = resolve_enemy_targets(
-                        target,
-                        actor_idx,
-                        ctx.actor_team,
-                        ctx.enemy_team,
-                        ctx.rng,
-                        ctx.trigger_target_id,
-                    );
+                    let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         ctx.enemy_team[tidx].remove_status(&key, *stacks);
                     }
                 } else {
-                    let target_indices = resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                    let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         ctx.actor_team[tidx].remove_status(&key, *stacks);
                     }
@@ -1062,54 +1070,32 @@ pub fn execute_primitives_with_context(
                     continue;
                 };
                 if target_is_enemy_side(target) {
-                    let target_indices = resolve_enemy_targets(
-                        target,
-                        actor_idx,
-                        ctx.actor_team,
-                        ctx.enemy_team,
-                        ctx.rng,
-                        ctx.trigger_target_id,
-                    );
+                    let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         ctx.enemy_team[tidx].remove_condition(kind, *stacks);
                     }
                 } else {
-                    let target_indices =
-                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                    let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         ctx.actor_team[tidx].remove_condition(kind, *stacks);
                     }
                 }
             }
             Primitive::RemoveOneBuff { target } => {
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     ctx.enemy_team[tidx].remove_one_buff();
                 }
             }
             Primitive::Cleanse { target, amount } => {
                 if target_is_enemy_side(target) {
-                    let target_indices = resolve_enemy_targets(
-                        target,
-                        actor_idx,
-                        ctx.actor_team,
-                        ctx.enemy_team,
-                        ctx.rng,
-                        ctx.trigger_target_id,
-                    );
+                    let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         ctx.enemy_team[tidx].cleanse(*amount);
                     }
                 } else {
                     let target_indices =
-                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                        resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         ctx.actor_team[tidx].cleanse(*amount);
                     }
@@ -1117,20 +1103,13 @@ pub fn execute_primitives_with_context(
             }
             Primitive::Dispel { target, amount } => {
                 if target_is_enemy_side(target) {
-                    let target_indices = resolve_enemy_targets(
-                        target,
-                        actor_idx,
-                        ctx.actor_team,
-                        ctx.enemy_team,
-                        ctx.rng,
-                        ctx.trigger_target_id,
-                    );
+                    let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         ctx.enemy_team[tidx].dispel(*amount);
                     }
                 } else {
                     let target_indices =
-                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                        resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         ctx.actor_team[tidx].dispel(*amount);
                     }
@@ -1142,14 +1121,7 @@ pub fn execute_primitives_with_context(
                 filter,
             } => {
                 let target_indices = if target_is_enemy_side(target) {
-                    resolve_enemy_targets(
-                        target,
-                        actor_idx,
-                        ctx.actor_team,
-                        ctx.enemy_team,
-                        ctx.rng,
-                        ctx.trigger_target_id,
-                    )
+                    resolve_enemy_targets_for_context(ctx, target, actor_idx)
                 } else {
                     Vec::new()
                 };
@@ -1217,7 +1189,7 @@ pub fn execute_primitives_with_context(
             }
             Primitive::RetargetEnemiesFocusingTargets { target, mode } => {
                 let focused_target_ids: Vec<u32> =
-                    resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng)
+                    resolve_ally_targets_for_context(ctx, target, actor_idx)
                         .into_iter()
                         .filter_map(|idx| ctx.actor_team.get(idx))
                         .filter(|character| character.is_alive())
@@ -1277,7 +1249,7 @@ pub fn execute_primitives_with_context(
                     continue;
                 };
                 let target_name = lookup_name(ctx.enemy_team, Some(actor_target_id));
-                let target_indices = resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     if !ctx.actor_team[tidx].is_alive() {
                         continue;
@@ -1353,7 +1325,7 @@ pub fn execute_primitives_with_context(
                 direction,
                 if_empty,
             } => {
-                let target_indices = resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     try_move_character(
                         tidx,
@@ -1377,14 +1349,7 @@ pub fn execute_primitives_with_context(
                     continue;
                 };
                 if target_is_enemy_side(target) {
-                    let target_indices = resolve_enemy_targets(
-                        target,
-                        actor_idx,
-                        ctx.actor_team,
-                        ctx.enemy_team,
-                        ctx.rng,
-                        ctx.trigger_target_id,
-                    );
+                    let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         transform_statuses(
                             &mut ctx.enemy_team[tidx],
@@ -1397,7 +1362,7 @@ pub fn execute_primitives_with_context(
                     }
                 } else {
                     let target_indices =
-                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                        resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         transform_statuses(
                             &mut ctx.actor_team[tidx],
@@ -1422,14 +1387,7 @@ pub fn execute_primitives_with_context(
                 };
                 let key = status_key(status, stat.as_ref());
                 if target_is_enemy_side(target) {
-                    let target_indices = resolve_enemy_targets(
-                        target,
-                        actor_idx,
-                        ctx.actor_team,
-                        ctx.enemy_team,
-                        ctx.rng,
-                        ctx.trigger_target_id,
-                    );
+                    let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         if ctx.enemy_team[tidx].cleanse(*amount) {
                             let applied = ctx.enemy_team[tidx].add_status(
@@ -1446,7 +1404,7 @@ pub fn execute_primitives_with_context(
                     }
                 } else {
                     let target_indices =
-                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                        resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         if ctx.actor_team[tidx].cleanse(*amount) {
                             let applied = ctx.actor_team[tidx].add_status(
@@ -1478,14 +1436,7 @@ pub fn execute_primitives_with_context(
                 primitives,
             } => {
                 let key = status_key(status, stat.as_ref());
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 let should_execute = target_indices
                     .iter()
                     .any(|tidx| ctx.enemy_team[*tidx].is_alive() && ctx.enemy_team[*tidx].has_status(&key));
@@ -1502,14 +1453,7 @@ pub fn execute_primitives_with_context(
                 primitives,
             } => {
                 let key = status_key(status, stat.as_ref());
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 let should_execute = target_indices
                     .iter()
                     .any(|tidx| ctx.enemy_team[*tidx].is_alive() && !ctx.enemy_team[*tidx].has_status(&key));
@@ -1527,14 +1471,7 @@ pub fn execute_primitives_with_context(
                 let Some(kind) = ConditionKind::from_key(condition) else {
                     continue;
                 };
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 let should_execute = target_indices.iter().any(|tidx| {
                     ctx.enemy_team[*tidx].is_alive() && ctx.enemy_team[*tidx].has_condition(kind)
                 });
@@ -1552,14 +1489,7 @@ pub fn execute_primitives_with_context(
                 let Some(kind) = ConditionKind::from_key(condition) else {
                     continue;
                 };
-                let target_indices = resolve_enemy_targets(
-                    target,
-                    actor_idx,
-                    ctx.actor_team,
-                    ctx.enemy_team,
-                    ctx.rng,
-                    ctx.trigger_target_id,
-                );
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 let should_execute = target_indices.iter().any(|tidx| {
                     ctx.enemy_team[*tidx].is_alive() && !ctx.enemy_team[*tidx].has_condition(kind)
                 });

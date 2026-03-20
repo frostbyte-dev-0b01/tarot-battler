@@ -2250,3 +2250,57 @@ fn current_target_and_companions_ignores_severed_companions() {
     assert_eq!(dealt[0].target_id, 1);
     assert_eq!(enemy_team[1].current_hp(), 30);
 }
+
+#[test]
+fn bind_targets_keeps_same_ally_across_nested_primitives() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let mut actor_team = vec![
+        make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
+        make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
+        make_adjacent_char(2, 0, 2, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
+    ];
+    actor_team[0].set_companions(vec![1, 2]);
+    actor_team[1].take_damage(12); // 18 HP
+    actor_team[2].take_damage(10); // 20 HP
+    let mut enemy_team = vec![make_char(10, vec![(Stat::VIT, 10)])];
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::BindTargets {
+            target: AbilityTarget::Detailed(TargetSpec {
+                category: TargetCategory::Companion,
+                selector: Some(TargetSelector::LowestHp),
+                position: None,
+                bypass_row_protection: false,
+            }),
+            primitives: vec![
+                Primitive::RestoreHp {
+                    target: SimpleAbilityTarget::BoundAlly.into(),
+                    amount: 10,
+                },
+                Primitive::ApplyCondition {
+                    target: SimpleAbilityTarget::BoundAlly.into(),
+                    condition: "Marked".to_string(),
+                    stacks: 1,
+                },
+            ],
+        }],
+    };
+
+    execute_ability(
+        0,
+        "RescueLike",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+
+    assert_eq!(actor_team[1].current_hp(), 28);
+    assert_eq!(actor_team[1].condition_stacks(ConditionKind::Marked), 1);
+    assert_eq!(actor_team[2].condition_stacks(ConditionKind::Marked), 0);
+}
