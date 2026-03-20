@@ -277,6 +277,7 @@ This triggers if any companion is below 4 HP. The ability still picks its own ta
 - any effective stat
 - current HP
 - current MP
+- position information such as row for `self`
 - companion count for `self` and `target`
 - stack count of a named effect using a status key such as `Empower:MGT`
 - whether a named effect is present or absent using a key such as `Ward`
@@ -289,6 +290,7 @@ This triggers if any companion is below 4 HP. The ability still picks its own ta
 
 This is expected to include queries such as:
 
+- `self_row`
 - `self_companion_count`
 - `target_companion_count`
 
@@ -404,6 +406,26 @@ The current intended core effects are:
 
 `Omen` is the official name for the intended true-damage setup effect.
 
+### Conditions
+
+Conditions are separate from buffs and debuffs.
+
+They should stay relatively limited and should usually represent:
+
+- action denial
+- script denial
+- target/focus disruption
+- relationship changes that are not simple stat shifts
+
+Current intended condition list:
+
+- `Stunned`
+- `Muted`
+- `Marked`
+- `Severed`
+
+More conditions can be added later, but the list should stay tight. Conditions should feel qualitatively different from ordinary buffs and debuffs, not just like another place to store small numeric modifiers.
+
 ### Status Groups
 
 Buffs and debuffs are grouped for cleanse and dispel behavior.
@@ -425,7 +447,7 @@ The current intended groups are:
   - `Omen`
   - `Restoration`
 
-`Stunned` is a separate `Condition`, not part of the `Body`, `Mind`, or `Fate` groups.
+`Stunned` and other conditions are separate from the `Body`, `Mind`, and `Fate` groups.
 
 ### Cleanse and Dispel
 

@@ -59,6 +59,15 @@ Current design direction for economy:
 
 ## Core Ability Pool
 
+Design note:
+
+- a few benchmark abilities are intentionally simple
+- most of the core pool should have a dominant verb and a noticeable board-state, focus-state, or status-state impact
+- if an ability reads like bookkeeping with a tiny rider, it is a candidate for replacement
+- ability-first thinking should start from gameplay use, scripting value, discovered synergies, and counterplay
+- names should usually come after the gameplay concept is clear
+- exciting use cases should be phrased literally in game terms, e.g. "put this in the back with passive healers and gain value without losing meaningful HP"
+
 ### Formation and Control
 
 - `Hold the Line`
@@ -68,8 +77,8 @@ Current design direction for economy:
 
 - `Command`
   `MP 4`
-  One companion immediately makes a standard physical attack against the user's current target with `1.0x MGT` multiplier.
-  Balance notes: effectively compresses a second action, so cost stays above a light attack
+  One companion immediately makes a `1.0x MGT` physical attack against the user's focused enemy.
+  Balance notes: this is action substitution, not action gain; its value comes from using the better attacker
 
 - `Taunt`
   `MP 4`
@@ -81,45 +90,45 @@ Current design direction for economy:
 
 - `Interpose`
   `MP 2`
-  Enemies focusing the user's companion change focus to the user.
+  Enemies focusing any of the user's companions focus the user instead.
 
 - `Decoy`
   `MP 2`
-  Enemies focusing the user change focus to one of the user's companions.
+  Enemies focusing the user focus one of the user's companions instead.
 
 ### Physical Offense and Payoff
 
 - `Charge`
   `MP 4`
-  Deal physical damage with `1.2x MGT`, then move one row forward in the same column if the tile is empty. If the move succeeds, the user refocuses.
+  Deal `1.2x MGT` damage to the user's focused enemy. Then, if the tile one row forward in the same column is empty, move there. If the move succeeds, the user refocuses.
   Balance notes: engage tool that should update pressure as part of movement, not just advance position
 
 - `Withdraw`
   `MP 4`
-  Deal physical damage with `0.8x MGT`, then move one row backward in the same column if the tile is empty. If the move succeeds, enemies focusing the user refocus.
+  Deal `0.8x MGT` damage to the user's focused enemy. Then, if the tile one row backward in the same column is empty, move there. If the move succeeds, enemies focusing the user refocus.
   Balance notes: this is intended to be a real disengage tool, not just backward movement
 
 - `Breakthrough`
   `MP 6`
-  Deal physical damage with `1.0x MGT`. `Empower MGT` on the user counts double for this attack.
+  Deal `1.0x MGT` damage to the user's focused enemy. `Empower MGT` on the user counts double for this attack.
   Balance notes: baseline hit is modest, ceiling comes from setup
 
 - `Condemn`
   `MP 6`
-  Deal physical damage with `1.4x MGT` to the user's current target. If that target has `Omen`, this attack instead uses `1.6x MGT`.
+  Deal `1.4x MGT` damage to the user's focused enemy. If that enemy has `Omen`, this attack instead uses `1.6x MGT`.
 
 - `Verdict`
   `MP 8`
-  Deal heavy physical damage with `1.8x MGT` to the user's current target.
+  Deal `1.8x MGT` damage to the user's focused enemy.
   Balance notes: clean finisher / heavy commitment button
 
 - `Sunder`
   `MP 2`
-  Deal physical damage with `0.8x MGT` and apply `Weaken ARM 1`.
+  Deal `0.8x MGT` damage to the user's focused enemy. Apply `Weaken ARM 2`.
 
 - `Sever`
   `MP 6`
-  Deal physical damage with `1.4x MGT`. Consume the user's `Empower MGT` and `Empower ARM`, then gain `Lethality 1` per consumed stack for this attack.
+  Deal `1.4x MGT` damage to the user's focused enemy. Consume the user's `Empower MGT` and `Empower ARM`, then deal `1` true damage per consumed stack.
   Balance notes: physical self-buff payoff, mirrors `Harvest Night`
 
 
@@ -127,65 +136,139 @@ Current design direction for economy:
 
 - `Smite`
   `MP 4`
-  Deal magical damage with `1.4x MAG` to the user's current target.
+  Deal `1.4x MAG` damage to the user's focused enemy.
 
 - `Consecrate`
   `MP 6`
-  Deal magical damage to the user's focused enemy and that enemy's companions.
-  Uses `1.0x MAG` on the focused enemy and `0.7x MAG` on each companion.
+  Deal `1.0x MAG` damage to the user's focused enemy and `0.7x MAG` damage to that enemy's companions.
   Balance notes: intended to be a real bomb when enemy formation clusters, not just light splash
 
 - `Hex`
   `MP 4`
-  Deal magical damage to the user's current target and apply `Omen 2`.
-  Uses `0.8x MAG`.
+  Deal `0.8x MAG` damage to the user's focused enemy. Apply `Omen 2`.
 
 - `Eclipse`
   `MP 6`
-  Deal magical damage to the user's current target and companions, then apply `Omen 1` to each.
-  Uses `0.7x MAG` per target.
+  Deal `0.8x MAG` damage to the user's focused enemy and that enemy's companions. Apply `Omen 1` to each damaged enemy.
 
 - `Harvest Night`
   `MP 6`
   Deal `1.0x MAG` damage to the user's focused enemy. Then consume all `Omen` on that enemy and deal `2` true damage per stack consumed.
 
-- `Invocation`
+- `Seal`
   `MP 4`
-  Deal magical damage. If the target has no `Omen`, apply `Omen 1`; otherwise restore `MP 1` to the user.
-  Uses `1.0x MAG`.
+  Deal `0.8x MAG` damage to the user's focused enemy. Apply `Weaken MAG 4` and `Weaken RES 2`.
 
 - `Transmute`
   `MP 4`
-  Deal magical damage to the user's current target. If that target has `Omen`, restore `MP 2` to the user.
-  Uses `1.0x MAG`.
+  Deal `1.0x MAG` damage to the user's focused enemy. Transform that enemy's `Empower MGT` and `Empower ARM` into equal `Weaken MGT` and `Weaken ARM`.
 
 ### Support, Sustain, and Utility
 
 - `Blessing`
   `MP 4`
-  Restore `MP` to allies in the user's row.
-  Restores `MP 2` to each ally in the row.
+  Allies in the user's row restore `MP 2` and refocus on the user's focused enemy.
+  Balance notes: support should help the team act together, not just hand out a small resource bump
 
-- `Channel`
+- `Offer`
   `MP 2`
-  Restore `MP` to the lowest-`MP` ally.
-  Restores `MP 3`.
+  Lose `20%` current HP. Gain `MP 4` and `Empower MAG 4`.
 
 - `Distill`
   `MP 4`
-  Remove one buff from the user's current target. Apply `Omen 2` to that target.
-  Balance notes: even with no buff present, the Omen still applies
+  Dispel `1` from the user's focused enemy. Apply `Omen 2`.
+  Balance notes: even with no buff present, the Omen still applies; this is the cleaner anti-buff omen setup tool
 
 - `Sanctify`
   `MP 4`
-  Cleanse allies in the user's column.
-  Applies `cleanse 1` to each ally in the column.
+  Cleanse allies in the user's column. Allies cleansed this way gain `Ward 1`.
+  Balance notes: column identity plus an immediate visible defensive swing
 
-- `Restoration`
+- `Rescue`
   `MP 4`
-  Restore HP to one companion.
-  Restores `6 HP`.
+  Restore `6 HP` to one companion. If the tile one row backward in the same column is empty, move that companion there. Enemies focusing that companion refocus.
+  Balance notes: support healing should often reposition or reset pressure, not only add HP
+
+  Team concept note:
+  this kind of ability becomes much more interesting once rules can inspect `self_row`, allowing a tank to begin as a frontline anchor, get rescued backward, and then switch into a different backline damage plan
 
 ## Brainstorming
 
 New ability ideas and balance experiments can be added here before they are promoted into the core pool.
+
+- `Split`
+  Move one companion to the opposite side of the user, if open. Both units gain `Ward 1`.
+
+- `Coronate`
+  Choose one companion. Until that companion acts, all enemies focusing the user focus that companion instead, and that companion gains `Empower MGT 3`.
+
+- `Sever Thread`
+  Apply `Severed` to the user's focused enemy for `3` turns.
+
+- `Sanctuary`
+  The user's row cannot be focused from outside that row until the user's next turn.
+
+- `Brand of Ruin`
+  Apply a new status: `Marked`.
+  When allies attack a `Marked` enemy, remove `Marked` and deal `3` true damage.
+  Strong use case:
+  mark a target, then use focus tools and coordinated rules to collapse on that enemy.
+
+- `Tether`
+  Link the user and one companion.
+  The next time either takes damage, split it evenly, then end the effect.
+
+- `Silence`
+  Apply new condition: `Muted`.
+  A `Muted` unit cannot use the same ability it used last turn.
+
+- `Revelation`
+  Reveal the focused enemy’s top priority rule in the replay/log and apply `Weaken RES 3`.
+
+- `Invert`
+  Swap the focused enemy’s `MGT` and `MAG` until its next turn.
+
+- `Anchor`
+  The user cannot move or refocus until its next turn. Gain `Ward 1`, `Empower ARM 4`, and `Empower RES 4`.
+
+- `Echo`
+  The next ally ability used this tick repeats its non-damage effects on the same target.
+
+- `Exile`
+  Move the focused enemy to the back row if an open tile exists. If moved, it is disoriented.
+
+- `Mirror`
+  Until the user's next turn, whenever the focused enemy gains `Empower`, the user gains the same amount.
+
+- `Hush`
+  Apply new condition: `Delayed`.
+  The affected enemy’s next action happens one tick cycle later than normal.
+
+- `Judgment Day`
+  Compare total buffs on both teams. The side with more loses half of them.
+
+- `Chorus`
+  Until the user's next turn, when a companion uses an ability, all companions gain a copy of a random buff on that companion.
+
+- `Profane Exchange`
+  Move all debuffs from the user onto the focused enemy.
+
+- `Covenant`
+  Until the user's next turn, allies in the user's row cannot be reduced below `1 HP` by direct damage.
+
+- `Blood Rite`
+  Deal `5` true damage to each companion. Then deal `1.0x MAG` damage to the user's focused enemy, plus `1` true damage for each damage dealt this way.
+  Strong use case:
+  put this on a backline caster between passive healers or durable companions so the team converts survivable self-damage into burst.
+
+- `Shatter Faith`
+  Remove all `Ward` and `Restoration` from the enemy team. For each effect removed, deal `2` true damage to the user's focused enemy.
+
+- `Hunt the Weak`
+  Deal `1.0x MGT` damage to the lowest-HP enemy. If that enemy survives, the user focuses it.
+
+- `Inheritance`
+  Choose one companion. The user gains that companion's passive permanently for the rest of battle.
+
+- `Last Rites`
+  Deal `1.2x MAG` damage to an enemy below `50% HP`. If that enemy is defeated, all allies refocus.
