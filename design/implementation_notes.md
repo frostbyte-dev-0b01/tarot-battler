@@ -180,6 +180,32 @@ Because rules use effective stats, the team builder and replay inspection tools 
 
 This is especially important once threshold unlocks and item-based identity shifts are in the main design.
 
+### Template-Based Character Builds
+
+The intended next structural step is to stop authoring final stats directly in team JSON.
+
+Instead:
+
+- archetype templates own locked base stats
+- team files reference a `template_id`
+- items provide the first layer of pre-battle stat augmentation
+- the engine resolves authored loadouts into final runtime characters before battle start
+
+This implies an engine/UI split between:
+
+- authored loadout data
+- resolved combat-ready character data
+
+The Team Builder should eventually treat stats as derived output, not direct input:
+
+- show template base stats
+- show item bonuses
+- show final pre-battle totals
+
+The engine and Team Builder now use the template-based `version: 2` team schema.
+
+The older direct-stat team format has been retired.
+
 ## Consolidated Source of Truth
 
 The intended design is now split across:

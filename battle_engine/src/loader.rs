@@ -1,6 +1,6 @@
 //! Load character configurations and ability definitions from JSON files.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::abilities::{
@@ -9,6 +9,27 @@ use crate::abilities::{
 };
 use crate::models::{CharacterConfig, ConditionKind, QueryValue, Stat};
 use crate::statuses::{StatusBehavior, StatusDef, StatusMap};
+
+pub type ArchetypeMap = HashMap<String, ArchetypeTemplate>;
+pub type ItemMap = HashMap<String, ItemDef>;
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ArchetypeTemplate {
+    pub display_name: String,
+    pub stats: HashMap<Stat, u32>,
+    pub default_passive: String,
+    pub passive_pool: Vec<String>,
+    pub active_pool: Vec<String>,
+    pub item_slots: u32,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ItemDef {
+    pub display_name: String,
+    pub description: String,
+    #[serde(default)]
+    pub stat_bonuses: HashMap<Stat, u32>,
+}
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct TeamConfig {
@@ -20,10 +41,10 @@ pub struct TeamConfig {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct TeamCharacterLoadout {
     pub id: String,
+    pub template_id: String,
     #[serde(default)]
     pub display_name: Option<String>,
     pub position: crate::models::Position,
-    pub stats: std::collections::HashMap<crate::models::Stat, u32>,
     pub passive: String,
     pub actives: Vec<String>,
     pub item: Option<String>,
@@ -31,6 +52,7 @@ pub struct TeamCharacterLoadout {
     pub rules: Vec<crate::models::Rule>,
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn load_characters(path: &Path) -> Result<Vec<CharacterConfig>, String> {
     let data = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
@@ -38,6 +60,12 @@ pub fn load_characters(path: &Path) -> Result<Vec<CharacterConfig>, String> {
 }
 
 pub fn load_team_config(path: &Path) -> Result<TeamConfig, String> {
+    let data = std::fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+    serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
+}
+
+pub fn load_archetypes(path: &Path) -> Result<ArchetypeMap, String> {
     let data = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
     serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
@@ -61,6 +89,13 @@ pub fn load_statuses(path: &Path) -> Result<StatusMap, String> {
     serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
 }
 
+pub fn load_items(path: &Path) -> Result<ItemMap, String> {
+    let data = std::fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+    serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn validate_content(
     characters: &[CharacterConfig],
     abilities: &AbilityMap,
@@ -125,6 +160,8 @@ pub fn validate_teams(
 
 pub fn validate_team_config(
     team: &TeamConfig,
+    archetypes: &ArchetypeMap,
+    items: &ItemMap,
     abilities: &AbilityMap,
     passives: &PassiveMap,
     statuses: &StatusMap,
@@ -132,7 +169,7 @@ pub fn validate_team_config(
     let mut errors = Vec::new();
     let mut seen_ids = HashSet::new();
 
-    if team.version != 1 {
+    if team.version != 2 {
         errors.push(format!(
             "team '{}' uses unsupported schema version {}",
             team.name, team.version
@@ -152,24 +189,13 @@ pub fn validate_team_config(
         }
     }
 
-    let characters: Vec<CharacterConfig> = team
-        .characters
-        .iter()
-        .map(|character| CharacterConfig {
-            id: Some(character.id.clone()),
-            base_name: character
-                .display_name
-                .clone()
-                .unwrap_or_else(|| character.id.clone()),
-            display_name: character.display_name.clone(),
-            passive: character.passive.clone(),
-            actives: character.actives.clone(),
-            item: character.item.clone(),
-            position: character.position.clone(),
-            stats: character.stats.clone(),
-            rules: character.rules.clone(),
-        })
-        .collect();
+    let mut characters = Vec::with_capacity(team.characters.len());
+    for character in &team.characters {
+        match resolve_team_character(character, archetypes, items) {
+            Ok(resolved) => characters.push(resolved),
+            Err(error) => errors.push(format!("team '{}': {}", team.name, error)),
+        }
+    }
 
     validate_team(&team.name, &characters, abilities, passives, statuses, &mut errors);
 
@@ -208,6 +234,64 @@ pub fn validate_team_config(
     } else {
         Err(errors.join("\n"))
     }
+}
+
+fn resolve_team_character(
+    character: &TeamCharacterLoadout,
+    archetypes: &ArchetypeMap,
+    items: &ItemMap,
+) -> Result<CharacterConfig, String> {
+    let archetype = archetypes.get(&character.template_id).ok_or_else(|| {
+        format!(
+            "character '{}' references unknown template '{}'",
+            character.id, character.template_id
+        )
+    })?;
+
+    if !character.passive.is_empty() && !archetype.passive_pool.contains(&character.passive) {
+        return Err(format!(
+            "character '{}' equips passive '{}' outside template '{}'",
+            character.id, character.passive, character.template_id
+        ));
+    }
+
+    for ability in &character.actives {
+        if !archetype.active_pool.contains(ability) {
+            return Err(format!(
+                "character '{}' equips ability '{}' outside template '{}'",
+                character.id, ability, character.template_id
+            ));
+        }
+    }
+
+    let mut stats = archetype.stats.clone();
+    if let Some(item_name) = &character.item {
+        let item = items.get(item_name).ok_or_else(|| {
+            format!(
+                "character '{}' references unknown item '{}'",
+                character.id, item_name
+            )
+        })?;
+        for (stat, amount) in &item.stat_bonuses {
+            *stats.entry(stat.clone()).or_insert(0) += *amount;
+        }
+    }
+
+    Ok(CharacterConfig {
+        id: Some(character.id.clone()),
+        base_name: archetype.display_name.clone(),
+        display_name: character.display_name.clone(),
+        passive: if character.passive.trim().is_empty() {
+            archetype.default_passive.clone()
+        } else {
+            character.passive.clone()
+        },
+        actives: character.actives.clone(),
+        item: character.item.clone(),
+        position: character.position.clone(),
+        stats,
+        rules: character.rules.clone(),
+    })
 }
 
 fn validate_team(
@@ -806,7 +890,6 @@ fn target_label(target: &AbilityTarget) -> &'static str {
 mod tests {
     use super::*;
     use crate::models::Stat;
-    use std::collections::HashMap;
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -839,28 +922,20 @@ mod tests {
         write!(
             tmp,
             r#"{{
-                "version": 1,
+                "version": 2,
                 "name": "Test Team",
                 "characters": [
                     {{
                         "id": "the_emperor",
+                        "template_id": "the_emperor",
                         "display_name": "The Emperor",
                         "position": {{ "row": 0, "col": 0 }},
-                        "stats": {{
-                            "vit": 10,
-                            "mgt": 6,
-                            "mag": 4,
-                            "arm": 3,
-                            "res": 2,
-                            "spd": 4,
-                            "wil": 5
-                        }},
-                        "passive": "Authority",
-                        "actives": ["Crush", "Embolden"],
+                        "passive": "Imperial Formation",
+                        "actives": ["Hold the Line", "Command"],
                         "item": null,
                         "rules": [
                             {{
-                                "ability": "Crush",
+                                "ability": "Hold the Line",
                                 "when": [
                                     {{
                                         "subject": "self",
@@ -887,10 +962,16 @@ mod tests {
 
     #[test]
     fn validate_team_config_rejects_duplicate_ids() {
+        let archetypes = load_archetypes(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/archetypes.json"),
+        )
+        .unwrap();
         let abilities = load_abilities(
             &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/abilities.json"),
         )
         .unwrap();
+        let items = load_items(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/items.json"))
+            .unwrap();
         let passives = load_passives(
             &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/passives.json"),
         )
@@ -901,49 +982,34 @@ mod tests {
         .unwrap();
 
         let team = TeamConfig {
-            version: 1,
+            version: 2,
             name: "Bad Team".to_string(),
             characters: vec![
                 TeamCharacterLoadout {
                     id: "dup".to_string(),
+                    template_id: "the_emperor".to_string(),
                     display_name: Some("One".to_string()),
                     position: crate::models::Position { row: 0, col: 0 },
-                    stats: HashMap::from([
-                        (Stat::VIT, 8),
-                        (Stat::MGT, 4),
-                        (Stat::MAG, 4),
-                        (Stat::ARM, 3),
-                        (Stat::RES, 3),
-                        (Stat::SPD, 4),
-                        (Stat::WIL, 4),
-                    ]),
-                    passive: "Authority".to_string(),
-                    actives: vec!["Crush".to_string()],
+                    passive: "Imperial Formation".to_string(),
+                    actives: vec!["Hold the Line".to_string()],
                     item: None,
                     rules: vec![],
                 },
                 TeamCharacterLoadout {
                     id: "dup".to_string(),
+                    template_id: "the_hierophant".to_string(),
                     display_name: Some("Two".to_string()),
                     position: crate::models::Position { row: 0, col: 1 },
-                    stats: HashMap::from([
-                        (Stat::VIT, 8),
-                        (Stat::MGT, 4),
-                        (Stat::MAG, 4),
-                        (Stat::ARM, 3),
-                        (Stat::RES, 3),
-                        (Stat::SPD, 4),
-                        (Stat::WIL, 4),
-                    ]),
-                    passive: "Collapse".to_string(),
-                    actives: vec!["Shatter".to_string()],
+                    passive: "Sanctuary".to_string(),
+                    actives: vec!["Smite".to_string()],
                     item: None,
                     rules: vec![],
                 },
             ],
         };
 
-        let err = validate_team_config(&team, &abilities, &passives, &statuses).unwrap_err();
+        let err = validate_team_config(&team, &archetypes, &items, &abilities, &passives, &statuses)
+            .unwrap_err();
         assert!(err.contains("duplicate character id 'dup'"));
     }
 

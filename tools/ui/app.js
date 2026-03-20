@@ -6,6 +6,7 @@ const replayJsonInput = document.querySelector("#replay-json-input");
 const replayDemoButton = document.querySelector("#replay-demo-button");
 const replayValidationOutput = document.querySelector("#replay-validation-output");
 const latestReplayPath = "./sample-data/latest_replay.json";
+const archetypeCatalogPath = "../../battle_engine/src/data/archetypes.json";
 const passiveCatalogPath = "../../battle_engine/src/data/passives.json";
 const abilityCatalogPath = "../../battle_engine/src/data/abilities.json";
 const itemCatalogPath = "../../battle_engine/src/data/items.json";
@@ -86,12 +87,15 @@ const appState = {
   teamBrowserSlotIndex: 0,
   expandedRuleIndex: null,
   catalogs: {
+    archetypes: {},
+    archetypeIds: [],
     passives: [],
     abilities: [],
     items: [],
     passiveDescriptions: {},
     abilityDescriptions: {},
     itemDescriptions: {},
+    itemDefinitions: {},
   },
 };
 const metadataFields = {
@@ -103,17 +107,17 @@ const metadataFields = {
 };
 
 const demoTeam = {
-  version: 1,
+  version: 2,
   name: "Imperial Phalanx",
   characters: [
       {
         id: "the_emperor",
+        template_id: "the_emperor",
         display_name: "The Emperor",
         position: { row: 0, col: 0 },
-        stats: { vit: 12, mgt: 12, mag: 8, arm: 7, res: 5, spd: 8, wil: 12 },
         passive: "Imperial Formation",
         actives: ["Hold the Line", "Command", "Taunt"],
-        item: null,
+        item: "vitality_charm",
         rules: [
           {
             ability: "Hold the Line",
@@ -133,9 +137,9 @@ const demoTeam = {
       },
       {
         id: "the_hierophant",
+        template_id: "the_hierophant",
         display_name: "The Hierophant",
         position: { row: 0, col: 2 },
-        stats: { vit: 14, mgt: 8, mag: 12, arm: 5, res: 8, spd: 8, wil: 14 },
         passive: "Sanctuary",
         actives: ["Smite", "Consecrate", "Blessing"],
         item: null,
@@ -162,9 +166,9 @@ const demoTeam = {
       },
       {
         id: "the_chariot",
+        template_id: "the_chariot",
         display_name: "The Chariot",
         position: { row: 1, col: 1 },
-        stats: { vit: 10, mgt: 15, mag: 8, arm: 5, res: 4, spd: 14, wil: 10 },
         passive: "Pursuit",
         actives: ["Charge", "Withdraw", "Breakthrough"],
         item: null,
@@ -451,24 +455,28 @@ void loadLatestReplay();
 
 async function loadEditorCatalogs() {
   try {
-    const [passiveResponse, abilityResponse, itemResponse] = await Promise.all([
+    const [archetypeResponse, passiveResponse, abilityResponse, itemResponse] = await Promise.all([
+      fetch(archetypeCatalogPath, { cache: "no-store" }),
       fetch(passiveCatalogPath, { cache: "no-store" }),
       fetch(abilityCatalogPath, { cache: "no-store" }),
       fetch(itemCatalogPath, { cache: "no-store" }).catch(() => null),
     ]);
 
-    if (!passiveResponse.ok || !abilityResponse.ok) {
+    if (!archetypeResponse.ok || !passiveResponse.ok || !abilityResponse.ok) {
       throw new Error(
-        `catalog request failed (${passiveResponse.status}/${abilityResponse.status})`,
+        `catalog request failed (${archetypeResponse.status}/${passiveResponse.status}/${abilityResponse.status})`,
       );
     }
 
-    const [passives, abilities, items] = await Promise.all([
+    const [archetypes, passives, abilities, items] = await Promise.all([
+      archetypeResponse.json(),
       passiveResponse.json(),
       abilityResponse.json(),
       itemResponse?.ok ? itemResponse.json() : Promise.resolve({}),
     ]);
 
+    appState.catalogs.archetypes = archetypes;
+    appState.catalogs.archetypeIds = Object.keys(archetypes).sort();
     appState.catalogs.passives = Object.keys(passives).sort();
     appState.catalogs.abilities = Object.keys(abilities).sort();
     appState.catalogs.items = Object.keys(items).sort();
@@ -481,14 +489,18 @@ async function loadEditorCatalogs() {
     appState.catalogs.itemDescriptions = Object.fromEntries(
       Object.entries(items).map(([name, definition]) => [name, definition?.description ?? ""]),
     );
+    appState.catalogs.itemDefinitions = items;
     renderTeamEditor();
   } catch (_error) {
+    appState.catalogs.archetypes = {};
+    appState.catalogs.archetypeIds = [];
     appState.catalogs.passives = [];
     appState.catalogs.abilities = [];
     appState.catalogs.items = [];
     appState.catalogs.passiveDescriptions = {};
     appState.catalogs.abilityDescriptions = {};
     appState.catalogs.itemDescriptions = {};
+    appState.catalogs.itemDefinitions = {};
   }
 }
 
@@ -1049,8 +1061,8 @@ function validateTeamConfig(candidate) {
     };
   }
 
-  if (typeof candidate.version !== "number") {
-    errors.push("`version` must be a number.");
+  if (candidate.version !== 2) {
+    errors.push("`version` must be 2.");
   }
 
   if (typeof candidate.name !== "string" || candidate.name.trim() === "") {
@@ -1105,7 +1117,6 @@ function validateTeamCharacters(characters, errors) {
 
 function validateCharacterConfig(candidate, prefix = "character") {
   const errors = [];
-  const requiredStats = ["vit", "mgt", "mag", "arm", "res", "spd", "wil"];
 
   if (!isPlainObject(candidate)) {
     return [`${prefix} must be an object.`];
@@ -1113,6 +1124,15 @@ function validateCharacterConfig(candidate, prefix = "character") {
 
   if (typeof candidate.id !== "string" || candidate.id.trim() === "") {
     errors.push(`${prefix}.id must be a non-empty string.`);
+  }
+
+  if (typeof candidate.template_id !== "string" || candidate.template_id.trim() === "") {
+    errors.push(`${prefix}.template_id must be a non-empty string.`);
+  }
+
+  const archetype = getArchetypeDefinition(candidate.template_id);
+  if (candidate.template_id && !archetype) {
+    errors.push(`${prefix}.template_id must reference a known archetype.`);
   }
 
   if (!isPlainObject(candidate.position)) {
@@ -1127,22 +1147,28 @@ function validateCharacterConfig(candidate, prefix = "character") {
     }
   }
 
-  if (!isPlainObject(candidate.stats)) {
-    errors.push(`${prefix}.stats must be an object.`);
-  } else {
-    for (const statKey of requiredStats) {
-      if (typeof candidate.stats[statKey] !== "number") {
-        errors.push(`${prefix}.stats.${statKey} must be a number.`);
-      }
-    }
-  }
-
   if (typeof candidate.passive !== "string") {
     errors.push(`${prefix}.passive must be a string.`);
+  } else if (archetype && candidate.passive && !archetype.passive_pool?.includes(candidate.passive)) {
+    errors.push(`${prefix}.passive must come from the selected archetype's passive pool.`);
   }
 
   if (!Array.isArray(candidate.actives)) {
     errors.push(`${prefix}.actives must be an array.`);
+  } else if (archetype) {
+    for (const [index, ability] of candidate.actives.entries()) {
+      if (typeof ability !== "string") {
+        errors.push(`${prefix}.actives[${index}] must be a string.`);
+      } else if (ability && !archetype.active_pool?.includes(ability)) {
+        errors.push(`${prefix}.actives[${index}] must come from the selected archetype's active pool.`);
+      }
+    }
+  }
+
+  if (candidate.item != null && typeof candidate.item !== "string") {
+    errors.push(`${prefix}.item must be a string or null.`);
+  } else if (typeof candidate.item === "string" && candidate.item && !appState.catalogs.items.includes(candidate.item)) {
+    errors.push(`${prefix}.item must reference a known item.`);
   }
 
   if (!Array.isArray(candidate.rules)) {
@@ -1403,6 +1429,8 @@ function renderCharacterSlots(team) {
 function renderSelectedCharacterWorkspace(character, characterIndex) {
   const isDesignTab = appState.teamDetailTab !== "rules";
   const designRightPane = appState.teamDesignRightPane ?? "loadout";
+  const archetype = getArchetypeDefinition(character.template_id);
+  const derivedStats = getDerivedCharacterStats(character);
   return `
     <article class="builder-character-workspace">
       <div class="team-detail-tabbar" role="tablist" aria-label="Character editing tabs">
@@ -1428,6 +1456,12 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
               </div>
               <div class="editor-grid">
                 <label class="field-group field-group-compact">
+                  <span>Archetype</span>
+                  <select data-character-field="template_id" data-character-index="${characterIndex}">
+                    ${buildArchetypeOptions(character.template_id ?? "")}
+                  </select>
+                </label>
+                <label class="field-group field-group-compact">
                   <input type="text" data-character-field="display_name" data-character-index="${characterIndex}" value="${escapeHtml(character.display_name ?? "")}">
                 </label>
                 <label class="field-group field-group-compact">
@@ -1449,13 +1483,16 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
               </div>
               <div class="editor-inline-grid">
                 ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((statKey) => `
-                  <label class="field-group">
+                  <div class="field-group field-group-readonly">
                     <span class="stat-label-with-icon">
                       ${renderStatIcon(statKey)}
                       <span>${statKey.toUpperCase()}</span>
                     </span>
-                    <input type="number" data-stat-field="${statKey}" data-character-index="${characterIndex}" value="${character.stats?.[statKey] ?? 0}">
-                  </label>
+                    <div class="derived-stat-value">${renderDerivedStatValue(
+                      Number(archetype?.stats?.[statKey] ?? 0),
+                      Number(derivedStats?.[statKey] ?? 0),
+                    )}</div>
+                  </div>
                 `).join("")}
               </div>
             </section>
@@ -1750,7 +1787,9 @@ function handleTeamEditorInput(event) {
       return;
     }
 
-    if (target.dataset.characterField.startsWith("active_")) {
+    if (target.dataset.characterField === "template_id") {
+      applyTemplateToCharacter(character, target.value);
+    } else if (target.dataset.characterField.startsWith("active_")) {
       const activeIndex = Number(target.dataset.characterField.split("_")[1]);
       const nextActives = normalizeActiveSelections(character.actives);
       nextActives[activeIndex] = target.value.trim();
@@ -1776,16 +1815,6 @@ function handleTeamEditorInput(event) {
       col: character.position?.col ?? 0,
     };
     character.position[target.dataset.positionField] = nextValue;
-    syncTeamUI();
-    return;
-  }
-
-  if (target.dataset.statField) {
-    const character = team.characters[characterIndex];
-    if (!character) {
-      return;
-    }
-    character.stats[target.dataset.statField] = Number(target.value);
     syncTeamUI();
     return;
   }
@@ -2120,16 +2149,36 @@ function slugifyFileStem(value) {
 
 function createEmptyCharacter(index, row = 0, col = 0) {
   const slotPosition = TEAM_SLOT_POSITIONS[index] ?? { row, col };
+  const fallbackTemplateId = appState.catalogs.archetypeIds?.[0] ?? "the_emperor";
+  const template = getArchetypeDefinition(fallbackTemplateId);
   return {
     id: `new_character_${index + 1}`,
-    display_name: "",
+    template_id: fallbackTemplateId,
+    display_name: template?.display_name ?? "",
     position: { row: slotPosition.row, col: slotPosition.col },
-    stats: { vit: 5, mgt: 5, mag: 5, arm: 5, res: 5, spd: 5, wil: 5 },
-    passive: "",
-    actives: ["", "", ""].filter(Boolean),
+    passive: template?.default_passive ?? "",
+    actives: Array.isArray(template?.active_pool) ? template.active_pool.slice(0, 3) : [],
     item: null,
     rules: [],
   };
+}
+
+function applyTemplateToCharacter(character, templateId) {
+  const template = getArchetypeDefinition(templateId);
+  character.template_id = templateId;
+  if (!template) {
+    character.passive = "";
+    character.actives = [];
+    character.rules = [];
+    return;
+  }
+
+  character.passive = template.default_passive ?? "";
+  character.actives = Array.isArray(template.active_pool) ? template.active_pool.slice(0, 3) : [];
+  character.rules = [];
+  if (!character.display_name || character.display_name.trim() === "") {
+    character.display_name = template.display_name ?? "";
+  }
 }
 
 function normalizeActiveSelections(actives) {
@@ -2175,13 +2224,17 @@ function formatGridPosition(row, col) {
 }
 
 function getBrowserEntries(mode) {
+  const character = appState.teamConfig?.characters?.[appState.selectedTeamCharacterIndex];
+  const archetype = getArchetypeDefinition(character?.template_id);
   if (mode === "passive") {
-    return appState.catalogs.passives.map((name) => ({ name, description: getPassiveDescription(name) }));
+    const pool = Array.isArray(archetype?.passive_pool) ? archetype.passive_pool : appState.catalogs.passives;
+    return pool.map((name) => ({ name, description: getPassiveDescription(name) }));
   }
   if (mode === "item") {
     return appState.catalogs.items.map((name) => ({ name, description: getItemDescription(name) }));
   }
-  return appState.catalogs.abilities.map((name) => ({ name, description: getAbilityDescription(name) }));
+  const pool = Array.isArray(archetype?.active_pool) ? archetype.active_pool : appState.catalogs.abilities;
+  return pool.map((name) => ({ name, description: getAbilityDescription(name) }));
 }
 
 function buildSelectOptions(options, currentValue, emptyLabel) {
@@ -2199,6 +2252,21 @@ function buildSelectOptions(options, currentValue, emptyLabel) {
       return `<option value="${escapeHtml(optionValue)}" ${isSelected ? "selected" : ""}>${escapeHtml(label)}</option>`;
     })
     .join("");
+}
+
+function buildArchetypeOptions(currentValue) {
+  const options = [...(appState.catalogs.archetypeIds ?? [])];
+  if (currentValue && !options.includes(currentValue)) {
+    options.unshift(currentValue);
+  }
+
+  return ["", ...options].map((templateId, index) => {
+    const definition = getArchetypeDefinition(templateId);
+    const label = templateId ? (definition?.display_name ?? templateId) : "No archetype selected";
+    const isSelected =
+      templateId === (currentValue ?? "") || (!currentValue && templateId === "" && index === 0);
+    return `<option value="${escapeHtml(templateId)}" ${isSelected ? "selected" : ""}>${escapeHtml(label)}</option>`;
+  }).join("");
 }
 
 function createEmptyRule() {
@@ -2361,6 +2429,41 @@ function getItemDescription(itemName) {
   }
 
   return appState.catalogs.itemDescriptions?.[itemName] ?? "";
+}
+
+function getArchetypeDefinition(templateId) {
+  if (!templateId) {
+    return null;
+  }
+  return appState.catalogs.archetypes?.[templateId] ?? null;
+}
+
+function getDerivedCharacterStats(character) {
+  const archetype = getArchetypeDefinition(character?.template_id);
+  const baseStats = normalizeStatBlock(archetype?.stats);
+  const itemBonuses = normalizeStatBlock(getItemDefinition(character?.item)?.stat_bonuses);
+  const result = { ...baseStats };
+
+  for (const statKey of statFieldOptions) {
+    result[statKey] = Number(baseStats[statKey] ?? 0) + Number(itemBonuses[statKey] ?? 0);
+  }
+
+  return result;
+}
+
+function getItemDefinition(itemName) {
+  if (!itemName) {
+    return null;
+  }
+  return appState.catalogs.itemDefinitions?.[itemName] ?? null;
+}
+
+function renderDerivedStatValue(baseValue, finalValue) {
+  const bonus = finalValue - baseValue;
+  if (bonus === 0) {
+    return `${finalValue}`;
+  }
+  return `${finalValue} (+${bonus})`;
 }
 
 function getCharacterInitials(character) {

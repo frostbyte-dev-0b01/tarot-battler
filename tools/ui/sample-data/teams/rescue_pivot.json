@@ -1,12 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "name": "Rescue Pivot",
   "characters": [
     {
       "id": "the_emperor",
+      "template_id": "the_emperor",
       "display_name": "The Emperor",
       "position": { "row": 0, "col": 0 },
-      "stats": { "vit": 12, "mgt": 12, "mag": 8, "arm": 7, "res": 5, "spd": 8, "wil": 12 },
       "passive": "Imperial Formation",
       "actives": ["Hold the Line", "Command", "Taunt"],
       "item": null,
@@ -18,12 +18,12 @@
     },
     {
       "id": "the_chariot",
+      "template_id": "the_chariot",
       "display_name": "The Chariot",
       "position": { "row": 0, "col": 1 },
-      "stats": { "vit": 10, "mgt": 15, "mag": 8, "arm": 5, "res": 4, "spd": 14, "wil": 10 },
       "passive": "Pursuit",
       "actives": ["Charge", "Withdraw", "Breakthrough"],
-      "item": null,
+      "item": "vitality_charm",
       "rules": [
         { "ability": "Breakthrough", "when": [{ "subject": "self", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 3 }] },
         { "ability": "Charge", "when": [{ "subject": "self", "value": "self_row", "op": "gte", "threshold": 1 }] },
@@ -32,9 +32,9 @@
     },
     {
       "id": "the_hierophant",
+      "template_id": "the_hierophant",
       "display_name": "The Hierophant",
       "position": { "row": 0, "col": 2 },
-      "stats": { "vit": 14, "mgt": 8, "mag": 12, "arm": 5, "res": 8, "spd": 8, "wil": 14 },
       "passive": "Sanctuary",
       "actives": ["Rescue", "Blessing", "Smite"],
       "item": null,
@@ -46,9 +46,9 @@
     },
     {
       "id": "the_magician",
+      "template_id": "the_magician",
       "display_name": "The Magician",
       "position": { "row": 2, "col": 1 },
-      "stats": { "vit": 8, "mgt": 8, "mag": 14, "arm": 4, "res": 5, "spd": 12, "wil": 16 },
       "passive": "Catalyst",
       "actives": ["Offer", "Seal", "Transmute"],
       "item": null,

@@ -40,14 +40,21 @@ This file is the primary gameplay spec. It describes the intended game rules, ev
 
 Each character loadout consists of:
 
-- a tarot character
-- a base stat spread
-- a small number of stat adjustment points
+- a tarot character template
+- locked base stats from that template
 - one passive selected from that character's passive pool
 - two or three equipped active abilities
 - up to five ordered rules
 - one item slot
 - a formation position on a 3-column by 3-row grid
+
+The intended near-term direction is that players do **not** allocate raw base stats directly.
+
+Instead:
+
+- each arcana has a locked base stat profile
+- items provide the main pre-battle stat augmentation layer
+- runtime effective stats are then modified further by battle effects
 
 ### Character Stats
 
@@ -65,7 +72,7 @@ These are the intended v1 stat names and roles.
 
 Provisional starting stat ranges are still being tuned, but the current design expectation is that most characters begin with `WIL` somewhere in the `8-16` range. This keeps starting MP and `Rest` recovery large enough to support more granular ability pricing.
 
-Conceptually, the long-term design likely lands on much larger total stat budgets than the current prototype, with each character having a fixed base spread plus a smaller flexible adjustment budget. Those larger totals are a balance target, not a current engine requirement.
+Conceptually, the likely direction is that each character has a fixed base spread and items provide most of the flexible pre-battle stat shaping. Those larger totals are a balance target, not a current engine requirement.
 
 ### Derived Resources
 
@@ -671,13 +678,14 @@ Examples:
 
 Each character equips one item.
 
-Items combine:
+The intended first implementation of items should be simpler:
 
 - stat bonuses
-- a passive effect
 - a seasonal price
 
 Items should act as identity packages rather than generic efficiency bundles.
+
+Additional passive-like item effects can come later once the base template system is stable.
 
 Examples of intended item identities:
 
@@ -695,7 +703,6 @@ Rule conditions check effective stats during battle.
 Effective stats include:
 
 - base stats
-- allocated adjustment points
 - item bonuses
 - active Fortify and Weaken stacks
 

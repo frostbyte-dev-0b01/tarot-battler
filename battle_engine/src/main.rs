@@ -60,12 +60,15 @@ fn main() {
     }
 
     let data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data");
+    let archetypes =
+        loader::load_archetypes(&data_dir.join("archetypes.json")).expect("Failed to load archetypes");
     let abilities =
         loader::load_abilities(&data_dir.join("abilities.json")).expect("Failed to load abilities");
     let passives =
         loader::load_passives(&data_dir.join("passives.json")).expect("Failed to load passives");
     let statuses =
         loader::load_statuses(&data_dir.join("statuses.json")).expect("Failed to load statuses");
+    let items = loader::load_items(&data_dir.join("items.json")).expect("Failed to load items");
     let (team_a_name, team_b_name, team_a, team_b) = match (team_a_path, team_b_path, named_teams)
     {
         (Some(_), Some(_), Some(_)) | (Some(_), None, Some(_)) | (None, Some(_), Some(_)) => {
@@ -76,12 +79,24 @@ fn main() {
                 .expect("Failed to load team A");
             let team_b_config = loader::load_team_config(Path::new(&team_b_path))
                 .expect("Failed to load team B");
-            let team_a =
-                loader::validate_team_config(&team_a_config, &abilities, &passives, &statuses)
-                    .expect("Invalid team A content");
-            let team_b =
-                loader::validate_team_config(&team_b_config, &abilities, &passives, &statuses)
-                    .expect("Invalid team B content");
+            let team_a = loader::validate_team_config(
+                &team_a_config,
+                &archetypes,
+                &items,
+                &abilities,
+                &passives,
+                &statuses,
+            )
+            .expect("Invalid team A content");
+            let team_b = loader::validate_team_config(
+                &team_b_config,
+                &archetypes,
+                &items,
+                &abilities,
+                &passives,
+                &statuses,
+            )
+            .expect("Invalid team B content");
             loader::validate_teams(&team_a, &team_b, &abilities, &passives, &statuses)
                 .expect("Invalid battle content");
             (team_a_config.name, team_b_config.name, team_a, team_b)
@@ -93,28 +108,56 @@ fn main() {
                 .unwrap_or_else(|_| panic!("Failed to load team A from {}", team_a_path.display()));
             let team_b_config = loader::load_team_config(&team_b_path)
                 .unwrap_or_else(|_| panic!("Failed to load team B from {}", team_b_path.display()));
-            let team_a =
-                loader::validate_team_config(&team_a_config, &abilities, &passives, &statuses)
-                    .expect("Invalid team A content");
-            let team_b =
-                loader::validate_team_config(&team_b_config, &abilities, &passives, &statuses)
-                    .expect("Invalid team B content");
+            let team_a = loader::validate_team_config(
+                &team_a_config,
+                &archetypes,
+                &items,
+                &abilities,
+                &passives,
+                &statuses,
+            )
+            .expect("Invalid team A content");
+            let team_b = loader::validate_team_config(
+                &team_b_config,
+                &archetypes,
+                &items,
+                &abilities,
+                &passives,
+                &statuses,
+            )
+            .expect("Invalid team B content");
             loader::validate_teams(&team_a, &team_b, &abilities, &passives, &statuses)
                 .expect("Invalid battle content");
             (team_a_config.name, team_b_config.name, team_a, team_b)
         }
         (None, None, None) => {
-            let characters = loader::load_characters(&data_dir.join("characters.json"))
-                .expect("Failed to load characters");
-            loader::validate_content(&characters, &abilities, &passives, &statuses)
-                .expect("Invalid battle content");
-            let (team_a, team_b) = characters.split_at(characters.len() / 2);
-            (
-                "Team A".to_string(),
-                "Team B".to_string(),
-                team_a.to_vec(),
-                team_b.to_vec(),
+            let team_a_path = resolve_named_team_path("imperial_phalanx");
+            let team_b_path = resolve_named_team_path("omen_engine");
+            let team_a_config = loader::load_team_config(&team_a_path)
+                .unwrap_or_else(|_| panic!("Failed to load team A from {}", team_a_path.display()));
+            let team_b_config = loader::load_team_config(&team_b_path)
+                .unwrap_or_else(|_| panic!("Failed to load team B from {}", team_b_path.display()));
+            let team_a = loader::validate_team_config(
+                &team_a_config,
+                &archetypes,
+                &items,
+                &abilities,
+                &passives,
+                &statuses,
             )
+            .expect("Invalid team A content");
+            let team_b = loader::validate_team_config(
+                &team_b_config,
+                &archetypes,
+                &items,
+                &abilities,
+                &passives,
+                &statuses,
+            )
+            .expect("Invalid team B content");
+            loader::validate_teams(&team_a, &team_b, &abilities, &passives, &statuses)
+                .expect("Invalid battle content");
+            (team_a_config.name, team_b_config.name, team_a, team_b)
         }
         _ => panic!("--team-a and --team-b must be provided together"),
     };

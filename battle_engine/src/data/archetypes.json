@@ -1,0 +1,50 @@
+{
+  "the_emperor": {
+    "display_name": "The Emperor",
+    "stats": { "vit": 14, "mgt": 12, "mag": 8, "arm": 7, "res": 5, "spd": 8, "wil": 12 },
+    "default_passive": "Imperial Formation",
+    "passive_pool": ["Imperial Formation"],
+    "active_pool": ["Hold the Line", "Command", "Taunt", "Interpose", "Decoy", "Sunder"],
+    "item_slots": 1
+  },
+  "the_hierophant": {
+    "display_name": "The Hierophant",
+    "stats": { "vit": 14, "mgt": 8, "mag": 12, "arm": 4, "res": 8, "spd": 8, "wil": 14 },
+    "default_passive": "Sanctuary",
+    "passive_pool": ["Sanctuary"],
+    "active_pool": ["Smite", "Consecrate", "Blessing", "Sanctify", "Rescue"],
+    "item_slots": 1
+  },
+  "the_chariot": {
+    "display_name": "The Chariot",
+    "stats": { "vit": 10, "mgt": 15, "mag": 8, "arm": 5, "res": 4, "spd": 14, "wil": 10 },
+    "default_passive": "Pursuit",
+    "passive_pool": ["Pursuit"],
+    "active_pool": ["Charge", "Withdraw", "Breakthrough", "Sever"],
+    "item_slots": 1
+  },
+  "justice": {
+    "display_name": "Justice",
+    "stats": { "vit": 15, "mgt": 12, "mag": 10, "arm": 7, "res": 7, "spd": 6, "wil": 10 },
+    "default_passive": "Sentence",
+    "passive_pool": ["Sentence"],
+    "active_pool": ["Rebuke", "Condemn", "Verdict"],
+    "item_slots": 1
+  },
+  "the_moon": {
+    "display_name": "The Moon",
+    "stats": { "vit": 11, "mgt": 8, "mag": 15, "arm": 5, "res": 6, "spd": 12, "wil": 14 },
+    "default_passive": "Foreboding",
+    "passive_pool": ["Foreboding"],
+    "active_pool": ["Hex", "Eclipse", "Harvest Night"],
+    "item_slots": 1
+  },
+  "the_magician": {
+    "display_name": "The Magician",
+    "stats": { "vit": 8, "mgt": 8, "mag": 14, "arm": 4, "res": 5, "spd": 12, "wil": 16 },
+    "default_passive": "Catalyst",
+    "passive_pool": ["Catalyst"],
+    "active_pool": ["Offer", "Seal", "Distill", "Transmute"],
+    "item_slots": 1
+  }
+}

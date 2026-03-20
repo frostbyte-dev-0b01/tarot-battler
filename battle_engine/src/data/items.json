@@ -1,0 +1,9 @@
+{
+  "vitality_charm": {
+    "display_name": "Vitality Charm",
+    "description": "Gain +2 VIT.",
+    "stat_bonuses": {
+      "vit": 2
+    }
+  }
+}

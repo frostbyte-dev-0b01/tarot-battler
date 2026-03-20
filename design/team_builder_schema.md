@@ -2,32 +2,21 @@
 
 ## Purpose
 
-This file defines the interim JSON schema for team builder and replay tooling.
+This file defines the live JSON contract used by the Team Builder and the battle engine.
 
-It is intentionally simple:
+The current system is template-based:
 
-- one JSON file per team
-- each file contains full character loadouts
-- validation requires at least 1 character per team
-
-This is a temporary builder-facing format. The intended long-term direction is:
-
-- predefined roster entries keyed by `character_id`
-- team files that store `character_id + overrides`
-
-The current engine can load this format directly with:
-
-```bash
-cargo run -- --team-a path/to/team_a.json --team-b path/to/team_b.json
-```
-
-For now, full loadouts are easier to edit by hand and simpler to support in dev tooling.
+- teams do not author raw stats directly
+- each character references an archetype template
+- the template provides locked base stats
+- equipped items add pre-battle stat bonuses
+- battle-time effects then modify those resolved stats further
 
 ## Top-Level Shape
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "name": "Imperial Phalanx",
   "characters": []
 }
@@ -41,6 +30,7 @@ For now, full loadouts are easier to edit by hand and simpler to support in dev 
 
 ### Validation Rules
 
+- `version` must be `2`
 - a team must contain at least 1 character
 - character `id` values must be unique within the team
 - character positions must be unique within the team
@@ -51,21 +41,13 @@ For now, full loadouts are easier to edit by hand and simpler to support in dev 
 
 ```json
 {
-  "id": "the_emperor",
+  "id": "emperor_anchor",
+  "template_id": "the_emperor",
   "display_name": "The Emperor",
   "position": { "row": 0, "col": 0 },
-  "stats": {
-    "vit": 7,
-    "mgt": 8,
-    "mag": 3,
-    "arm": 7,
-    "res": 3,
-    "spd": 4,
-    "wil": 4
-  },
   "passive": "Imperial Formation",
   "actives": ["Hold the Line", "Command", "Taunt"],
-  "item": null,
+  "item": "vitality_charm",
   "rules": []
 }
 ```
@@ -73,9 +55,9 @@ For now, full loadouts are easier to edit by hand and simpler to support in dev 
 ### Fields
 
 - `id: string`
+- `template_id: string`
 - `display_name?: string`
 - `position: Position`
-- `stats: StatBlock`
 - `passive: string`
 - `actives: string[]`
 - `item: string | null`
@@ -83,14 +65,13 @@ For now, full loadouts are easier to edit by hand and simpler to support in dev 
 
 ### Notes
 
-- `id` should be stable and machine-friendly
-- `display_name` is intended for UI and replay readability
-- `stats` are the final allocated stats for now, not base stats plus modifiers
-- `passive` may be an empty string when the character has no passive equipped
-- `actives` may be empty when the character has no active abilities equipped
-- `item` remains nullable until item design and implementation are expanded
-- bundled engine JSON now uses the same lowercase stat keys and `when` / `op` rule fields
-- the current UI exposes up to three active slots explicitly, though the stored JSON remains `actives: string[]`
+- `id` should be stable and machine-friendly within the team
+- `template_id` must reference a defined archetype template
+- `display_name` is a cosmetic/player-facing override
+- `stats` are intentionally absent from team JSON
+- `passive` and `actives` are loadout choices validated against the template pools
+- `item` is nullable, but when present must reference a defined item
+- the current UI exposes up to three active slots explicitly
 
 ## Position
 
@@ -104,30 +85,6 @@ For now, full loadouts are easier to edit by hand and simpler to support in dev 
 - `row: number`
 - `col: number`
 
-## StatBlock
-
-```json
-{
-  "vit": 7,
-  "mgt": 8,
-  "mag": 3,
-  "arm": 7,
-  "res": 3,
-  "spd": 4,
-  "wil": 4
-}
-```
-
-Required stats:
-
-- `vit`
-- `mgt`
-- `mag`
-- `arm`
-- `res`
-- `spd`
-- `wil`
-
 ## Rule
 
 ```json
@@ -138,7 +95,7 @@ Required stats:
       "subject": "self",
       "value": "mp",
       "op": "gte",
-      "threshold": 2
+      "threshold": 5
     }
   ]
 }
@@ -195,29 +152,109 @@ Allowed values:
 - `{ "has_status": "Ward" }`
 - `{ "status_stacks": "Empower:MGT" }`
 
+## Archetype Catalog
+
+The engine loads archetypes from:
+
+- `battle_engine/src/data/archetypes.json`
+
+### ArchetypeTemplate
+
+```json
+{
+  "the_emperor": {
+    "display_name": "The Emperor",
+    "stats": {
+      "vit": 12,
+      "mgt": 12,
+      "mag": 8,
+      "arm": 7,
+      "res": 5,
+      "spd": 8,
+      "wil": 12
+    },
+    "default_passive": "Imperial Formation",
+    "passive_pool": ["Imperial Formation"],
+    "active_pool": ["Hold the Line", "Command", "Taunt", "Interpose", "Decoy", "Sunder"],
+    "item_slots": 1
+  }
+}
+```
+
+### Fields
+
+- `display_name: string`
+- `stats: StatBlock`
+- `default_passive: string`
+- `passive_pool: string[]`
+- `active_pool: string[]`
+- `item_slots: number`
+
+### Notes
+
+- `stats` are the locked base stats for that arcana
+- the engine treats these as authoritative
+- `default_passive` supports builder defaults
+- `passive_pool` and `active_pool` define legal loadout choices
+
+## Item Catalog
+
+The engine loads items from:
+
+- `battle_engine/src/data/items.json`
+
+### ItemDef
+
+```json
+{
+  "vitality_charm": {
+    "display_name": "Vitality Charm",
+    "description": "Gain +2 VIT.",
+    "stat_bonuses": {
+      "vit": 2
+    }
+  }
+}
+```
+
+### Fields
+
+- `display_name: string`
+- `description: string`
+- `stat_bonuses: Partial<StatBlock>`
+
+### Notes
+
+- the current implementation keeps items simple: stat bonuses only
+- passive-like item effects can come later
+
+## Resolution Model
+
+The engine resolves authored loadouts into runtime characters like this:
+
+1. look up the referenced archetype
+2. copy the archetype base stats
+3. apply item stat bonuses
+4. validate passive and active choices against the template pools
+5. build the resolved runtime `CharacterConfig`
+
+This means team JSON is authoring input, not final combat state.
+
 ## Example Team
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "name": "Imperial Phalanx",
   "characters": [
     {
       "id": "the_emperor",
+      "template_id": "the_emperor",
       "display_name": "The Emperor",
       "position": { "row": 0, "col": 0 },
-      "stats": {
-        "vit": 7,
-        "mgt": 8,
-        "mag": 3,
-        "arm": 7,
-        "res": 3,
-        "spd": 4,
-        "wil": 4
-      },
       "passive": "Imperial Formation",
       "actives": ["Hold the Line", "Command", "Taunt"],
-      "item": null,
+      "item": "vitality_charm",
       "rules": [
         {
           "ability": "Hold the Line",
@@ -226,37 +263,7 @@ Allowed values:
               "subject": "self",
               "value": "mp",
               "op": "gte",
-              "threshold": 2
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "the_hierophant",
-      "display_name": "The Hierophant",
-      "position": { "row": 0, "col": 2 },
-      "stats": {
-        "vit": 11,
-        "mgt": 3,
-        "mag": 7,
-        "arm": 4,
-        "res": 7,
-        "spd": 3,
-        "wil": 7
-      },
-      "passive": "Sanctuary",
-      "actives": ["Smite", "Consecrate", "Blessing"],
-      "item": null,
-      "rules": [
-        {
-          "ability": "Blessing",
-          "when": [
-            {
-              "subject": "self",
-              "value": "mp",
-              "op": "gte",
-              "threshold": 2
+              "threshold": 5
             }
           ]
         }
@@ -265,13 +272,3 @@ Allowed values:
   ]
 }
 ```
-
-## Future Direction
-
-The expected long-term format is lighter:
-
-- roster data defines each tarot character
-- team files reference roster entries by `character_id`
-- team files only store overridden stats, loadout choices, rules, and position
-
-That future format should preserve the same broad structure and validation rules where possible so the team builder can migrate without a full redesign.
