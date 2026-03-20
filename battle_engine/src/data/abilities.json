@@ -47,12 +47,14 @@
     ]
   },
   "Consecrate": {
-    "description": "Deal 1.0x MAG damage to the user's focused enemy and 0.7x MAG damage to that enemy's companions.",
+    "description": "Deal 3 + 1.0x MAG damage to the user's focused enemy and 2 + 0.7x MAG damage to that enemy's companions.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_magical_damage_current_target_and_companions",
+        "primary_base_damage": 3,
         "primary_multiplier": 1.0,
+        "companion_base_damage": 2,
         "companion_multiplier": 0.7
       }
     ]
@@ -133,12 +135,13 @@
     ]
   },
   "Hex": {
-    "description": "Deal 0.8x MAG damage to the user's focused enemy. Apply Omen 2.",
+    "description": "Deal 3 + 0.8x MAG damage to the user's focused enemy. Apply Omen 2.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
+        "base_damage": 3,
         "multiplier": 0.8
       },
       {
@@ -150,12 +153,13 @@
     ]
   },
   "Eclipse": {
-    "description": "Deal 0.8x MAG damage to the user's focused enemy and that enemy's companions. Apply Omen 1 to each.",
+    "description": "Deal 2 + 0.8x MAG damage to the user's focused enemy and that enemy's companions. Apply Omen 1 to each.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target_and_companions",
+        "base_damage": 2,
         "multiplier": 0.8
       },
       {
@@ -167,12 +171,13 @@
     ]
   },
   "Harvest Night": {
-    "description": "Deal 1.0x MAG damage to the user's focused enemy. Then consume all Omen on that enemy and deal 2 true damage per stack consumed.",
+    "description": "Deal 3 + 1.0x MAG damage to the user's focused enemy. Then consume all Omen on that enemy and deal 2 true damage per stack consumed.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
+        "base_damage": 3,
         "multiplier": 1.0
       },
       {
@@ -285,12 +290,13 @@
     ]
   },
   "Rebuke": {
-    "description": "Deal 0.8x MAG damage to the user's focused enemy. That enemy is disoriented.",
+    "description": "Deal 3 + 0.8x MAG damage to the user's focused enemy. That enemy is disoriented.",
     "mp_cost": 3,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
+        "base_damage": 3,
         "multiplier": 0.8
       },
       {
@@ -336,12 +342,13 @@
     ]
   },
   "Seal": {
-    "description": "Deal 0.8x MAG damage to the user's focused enemy. Apply Weaken MAG 4 and Weaken RES 2.",
+    "description": "Deal 3 + 0.8x MAG damage to the user's focused enemy. Apply Weaken MAG 4 and Weaken RES 2.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
+        "base_damage": 3,
         "multiplier": 0.8
       },
       {

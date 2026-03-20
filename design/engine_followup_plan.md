@@ -89,21 +89,24 @@ Remaining follow-up:
 
 ### 6. Damage Model Evolution
 
-The spec now points toward `flat base + multiplier`, but the engine only partially supports that direction.
+Status: complete.
 
-Desired outcome:
+What landed:
 
 - attacks can optionally use `base + multiplier`
 - low-multiplier splash and setup attacks stay meaningful through defense
 - existing multiplier-only abilities still remain supported
 
-Suggested implementation order:
+What was migrated:
 
-1. add optional flat base damage fields to physical and magical damage primitives
-2. migrate a small set of abilities first
-3. retune sample roster around the new numbers
+- support was added to the main physical and magical hit primitives
+- bundled low-multiplier magical setup and splash abilities now use explicit base damage floors
+- multiplier-only attacks remain valid and still cover the rest of the live roster
 
-This should be treated as a balance pass, not a small mechanical cleanup.
+Remaining follow-up:
+
+- decide whether more physical utility attacks should migrate to `base + multiplier`
+- continue ability-by-ability balance work rather than forcing the whole roster into one damage shape immediately
 
 ## Recommended Execution Order
 

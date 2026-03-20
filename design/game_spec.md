@@ -385,19 +385,20 @@ This helps low-multiplier attacks stay meaningful through defense and creates mo
 
 Current implementation note:
 
-- the live engine still primarily uses multiplier-only attacks plus a few explicit true-damage riders
-- `flat base + multiplier` should be treated as intended future-facing direction, not as fully live behavior
+- the live engine now supports optional `flat base + multiplier` damage on physical and magical hit primitives
+- only part of the bundled roster uses that model so far; multiplier-only attacks remain fully supported
 
 ### Damage Resolution Order
 
 For a normal physical or magical hit:
 
 1. calculate effective `MGT` or `MAG`, including active Fortify or Weaken stacks
-2. apply the ability multiplier
-3. subtract `ARM` or `RES`
-4. apply the `max(result, 1)` floor
-5. add any `Lethality` stacks flat
-6. apply the result to target HP
+2. multiply by the ability multiplier
+3. add any flat base damage on the ability
+4. subtract `ARM` or `RES`
+5. apply the `max(result, 1)` floor
+6. add any `Lethality` stacks flat
+7. apply the result to target HP
 
 `Omen` resolves separately at start of turn before the character acts.
 

@@ -1660,6 +1660,7 @@ mod tests {
             mp_cost: 2,
             primitives: vec![Primitive::DealPhysicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
+                base_damage: 0,
                 multiplier: 1.5,
                 double_empower_stat: None,
             }],
@@ -2632,6 +2633,7 @@ mod tests {
                 once_per_tick: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
+                    base_damage: 0,
                     multiplier: 1.0,
                     double_empower_stat: None,
                 }],
@@ -3032,6 +3034,7 @@ mod tests {
                 mp_cost: 1,
                 primitives: vec![Primitive::DealMagicalDamage {
                     target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
+                    base_damage: 0,
                     multiplier: 1.0,
                 }],
             },
@@ -3261,6 +3264,7 @@ mod tests {
                 once_per_tick: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
+                    base_damage: 0,
                     multiplier: 1.0,
                     double_empower_stat: None,
                 }],
@@ -3333,6 +3337,7 @@ mod tests {
                 once_per_tick: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
+                    base_damage: 0,
                     multiplier: 1.0,
                     double_empower_stat: None,
                 }],
@@ -3425,6 +3430,7 @@ mod tests {
                 once_per_tick: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
+                    base_damage: 0,
                     multiplier: 1.0,
                     double_empower_stat: None,
                 }],
@@ -3484,6 +3490,7 @@ mod tests {
                 mp_cost: 2,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::CurrentTarget.into(),
+                    base_damage: 0,
                     multiplier: 1.0,
                     double_empower_stat: None,
                 }],
@@ -3567,6 +3574,7 @@ mod tests {
                 once_per_tick: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
+                    base_damage: 0,
                     multiplier: 0.5,
                     double_empower_stat: None,
                 }],

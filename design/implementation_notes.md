@@ -57,6 +57,8 @@ Bundled roster data does not yet use `Marked` or `Severed`, and the older protot
 
 Compound abilities can now opt into atomic target binding. `Rescue` uses a bound companion target so its move, heal, and enemy-refocus steps stay on the same unit through the full sequence.
 
+The engine now also supports optional `flat base + multiplier` damage on physical and magical hit primitives. Bundled live content only uses that shape on part of the roster so far, mostly lower-multiplier magical setup and splash abilities that benefit most from a stronger damage floor.
+
 ### Stat Naming
 
 The current v1 stat set is:

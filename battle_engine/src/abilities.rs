@@ -149,12 +149,16 @@ pub enum Primitive {
     },
     DealPhysicalDamage {
         target: AbilityTarget,
+        #[serde(default)]
+        base_damage: u32,
         multiplier: f64,
         #[serde(default)]
         double_empower_stat: Option<Stat>,
     },
     DealPhysicalDamageBonusVsStatus {
         target: AbilityTarget,
+        #[serde(default)]
+        base_damage: u32,
         multiplier: f64,
         status: String,
         #[serde(default)]
@@ -163,10 +167,16 @@ pub enum Primitive {
     },
     DealMagicalDamage {
         target: AbilityTarget,
+        #[serde(default)]
+        base_damage: u32,
         multiplier: f64,
     },
     DealMagicalDamageCurrentTargetAndCompanions {
+        #[serde(default)]
+        primary_base_damage: u32,
         primary_multiplier: f64,
+        #[serde(default)]
+        companion_base_damage: u32,
         companion_multiplier: f64,
     },
     DealTrueDamage {
@@ -182,6 +192,8 @@ pub enum Primitive {
     },
     DealMagicalDamageConsumeStatus {
         target: AbilityTarget,
+        #[serde(default)]
+        base_damage: u32,
         multiplier: f64,
         status: String,
         #[serde(default)]
@@ -190,6 +202,8 @@ pub enum Primitive {
     },
     DealPhysicalDamageConsumeSelfStatuses {
         target: AbilityTarget,
+        #[serde(default)]
+        base_damage: u32,
         multiplier: f64,
         statuses: Vec<StatusRef>,
         bonus_per_stack: u32,
@@ -583,6 +597,7 @@ pub fn execute_primitives_with_context(
             }
             Primitive::DealPhysicalDamage {
                 target,
+                base_damage,
                 multiplier,
                 double_empower_stat,
             } => {
@@ -593,8 +608,8 @@ pub fn execute_primitives_with_context(
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_for = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
-                    let base = (actor_str as i32 - defender_for as i32).max(1) as u32;
-                    let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
+                    let raw_damage =
+                        scaled_damage_with_defense(actor_str, *base_damage, *multiplier, defender_for);
                     let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
                     let tid = ctx.enemy_team[tidx].id();
                     let tname = ctx.enemy_team[tidx].base_name().to_string();
@@ -617,6 +632,7 @@ pub fn execute_primitives_with_context(
             }
             Primitive::DealPhysicalDamageBonusVsStatus {
                 target,
+                base_damage,
                 multiplier,
                 status,
                 stat,
@@ -627,8 +643,12 @@ pub fn execute_primitives_with_context(
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_arm = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
-                    let base = (actor_mgt as i32 - defender_arm as i32).max(1) as u32;
-                    let mut raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
+                    let mut raw_damage = scaled_damage_with_defense(
+                        actor_mgt,
+                        *base_damage,
+                        *multiplier,
+                        defender_arm,
+                    );
                     if ctx.enemy_team[tidx].has_status(&key) {
                         raw_damage = raw_damage.saturating_add(*bonus_damage);
                     }
@@ -652,12 +672,16 @@ pub fn execute_primitives_with_context(
                     });
                 }
             }
-            Primitive::DealMagicalDamage { target, multiplier } => {
+            Primitive::DealMagicalDamage {
+                target,
+                base_damage,
+                multiplier,
+            } => {
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_wis = ctx.enemy_team[tidx].get_eff_stat(&Stat::RES);
-                    let base = (actor_int as i32 - defender_wis as i32).max(1) as u32;
-                    let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
+                    let raw_damage =
+                        scaled_damage_with_defense(actor_int, *base_damage, *multiplier, defender_wis);
                     let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
                     let tid = ctx.enemy_team[tidx].id();
                     let tname = ctx.enemy_team[tidx].base_name().to_string();
@@ -679,7 +703,9 @@ pub fn execute_primitives_with_context(
                 }
             }
             Primitive::DealMagicalDamageCurrentTargetAndCompanions {
+                primary_base_damage,
                 primary_multiplier,
+                companion_base_damage,
                 companion_multiplier,
             } => {
                 let Some(target_id) = ctx.actor_team[actor_idx].target() else {
@@ -703,14 +729,14 @@ pub fn execute_primitives_with_context(
                     .collect();
 
                 for tidx in target_and_companions {
-                    let multiplier = if tidx == target_idx {
-                        *primary_multiplier
+                    let (base_damage, multiplier) = if tidx == target_idx {
+                        (*primary_base_damage, *primary_multiplier)
                     } else {
-                        *companion_multiplier
+                        (*companion_base_damage, *companion_multiplier)
                     };
                     let defender_res = ctx.enemy_team[tidx].get_eff_stat(&Stat::RES);
-                    let base = (actor_int as i32 - defender_res as i32).max(1) as u32;
-                    let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
+                    let raw_damage =
+                        scaled_damage_with_defense(actor_int, base_damage, multiplier, defender_res);
                     let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
                     log_ability_damage(ctx, actor_id, tidx, damage, true);
                     damage_dealt.push(DamageRecord {
@@ -773,6 +799,7 @@ pub fn execute_primitives_with_context(
             }
             Primitive::DealMagicalDamageConsumeStatus {
                 target,
+                base_damage,
                 multiplier,
                 status,
                 stat,
@@ -782,9 +809,13 @@ pub fn execute_primitives_with_context(
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_res = ctx.enemy_team[tidx].get_eff_stat(&Stat::RES);
-                    let base = (actor_int as i32 - defender_res as i32).max(1) as u32;
                     let consumed_stacks = ctx.enemy_team[tidx].status_stacks(&key);
-                    let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32
+                    let raw_damage = scaled_damage_with_defense(
+                        actor_int,
+                        *base_damage,
+                        *multiplier,
+                        defender_res,
+                    )
                         + consumed_stacks.saturating_mul(*bonus_per_stack);
                     let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
                     if consumed_stacks > 0 {
@@ -841,6 +872,7 @@ pub fn execute_primitives_with_context(
             }
             Primitive::DealPhysicalDamageConsumeSelfStatuses {
                 target,
+                base_damage,
                 multiplier,
                 statuses,
                 bonus_per_stack,
@@ -860,8 +892,12 @@ pub fn execute_primitives_with_context(
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_arm = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
-                    let base = (actor_mgt as i32 - defender_arm as i32).max(1) as u32;
-                    let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32
+                    let raw_damage = scaled_damage_with_defense(
+                        actor_mgt,
+                        *base_damage,
+                        *multiplier,
+                        defender_arm,
+                    )
                         + consumed_stacks.saturating_mul(*bonus_per_stack);
                     let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
                     let tid = ctx.enemy_team[tidx].id();
@@ -1720,6 +1756,17 @@ fn capture_context_snapshot(ctx: &mut ExecutionContext<'_>) {
     } else {
         ctx.log.capture_latest_snapshot(ctx.enemy_team, ctx.actor_team);
     }
+}
+
+fn scaled_damage_with_defense(
+    attack_stat: u32,
+    base_damage: u32,
+    multiplier: f64,
+    defense_stat: u32,
+) -> u32 {
+    let scaled = (attack_stat as f64 * multiplier) as i32;
+    let raw = base_damage as i32 + scaled - defense_stat as i32;
+    raw.max(1) as u32
 }
 
 fn default_true() -> bool {

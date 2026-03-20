@@ -15,6 +15,7 @@ pub fn empty_abilities() -> AbilityMap {
             mp_cost: 1,
             primitives: vec![Primitive::DealPhysicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
+                base_damage: 0,
                 multiplier: 1.0,
                 double_empower_stat: None,
             }],

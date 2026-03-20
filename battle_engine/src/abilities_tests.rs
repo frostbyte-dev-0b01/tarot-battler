@@ -20,6 +20,7 @@ fn deal_physical_damage_with_multiplier() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
+            base_damage: 0,
             multiplier: 1.5,
             double_empower_stat: None,
         }],
@@ -38,8 +39,44 @@ fn deal_physical_damage_with_multiplier() {
     );
     assert_eq!(dealt.len(), 1);
     assert_eq!(dealt[0].target_id, 1);
-    assert_eq!(dealt[0].damage, 9);
-    assert_eq!(enemy_team[0].current_hp(), 60 - 9);
+    assert_eq!(dealt[0].damage, 11);
+    assert_eq!(enemy_team[0].current_hp(), 60 - 11);
+}
+
+#[test]
+fn deal_magical_damage_with_base_damage_survives_defense() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let mut actor_team = vec![make_char(
+        0,
+        vec![(Stat::MAG, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
+    )];
+    let mut enemy_team = vec![make_char(1, vec![(Stat::RES, 8), (Stat::VIT, 20)])];
+    actor_team[0].set_target(1);
+
+    let ability = AbilityDef {
+        mp_cost: 2,
+        primitives: vec![Primitive::DealMagicalDamage {
+            target: SimpleAbilityTarget::CurrentTarget.into(),
+            base_damage: 3,
+            multiplier: 0.8,
+        }],
+    };
+
+    let dealt = execute_ability(
+        0,
+        "Hex",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+    assert_eq!(dealt.len(), 1);
+    assert_eq!(dealt[0].damage, 1);
+    assert_eq!(enemy_team[0].current_hp(), 59);
 }
 
 #[test]
@@ -414,6 +451,7 @@ fn magical_consume_status_damage_scales_with_consumed_stacks() {
         mp_cost: 3,
         primitives: vec![Primitive::DealMagicalDamageConsumeStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
+            base_damage: 0,
             multiplier: 1.0,
             status: "Omen".to_string(),
             stat: None,
@@ -451,6 +489,7 @@ fn magical_consume_status_damage_leaves_target_unchanged_without_status() {
         mp_cost: 3,
         primitives: vec![Primitive::DealMagicalDamageConsumeStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
+            base_damage: 0,
             multiplier: 1.0,
             status: "Omen".to_string(),
             stat: None,
@@ -491,6 +530,7 @@ fn physical_damage_bonus_vs_status_applies_only_when_present() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamageBonusVsStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
+            base_damage: 0,
             multiplier: 1.0,
             status: "Omen".to_string(),
             stat: None,
@@ -528,6 +568,7 @@ fn physical_damage_bonus_vs_status_does_not_apply_without_status() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamageBonusVsStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
+            base_damage: 0,
             multiplier: 1.0,
             status: "Omen".to_string(),
             stat: None,
@@ -568,6 +609,7 @@ fn conditional_primitives_execute_only_when_target_has_status() {
         primitives: vec![
             Primitive::DealMagicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
+                base_damage: 0,
                 multiplier: 1.0,
             },
             Primitive::IfTargetHasStatus {
@@ -613,6 +655,7 @@ fn conditional_primitives_do_not_execute_without_matching_status() {
         primitives: vec![
             Primitive::DealMagicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
+                base_damage: 0,
                 multiplier: 1.0,
             },
             Primitive::IfTargetHasStatus {
@@ -748,6 +791,7 @@ fn physical_consume_self_statuses_adds_bonus_damage_and_removes_statuses() {
         mp_cost: 3,
         primitives: vec![Primitive::DealPhysicalDamageConsumeSelfStatuses {
             target: SimpleAbilityTarget::CurrentTarget.into(),
+            base_damage: 0,
             multiplier: 1.0,
             statuses: vec![
                 StatusRef {
@@ -805,6 +849,7 @@ fn all_enemies_target_resolves_to_all_living() {
         mp_cost: 1,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::AllEnemies.into(),
+            base_damage: 0,
             multiplier: 1.0,
             double_empower_stat: None,
         }],
@@ -928,6 +973,7 @@ fn enemy_selector_can_target_backmost_with_row_bypass() {
                 position: Some(PositionalCondition::Backmost),
                 bypass_row_protection: true,
             }),
+            base_damage: 0,
             multiplier: 1.0,
             double_empower_stat: None,
         }],
@@ -973,6 +1019,7 @@ fn enemy_selector_can_target_same_column_enemy() {
                 position: Some(PositionalCondition::SameColumn),
                 bypass_row_protection: false,
             }),
+            base_damage: 0,
             multiplier: 1.0,
             double_empower_stat: None,
         }],
@@ -1020,6 +1067,7 @@ fn current_target_and_companions_hits_target_and_living_companions() {
         mp_cost: 2,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
+            base_damage: 0,
             multiplier: 1.0,
         }],
     };
@@ -1057,6 +1105,7 @@ fn current_target_and_companions_handles_missing_target() {
         mp_cost: 2,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
+            base_damage: 0,
             multiplier: 1.0,
         }],
     };
@@ -1556,7 +1605,9 @@ fn split_magical_damage_uses_separate_primary_and_companion_values() {
     let ability = AbilityDef {
         mp_cost: 1,
         primitives: vec![Primitive::DealMagicalDamageCurrentTargetAndCompanions {
+            primary_base_damage: 0,
             primary_multiplier: 1.0,
+            companion_base_damage: 0,
             companion_multiplier: 0.5,
         }],
     };
@@ -1574,7 +1625,7 @@ fn split_magical_damage_uses_separate_primary_and_companion_values() {
     );
 
     assert_eq!(enemy_team[0].current_hp(), 24);
-    assert_eq!(enemy_team[1].current_hp(), 27);
+    assert_eq!(enemy_team[1].current_hp(), 29);
 }
 
 #[test]
@@ -1955,6 +2006,7 @@ fn ward_negates_physical_ability_damage() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
+            base_damage: 0,
             multiplier: 1.5,
             double_empower_stat: None,
         }],
@@ -1994,6 +2046,7 @@ fn ward_negates_magical_ability_damage() {
         mp_cost: 2,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
+            base_damage: 0,
             multiplier: 1.5,
         }],
     };
@@ -2039,6 +2092,7 @@ fn doubled_empower_stat_increases_only_the_flagged_attack() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
+            base_damage: 0,
             multiplier: 1.0,
             double_empower_stat: None,
         }],
@@ -2047,6 +2101,7 @@ fn doubled_empower_stat_increases_only_the_flagged_attack() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
+            base_damage: 0,
             multiplier: 1.0,
             double_empower_stat: Some(Stat::MGT),
         }],
@@ -2234,6 +2289,7 @@ fn current_target_and_companions_ignores_severed_companions() {
         mp_cost: 1,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
+            base_damage: 0,
             multiplier: 1.0,
         }],
     };

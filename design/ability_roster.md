@@ -86,7 +86,7 @@ Design note:
 
 - `Rebuke`
   `MP 3`
-  Deal magical damage with `0.8x MAG` to the user's focused enemy. That enemy is disoriented.
+  Deal `3 + 0.8x MAG` damage to the user's focused enemy. That enemy is disoriented.
 
 - `Interpose`
   `MP 2`
@@ -140,24 +140,24 @@ Design note:
 
 - `Consecrate`
   `MP 6`
-  Deal `1.0x MAG` damage to the user's focused enemy and `0.7x MAG` damage to that enemy's companions.
+  Deal `3 + 1.0x MAG` damage to the user's focused enemy and `2 + 0.7x MAG` damage to that enemy's companions.
   Balance notes: intended to be a real bomb when enemy formation clusters, not just light splash
 
 - `Hex`
   `MP 4`
-  Deal `0.8x MAG` damage to the user's focused enemy. Apply `Omen 2`.
+  Deal `3 + 0.8x MAG` damage to the user's focused enemy. Apply `Omen 2`.
 
 - `Eclipse`
   `MP 6`
-  Deal `0.8x MAG` damage to the user's focused enemy and that enemy's companions. Apply `Omen 1` to each damaged enemy.
+  Deal `2 + 0.8x MAG` damage to the user's focused enemy and that enemy's companions. Apply `Omen 1` to each damaged enemy.
 
 - `Harvest Night`
   `MP 6`
-  Deal `1.0x MAG` damage to the user's focused enemy. Then consume all `Omen` on that enemy and deal `2` true damage per stack consumed.
+  Deal `3 + 1.0x MAG` damage to the user's focused enemy. Then consume all `Omen` on that enemy and deal `2` true damage per stack consumed.
 
 - `Seal`
   `MP 4`
-  Deal `0.8x MAG` damage to the user's focused enemy. Apply `Weaken MAG 4` and `Weaken RES 2`.
+  Deal `3 + 0.8x MAG` damage to the user's focused enemy. Apply `Weaken MAG 4` and `Weaken RES 2`.
 
 - `Transmute`
   `MP 4`
