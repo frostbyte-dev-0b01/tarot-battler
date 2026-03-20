@@ -397,7 +397,7 @@ main {
 }
 
 .team-name-field {
-  min-width: min(320px, 100%);
+  flex: 0 0 min(370px, 100%);
 }
 
 .team-name-field-compact span {
@@ -408,20 +408,17 @@ main {
   min-height: 44px;
 }
 
-.character-grid {
+.character-slot-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+  flex: 1 1 auto;
 }
 
-.character-grid-cell {
-  min-height: 64px;
-}
-
-.character-grid-card,
-.character-grid-add {
+.character-slot-card,
+.character-slot-add {
   width: 100%;
-  min-height: 64px;
+  min-height: 60px;
   border: 1px solid rgba(33, 25, 16, 0.12);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.58);
@@ -431,25 +428,24 @@ main {
   cursor: pointer;
 }
 
-.character-grid-card.is-selected,
-.character-grid-cell.is-selected .character-grid-card {
+.character-slot-card.is-selected {
   border-color: rgba(162, 59, 42, 0.42);
   background: rgba(162, 59, 42, 0.12);
 }
 
-.character-grid-add {
+.character-slot-add {
   display: grid;
   place-items: center;
   font-size: 1.45rem;
   font-weight: 700;
 }
 
-.character-grid-add.is-disabled {
+.character-slot-add.is-disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.character-grid-name {
+.character-slot-name {
   display: block;
   font-weight: 700;
   font-size: 0.9rem;
@@ -713,7 +709,7 @@ main {
 
 .editor-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -2052,7 +2048,7 @@ textarea:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .character-grid {
+  .character-slot-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2090,7 +2086,7 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .character-grid {
+  .character-slot-strip {
     grid-template-columns: 1fr;
   }
 }

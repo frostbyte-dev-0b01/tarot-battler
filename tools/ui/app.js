@@ -9,6 +9,12 @@ const latestReplayPath = "./sample-data/latest_replay.json";
 const passiveCatalogPath = "../../battle_engine/src/data/passives.json";
 const abilityCatalogPath = "../../battle_engine/src/data/abilities.json";
 const itemCatalogPath = "../../battle_engine/src/data/items.json";
+const TEAM_SLOT_POSITIONS = [
+  { row: 0, col: 0 },
+  { row: 0, col: 2 },
+  { row: 1, col: 1 },
+  { row: 2, col: 1 },
+];
 const ruleSubjectOptions = [
   { value: "self", label: "Self" },
   { value: "target", label: "Target" },
@@ -72,7 +78,6 @@ const appState = {
   selectedCharacterId: null,
   playbackTimerId: null,
   playbackSpeed: 1,
-  dragPreviewElement: null,
   teamConfig: null,
   characterLibrary: [],
   selectedTeamCharacterIndex: 0,
@@ -423,18 +428,6 @@ teamEditorConfig.editor.addEventListener("change", (event) => {
 
 teamEditorConfig.editor.addEventListener("click", (event) => {
   handleTeamEditorAction(event);
-});
-
-teamEditorConfig.editor.addEventListener("dragstart", (event) => {
-  handleTeamEditorDragStart(event);
-});
-
-teamEditorConfig.editor.addEventListener("dragover", (event) => {
-  handleTeamEditorDragOver(event);
-});
-
-teamEditorConfig.editor.addEventListener("drop", (event) => {
-  handleTeamEditorDrop(event);
 });
 
 characterLibraryShell?.addEventListener("click", (event) => {
@@ -1065,6 +1058,8 @@ function validateTeamConfig(candidate) {
 
   if (!Array.isArray(candidate.characters) || candidate.characters.length < 1) {
     errors.push("`characters` must be an array with at least 1 character.");
+  } else if (candidate.characters.length > TEAM_SLOT_POSITIONS.length) {
+    errors.push(`\`characters\` must contain at most ${TEAM_SLOT_POSITIONS.length} characters.`);
   } else {
     validateTeamCharacters(candidate.characters, errors);
   }
@@ -1176,7 +1171,6 @@ function syncTeamUI() {
     renderCharacterLibrary();
     return;
   }
-
   appState.selectedTeamCharacterIndex = clampValue(
     appState.selectedTeamCharacterIndex,
     0,
@@ -1282,7 +1276,7 @@ function renderTeamEditor() {
 
   const selectedIndex = appState.selectedTeamCharacterIndex;
   const selectedCharacter = team.characters[selectedIndex];
-  const characterGrid = renderCharacterGrid(team);
+  const characterSlots = renderCharacterSlots(team);
 
   editor.innerHTML = `
     <section class="team-builder-workspace">
@@ -1290,77 +1284,48 @@ function renderTeamEditor() {
         <label class="field-group team-name-field team-name-field-compact">
           <input type="text" data-team-field="name" value="${escapeHtml(team.name)}">
         </label>
+        ${characterSlots}
         <div class="file-icon-actions" aria-label="Team file actions">
           <button type="button" class="icon-button" data-team-action="open-team-file" title="Open team JSON" aria-label="Open team JSON">📂</button>
           <button type="button" class="icon-button" data-team-action="save-team-file" title="Save team JSON" aria-label="Save team JSON">💾</button>
         </div>
       </div>
-      ${characterGrid}
       ${selectedCharacter ? renderSelectedCharacterWorkspace(selectedCharacter, selectedIndex) : '<div class="board-empty-state">Add a character to begin editing.</div>'}
     </section>
   `;
 }
 
-function renderCharacterGrid(team) {
-  const occupantMap = new Map();
-  team.characters.forEach((character, characterIndex) => {
-    const row = character.position?.row;
-    const col = character.position?.col;
-    if (Number.isInteger(row) && Number.isInteger(col)) {
-      occupantMap.set(`${row}:${col}`, { character, characterIndex });
-    }
-  });
-
-  const canAddCharacter = team.characters.length < 5;
-  const cells = [];
-  for (let row = 0; row < 3; row += 1) {
-    for (let col = 0; col < 3; col += 1) {
-      const occupant = occupantMap.get(`${row}:${col}`);
-      cells.push(renderCharacterGridCell(occupant, row, col, canAddCharacter));
-    }
-  }
-
-  return `
-    <div class="character-grid" role="grid" aria-label="Team formation grid">
-      ${cells.join("")}
-    </div>
-  `;
-}
-
-function renderCharacterGridCell(occupant, row, col, canAddCharacter) {
-  if (occupant) {
-    const { character, characterIndex } = occupant;
-    const isSelected = characterIndex === appState.selectedTeamCharacterIndex;
-    return `
-      <div class="character-grid-cell is-occupied ${isSelected ? "is-selected" : ""}" data-team-grid-cell="true" data-grid-row="${row}" data-grid-col="${col}">
+function renderCharacterSlots(team) {
+  const canAddCharacter = team.characters.length < TEAM_SLOT_POSITIONS.length;
+  const slots = TEAM_SLOT_POSITIONS.map((_, slotIndex) => {
+    const character = team.characters[slotIndex];
+    if (character) {
+      const isSelected = slotIndex === appState.selectedTeamCharacterIndex;
+      return `
         <button
           type="button"
-          class="character-grid-card ${isSelected ? "is-selected" : ""}"
+          class="character-slot-card ${isSelected ? "is-selected" : ""}"
           data-team-action="select-character"
-          data-character-index="${characterIndex}"
-          data-team-drag-character-index="${characterIndex}"
-          draggable="true"
-          role="gridcell"
+          data-character-index="${slotIndex}"
           aria-selected="${isSelected ? "true" : "false"}"
         >
-          <span class="character-grid-name">${escapeHtml(character.display_name || character.id || `Character ${characterIndex + 1}`)}</span>
+          <span class="character-slot-name">${escapeHtml(character.display_name || character.id || `Character ${slotIndex + 1}`)}</span>
         </button>
-      </div>
-    `;
-  }
+      `;
+    }
 
-  return `
-    <div class="character-grid-cell" data-team-grid-cell="true" data-grid-row="${row}" data-grid-col="${col}">
+    return `
       <button
         type="button"
-        class="character-grid-add ${canAddCharacter ? "" : "is-disabled"}"
-        data-team-action="add-character-at-position"
-        data-grid-row="${row}"
-        data-grid-col="${col}"
+        class="character-slot-add ${canAddCharacter ? "" : "is-disabled"}"
+        data-team-action="add-character-slot"
+        data-slot-index="${slotIndex}"
         ${canAddCharacter ? "" : "disabled"}
       >+</button>
-    </div>
-  `;
+    `;
+  }).join("");
+
+  return `<div class="character-slot-strip" aria-label="Team character slots">${slots}</div>`;
 }
 
 function renderSelectedCharacterWorkspace(character, characterIndex) {
@@ -1384,6 +1349,22 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
         <div class="editor-grid">
           <label class="field-group field-group-compact">
             <input type="text" data-character-field="display_name" data-character-index="${characterIndex}" value="${escapeHtml(character.display_name ?? "")}">
+          </label>
+          <label class="field-group field-group-compact">
+            <span>Row</span>
+            <select data-position-field="row" data-character-index="${characterIndex}">
+              <option value="0" ${Number(character.position?.row ?? 0) === 0 ? "selected" : ""}>Front</option>
+              <option value="1" ${Number(character.position?.row ?? 0) === 1 ? "selected" : ""}>Middle</option>
+              <option value="2" ${Number(character.position?.row ?? 0) === 2 ? "selected" : ""}>Back</option>
+            </select>
+          </label>
+          <label class="field-group field-group-compact">
+            <span>Col</span>
+            <select data-position-field="col" data-character-index="${characterIndex}">
+              <option value="0" ${Number(character.position?.col ?? 0) === 0 ? "selected" : ""}>1</option>
+              <option value="1" ${Number(character.position?.col ?? 0) === 1 ? "selected" : ""}>2</option>
+              <option value="2" ${Number(character.position?.col ?? 0) === 2 ? "selected" : ""}>3</option>
+            </select>
           </label>
         </div>
         <div class="editor-inline-grid">
@@ -1695,6 +1676,21 @@ function handleTeamEditorInput(event) {
     return;
   }
 
+  if (target.dataset.positionField) {
+    const character = team.characters[characterIndex];
+    if (!character) {
+      return;
+    }
+    const nextValue = Number(target.value);
+    character.position = {
+      row: character.position?.row ?? 0,
+      col: character.position?.col ?? 0,
+    };
+    character.position[target.dataset.positionField] = nextValue;
+    syncTeamUI();
+    return;
+  }
+
   if (target.dataset.statField) {
     const character = team.characters[characterIndex];
     if (!character) {
@@ -1788,8 +1784,8 @@ function handleTeamEditorAction(event) {
     case "add-character":
       addCharacterAtFirstOpenPosition(team);
       break;
-    case "add-character-at-position":
-      addCharacterAtPosition(team, Number(actionTarget.dataset.gridRow), Number(actionTarget.dataset.gridCol));
+    case "add-character-slot":
+      addCharacterAtSlot(team, Number(actionTarget.dataset.slotIndex));
       break;
     case "select-character":
       appState.selectedTeamCharacterIndex = characterIndex;
@@ -2032,20 +2028,19 @@ function addLibraryCharacterToTeam(libraryIndex) {
     };
   }
 
-  if (appState.teamConfig.characters.length >= 5) {
-    renderTeamValidation({ ok: false, errors: ["A team can have at most 5 characters."] });
+  if (appState.teamConfig.characters.length >= TEAM_SLOT_POSITIONS.length) {
+    renderTeamValidation({ ok: false, errors: [`A team can have at most ${TEAM_SLOT_POSITIONS.length} characters.`] });
     return;
   }
 
   const nextCharacter = cloneCharacterConfig(character);
-  const firstOpen = findFirstOpenPosition(appState.teamConfig);
-  if (!firstOpen) {
-    renderTeamValidation({ ok: false, errors: ["A team can have at most 5 characters."] });
+  const firstOpen = findFirstOpenSlotIndex(appState.teamConfig);
+  if (firstOpen < 0) {
+    renderTeamValidation({ ok: false, errors: [`A team can have at most ${TEAM_SLOT_POSITIONS.length} characters.`] });
     return;
   }
-  nextCharacter.position = { row: firstOpen.row, col: firstOpen.col };
-  appState.teamConfig.characters.push(nextCharacter);
-  appState.selectedTeamCharacterIndex = appState.teamConfig.characters.length - 1;
+  appState.teamConfig.characters.splice(firstOpen, 0, nextCharacter);
+  appState.selectedTeamCharacterIndex = firstOpen;
   appState.expandedRuleIndex = null;
   syncTeamUI();
   setTeamValidationStatus("success", `${character.display_name || character.id || "Character"} added`);
@@ -2078,42 +2073,40 @@ function cloneCharacterConfig(character) {
 }
 
 function addCharacterAtFirstOpenPosition(team) {
-  const firstOpen = findFirstOpenPosition(team);
-  if (!firstOpen) {
-    renderTeamValidation({ ok: false, errors: ["A team can have at most 5 characters."] });
+  const firstOpen = findFirstOpenSlotIndex(team);
+  if (firstOpen < 0) {
+    renderTeamValidation({ ok: false, errors: [`A team can have at most ${TEAM_SLOT_POSITIONS.length} characters.`] });
     return;
   }
-  addCharacterAtPosition(team, firstOpen.row, firstOpen.col);
+  addCharacterAtSlot(team, firstOpen);
 }
 
-function addCharacterAtPosition(team, row, col) {
-  if (team.characters.length >= 5) {
-    renderTeamValidation({ ok: false, errors: ["A team can have at most 5 characters."] });
+function addCharacterAtSlot(team, slotIndex) {
+  if (team.characters.length >= TEAM_SLOT_POSITIONS.length) {
+    renderTeamValidation({ ok: false, errors: [`A team can have at most ${TEAM_SLOT_POSITIONS.length} characters.`] });
     return;
   }
 
-  if (!isWithinGrid(row, col)) {
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= TEAM_SLOT_POSITIONS.length) {
     return;
   }
 
-  if (findCharacterIndexAtPosition(team, row, col) !== -1) {
+  if (team.characters[slotIndex]) {
     return;
   }
 
-  team.characters.push(createEmptyCharacter(team.characters.length, row, col));
-  appState.selectedTeamCharacterIndex = team.characters.length - 1;
+  team.characters.splice(slotIndex, 0, createEmptyCharacter(slotIndex));
+  appState.selectedTeamCharacterIndex = slotIndex;
   appState.expandedRuleIndex = null;
 }
 
-function findFirstOpenPosition(team) {
-  for (let row = 0; row < 3; row += 1) {
-    for (let col = 0; col < 3; col += 1) {
-      if (findCharacterIndexAtPosition(team, row, col) === -1) {
-        return { row, col };
-      }
+function findFirstOpenSlotIndex(team) {
+  for (let slotIndex = 0; slotIndex < TEAM_SLOT_POSITIONS.length; slotIndex += 1) {
+    if (!team.characters[slotIndex]) {
+      return slotIndex;
     }
   }
-  return null;
+  return -1;
 }
 
 function findCharacterIndexAtPosition(team, row, col) {
@@ -2177,10 +2170,11 @@ function slugifyFileStem(value) {
 }
 
 function createEmptyCharacter(index, row = 0, col = 0) {
+  const slotPosition = TEAM_SLOT_POSITIONS[index] ?? { row, col };
   return {
     id: `new_character_${index + 1}`,
     display_name: "",
-    position: { row, col },
+    position: { row: slotPosition.row, col: slotPosition.col },
     stats: { vit: 5, mgt: 5, mag: 5, arm: 5, res: 5, spd: 5, wil: 5 },
     passive: "",
     actives: ["", "", ""].filter(Boolean),
@@ -2220,81 +2214,6 @@ function applyBrowserSelection(target) {
   }
 
   syncTeamUI();
-}
-
-function handleTeamEditorDragStart(event) {
-  const dragTarget = event.target.closest?.("[data-team-drag-character-index]");
-  if (!(dragTarget instanceof HTMLElement) || !(event.dataTransfer instanceof DataTransfer)) {
-    return;
-  }
-
-  event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("text/plain", dragTarget.dataset.teamDragCharacterIndex ?? "");
-
-  const rect = dragTarget.getBoundingClientRect();
-  const dragPreview = dragTarget.cloneNode(true);
-  if (dragPreview instanceof HTMLElement) {
-    cleanupDragPreviewElement();
-    dragPreview.style.position = "fixed";
-    dragPreview.style.top = "-1000px";
-    dragPreview.style.left = "-1000px";
-    dragPreview.style.width = `${rect.width}px`;
-    dragPreview.style.pointerEvents = "none";
-    dragPreview.style.zIndex = "9999";
-    dragPreview.style.boxSizing = "border-box";
-    document.body.appendChild(dragPreview);
-    appState.dragPreviewElement = dragPreview;
-    event.dataTransfer.setDragImage(
-      dragPreview,
-      rect.width / 2,
-      rect.height / 2,
-    );
-    window.setTimeout(() => {
-      cleanupDragPreviewElement();
-    }, 0);
-  }
-}
-
-function handleTeamEditorDragOver(event) {
-  const cell = event.target.closest?.("[data-team-grid-cell]");
-  if (!(cell instanceof HTMLElement)) {
-    return;
-  }
-  event.preventDefault();
-  if (event.dataTransfer instanceof DataTransfer) {
-    event.dataTransfer.dropEffect = "move";
-  }
-}
-
-function handleTeamEditorDrop(event) {
-  const cell = event.target.closest?.("[data-team-grid-cell]");
-  if (!(cell instanceof HTMLElement) || !(event.dataTransfer instanceof DataTransfer)) {
-    return;
-  }
-
-  event.preventDefault();
-  const team = appState.teamConfig;
-  if (!team) {
-    return;
-  }
-
-  const sourceIndex = Number(event.dataTransfer.getData("text/plain"));
-  const row = Number(cell.dataset.gridRow);
-  const col = Number(cell.dataset.gridCol);
-  if (!Number.isInteger(sourceIndex) || sourceIndex < 0) {
-    return;
-  }
-
-  if (moveCharacterToPosition(team, sourceIndex, row, col)) {
-    syncTeamUI();
-  }
-}
-
-function cleanupDragPreviewElement() {
-  if (appState.dragPreviewElement instanceof HTMLElement) {
-    appState.dragPreviewElement.remove();
-  }
-  appState.dragPreviewElement = null;
 }
 
 function formatGridPosition(row, col) {
