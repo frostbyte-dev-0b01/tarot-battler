@@ -87,6 +87,7 @@ pub enum RetargetMode {
     ToSelf,
     ToCompanion,
     DefaultRetarget,
+    Disorient,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -834,6 +835,14 @@ pub fn execute_primitives_with_context(
                             ctx.enemy_team[tidx].clear_target();
                             select_target(&ctx.enemy_team[tidx], ctx.actor_team, ctx.rng)
                         }
+                        RetargetMode::Disorient => {
+                            ctx.enemy_team[tidx].clear_target();
+                            crate::targeting::select_disoriented_target(
+                                &ctx.enemy_team[tidx],
+                                ctx.actor_team,
+                                ctx.rng,
+                            )
+                        }
                     };
 
                     if let Some(new_target_id) = new_target {
@@ -992,6 +1001,7 @@ fn retarget_mode_label(mode: &RetargetMode) -> &'static str {
         RetargetMode::ToSelf => "to_self",
         RetargetMode::ToCompanion => "to_companion",
         RetargetMode::DefaultRetarget => "default_retarget",
+        RetargetMode::Disorient => "disorient",
     }
 }
 

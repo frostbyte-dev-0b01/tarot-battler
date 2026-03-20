@@ -118,6 +118,8 @@ Verification:
 
 ### Stage 3: Focus And Target-Control Support
 
+Status: completed in `focus-control support` stage commit.
+
 - add a `disorient`-style targeting mode or equivalent effect primitive
 - keep internal retargeting mechanics, but expose the design-facing distinction in data/docs
 - ensure refocus-style effects can be applied to:

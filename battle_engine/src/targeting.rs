@@ -18,6 +18,12 @@ pub enum DefensiveType {
     Magical,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FocusSelectionMode {
+    Preferred,
+    Disoriented,
+}
+
 /// Compute offensive type from effective MGT vs MAG. Tie → random.
 pub fn compute_offensive_type(character: &CharacterState, rng: &mut StdRng) -> OffensiveType {
     let str_val = character.get_eff_stat(&Stat::MGT);
@@ -58,6 +64,23 @@ pub fn select_target(
     enemies: &[CharacterState],
     rng: &mut StdRng,
 ) -> Option<u32> {
+    select_target_with_mode(attacker, enemies, rng, FocusSelectionMode::Preferred)
+}
+
+pub fn select_disoriented_target(
+    attacker: &CharacterState,
+    enemies: &[CharacterState],
+    rng: &mut StdRng,
+) -> Option<u32> {
+    select_target_with_mode(attacker, enemies, rng, FocusSelectionMode::Disoriented)
+}
+
+fn select_target_with_mode(
+    attacker: &CharacterState,
+    enemies: &[CharacterState],
+    rng: &mut StdRng,
+    mode: FocusSelectionMode,
+) -> Option<u32> {
     let living: Vec<&CharacterState> = enemies.iter().filter(|e| e.is_alive()).collect();
     if living.is_empty() {
         return None;
@@ -73,14 +96,21 @@ pub fn select_target(
     let off_type = compute_offensive_type(attacker, rng);
 
     // Physical attackers target magical defenders (weak to physical), and vice versa
-    let preferred_weakness = match off_type {
+    let preferred_defense = match off_type {
         OffensiveType::Physical => DefensiveType::Magical,
         OffensiveType::Magical => DefensiveType::Physical,
+    };
+    let selected_defense = match mode {
+        FocusSelectionMode::Preferred => preferred_defense,
+        FocusSelectionMode::Disoriented => match preferred_defense {
+            DefensiveType::Physical => DefensiveType::Magical,
+            DefensiveType::Magical => DefensiveType::Physical,
+        },
     };
 
     let matched: Vec<u32> = front_row_enemies
         .iter()
-        .filter(|e| compute_defensive_type(e, rng) == preferred_weakness)
+        .filter(|e| compute_defensive_type(e, rng) == selected_defense)
         .map(|e| e.id())
         .collect();
 
@@ -225,6 +255,36 @@ mod tests {
             targeted_mag > 25,
             "Expected to prefer magical defender, got {}/50",
             targeted_mag
+        );
+    }
+
+    #[test]
+    fn select_disoriented_target_prefers_wrong_defense_profile() {
+        let attacker = make_char(0, 0, vec![(Stat::MGT, 15), (Stat::MAG, 5)]);
+        let phys_def = make_char(
+            10,
+            0,
+            vec![(Stat::VIT, 10), (Stat::ARM, 15), (Stat::RES, 3)],
+        );
+        let mag_def = make_char(
+            11,
+            0,
+            vec![(Stat::VIT, 10), (Stat::ARM, 3), (Stat::RES, 15)],
+        );
+
+        let mut targeted_phys = 0;
+        for seed in 0..50 {
+            let mut rng = StdRng::seed_from_u64(seed);
+            let target =
+                select_disoriented_target(&attacker, &[phys_def.clone(), mag_def.clone()], &mut rng);
+            if target == Some(10) {
+                targeted_phys += 1;
+            }
+        }
+        assert!(
+            targeted_phys > 25,
+            "Expected to prefer physical defender when disoriented, got {}/50",
+            targeted_phys
         );
     }
 }

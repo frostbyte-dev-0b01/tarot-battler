@@ -1424,6 +1424,50 @@ fn retarget_to_companion_only_affects_enemies_targeting_self() {
 }
 
 #[test]
+fn disorient_retarget_picks_less_favorable_target() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+
+    let mut actor_team = vec![
+        make_adjacent_char(0, 0, 0, vec![(Stat::MGT, 8), (Stat::VIT, 10)]),
+        make_adjacent_char(1, 0, 1, vec![(Stat::ARM, 9), (Stat::RES, 2), (Stat::VIT, 10)]),
+        make_adjacent_char(2, 0, 2, vec![(Stat::ARM, 2), (Stat::RES, 9), (Stat::VIT, 10)]),
+    ];
+    actor_team[0].set_target(10);
+
+    let mut enemy_team = vec![make_adjacent_char(
+        10,
+        0,
+        3,
+        vec![(Stat::MGT, 10), (Stat::MAG, 3), (Stat::VIT, 10)],
+    )];
+    enemy_team[0].set_target(2);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::Retarget {
+            target: SimpleAbilityTarget::CurrentTarget.into(),
+            mode: RetargetMode::Disorient,
+            filter: None,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Rebuke",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+
+    assert_eq!(enemy_team[0].target(), Some(1));
+}
+
+#[test]
 fn command_attack_uses_highest_str_living_companion() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
