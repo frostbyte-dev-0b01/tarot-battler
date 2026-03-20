@@ -205,22 +205,6 @@
       }
     ]
   },
-  "Channel": {
-    "description": "Restore MP to the lowest-MP ally.",
-    "mp_cost": 2,
-    "primitives": [
-      {
-        "kind": "restore_mp",
-        "target": {
-          "category": "ally",
-          "selector": {
-            "kind": "lowest_mp"
-          }
-        },
-        "amount": 3
-      }
-    ]
-  },
   "Distill": {
     "description": "Dispel 1 from the user's focused enemy. Apply Omen 2.",
     "mp_cost": 4,
@@ -376,42 +360,6 @@
       }
     ]
   },
-  "Invocation": {
-    "description": "Deal magical damage. If the target has no Omen, apply Omen 1; otherwise restore MP 1 to the user.",
-    "mp_cost": 4,
-    "primitives": [
-      {
-        "kind": "deal_magical_damage",
-        "target": "current_target",
-        "multiplier": 1.0
-      },
-      {
-        "kind": "if_target_lacks_status",
-        "target": "current_target",
-        "status": "Omen",
-        "primitives": [
-          {
-            "kind": "apply_status",
-            "target": "current_target",
-            "status": "Omen",
-            "stacks": 1
-          }
-        ]
-      },
-      {
-        "kind": "if_target_has_status",
-        "target": "current_target",
-        "status": "Omen",
-        "primitives": [
-          {
-            "kind": "restore_mp",
-            "target": "self",
-            "amount": 1
-          }
-        ]
-      }
-    ]
-  },
   "Sever": {
     "description": "Deal 1.4x MGT damage to the user's focused enemy. Consume the user's Empower MGT and Empower ARM, then deal 1 true damage per consumed stack.",
     "mp_cost": 6,
@@ -479,22 +427,6 @@
             "mode": "default_retarget"
           }
         ]
-      }
-    ]
-  },
-  "Restoration": {
-    "description": "Restore HP to one companion.",
-    "mp_cost": 4,
-    "primitives": [
-      {
-        "kind": "restore_hp",
-        "target": {
-          "category": "companion",
-          "selector": {
-            "kind": "lowest_hp"
-          }
-        },
-        "amount": 6
       }
     ]
   },

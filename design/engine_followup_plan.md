@@ -44,15 +44,15 @@ Remaining follow-up:
 
 ### 3. Ability Catalog Cleanup
 
-The bundled ability file still contains deprecated prototype abilities that are no longer part of the intended live pool.
+Status: complete.
 
-Current cleanup targets:
+What landed:
 
 - remove `Channel`
 - remove `Invocation`
 - remove `Restoration`
 
-Desired outcome:
+Result:
 
 - bundled live catalog only contains current roster abilities plus explicitly marked prototype leftovers if any remain
 - UI catalogs and sample teams stop exposing replaced abilities
