@@ -66,8 +66,8 @@ Current design direction for economy:
   Enemies with higher `MGT` than `MAG` focus the user.
 
 - `Rebuke`
-  `MP 2`
-  The user's focused enemy is disoriented.
+  `MP 3`
+  Deal magical damage with `0.8x MAG` to the user's focused enemy. That enemy is disoriented.
 
 - `Interpose`
   `MP 2`
