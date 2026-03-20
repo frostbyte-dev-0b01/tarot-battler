@@ -199,6 +199,7 @@ The eventual Team Builder UI should move toward a more compact, composition-firs
 
 - top strip with one tab or card per character on the team
 - add and remove character actions directly in that top strip
+- formation-style placement grid for assigning board positions
 - center pane for the selected character
 - middle pane fields for:
   - active abilities
@@ -216,6 +217,11 @@ The eventual Team Builder UI should move toward a more compact, composition-firs
 This is not the immediate implementation target.
 
 It is a longer-term direction once the current editor has enough roster depth to justify a denser, character-first workflow.
+
+One interaction note from the current prototype:
+
+- native browser drag-and-drop works for moving characters in the formation grid, but the drag ghost may feel awkward or inconsistent across browsers
+- if that remains a quality issue, the better long-term solution is custom pointer-based dragging rather than relying on native HTML drag previews
 
 ### Rules Editor
 
@@ -266,12 +272,11 @@ This is important because:
 
 The replay viewer should not derive meaning only from raw text log lines.
 
-Instead, it should build a replay state model:
+Instead, it should treat replay snapshots as the source of truth:
 
-- initialize from the replay's initial team snapshot
-- walk events in order
-- update HP, MP, statuses, and alive state
-- render the board from current replay state
+- read `snapshots[0]` as the initial battle state
+- read `snapshots[n + 1]` as the state after `events[n]`
+- render the board and inspector directly from the selected snapshot
 
 This is the key design requirement for the viewer:
 
@@ -293,9 +298,9 @@ The board state is the primary visualization.
 
 1. user loads a replay JSON file
 2. tool validates the replay shape
-3. tool builds an initial board state from the replay snapshot
-4. tool applies events up to the selected event index
-5. tool renders board, inspector, and timeline
+3. tool selects the matching snapshot for the current event index
+4. tool renders board and inspector from that snapshot
+5. tool renders timeline and current-event text from `events`
 
 Current engine loop:
 
@@ -306,9 +311,10 @@ Current engine loop:
 
 Current sample-team loop:
 
-1. click `Load Sample Team` in either team panel
-2. edit the structured team form or raw JSON
-3. export the team JSON for the engine
+1. open the Team Builder
+2. the bundled sample team loads by default
+3. edit the structured team form or raw JSON
+4. export the team JSON for the engine
 
 Current bundled sample note:
 
@@ -337,8 +343,7 @@ Do not start with a framework unless the tool outgrows vanilla JS.
 
 The minimum useful version should include:
 
-- load Team A JSON
-- load Team B JSON
+- load one team JSON
 - edit and export team JSON
 - load replay JSON
 - render both teams on the board
@@ -368,7 +373,6 @@ The first pass should not try to include:
 - final production styling
 - account systems
 - backend persistence
-- drag-and-drop formation editing
 - roster drafting flow
 - market or shop UI
 - final combat animations
@@ -382,9 +386,9 @@ Recommended order:
 
 1. static page shell and layout
 2. replay JSON file loader
-3. board renderer from initial team snapshot
+3. board renderer from replay snapshots
 4. event-index scrubber
-5. event application into replay state
+5. snapshot selection by event index
 6. timeline panel
 7. inspector panel
 8. team builder forms

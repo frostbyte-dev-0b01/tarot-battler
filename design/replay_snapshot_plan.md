@@ -121,7 +121,7 @@ Status: complete
 - keep the event log and current-event summary based on `events`
 - simplify or remove the old event-application helpers in `tools/ui/app.js`
 
-Status: in progress
+Status: complete
 
 ### Stage 6: Validation And Regression Tests
 
@@ -132,7 +132,7 @@ Status: in progress
   - snapshot count is `events.len() + 1`
   - moved / retargeted / status / HP / MP changes appear in snapshots
 
-Status: pending
+Status: complete
 
 ## Notes
 

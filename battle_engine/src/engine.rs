@@ -3439,6 +3439,60 @@ mod tests {
     }
 
     #[test]
+    fn replay_snapshots_track_each_logged_event() {
+        let mut striker = warrior();
+        striker.rules = vec![Rule {
+            ability: "Strike".to_string(),
+            conditions: vec![],
+        }];
+        let enemy = mage();
+
+        let abilities = [(
+            "Strike".to_string(),
+            AbilityDef {
+                mp_cost: 2,
+                primitives: vec![Primitive::DealPhysicalDamage {
+                    target: SimpleAbilityTarget::CurrentTarget.into(),
+                    multiplier: 1.0,
+                    double_empower_stat: None,
+                }],
+            },
+        )]
+        .into_iter()
+        .collect();
+
+        let battle = build_battle(
+            &[striker],
+            &[enemy],
+            abilities,
+            empty_passives(),
+            empty_statuses(),
+        );
+        let log = battle.run();
+
+        assert_eq!(log.snapshots().len(), log.events().len() + 1);
+        assert_eq!(log.snapshots()[0].event_index, -1);
+        assert_eq!(log.snapshots()[0].tick, 0);
+
+        let last_snapshot = log.snapshots().last().expect("snapshot log should not be empty");
+        assert_eq!(last_snapshot.event_index as usize, log.events().len() - 1);
+        assert_eq!(
+            last_snapshot.tick,
+            log.events()
+                .last()
+                .expect("event log should not be empty")
+                .tick_count()
+        );
+
+        let damage_was_captured = log
+            .snapshots()
+            .iter()
+            .flat_map(|snapshot| snapshot.team_a.iter().chain(snapshot.team_b.iter()))
+            .any(|character| character.current_hp < character.max_hp);
+        assert!(damage_was_captured, "snapshots should capture changing HP state");
+    }
+
+    #[test]
     fn passive_reentry_guard_prevents_cascading() {
         use crate::abilities::{PassiveDef, PassiveTrigger};
 

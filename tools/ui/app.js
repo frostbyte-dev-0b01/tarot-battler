@@ -36,7 +36,6 @@ const teamEditorConfig = {
   fileInput: document.querySelector("#team-file-input"),
   jsonInput: document.querySelector("#team-json-input"),
   loadButton: document.querySelector("#team-load-button"),
-  demoButton: document.querySelector("#team-demo-button"),
   copyButton: document.querySelector("#team-copy-button"),
   downloadButton: document.querySelector("#team-download-button"),
   validationOutput: document.querySelector("#team-validation-output"),
@@ -66,6 +65,7 @@ const appState = {
   selectedEventIndex: -1,
   selectedCharacterId: null,
   playbackTimerId: null,
+  dragPreviewElement: null,
   teamConfig: null,
   characterLibrary: [],
   selectedTeamCharacterIndex: 0,
@@ -329,11 +329,6 @@ teamEditorConfig.loadButton.addEventListener("click", () => {
   loadTeamFromText(teamEditorConfig.jsonInput.value.trim());
 });
 
-teamEditorConfig.demoButton.addEventListener("click", () => {
-  teamEditorConfig.jsonInput.value = JSON.stringify(demoTeam, null, 2);
-  loadTeamFromText(teamEditorConfig.jsonInput.value);
-});
-
 teamEditorConfig.fileInput.addEventListener("change", async (event) => {
   const [file] = event.target.files ?? [];
   if (!file) {
@@ -373,6 +368,18 @@ teamEditorConfig.editor.addEventListener("click", (event) => {
   handleTeamEditorAction(event);
 });
 
+teamEditorConfig.editor.addEventListener("dragstart", (event) => {
+  handleTeamEditorDragStart(event);
+});
+
+teamEditorConfig.editor.addEventListener("dragover", (event) => {
+  handleTeamEditorDragOver(event);
+});
+
+teamEditorConfig.editor.addEventListener("drop", (event) => {
+  handleTeamEditorDrop(event);
+});
+
 characterLibraryShell?.addEventListener("click", (event) => {
   handleTeamEditorAction(event);
 });
@@ -382,9 +389,12 @@ resetBoards();
 renderPlaybackControls();
 renderTimeline();
 renderInspector(null);
+appState.teamConfig = structuredClone(demoTeam);
+teamEditorConfig.jsonInput.value = JSON.stringify(appState.teamConfig, null, 2);
 resetTeamSummary();
 renderTeamEditor();
 renderCharacterLibrary();
+renderTeamValidation(validateTeamConfig(appState.teamConfig));
 void loadEditorCatalogs();
 void loadLatestReplay();
 
@@ -496,6 +506,18 @@ function validateReplay(candidate) {
     errors.push("`events` must be an array.");
   }
 
+  if (!Array.isArray(candidate.snapshots)) {
+    errors.push("`snapshots` must be an array.");
+  } else {
+    if (Array.isArray(candidate.events) && candidate.snapshots.length !== candidate.events.length + 1) {
+      errors.push("`snapshots` must contain exactly one more entry than `events`.");
+    }
+
+    candidate.snapshots.forEach((snapshot, index) => {
+      validateReplaySnapshot(snapshot, index, errors);
+    });
+  }
+
   return {
     ok: errors.length === 0,
     errors,
@@ -515,6 +537,29 @@ function validateReplayTeam(team, label, errors) {
   if (!Array.isArray(team.characters)) {
     errors.push(`teams.${label}.characters must be an array.`);
   }
+}
+
+function validateReplaySnapshot(snapshot, index, errors) {
+  if (!isPlainObject(snapshot)) {
+    errors.push(`snapshots[${index}] must be an object.`);
+    return;
+  }
+
+  if (typeof snapshot.event_index !== "number") {
+    errors.push(`snapshots[${index}].event_index must be a number.`);
+  }
+
+  if (typeof snapshot.tick !== "number") {
+    errors.push(`snapshots[${index}].tick must be a number.`);
+  }
+
+  if (!isPlainObject(snapshot.teams)) {
+    errors.push(`snapshots[${index}].teams must be an object with team snapshots.`);
+    return;
+  }
+
+  validateReplayTeam(snapshot.teams.team_a, `snapshots[${index}].teams.team_a`, errors);
+  validateReplayTeam(snapshot.teams.team_b, `snapshots[${index}].teams.team_b`, errors);
 }
 
 function renderReplayMetadata(replay) {
@@ -544,7 +589,12 @@ function renderCurrentReplay() {
     return;
   }
 
-  const replayState = buildReplayState(appState.replay, appState.selectedEventIndex);
+  const replayState = getReplaySnapshot(appState.replay, appState.selectedEventIndex);
+  if (!replayState) {
+    resetBoards();
+    renderInspector(null);
+    return;
+  }
   renderBoards(replayState);
   replayTickDisplay.textContent = String(getCurrentTick());
   replayEventLabel.textContent = `Event Index · ${formatEventIndexLabel()}`;
@@ -656,13 +706,46 @@ function getMaxEventIndex() {
   return appState.replay ? appState.replay.events.length - 1 : -1;
 }
 
+function getReplaySnapshot(replay, selectedEventIndex) {
+  if (!replay || !Array.isArray(replay.snapshots) || replay.snapshots.length === 0) {
+    return null;
+  }
+
+  const snapshotIndex = clampValue(selectedEventIndex + 1, 0, replay.snapshots.length - 1);
+  const snapshot = replay.snapshots[snapshotIndex];
+  if (!isPlainObject(snapshot) || !isPlainObject(snapshot.teams)) {
+    return null;
+  }
+
+  return {
+    event_index: snapshot.event_index,
+    tick: snapshot.tick,
+    teams: {
+      team_a: normalizeReplaySnapshotTeam(snapshot.teams.team_a, "team_a"),
+      team_b: normalizeReplaySnapshotTeam(snapshot.teams.team_b, "team_b"),
+    },
+  };
+}
+
+function normalizeReplaySnapshotTeam(team, teamKey) {
+  return {
+    name: team?.name ?? (teamKey === "team_a" ? "Team A" : "Team B"),
+    characters: Array.isArray(team?.characters)
+      ? team.characters.map((character) => ({
+          ...character,
+          team_key: teamKey,
+        }))
+      : [],
+  };
+}
+
 function getCurrentTick() {
-  if (!appState.replay || appState.selectedEventIndex < 0) {
+  if (!appState.replay) {
     return 0;
   }
 
-  const currentEvent = appState.replay.events[appState.selectedEventIndex];
-  return typeof currentEvent?.tick === "number" ? currentEvent.tick : 0;
+  const snapshot = getReplaySnapshot(appState.replay, appState.selectedEventIndex);
+  return typeof snapshot?.tick === "number" ? snapshot.tick : 0;
 }
 
 function formatEventIndexLabel() {
@@ -1079,48 +1162,84 @@ function renderTeamEditor() {
 
   const selectedIndex = appState.selectedTeamCharacterIndex;
   const selectedCharacter = team.characters[selectedIndex];
-  const characterStrip = renderCharacterStrip(team);
+  const characterGrid = renderCharacterGrid(team);
 
   editor.innerHTML = `
     <section class="team-builder-workspace">
       <div class="team-builder-topbar">
-        <label class="field-group team-name-field">
-          <span>Team Name</span>
+        <label class="field-group team-name-field team-name-field-compact">
           <input type="text" data-team-field="name" value="${escapeHtml(team.name)}">
         </label>
+        <div class="file-icon-actions" aria-label="Team file actions">
+          <button type="button" class="icon-button" data-team-action="open-team-file" title="Open team JSON" aria-label="Open team JSON">📂</button>
+          <button type="button" class="icon-button" data-team-action="save-team-file" title="Save team JSON" aria-label="Save team JSON">💾</button>
+        </div>
       </div>
-      ${characterStrip}
+      ${characterGrid}
       ${selectedCharacter ? renderSelectedCharacterWorkspace(selectedCharacter, selectedIndex) : '<div class="board-empty-state">Add a character to begin editing.</div>'}
-      ${selectedCharacter ? renderSelectionBrowser(selectedCharacter) : ""}
     </section>
   `;
 }
 
-function renderCharacterStrip(team) {
-  const characterTabs = team.characters.map((character, characterIndex) => renderCharacterTab(character, characterIndex)).join("");
+function renderCharacterGrid(team) {
+  const occupantMap = new Map();
+  team.characters.forEach((character, characterIndex) => {
+    const row = character.position?.row;
+    const col = character.position?.col;
+    if (Number.isInteger(row) && Number.isInteger(col)) {
+      occupantMap.set(`${row}:${col}`, { character, characterIndex });
+    }
+  });
+
   const canAddCharacter = team.characters.length < 5;
+  const cells = [];
+  for (let row = 0; row < 3; row += 1) {
+    for (let col = 0; col < 4; col += 1) {
+      const occupant = occupantMap.get(`${row}:${col}`);
+      cells.push(renderCharacterGridCell(occupant, row, col, canAddCharacter));
+    }
+  }
+
   return `
-    <div class="character-strip character-strip-inline" role="tablist" aria-label="Team characters">
-      ${characterTabs}
-      <button type="button" class="character-strip-add ${canAddCharacter ? "" : "is-disabled"}" data-team-action="add-character" ${canAddCharacter ? "" : "disabled"}>+</button>
+    <div class="character-grid" role="grid" aria-label="Team formation grid">
+      ${cells.join("")}
     </div>
   `;
 }
 
-function renderCharacterTab(character, characterIndex) {
-  const isSelected = characterIndex === appState.selectedTeamCharacterIndex;
+function renderCharacterGridCell(occupant, row, col, canAddCharacter) {
+  if (occupant) {
+    const { character, characterIndex } = occupant;
+    const isSelected = characterIndex === appState.selectedTeamCharacterIndex;
+    return `
+      <div class="character-grid-cell is-occupied ${isSelected ? "is-selected" : ""}" data-team-grid-cell="true" data-grid-row="${row}" data-grid-col="${col}">
+        <button
+          type="button"
+          class="character-grid-card ${isSelected ? "is-selected" : ""}"
+          data-team-action="select-character"
+          data-character-index="${characterIndex}"
+          data-team-drag-character-index="${characterIndex}"
+          draggable="true"
+          role="gridcell"
+          aria-selected="${isSelected ? "true" : "false"}"
+        >
+          <span class="character-grid-name">${escapeHtml(character.display_name || character.id || `Character ${characterIndex + 1}`)}</span>
+        </button>
+      </div>
+    `;
+  }
+
   return `
-    <button
-      type="button"
-      class="character-strip-tab ${isSelected ? "is-selected" : ""}"
-      data-team-action="select-character"
-      data-character-index="${characterIndex}"
-      role="tab"
-      aria-selected="${isSelected ? "true" : "false"}"
-    >
-      <span class="character-strip-name">${escapeHtml(character.display_name || character.id || `Character ${characterIndex + 1}`)}</span>
-      <span class="character-strip-subtle">${escapeHtml(character.id || `slot_${characterIndex + 1}`)}</span>
-    </button>
+    <div class="character-grid-cell" data-team-grid-cell="true" data-grid-row="${row}" data-grid-col="${col}">
+      <button
+        type="button"
+        class="character-grid-add ${canAddCharacter ? "" : "is-disabled"}"
+        data-team-action="add-character-at-position"
+        data-grid-row="${row}"
+        data-grid-col="${col}"
+        ${canAddCharacter ? "" : "disabled"}
+      >+</button>
+    </div>
   `;
 }
 
@@ -1128,38 +1247,23 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
   return `
     <article class="builder-character-workspace">
       <section class="builder-pane builder-pane-stats">
-        <div class="builder-pane-header">
-          <div>
-            <p class="panel-kicker">Selected Character</p>
-            <h4>${escapeHtml(character.display_name || character.id || `Character ${characterIndex + 1}`)}</h4>
-          </div>
-          <div class="editor-card-actions">
-            <button type="button" class="button-quiet" data-team-action="save-character-to-library" data-character-index="${characterIndex}">Save to Library</button>
-            <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}">Save Character</button>
-            <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}">Load Character</button>
-            <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Delete</button>
-          </div>
+        <div class="editor-card-actions editor-card-actions-wide">
+          <button type="button" class="button-quiet" data-team-action="save-character-to-library" data-character-index="${characterIndex}">Save to Library</button>
+          <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}">Save Character</button>
+          <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}">Load Character</button>
+          <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Delete</button>
         </div>
         <input class="visually-hidden" type="file" accept=".json,application/json" data-team-action="load-character-file" data-character-index="${characterIndex}">
         <div class="portrait-card">
           <div class="portrait-placeholder">${escapeHtml(getCharacterInitials(character))}</div>
           <div class="portrait-meta">
             <div>${escapeHtml(character.display_name || `Character ${characterIndex + 1}`)}</div>
-            <div>row ${character.position?.row ?? 0}, col ${character.position?.col ?? 0}</div>
+            <div>${escapeHtml(formatGridPosition(character.position?.row, character.position?.col))}</div>
           </div>
         </div>
         <div class="editor-grid">
-          <label class="field-group">
-            <span>Display Name</span>
+          <label class="field-group field-group-compact">
             <input type="text" data-character-field="display_name" data-character-index="${characterIndex}" value="${escapeHtml(character.display_name ?? "")}">
-          </label>
-          <label class="field-group">
-            <span>Row</span>
-            <input type="number" min="0" max="2" data-position-field="row" data-character-index="${characterIndex}" value="${character.position?.row ?? 0}">
-          </label>
-          <label class="field-group">
-            <span>Col</span>
-            <input type="number" min="0" max="3" data-position-field="col" data-character-index="${characterIndex}" value="${character.position?.col ?? 0}">
           </label>
         </div>
         <div class="editor-inline-grid">
@@ -1170,6 +1274,9 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
             </label>
           `).join("")}
         </div>
+      </section>
+      <section class="builder-pane builder-pane-rules">
+        ${renderCompactRules(character, characterIndex)}
       </section>
       <section class="builder-pane builder-pane-loadout">
         <div class="builder-pane-header">
@@ -1183,9 +1290,7 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
           renderLoadoutSlot(`Active ${activeIndex + 1}`, abilityName, "active", characterIndex, activeIndex)).join("")}
         ${renderLoadoutSlot("Item", character.item, "item", characterIndex)}
       </section>
-      <section class="builder-pane builder-pane-rules">
-        ${renderCompactRules(character, characterIndex)}
-      </section>
+      ${renderSelectionBrowser(character)}
     </article>
   `;
 }
@@ -1202,22 +1307,21 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
         : getAbilityDescription(value);
 
   return `
-    <section class="loadout-slot ${isSelectedBrowser ? "is-selected" : ""}">
+    <button
+      type="button"
+      class="loadout-slot ${isSelectedBrowser ? "is-selected" : ""}"
+      data-team-action="focus-browser"
+      data-browser-mode="${mode}"
+      data-browser-slot-index="${slotIndex ?? 0}"
+      data-character-index="${characterIndex}"
+    >
       <div class="loadout-slot-header">
         <span class="editor-subsection-label">${label}</span>
-        <button
-          type="button"
-          class="button-secondary"
-          data-team-action="focus-browser"
-          data-browser-mode="${mode}"
-          data-browser-slot-index="${slotIndex ?? 0}"
-          data-character-index="${characterIndex}"
-        >Browse</button>
       </div>
       <div class="loadout-slot-value"${renderTitleAttribute(description)}>
         ${escapeHtml(value || `No ${label.toLowerCase()} selected`)}
       </div>
-    </section>
+    </button>
   `;
 }
 
@@ -1234,11 +1338,11 @@ function renderCompactRules(character, characterIndex) {
             <div class="compact-rule-index">Priority ${ruleIndex + 1}</div>
             <div class="compact-rule-text">${escapeHtml(formatRulePreview(rule))}</div>
           </div>
-          <div class="editor-card-actions">
-            <button type="button" class="button-quiet" data-team-action="move-rule-up" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Up</button>
-            <button type="button" class="button-quiet" data-team-action="move-rule-down" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Down</button>
-            <button type="button" class="button-quiet" data-team-action="toggle-rule-edit" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">${isExpanded ? "Done" : "Edit"}</button>
-            <button type="button" class="button-quiet" data-team-action="remove-rule" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Remove</button>
+          <div class="rule-action-row">
+            <button type="button" class="button-quiet rule-icon-button" title="Move rule up" aria-label="Move rule up" data-team-action="move-rule-up" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">&uarr;</button>
+            <button type="button" class="button-quiet rule-icon-button" title="Move rule down" aria-label="Move rule down" data-team-action="move-rule-down" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">&darr;</button>
+            <button type="button" class="button-quiet rule-icon-button" title="${isExpanded ? "Finish editing rule" : "Edit rule"}" aria-label="${isExpanded ? "Finish editing rule" : "Edit rule"}" data-team-action="toggle-rule-edit" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">&#9998;</button>
+            <button type="button" class="button-quiet rule-icon-button" title="Delete rule" aria-label="Delete rule" data-team-action="remove-rule" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">&#128465;</button>
           </div>
         </div>
         ${isExpanded ? renderRuleEditor(characterIndex, rule, ruleIndex) : ""}
@@ -1281,7 +1385,7 @@ function renderSelectionBrowser(character) {
         : `Active ${slotIndex + 1} Browser`;
 
   return `
-    <section class="selection-browser">
+    <section class="builder-pane selection-browser">
       <div class="builder-pane-header">
         <div>
           <p class="panel-kicker">Selection Browser</p>
@@ -1471,16 +1575,6 @@ function handleTeamEditorInput(event) {
     return;
   }
 
-  if (target.dataset.positionField) {
-    const character = team.characters[characterIndex];
-    if (!character) {
-      return;
-    }
-    character.position[target.dataset.positionField] = Number(target.value);
-    syncTeamUI();
-    return;
-  }
-
   if (target.dataset.statField) {
     const character = team.characters[characterIndex];
     if (!character) {
@@ -1565,12 +1659,17 @@ function handleTeamEditorAction(event) {
   }
 
   switch (action) {
+    case "open-team-file":
+      teamEditorConfig.fileInput.click();
+      return;
+    case "save-team-file":
+      downloadTeamJson();
+      return;
     case "add-character":
-      if (team.characters.length < 5) {
-        team.characters.push(createEmptyCharacter(team.characters.length));
-        appState.selectedTeamCharacterIndex = team.characters.length - 1;
-        appState.expandedRuleIndex = null;
-      }
+      addCharacterAtFirstOpenPosition(team);
+      break;
+    case "add-character-at-position":
+      addCharacterAtPosition(team, Number(actionTarget.dataset.gridRow), Number(actionTarget.dataset.gridCol));
       break;
     case "select-character":
       appState.selectedTeamCharacterIndex = characterIndex;
@@ -1697,6 +1796,8 @@ async function loadCharacterFromFileInput(fileInput) {
       return;
     }
 
+    const existingPosition = team.characters[characterIndex]?.position ?? { row: 0, col: 0 };
+    parsedCharacter.position = { row: existingPosition.row, col: existingPosition.col };
     team.characters[characterIndex] = parsedCharacter;
     syncTeamUI();
     setTeamValidationStatus("success", `Loaded into slot ${characterIndex + 1}`);
@@ -1816,7 +1917,14 @@ function addLibraryCharacterToTeam(libraryIndex) {
     return;
   }
 
-  appState.teamConfig.characters.push(cloneCharacterConfig(character));
+  const nextCharacter = cloneCharacterConfig(character);
+  const firstOpen = findFirstOpenPosition(appState.teamConfig);
+  if (!firstOpen) {
+    renderTeamValidation({ ok: false, errors: ["A team can have at most 5 characters."] });
+    return;
+  }
+  nextCharacter.position = { row: firstOpen.row, col: firstOpen.col };
+  appState.teamConfig.characters.push(nextCharacter);
   appState.selectedTeamCharacterIndex = appState.teamConfig.characters.length - 1;
   appState.expandedRuleIndex = null;
   syncTeamUI();
@@ -1835,7 +1943,10 @@ function replaceTeamCharacterFromLibrary(button) {
     return;
   }
 
-  appState.teamConfig.characters[replaceIndex] = cloneCharacterConfig(character);
+  const nextCharacter = cloneCharacterConfig(character);
+  const replacePosition = appState.teamConfig.characters[replaceIndex]?.position ?? { row: 0, col: 0 };
+  nextCharacter.position = { row: replacePosition.row, col: replacePosition.col };
+  appState.teamConfig.characters[replaceIndex] = nextCharacter;
   appState.selectedTeamCharacterIndex = replaceIndex;
   appState.expandedRuleIndex = null;
   syncTeamUI();
@@ -1844,6 +1955,80 @@ function replaceTeamCharacterFromLibrary(button) {
 
 function cloneCharacterConfig(character) {
   return JSON.parse(JSON.stringify(character));
+}
+
+function addCharacterAtFirstOpenPosition(team) {
+  const firstOpen = findFirstOpenPosition(team);
+  if (!firstOpen) {
+    renderTeamValidation({ ok: false, errors: ["A team can have at most 5 characters."] });
+    return;
+  }
+  addCharacterAtPosition(team, firstOpen.row, firstOpen.col);
+}
+
+function addCharacterAtPosition(team, row, col) {
+  if (team.characters.length >= 5) {
+    renderTeamValidation({ ok: false, errors: ["A team can have at most 5 characters."] });
+    return;
+  }
+
+  if (!isWithinGrid(row, col)) {
+    return;
+  }
+
+  if (findCharacterIndexAtPosition(team, row, col) !== -1) {
+    return;
+  }
+
+  team.characters.push(createEmptyCharacter(team.characters.length, row, col));
+  appState.selectedTeamCharacterIndex = team.characters.length - 1;
+  appState.expandedRuleIndex = null;
+}
+
+function findFirstOpenPosition(team) {
+  for (let row = 0; row < 3; row += 1) {
+    for (let col = 0; col < 4; col += 1) {
+      if (findCharacterIndexAtPosition(team, row, col) === -1) {
+        return { row, col };
+      }
+    }
+  }
+  return null;
+}
+
+function findCharacterIndexAtPosition(team, row, col) {
+  return team.characters.findIndex((character) => character.position?.row === row && character.position?.col === col);
+}
+
+function isWithinGrid(row, col) {
+  return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row <= 2 && col >= 0 && col <= 3;
+}
+
+function moveCharacterToPosition(team, sourceIndex, row, col) {
+  if (!isWithinGrid(row, col)) {
+    return false;
+  }
+
+  const source = team.characters[sourceIndex];
+  if (!source) {
+    return false;
+  }
+
+  const targetIndex = findCharacterIndexAtPosition(team, row, col);
+  const sourceRow = source.position?.row ?? 0;
+  const sourceCol = source.position?.col ?? 0;
+
+  if (sourceRow === row && sourceCol === col) {
+    return false;
+  }
+
+  if (targetIndex >= 0 && targetIndex !== sourceIndex) {
+    team.characters[targetIndex].position = { row: sourceRow, col: sourceCol };
+  }
+
+  source.position = { row, col };
+  appState.selectedTeamCharacterIndex = sourceIndex;
+  return true;
 }
 
 function triggerJsonDownload(jsonText, filename) {
@@ -1871,11 +2056,11 @@ function slugifyFileStem(value) {
   return normalized || "export";
 }
 
-function createEmptyCharacter(index) {
+function createEmptyCharacter(index, row = 0, col = 0) {
   return {
     id: `new_character_${index + 1}`,
     display_name: "",
-    position: { row: 0, col: 0 },
+    position: { row, col },
     stats: { vit: 5, mgt: 5, mag: 5, arm: 5, res: 5, spd: 5, wil: 5 },
     passive: "",
     actives: ["", "", ""].filter(Boolean),
@@ -1915,6 +2100,89 @@ function applyBrowserSelection(target) {
   }
 
   syncTeamUI();
+}
+
+function handleTeamEditorDragStart(event) {
+  const dragTarget = event.target.closest?.("[data-team-drag-character-index]");
+  if (!(dragTarget instanceof HTMLElement) || !(event.dataTransfer instanceof DataTransfer)) {
+    return;
+  }
+
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", dragTarget.dataset.teamDragCharacterIndex ?? "");
+
+  const rect = dragTarget.getBoundingClientRect();
+  const dragPreview = dragTarget.cloneNode(true);
+  if (dragPreview instanceof HTMLElement) {
+    cleanupDragPreviewElement();
+    dragPreview.style.position = "fixed";
+    dragPreview.style.top = "-1000px";
+    dragPreview.style.left = "-1000px";
+    dragPreview.style.width = `${rect.width}px`;
+    dragPreview.style.pointerEvents = "none";
+    dragPreview.style.zIndex = "9999";
+    dragPreview.style.boxSizing = "border-box";
+    document.body.appendChild(dragPreview);
+    appState.dragPreviewElement = dragPreview;
+    event.dataTransfer.setDragImage(
+      dragPreview,
+      rect.width / 2,
+      rect.height / 2,
+    );
+    window.setTimeout(() => {
+      cleanupDragPreviewElement();
+    }, 0);
+  }
+}
+
+function handleTeamEditorDragOver(event) {
+  const cell = event.target.closest?.("[data-team-grid-cell]");
+  if (!(cell instanceof HTMLElement)) {
+    return;
+  }
+  event.preventDefault();
+  if (event.dataTransfer instanceof DataTransfer) {
+    event.dataTransfer.dropEffect = "move";
+  }
+}
+
+function handleTeamEditorDrop(event) {
+  const cell = event.target.closest?.("[data-team-grid-cell]");
+  if (!(cell instanceof HTMLElement) || !(event.dataTransfer instanceof DataTransfer)) {
+    return;
+  }
+
+  event.preventDefault();
+  const team = appState.teamConfig;
+  if (!team) {
+    return;
+  }
+
+  const sourceIndex = Number(event.dataTransfer.getData("text/plain"));
+  const row = Number(cell.dataset.gridRow);
+  const col = Number(cell.dataset.gridCol);
+  if (!Number.isInteger(sourceIndex) || sourceIndex < 0) {
+    return;
+  }
+
+  if (moveCharacterToPosition(team, sourceIndex, row, col)) {
+    syncTeamUI();
+  }
+}
+
+function cleanupDragPreviewElement() {
+  if (appState.dragPreviewElement instanceof HTMLElement) {
+    appState.dragPreviewElement.remove();
+  }
+  appState.dragPreviewElement = null;
+}
+
+function formatGridPosition(row, col) {
+  if (!isWithinGrid(row, col)) {
+    return "Unplaced";
+  }
+  const rowLabels = ["Front row", "Middle row", "Back row"];
+  return `${rowLabels[row]} · col ${col + 1}`;
 }
 
 function getBrowserEntries(mode) {
@@ -2031,278 +2299,40 @@ function shouldIgnoreGlobalKeydown(event) {
   return target.isContentEditable || tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
 }
 
-function buildReplayState(replay, selectedEventIndex) {
-  const state = {
-    teams: {
-      team_a: {
-        name: replay.teams.team_a.name,
-        characters: replay.teams.team_a.characters.map((character) => createCharacterState(character, "team_a")),
-      },
-      team_b: {
-        name: replay.teams.team_b.name,
-        characters: replay.teams.team_b.characters.map((character) => createCharacterState(character, "team_b")),
-      },
-    },
-  };
-
-  const characterIndex = indexReplayCharacters(state);
-  const cappedEventIndex = Math.min(selectedEventIndex, replay.events.length - 1);
-
-  for (let index = 0; index <= cappedEventIndex; index += 1) {
-    applyReplayEvent(characterIndex, replay.events[index]);
-  }
-
-  return state;
-}
-
-function createCharacterState(character, teamKey) {
-  return {
-    ...character,
-    team_key: teamKey,
-    current_hp: Number(character.max_hp) || 0,
-    current_mp: Number(character.max_mp) || 0,
-    alive: true,
-    statuses: {},
-    current_target_id: null,
-  };
-}
-
-function indexReplayCharacters(state) {
-  const characterIndex = new Map();
-
-  for (const team of Object.values(state.teams)) {
-    for (const character of team.characters) {
-      characterIndex.set(character.id, character);
-    }
-  }
-
-  return characterIndex;
-}
-
-function applyReplayEvent(characterIndex, event) {
-  switch (event.type) {
-    case "battle_start":
-    case "rest":
-    case "basic_attack":
-    case "passive_triggered":
-    case "turn_skipped":
-    case "battle_end":
-      return;
-    case "turn_start":
-      syncTurnStart(characterIndex, event);
-      return;
-    case "ability_used":
-      spendEventMp(characterIndex, event);
-      return;
-    case "damage":
-      applyDamageEvent(characterIndex, event);
-      return;
-    case "healing":
-      applyHealingEvent(characterIndex, event);
-      return;
-    case "status_applied":
-      applyStatusEvent(characterIndex, event);
-      return;
-    case "status_removed":
-      removeStatusEvent(characterIndex, event);
-      return;
-    case "status_tick":
-      applyStatusTickEvent(characterIndex, event);
-      return;
-    case "retargeted":
-      applyRetargetEvent(characterIndex, event);
-      return;
-    case "moved":
-      applyMovedEvent(characterIndex, event);
-      return;
-    case "resource_changed":
-      applyResourceChangeEvent(characterIndex, event);
-      return;
-    case "defeat":
-      applyDefeatEvent(characterIndex, event);
-      return;
-    default:
-      return;
-  }
-}
-
-function syncTurnStart(characterIndex, event) {
-  const character = characterIndex.get(event.actor_id);
-  if (!character) {
-    return;
-  }
-
-  if (typeof event.current_hp === "number") {
-    character.current_hp = clampValue(event.current_hp, 0, character.max_hp);
-  }
-
-  if (typeof event.current_mp === "number") {
-    character.current_mp = clampValue(event.current_mp, 0, character.max_mp);
-  }
-}
-
-function spendEventMp(characterIndex, event) {
-  const character = characterIndex.get(event.actor_id);
-  if (!character || typeof event.mp_cost !== "number") {
-    return;
-  }
-
-  character.current_mp = clampValue(character.current_mp - event.mp_cost, 0, character.max_mp);
-}
-
-function applyDamageEvent(characterIndex, event) {
-  const target = characterIndex.get(event.target_id);
-  if (!target) {
-    return;
-  }
-
-  if (typeof event.target_hp_after === "number") {
-    target.current_hp = clampValue(event.target_hp_after, 0, target.max_hp);
-  } else if (typeof event.amount === "number") {
-    target.current_hp = clampValue(target.current_hp - event.amount, 0, target.max_hp);
-  }
-
-  if (target.current_hp <= 0) {
-    target.alive = false;
-  }
-}
-
-function applyHealingEvent(characterIndex, event) {
-  const target = characterIndex.get(event.target_id);
-  if (!target) {
-    return;
-  }
-
-  if (typeof event.target_hp_after === "number") {
-    target.current_hp = clampValue(event.target_hp_after, 0, target.max_hp);
-  } else if (typeof event.amount === "number") {
-    target.current_hp = clampValue(target.current_hp + event.amount, 0, target.max_hp);
-  }
-
-  if (target.current_hp > 0) {
-    target.alive = true;
-  }
-}
-
-function applyStatusEvent(characterIndex, event) {
-  const target = characterIndex.get(event.target_id);
-  if (!target || typeof event.status !== "string") {
-    return;
-  }
-
-  if (typeof event.stacks_after === "number") {
-    target.statuses[event.status] = Math.max(event.stacks_after, 0);
-    return;
-  }
-
-  const currentStacks = target.statuses[event.status] ?? 0;
-  const stacksAdded = typeof event.stacks_added === "number" ? event.stacks_added : 0;
-  target.statuses[event.status] = Math.max(currentStacks + stacksAdded, 0);
-}
-
-function removeStatusEvent(characterIndex, event) {
-  const target = characterIndex.get(event.target_id);
-  if (!target || typeof event.status !== "string") {
-    return;
-  }
-
-  if (typeof event.stacks_after === "number") {
-    if (event.stacks_after <= 0) {
-      delete target.statuses[event.status];
-    } else {
-      target.statuses[event.status] = event.stacks_after;
-    }
-    return;
-  }
-
-  const currentStacks = target.statuses[event.status] ?? 0;
-  const removed = typeof event.stacks_removed === "number" ? event.stacks_removed : currentStacks;
-  const nextStacks = Math.max(currentStacks - removed, 0);
-  if (nextStacks <= 0) {
-    delete target.statuses[event.status];
-  } else {
-    target.statuses[event.status] = nextStacks;
-  }
-}
-
-function applyStatusTickEvent(characterIndex, event) {
-  const target = characterIndex.get(event.target_id);
-  if (!target) {
-    return;
-  }
-
-  if (event.kind === "heal") {
-    applyHealingEvent(characterIndex, event);
-    return;
-  }
-
-  applyDamageEvent(characterIndex, event);
-}
-
-function applyResourceChangeEvent(characterIndex, event) {
-  if (event.resource !== "mp") {
-    return;
-  }
-
-  const target = characterIndex.get(event.actor_id);
-  if (!target) {
-    return;
-  }
-
-  if (typeof event.value_after === "number") {
-    target.current_mp = clampValue(event.value_after, 0, target.max_mp);
-    return;
-  }
-
-  if (typeof event.delta === "number") {
-    target.current_mp = clampValue(target.current_mp + event.delta, 0, target.max_mp);
-  }
-}
-
-function applyRetargetEvent(characterIndex, event) {
-  const character = characterIndex.get(event.actor_id);
-  if (!character) {
-    return;
-  }
-
-  character.current_target_id = typeof event.new_target_id === "string" ? event.new_target_id : null;
-}
-
-function applyMovedEvent(characterIndex, event) {
-  const character = characterIndex.get(event.actor_id);
-  if (!character) {
-    return;
-  }
-
-  if (typeof event.to_row === "number") {
-    character.position.row = event.to_row;
-  }
-  if (typeof event.to_col === "number") {
-    character.position.col = event.to_col;
-  }
-}
-
-function applyDefeatEvent(characterIndex, event) {
-  const character = characterIndex.get(event.actor_id);
-  if (!character) {
-    return;
-  }
-
-  character.alive = false;
-  character.current_hp = 0;
-}
-
 function clampValue(value, minValue, maxValue) {
   return Math.max(minValue, Math.min(maxValue, value));
 }
 
+function normalizeStatusEntries(statuses) {
+  if (Array.isArray(statuses)) {
+    return statuses
+      .filter((entry) => isPlainObject(entry) && typeof entry.name === "string")
+      .map((entry) => ({
+        name: entry.name,
+        stacks: Number(entry.stacks) || 0,
+      }))
+      .filter((entry) => entry.stacks > 0);
+  }
+
+  if (!isPlainObject(statuses)) {
+    return [];
+  }
+
+  return Object.entries(statuses)
+    .map(([name, stacks]) => ({
+      name,
+      stacks: Number(stacks) || 0,
+    }))
+    .filter((entry) => entry.stacks > 0);
+}
+
 function formatStatuses(statuses) {
-  const entries = Object.entries(statuses ?? {}).filter(([, stacks]) => stacks > 0);
+  const entries = normalizeStatusEntries(statuses);
   if (entries.length === 0) {
     return "No statuses";
   }
 
-  return entries.map(([status, stacks]) => `${status} x${stacks}`).join(" • ");
+  return entries.map(({ name, stacks }) => `${name} x${stacks}`).join(" • ");
 }
 
 function getPassiveDescription(passiveName) {
@@ -2418,23 +2448,23 @@ function renderStatsBlock(label, stats) {
 }
 
 function renderStatusList(statuses) {
-  const entries = Object.entries(statuses ?? {}).filter(([, stacks]) => stacks > 0);
+  const entries = normalizeStatusEntries(statuses);
   if (entries.length === 0) {
     return "<span>No statuses</span>";
   }
 
-  return entries.map(([status, stacks]) => `<span>${escapeHtml(status)} x${stacks}</span>`).join("");
+  return entries.map(({ name, stacks }) => `<span>${escapeHtml(name)} x${stacks}</span>`).join("");
 }
 
 function calculateEffectiveStats(character) {
+  if (isPlainObject(character.effective_stats)) {
+    return { ...character.effective_stats };
+  }
+
   const baseStats = { ...(character.stats ?? {}) };
   const effectiveStats = { ...baseStats };
 
-  for (const [status, stacks] of Object.entries(character.statuses ?? {})) {
-    if (stacks <= 0) {
-      continue;
-    }
-
+  for (const { name: status, stacks } of normalizeStatusEntries(character.statuses)) {
     if (status.startsWith("Empower:")) {
       applyStatusModifier(effectiveStats, status.slice("Empower:".length), stacks);
     } else if (status.startsWith("Fortify:")) {

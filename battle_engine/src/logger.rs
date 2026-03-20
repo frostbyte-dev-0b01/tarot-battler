@@ -760,6 +760,11 @@ impl BattleLog {
     pub fn events(&self) -> &[BattleEvent] {
         &self.events
     }
+
+    #[cfg(test)]
+    pub fn snapshots(&self) -> &[ReplaySnapshotRecord] {
+        &self.snapshots
+    }
 }
 
 impl BattleEvent {
