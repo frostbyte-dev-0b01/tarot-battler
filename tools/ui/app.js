@@ -1464,10 +1464,7 @@ function renderCompactRules(character, characterIndex) {
 
   return `
     <div class="builder-pane-header">
-      <div>
-        <p class="panel-kicker">Rules</p>
-        <h4>Priority Rules</h4>
-      </div>
+      <div></div>
       <div class="editor-card-actions">
         <span class="rule-count-label">${ruleCount}/5</span>
         <button type="button" class="button-secondary" data-team-action="add-rule" data-character-index="${characterIndex}" ${canAddRule ? "" : "disabled"}>Add Rule</button>
@@ -1559,36 +1556,23 @@ function renderBrowserEntry(entry, mode, slotIndex, currentValue) {
 function renderRuleEditor(characterIndex, rule, ruleIndex) {
   if (!rule) {
     return `
-      <div class="builder-pane-header">
-        <div>
-          <p class="panel-kicker">Condition Editor</p>
-          <h4>Rule Detail</h4>
-        </div>
-      </div>
       <div class="board-empty-state">Select or add a rule to edit its condition.</div>
     `;
   }
 
+  const equippedAbilityNames = normalizeActiveSelections(appState.teamConfig?.characters?.[characterIndex]?.actives)
+    .filter((name) => name && name.trim() !== "");
   const abilityOptions = buildSelectOptions(
-    appState.catalogs.abilities,
+    equippedAbilityNames,
     rule.ability ?? "",
     "No ability selected",
   );
   const condition = rule.when?.[0] ?? null;
 
   return `
-    <div class="builder-pane-header">
-      <div>
-        <p class="panel-kicker">Condition Editor</p>
-        <h4>Priority ${ruleIndex + 1}</h4>
-      </div>
-    </div>
     <article class="editor-card">
       <div class="editor-card-header">
-        <div>
-          <h6>Rule Action</h6>
-          <div class="rule-preview">${escapeHtml(formatRulePreview(rule))}</div>
-        </div>
+        <div class="rule-preview">${escapeHtml(formatRulePreview(rule))}</div>
       </div>
       <label class="field-group">
         <span>Ability</span>
@@ -1597,11 +1581,10 @@ function renderRuleEditor(characterIndex, rule, ruleIndex) {
         </select>
       </label>
       <div class="editor-card-header">
-        <span class="editor-subsection-label">Condition</span>
         <div class="editor-card-actions">
           ${
             condition
-              ? `<button type="button" class="button-quiet" data-team-action="remove-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="0">Clear Condition</button>`
+              ? ``
               : `<button type="button" class="button-secondary" data-team-action="add-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Add Condition</button>`
           }
         </div>
@@ -1642,13 +1625,12 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
   return `
     <div class="editor-card">
       <div class="editor-card-header">
-        <h6>Condition ${conditionIndex + 1}</h6>
+        <div class="condition-preview">${escapeHtml(formatConditionPreview(condition))}</div>
         <div class="editor-card-actions">
-          <button type="button" class="button-quiet" data-team-action="remove-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">Remove</button>
+          <button type="button" class="button-quiet rule-icon-button" title="Remove condition" aria-label="Remove condition" data-team-action="remove-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">&#128465;</button>
         </div>
       </div>
-      <div class="condition-preview">${escapeHtml(formatConditionPreview(condition))}</div>
-      <div class="editor-grid">
+      <div class="condition-grid">
         <label class="field-group">
           <span>Subject</span>
           <select data-condition-field="subject" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">

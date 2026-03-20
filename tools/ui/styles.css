@@ -360,6 +360,7 @@ main {
 }
 
 .field-group input,
+.field-group select,
 .field-group textarea {
   width: 100%;
   border: 1px solid rgba(33, 25, 16, 0.15);
@@ -783,6 +784,13 @@ main {
 
 .editor-grid-wide {
   grid-column: 1 / -1;
+}
+
+.condition-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
 }
 
 .editor-card {
