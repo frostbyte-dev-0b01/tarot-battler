@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "name": "Guardian Column",
+  "characters": [
+    {
+      "id": "justice",
+      "display_name": "Justice",
+      "position": { "row": 0, "col": 0 },
+      "stats": { "vit": 15, "mgt": 12, "mag": 8, "arm": 7, "res": 7, "spd": 8, "wil": 10 },
+      "passive": "Sentence",
+      "actives": ["Rebuke", "Condemn", "Verdict"],
+      "item": null,
+      "rules": [
+        { "ability": "Verdict", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 3 }] },
+        { "ability": "Condemn", "when": [{ "subject": "target", "value": { "has_status": "Omen" }, "op": "gte", "threshold": 1 }] },
+        { "ability": "Rebuke", "when": [] }
+      ]
+    },
+    {
+      "id": "the_emperor",
+      "display_name": "The Emperor",
+      "position": { "row": 0, "col": 1 },
+      "stats": { "vit": 12, "mgt": 12, "mag": 8, "arm": 7, "res": 5, "spd": 8, "wil": 12 },
+      "passive": "Imperial Formation",
+      "actives": ["Hold the Line", "Interpose", "Command"],
+      "item": null,
+      "rules": [
+        { "ability": "Hold the Line", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 5 }] },
+        { "ability": "Interpose", "when": [{ "subject": "companion", "value": "hp", "op": "lte", "threshold": 14 }] },
+        { "ability": "Command", "when": [{ "subject": "companion", "value": "hp", "op": "gte", "threshold": 1 }] }
+      ]
+    },
+    {
+      "id": "the_hierophant",
+      "display_name": "The Hierophant",
+      "position": { "row": 1, "col": 1 },
+      "stats": { "vit": 14, "mgt": 8, "mag": 12, "arm": 5, "res": 8, "spd": 8, "wil": 14 },
+      "passive": "Sanctuary",
+      "actives": ["Sanctify", "Blessing", "Smite"],
+      "item": null,
+      "rules": [
+        { "ability": "Blessing", "when": [{ "subject": "companion", "value": "mp", "op": "lte", "threshold": 2 }] },
+        { "ability": "Sanctify", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 4 }] },
+        { "ability": "Smite", "when": [] }
+      ]
+    },
+    {
+      "id": "the_moon",
+      "display_name": "The Moon",
+      "position": { "row": 2, "col": 1 },
+      "stats": { "vit": 10, "mgt": 8, "mag": 15, "arm": 4, "res": 6, "spd": 12, "wil": 14 },
+      "passive": "Foreboding",
+      "actives": ["Hex", "Eclipse", "Harvest Night"],
+      "item": null,
+      "rules": [
+        { "ability": "Harvest Night", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 4 }] },
+        { "ability": "Eclipse", "when": [{ "subject": "target", "value": "target_companion_count", "op": "gte", "threshold": 1 }] },
+        { "ability": "Hex", "when": [] }
+      ]
+    }
+  ]
+}

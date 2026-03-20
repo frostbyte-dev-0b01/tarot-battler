@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "name": "Sever Rush",
+  "characters": [
+    {
+      "id": "the_chariot",
+      "display_name": "The Chariot",
+      "position": { "row": 0, "col": 0 },
+      "stats": { "vit": 10, "mgt": 15, "mag": 8, "arm": 5, "res": 4, "spd": 14, "wil": 10 },
+      "passive": "Pursuit",
+      "actives": ["Charge", "Sever", "Withdraw"],
+      "item": null,
+      "rules": [
+        { "ability": "Sever", "when": [{ "subject": "self", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 3 }] },
+        { "ability": "Withdraw", "when": [{ "subject": "self", "value": "hp", "op": "lte", "threshold": 15 }] },
+        { "ability": "Charge", "when": [] }
+      ]
+    },
+    {
+      "id": "justice",
+      "display_name": "Justice",
+      "position": { "row": 0, "col": 1 },
+      "stats": { "vit": 15, "mgt": 12, "mag": 8, "arm": 7, "res": 7, "spd": 8, "wil": 10 },
+      "passive": "Sentence",
+      "actives": ["Rebuke", "Condemn", "Verdict"],
+      "item": null,
+      "rules": [
+        { "ability": "Verdict", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 3 }] },
+        { "ability": "Condemn", "when": [{ "subject": "target", "value": { "has_status": "Omen" }, "op": "gte", "threshold": 1 }] },
+        { "ability": "Rebuke", "when": [] }
+      ]
+    },
+    {
+      "id": "the_emperor",
+      "display_name": "The Emperor",
+      "position": { "row": 0, "col": 2 },
+      "stats": { "vit": 12, "mgt": 12, "mag": 8, "arm": 7, "res": 5, "spd": 8, "wil": 12 },
+      "passive": "Imperial Formation",
+      "actives": ["Command", "Sunder", "Taunt"],
+      "item": null,
+      "rules": [
+        { "ability": "Taunt", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 4 }] },
+        { "ability": "Command", "when": [{ "subject": "companion", "value": "hp", "op": "gte", "threshold": 1 }] },
+        { "ability": "Sunder", "when": [] }
+      ]
+    },
+    {
+      "id": "the_magician",
+      "display_name": "The Magician",
+      "position": { "row": 2, "col": 1 },
+      "stats": { "vit": 8, "mgt": 8, "mag": 14, "arm": 4, "res": 5, "spd": 12, "wil": 16 },
+      "passive": "Catalyst",
+      "actives": ["Offer", "Seal", "Transmute"],
+      "item": null,
+      "rules": [
+        { "ability": "Transmute", "when": [{ "subject": "target", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 1 }] },
+        { "ability": "Offer", "when": [{ "subject": "self", "value": "use_count", "op": "lte", "threshold": 0 }] },
+        { "ability": "Seal", "when": [] }
+      ]
+    }
+  ]
+}
