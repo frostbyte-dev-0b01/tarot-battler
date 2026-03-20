@@ -405,3 +405,13 @@ This order gets replay inspection working early, which is likely the highest-val
 - Defeated units should remain visible but muted
 - Statuses should start as compact text labels, not bespoke icons
 - The UI should prioritize clarity and debugging value over visual flair
+
+### Future Replay Polish
+
+- Event text should eventually support rich color styling:
+  - friendly unit names in blue
+  - enemy unit names in orange
+  - damage in red
+  - healing in green
+  - this should apply both in the battle log and the current-event summary
+- Statuses and conditions should eventually gain compact icons so they can be shown directly on character cards without relying only on text

@@ -1730,7 +1730,7 @@ textarea:focus-visible {
 }
 
 .compact-bar-fill-hp {
-  background: #3fd6a7;
+  background: linear-gradient(90deg, #c0392b, #dd6b55);
 }
 
 .compact-bar-fill-mp {
@@ -2093,4 +2093,13 @@ textarea:focus-visible {
   .character-grid {
     grid-template-columns: 1fr;
   }
+}
+.replay-open-button {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-size: 1.1rem;
+  line-height: 1;
 }

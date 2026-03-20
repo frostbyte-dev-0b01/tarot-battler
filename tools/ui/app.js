@@ -3,7 +3,6 @@ const workspaces = document.querySelectorAll(".workspace");
 const replayFileInput = document.querySelector("#replay-file-input");
 const replayFileButton = document.querySelector("#replay-file-button");
 const replayJsonInput = document.querySelector("#replay-json-input");
-const replayLoadButton = document.querySelector("#replay-load-button");
 const replayDemoButton = document.querySelector("#replay-demo-button");
 const replayValidationOutput = document.querySelector("#replay-validation-output");
 const latestReplayPath = "./sample-data/latest_replay.json";
@@ -213,6 +212,13 @@ function setActiveReplaySidebarPanel(panelName) {
     const isActive = toggle.dataset.replayPanelToggle === panelName;
     toggle.setAttribute("aria-expanded", isActive ? "true" : "false");
   }
+
+  if (panelName === "log") {
+    window.requestAnimationFrame(() => {
+      const selectedEvent = timelineList?.querySelector(".timeline-event.is-selected");
+      selectedEvent?.scrollIntoView({ block: "center" });
+    });
+  }
 }
 
 for (const toggle of replaySidebarToggles) {
@@ -221,16 +227,14 @@ for (const toggle of replaySidebarToggles) {
   });
 }
 
-replayLoadButton.addEventListener("click", () => {
-  const sourceText = replayJsonInput.value.trim();
-
+function loadReplayFromText(sourceText) {
   if (!sourceText) {
     renderReplayValidation({
       ok: false,
       errors: ["Replay JSON input is empty."],
     });
     resetMetadata();
-    return;
+    return false;
   }
 
   try {
@@ -244,6 +248,7 @@ replayLoadButton.addEventListener("click", () => {
       renderReplayMetadata(parsedReplay);
       renderCurrentReplay();
       renderPlaybackControls();
+      return true;
     } else {
       appState.replay = null;
       appState.selectedEventIndex = -1;
@@ -253,6 +258,7 @@ replayLoadButton.addEventListener("click", () => {
       resetBoards();
       renderPlaybackControls();
       renderInspector(null);
+      return false;
     }
   } catch (error) {
     renderReplayValidation({
@@ -267,8 +273,9 @@ replayLoadButton.addEventListener("click", () => {
     resetBoards();
     renderPlaybackControls();
     renderInspector(null);
+    return false;
   }
-});
+}
 
 replayDemoButton.addEventListener("click", () => {
   void loadLatestReplay();
@@ -287,7 +294,7 @@ replayFileInput.addEventListener("change", async (event) => {
   try {
     const content = await file.text();
     replayJsonInput.value = content;
-    replayLoadButton.click();
+    loadReplayFromText(content.trim());
   } catch (error) {
     renderReplayValidation({
       ok: false,
@@ -500,7 +507,7 @@ async function loadLatestReplay() {
 
     const content = await response.text();
     replayJsonInput.value = content;
-    replayLoadButton.click();
+    loadReplayFromText(content.trim());
   } catch (error) {
     renderReplayValidation({
       ok: false,
@@ -735,7 +742,6 @@ function bindTimelineEvents() {
   for (const button of eventButtons) {
     button.addEventListener("click", () => {
       const index = Number(button.dataset.eventIndex);
-      setSelectedCharacterId(getPrimaryEventCharacter(appState.replay.events[index]));
       setSelectedEventIndex(index);
     });
   }
@@ -2579,7 +2585,7 @@ function renderEffectiveStats(baseStats, effectiveStats) {
 function renderStatusList(statuses) {
   const entries = normalizeStatusEntries(statuses);
   if (entries.length === 0) {
-    return "<span>No statuses</span>";
+    return "";
   }
 
   return entries.map(({ name, stacks }) => `<span>${escapeHtml(name)} x${stacks}</span>`).join("");
@@ -2588,7 +2594,7 @@ function renderStatusList(statuses) {
 function renderConditionList(conditions) {
   const entries = normalizeConditionEntries(conditions);
   if (entries.length === 0) {
-    return "<span>No conditions</span>";
+    return "";
   }
 
   return entries.map(({ name, stacks }) => `<span>${escapeHtml(name)} x${stacks}</span>`).join("");

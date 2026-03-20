@@ -20,9 +20,8 @@
 
         <div class="replay-inline-actions" id="replay-inline-actions" aria-label="Replay loading actions">
           <input id="replay-file-input" class="visually-hidden" type="file" accept=".json,application/json">
-          <button id="replay-file-button" type="button" class="button-quiet">Open Replay</button>
+          <button id="replay-file-button" type="button" class="icon-button replay-open-button button-quiet" title="Open replay JSON" aria-label="Open replay JSON">📂</button>
           <button id="replay-demo-button" type="button" class="button-secondary">Load Latest Replay</button>
-          <button id="replay-load-button" type="button">Load Pasted Replay</button>
         </div>
       </div>
 
@@ -100,7 +99,7 @@
             class="visually-hidden"
             rows="10"
             spellcheck="false"
-            placeholder='Paste replay JSON here, then click "Load Pasted Replay".'
+            placeholder="Replay JSON buffer"
           ></textarea>
 
           <div class="replay-stage">
