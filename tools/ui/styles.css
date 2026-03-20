@@ -836,6 +836,26 @@ main {
   gap: 8px;
 }
 
+.stat-label-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+
+.stat-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
 .editor-rule-section {
   display: grid;
   gap: 8px;

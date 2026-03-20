@@ -1164,11 +1164,13 @@ function resetTeamSummary() {
 
 function syncTeamUI() {
   const teamConfig = appState.teamConfig;
+  const preservedFocus = captureTeamEditorFocus();
   if (!teamConfig) {
     resetTeamSummary();
     appState.selectedTeamCharacterIndex = 0;
     appState.expandedRuleIndex = null;
     renderTeamEditor();
+    restoreTeamEditorFocus(preservedFocus);
     return;
   }
   appState.selectedTeamCharacterIndex = clampValue(
@@ -1185,6 +1187,69 @@ function syncTeamUI() {
   renderTeamSummary(teamConfig);
   renderTeamValidation(validateTeamConfig(teamConfig));
   renderTeamEditor();
+  restoreTeamEditorFocus(preservedFocus);
+}
+
+function captureTeamEditorFocus() {
+  const activeElement = document.activeElement;
+  if (!(activeElement instanceof HTMLInputElement) && !(activeElement instanceof HTMLSelectElement) && !(activeElement instanceof HTMLTextAreaElement)) {
+    return null;
+  }
+
+  if (!teamEditorConfig.editor?.contains(activeElement)) {
+    return null;
+  }
+
+  return {
+    teamField: activeElement.dataset.teamField ?? "",
+    characterField: activeElement.dataset.characterField ?? "",
+    statField: activeElement.dataset.statField ?? "",
+    positionField: activeElement.dataset.positionField ?? "",
+    ruleField: activeElement.dataset.ruleField ?? "",
+    conditionField: activeElement.dataset.conditionField ?? "",
+    characterIndex: activeElement.dataset.characterIndex ?? "",
+    ruleIndex: activeElement.dataset.ruleIndex ?? "",
+    conditionIndex: activeElement.dataset.conditionIndex ?? "",
+    selectionStart: activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement
+      ? activeElement.selectionStart
+      : null,
+    selectionEnd: activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement
+      ? activeElement.selectionEnd
+      : null,
+  };
+}
+
+function restoreTeamEditorFocus(snapshot) {
+  if (!snapshot || !teamEditorConfig.editor) {
+    return;
+  }
+
+  const selectorParts = [];
+  if (snapshot.teamField) selectorParts.push(`[data-team-field="${snapshot.teamField}"]`);
+  if (snapshot.characterField) selectorParts.push(`[data-character-field="${snapshot.characterField}"]`);
+  if (snapshot.statField) selectorParts.push(`[data-stat-field="${snapshot.statField}"]`);
+  if (snapshot.positionField) selectorParts.push(`[data-position-field="${snapshot.positionField}"]`);
+  if (snapshot.ruleField) selectorParts.push(`[data-rule-field="${snapshot.ruleField}"]`);
+  if (snapshot.conditionField) selectorParts.push(`[data-condition-field="${snapshot.conditionField}"]`);
+  if (snapshot.characterIndex) selectorParts.push(`[data-character-index="${snapshot.characterIndex}"]`);
+  if (snapshot.ruleIndex) selectorParts.push(`[data-rule-index="${snapshot.ruleIndex}"]`);
+  if (snapshot.conditionIndex) selectorParts.push(`[data-condition-index="${snapshot.conditionIndex}"]`);
+
+  if (selectorParts.length === 0) {
+    return;
+  }
+
+  const nextElement = teamEditorConfig.editor.querySelector(selectorParts.join(""));
+  if (!(nextElement instanceof HTMLElement)) {
+    return;
+  }
+
+  nextElement.focus();
+  if ((nextElement instanceof HTMLInputElement || nextElement instanceof HTMLTextAreaElement)
+    && snapshot.selectionStart != null
+    && snapshot.selectionEnd != null) {
+    nextElement.setSelectionRange(snapshot.selectionStart, snapshot.selectionEnd);
+  }
 }
 
 function renderTeamValidation(result) {
@@ -1385,7 +1450,10 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
               <div class="editor-inline-grid">
                 ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((statKey) => `
                   <label class="field-group">
-                    <span>${statKey.toUpperCase()}</span>
+                    <span class="stat-label-with-icon">
+                      ${renderStatIcon(statKey)}
+                      <span>${statKey.toUpperCase()}</span>
+                    </span>
                     <input type="number" data-stat-field="${statKey}" data-character-index="${characterIndex}" value="${character.stats?.[statKey] ?? 0}">
                   </label>
                 `).join("")}
@@ -2308,6 +2376,19 @@ function getCharacterInitials(character) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function renderStatIcon(statKey) {
+  const icons = {
+    vit: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13s-4.5-2.7-4.5-6.1A2.4 2.4 0 0 1 8 5a2.4 2.4 0 0 1 4.5 1.9C12.5 10.3 8 13 8 13Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+    mgt: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 10.5c.8 1.2 2 2 3.7 2h1.8v-2.2l-1.3-.6-.4-1.5 1.2-1.7 2 .6.8 1.9v4H8.7c-2.4 0-4-1.1-4.9-2.9L5 10.5Zm5.5-6 .8-1.4 1.9.8-.8 1.5-1.9-.9Z" fill="currentColor"/></svg>',
+    mag: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m8 2 1.2 3.1L12.5 6 9.9 8.1l.8 3.4L8 9.7l-2.7 1.8.8-3.4L3.5 6l3.3-.9L8 2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+    arm: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 12 3.7v3.1c0 2.5-1.5 4.7-4 6-2.5-1.3-4-3.5-4-6V3.7L8 2.2Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    res: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 12.8 5v6L8 13.8 3.2 11V5L8 2.2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
+    spd: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 9.5h4L5.7 13l7.3-6.5H9L10.3 3 3 9.5Z" fill="currentColor"/></svg>',
+    wil: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5c2 1.7 3 3.2 3 5 0 1.9-1.3 3.5-3 5-1.7-1.5-3-3.1-3-5 0-1.8 1-3.3 3-5Z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 5.2c.8.8 1.1 1.5 1.1 2.2 0 .9-.4 1.6-1.1 2.4-.7-.8-1.1-1.5-1.1-2.4 0-.7.3-1.4 1.1-2.2Z" fill="currentColor"/></svg>',
+  };
+  return `<span class="stat-icon" aria-hidden="true">${icons[statKey] ?? ""}</span>`;
 }
 
 function renderTitleAttribute(text) {
