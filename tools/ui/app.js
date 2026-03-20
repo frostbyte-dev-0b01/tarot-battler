@@ -2740,6 +2740,8 @@ function formatTimelineText(event) {
       return `${formatCharacterLabel(event.source_id, event.source_name)} deals ${event.amount ?? "?"} ${event.damage_kind ?? ""} damage to ${formatCharacterLabel(event.target_id, event.target_name)}.`;
     case "healing":
       return `${formatCharacterLabel(event.source_id, event.source_name)} restores ${event.amount ?? "?"} HP to ${formatCharacterLabel(event.target_id, event.target_name)}.`;
+    case "mp_restore":
+      return `${formatCharacterLabel(event.source_id, event.source_name)} restores ${event.amount ?? "?"} MP to ${formatCharacterLabel(event.target_id, event.target_name)}.`;
     case "status_applied":
       return `${formatCharacterLabel(event.target_id, event.target_name)} gains ${event.status ?? "a status"} (${event.stacks_after ?? "?"} stacks).`;
     case "condition_applied":
