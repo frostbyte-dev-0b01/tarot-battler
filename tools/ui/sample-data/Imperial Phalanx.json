@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "name": "Imperial Phalanx",
+  "characters": [
+    {
+      "id": "the_emperor",
+      "display_name": "The Emperor",
+      "position": {
+        "row": 0,
+        "col": 0
+      },
+      "stats": {
+        "vit": 12,
+        "mgt": 12,
+        "mag": 8,
+        "arm": 7,
+        "res": 5,
+        "spd": 8,
+        "wil": 12
+      },
+      "passive": "Imperial Formation",
+      "actives": [
+        "Hold the Line",
+        "Command",
+        "Taunt"
+      ],
+      "item": null,
+      "rules": [
+        {
+          "ability": "Hold the Line",
+          "when": [
+            {
+              "subject": "self",
+              "value": "mp",
+              "op": "gte",
+              "threshold": 4
+            },
+            {
+              "subject": "self",
+              "value": "use_count",
+              "op": "lte",
+              "threshold": 0
+            }
+          ]
+        },
+        {
+          "ability": "Taunt",
+          "when": [
+            {
+              "subject": "self",
+              "value": "mp",
+              "op": "gte",
+              "threshold": 4
+            },
+            {
+              "subject": "self",
+              "value": "use_count",
+              "op": "lte",
+              "threshold": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "the_hierophant",
+      "display_name": "The Hierophant",
+      "position": {
+        "row": 0,
+        "col": 2
+      },
+      "stats": {
+        "vit": 14,
+        "mgt": 8,
+        "mag": 12,
+        "arm": 5,
+        "res": 8,
+        "spd": 8,
+        "wil": 14
+      },
+      "passive": "Sanctuary",
+      "actives": [
+        "Smite",
+        "Consecrate",
+        "Blessing"
+      ],
+      "item": null,
+      "rules": [
+        {
+          "ability": "Blessing",
+          "when": [
+            {
+              "subject": "self",
+              "value": "mp",
+              "op": "gte",
+              "threshold": 4
+            },
+            {
+              "subject": "self",
+              "value": "use_count",
+              "op": "lte",
+              "threshold": 0
+            }
+          ]
+        },
+        {
+          "ability": "Consecrate",
+          "when": [
+            {
+              "subject": "world",
+              "value": "enemy_count",
+              "op": "gte",
+              "threshold": 2
+            }
+          ]
+        },
+        {
+          "ability": "Smite",
+          "when": []
+        }
+      ]
+    },
+    {
+      "id": "the_chariot",
+      "display_name": "The Chariot",
+      "position": {
+        "row": 1,
+        "col": 1
+      },
+      "stats": {
+        "vit": 10,
+        "mgt": 15,
+        "mag": 8,
+        "arm": 5,
+        "res": 4,
+        "spd": 14,
+        "wil": 10
+      },
+      "passive": "Pursuit",
+      "actives": [
+        "Charge",
+        "Withdraw",
+        "Breakthrough"
+      ],
+      "item": null,
+      "rules": [
+        {
+          "ability": "Breakthrough",
+          "when": [
+            {
+              "subject": "self",
+              "value": {
+                "status_stacks": "Empower:MGT"
+              },
+              "op": "gte",
+              "threshold": 3
+            }
+          ]
+        },
+        {
+          "ability": "Charge",
+          "when": [
+            {
+              "subject": "self",
+              "value": "use_count",
+              "op": "lte",
+              "threshold": 0
+            }
+          ]
+        },
+        {
+          "ability": "Withdraw",
+          "when": [
+            {
+              "subject": "self",
+              "value": {
+                "has_status": "Ward"
+              },
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

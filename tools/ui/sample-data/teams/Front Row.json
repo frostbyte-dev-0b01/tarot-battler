@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "name": "Front Row",
+  "characters": [
+    {
+      "id": "the_emperor",
+      "display_name": "The Emperor",
+      "position": {
+        "row": 0,
+        "col": 1
+      },
+      "stats": {
+        "vit": 12,
+        "mgt": 12,
+        "mag": 8,
+        "arm": 7,
+        "res": 5,
+        "spd": 8,
+        "wil": 12
+      },
+      "passive": "Imperial Formation",
+      "actives": [
+        "Verdict",
+        "Sunder",
+        "Taunt"
+      ],
+      "item": null,
+      "rules": [
+        {
+          "ability": "Taunt",
+          "when": [
+            {
+              "subject": "self",
+              "value": "use_count",
+              "op": "lte",
+              "threshold": 0
+            }
+          ]
+        },
+        {
+          "ability": "Verdict",
+          "when": [
+            {
+              "subject": "target",
+              "value": "hp",
+              "op": "gte",
+              "threshold": 8
+            }
+          ]
+        },
+        {
+          "ability": "Sunder",
+          "when": []
+        }
+      ]
+    },
+    {
+      "id": "the_hierophant",
+      "display_name": "The Hierophant",
+      "position": {
+        "row": 0,
+        "col": 3
+      },
+      "stats": {
+        "vit": 14,
+        "mgt": 8,
+        "mag": 12,
+        "arm": 5,
+        "res": 8,
+        "spd": 8,
+        "wil": 14
+      },
+      "passive": "Sanctuary",
+      "actives": [
+        "Smite",
+        "Consecrate",
+        "Blessing"
+      ],
+      "item": null,
+      "rules": [
+        {
+          "ability": "Consecrate",
+          "when": [
+            {
+              "subject": "world",
+              "value": "enemy_count",
+              "op": "gte",
+              "threshold": 2
+            }
+          ]
+        },
+        {
+          "ability": "Blessing",
+          "when": [
+            {
+              "subject": "world",
+              "value": "ally_count",
+              "op": "gte",
+              "threshold": 2
+            }
+          ]
+        },
+        {
+          "ability": "Smite",
+          "when": []
+        }
+      ]
+    },
+    {
+      "id": "the_chariot",
+      "display_name": "The Chariot",
+      "position": {
+        "row": 0,
+        "col": 0
+      },
+      "stats": {
+        "vit": 10,
+        "mgt": 15,
+        "mag": 8,
+        "arm": 5,
+        "res": 4,
+        "spd": 14,
+        "wil": 10
+      },
+      "passive": "Pursuit",
+      "actives": [
+        "Command",
+        "Decoy",
+        "Breakthrough"
+      ],
+      "item": null,
+      "rules": [
+        {
+          "ability": "Decoy",
+          "when": [
+            {
+              "subject": "self",
+              "value": "hp",
+              "op": "lte",
+              "threshold": 10
+            }
+          ]
+        },
+        {
+          "ability": "Breakthrough",
+          "when": [
+            {
+              "subject": "self",
+              "value": {
+                "status_stacks": "Empower:MGT"
+              },
+              "op": "gte",
+              "threshold": 3
+            }
+          ]
+        },
+        {
+          "ability": "Command",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "hp",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Breakthrough",
+          "when": []
+        }
+      ]
+    }
+  ]
+}

@@ -24,41 +24,14 @@
       </nav>
 
       <main>
-        <section class="workspace is-active" id="team-builder" aria-labelledby="team-builder-heading">
-          <div class="workspace-header">
-            <div>
-              <h2 id="team-builder-heading">Team Builder</h2>
-            </div>
-          </div>
-
+        <section class="workspace is-active" id="team-builder" aria-label="Team Builder">
           <div class="team-builder-layout">
-            <section class="panel panel-team" aria-labelledby="team-editor-heading">
-              <div class="panel-header">
-                <h3 id="team-editor-heading">Team Builder</h3>
-              </div>
+            <section class="panel panel-team" aria-label="Team Builder Editor">
               <div class="panel-body team-loader-body">
-                <div class="team-loader-topline">
-                  <label class="field-group">
-                    <span class="visually-hidden">Team file</span>
-                    <input id="team-file-input" type="file" accept=".json,application/json">
-                  </label>
-                  <div class="button-row button-row-three">
-                    <button id="team-load-button" type="button">Load Pasted Team</button>
-                    <button id="team-demo-button" type="button" class="button-secondary">Load Sample Team</button>
-                    <button id="team-copy-button" type="button" class="button-quiet">Copy JSON</button>
-                    <button id="team-download-button" type="button" class="button-quiet">Download JSON</button>
-                  </div>
-                  <div id="team-validation-output" class="validation-inline validation-inline-idle">
-                    <span class="validation-inline-icon">•</span>
-                    <span class="validation-inline-text">No team loaded</span>
-                  </div>
+                <input id="team-file-input" class="visually-hidden" type="file" accept=".json,application/json">
+                <div id="team-editor" class="team-editor-shell">
+                  <div class="board-empty-state">Load a team to edit it here.</div>
                 </div>
-                <section class="status-panel" aria-labelledby="team-editor-structured-heading">
-                  <h4 id="team-editor-structured-heading" class="visually-hidden">Structured Editor</h4>
-                  <div id="team-editor" class="team-editor-shell">
-                    <div class="board-empty-state">Load a team to edit it here.</div>
-                  </div>
-                </section>
               </div>
             </section>
           </div>
@@ -71,6 +44,17 @@
             <details class="panel-body collapsible-panel">
               <summary>Open raw JSON tools</summary>
               <div class="placeholder-stack">
+                <div class="import-export-topline">
+                  <div class="button-row button-row-three">
+                    <button id="team-load-button" type="button">Load Pasted Team</button>
+                    <button id="team-copy-button" type="button" class="button-quiet">Copy JSON</button>
+                    <button id="team-download-button" type="button" class="button-quiet">Download JSON</button>
+                  </div>
+                  <div id="team-validation-output" class="validation-inline validation-inline-idle">
+                    <span class="validation-inline-icon">•</span>
+                    <span class="validation-inline-text">No team loaded</span>
+                  </div>
+                </div>
                 <div class="placeholder-block">
                   <strong>Import paths</strong>
                   <p>Teams can be loaded from pasted JSON, local files, or the bundled sample lineup. Saved character JSON can be reused across teams.</p>
