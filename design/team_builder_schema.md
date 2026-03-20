@@ -45,7 +45,7 @@ For now, full loadouts are easier to edit by hand and simpler to support in dev 
 - character `id` values must be unique within the team
 - character positions must be unique within the team
 - valid rows are `0..=2`
-- valid columns are `0..=3`
+- valid columns are `0..=2`
 
 ## CharacterLoadout
 

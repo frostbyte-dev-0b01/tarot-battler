@@ -47,7 +47,7 @@ Each character loadout consists of:
 - two or three equipped active abilities
 - up to five ordered rules
 - one item slot
-- a formation position on a 4-column by 3-row grid
+- a formation position on a 3-column by 3-row grid
 
 ### Character Stats
 
@@ -81,7 +81,7 @@ Conceptually, the long-term design likely lands on much larger total stat budget
 
 ## Formation
 
-Battles are played on a 4-column by 3-row formation grid:
+Battles are played on a 3-column by 3-row formation grid:
 
 - row 0: front
 - row 1: middle

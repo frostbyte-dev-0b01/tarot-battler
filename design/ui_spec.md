@@ -63,7 +63,7 @@ The recommended team builder layout is:
 
 ### Main Board
 
-The center of the replay viewer should display both teams on a 4-column by 3-row grid.
+The center of the replay viewer should display both teams on a 3-column by 3-row grid.
 
 Each team board should:
 
@@ -399,7 +399,7 @@ This order gets replay inspection working early, which is likely the highest-val
 
 ## Design Notes
 
-- The board should visibly preserve empty spaces in the 4x3 grid
+- The board should visibly preserve empty spaces in the 3x3 grid
 - The right-hand log should explain events, not replace state rendering
 - The viewer should highlight source and target units for the selected event
 - Defeated units should remain visible but muted

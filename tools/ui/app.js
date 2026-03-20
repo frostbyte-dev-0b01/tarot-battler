@@ -882,11 +882,11 @@ function renderBattleBoard(container, replayState) {
     }
   }
 
-  const rowLabels = Array.from({ length: 4 }, (_, rowIndex) => `
+  const rowLabels = Array.from({ length: 3 }, (_, rowIndex) => `
     <div class="arena-row-label arena-row-label-${rowIndex}">row ${rowIndex + 1}</div>
   `).join("");
 
-  const cellsMarkup = Array.from({ length: 4 }, (_, colIndex) => {
+  const cellsMarkup = Array.from({ length: 3 }, (_, colIndex) => {
     return Array.from({ length: 7 }, (_, depthIndex) => {
       const isGap = depthIndex === 3;
       const character = occupantMap.get(`${colIndex}:${depthIndex}`);
@@ -916,7 +916,7 @@ function isReplayPosition(position) {
     && position.row >= 0
     && position.row < 3
     && position.col >= 0
-    && position.col < 4;
+    && position.col < 3;
 }
 
 function renderUnitCard(character) {
@@ -1120,8 +1120,8 @@ function validateCharacterConfig(candidate, prefix = "character") {
     if (!Number.isInteger(row) || row < 0 || row > 2) {
       errors.push(`${prefix}.position.row must be an integer from 0 to 2.`);
     }
-    if (!Number.isInteger(col) || col < 0 || col > 3) {
-      errors.push(`${prefix}.position.col must be an integer from 0 to 3.`);
+    if (!Number.isInteger(col) || col < 0 || col > 2) {
+      errors.push(`${prefix}.position.col must be an integer from 0 to 2.`);
     }
   }
 
@@ -1308,7 +1308,7 @@ function renderCharacterGrid(team) {
   const canAddCharacter = team.characters.length < 5;
   const cells = [];
   for (let row = 0; row < 3; row += 1) {
-    for (let col = 0; col < 4; col += 1) {
+    for (let col = 0; col < 3; col += 1) {
       const occupant = occupantMap.get(`${row}:${col}`);
       cells.push(renderCharacterGridCell(occupant, row, col, canAddCharacter));
     }
@@ -2101,7 +2101,7 @@ function addCharacterAtPosition(team, row, col) {
 
 function findFirstOpenPosition(team) {
   for (let row = 0; row < 3; row += 1) {
-    for (let col = 0; col < 4; col += 1) {
+    for (let col = 0; col < 3; col += 1) {
       if (findCharacterIndexAtPosition(team, row, col) === -1) {
         return { row, col };
       }
@@ -2115,7 +2115,7 @@ function findCharacterIndexAtPosition(team, row, col) {
 }
 
 function isWithinGrid(row, col) {
-  return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row <= 2 && col >= 0 && col <= 3;
+  return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row <= 2 && col >= 0 && col <= 2;
 }
 
 function moveCharacterToPosition(team, sourceIndex, row, col) {

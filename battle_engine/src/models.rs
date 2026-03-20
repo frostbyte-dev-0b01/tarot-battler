@@ -26,7 +26,7 @@ pub enum Stat {
     WIL, // Will stat: max MP and Rest recovery
 }
 
-/// Cell on the battle grid (rows 0-2, cols 0-3).
+/// Cell on the battle grid (rows 0-2, cols 0-2).
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Position {
     pub row: u8,
@@ -35,7 +35,7 @@ pub struct Position {
 
 impl Position {
     pub fn is_valid(&self) -> bool {
-        self.row < 3 && self.col < 4
+        self.row < 3 && self.col < 3
     }
 
     /// Cardinal adjacency (up/down/left/right, no diagonals).
@@ -1072,10 +1072,10 @@ mod tests {
     #[test]
     fn from_config_copies_position() {
         let mut config = make_config(vec![(Stat::VIT, 5)]);
-        config.position = Position { row: 2, col: 3 };
+        config.position = Position { row: 2, col: 2 };
         let state = CharacterState::from_config(0, &config);
         assert_eq!(state.position().row, 2);
-        assert_eq!(state.position().col, 3);
+        assert_eq!(state.position().col, 2);
     }
 
     #[test]
@@ -1556,9 +1556,9 @@ mod tests {
     #[test]
     fn position_validity() {
         assert!(Position { row: 0, col: 0 }.is_valid());
-        assert!(Position { row: 2, col: 3 }.is_valid());
+        assert!(Position { row: 2, col: 2 }.is_valid());
         assert!(!Position { row: 3, col: 0 }.is_valid());
-        assert!(!Position { row: 0, col: 4 }.is_valid());
+        assert!(!Position { row: 0, col: 3 }.is_valid());
     }
 
     #[test]
