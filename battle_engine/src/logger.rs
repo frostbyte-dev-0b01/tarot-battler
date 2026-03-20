@@ -55,6 +55,22 @@ pub enum BattleEvent {
         damage: u32,
         target_hp_remaining: u32,
     },
+    AbilityHeal {
+        tick_count: u32,
+        actor_id: u32,
+        target_id: u32,
+        target_name: String,
+        amount: u32,
+        target_hp_remaining: u32,
+    },
+    AbilityMpRestore {
+        tick_count: u32,
+        actor_id: u32,
+        target_id: u32,
+        target_name: String,
+        amount: u32,
+        target_mp_after: u32,
+    },
     StatusApplied {
         tick_count: u32,
         actor_id: u32,
@@ -410,6 +426,46 @@ impl BattleLog {
                         .unwrap_or_else(|| "Ability".to_string()),
                     "target_hp_after": target_hp_remaining,
                 })),
+                BattleEvent::AbilityHeal {
+                    tick_count,
+                    actor_id,
+                    target_id,
+                    amount,
+                    target_hp_remaining,
+                    ..
+                } => replay_events.push(json!({
+                    "tick": tick_count,
+                    "type": "heal",
+                    "source_id": stable_id(*actor_id, &id_map),
+                    "target_id": stable_id(*target_id, &id_map),
+                    "amount": amount,
+                    "source_kind": "ability",
+                    "source_name": last_ability_by_actor
+                        .get(actor_id)
+                        .cloned()
+                        .unwrap_or_else(|| "Ability".to_string()),
+                    "target_hp_after": target_hp_remaining,
+                })),
+                BattleEvent::AbilityMpRestore {
+                    tick_count,
+                    actor_id,
+                    target_id,
+                    amount,
+                    target_mp_after,
+                    ..
+                } => replay_events.push(json!({
+                    "tick": tick_count,
+                    "type": "mp_restore",
+                    "source_id": stable_id(*actor_id, &id_map),
+                    "target_id": stable_id(*target_id, &id_map),
+                    "amount": amount,
+                    "source_kind": "ability",
+                    "source_name": last_ability_by_actor
+                        .get(actor_id)
+                        .cloned()
+                        .unwrap_or_else(|| "Ability".to_string()),
+                    "target_mp_after": target_mp_after,
+                })),
                 BattleEvent::StatusApplied {
                     tick_count,
                     actor_id,
@@ -656,6 +712,28 @@ impl BattleLog {
                         "    hits {target_name} for {damage} ({target_hp_remaining} HP left)"
                     );
                 }
+                BattleEvent::AbilityHeal {
+                    target_name,
+                    amount,
+                    target_hp_remaining,
+                    ..
+                } => {
+                    let _ = writeln!(
+                        out,
+                        "    heals {target_name} for {amount} ({target_hp_remaining} HP left)"
+                    );
+                }
+                BattleEvent::AbilityMpRestore {
+                    target_name,
+                    amount,
+                    target_mp_after,
+                    ..
+                } => {
+                    let _ = writeln!(
+                        out,
+                        "    restores {amount} MP to {target_name} ({target_mp_after} MP total)"
+                    );
+                }
                 BattleEvent::StatusApplied {
                     actor_name,
                     target_name,
@@ -710,10 +788,19 @@ impl BattleLog {
                     ..
                 } => {
                     let target_label = new_target_name.as_deref().unwrap_or("no target");
-                    let _ = writeln!(
-                        out,
-                        "  {character_name} retargets to {target_label} ({mode})"
-                    );
+                    let message = match mode.as_str() {
+                        "disorient" => {
+                            format!("  {character_name} is disoriented toward {target_label}")
+                        }
+                        "default_retarget" | "to_actors_target" => {
+                            format!("  {character_name} refocuses on {target_label}")
+                        }
+                        "to_self" | "to_companion" => {
+                            format!("  {character_name} focuses {target_label}")
+                        }
+                        _ => format!("  {character_name} refocuses on {target_label} ({mode})"),
+                    };
+                    let _ = writeln!(out, "{message}");
                 }
                 BattleEvent::Moved {
                     character_name,
@@ -776,6 +863,8 @@ impl BattleEvent {
             | BattleEvent::Rest { tick_count, .. }
             | BattleEvent::AbilityUsed { tick_count, .. }
             | BattleEvent::AbilityDamage { tick_count, .. }
+            | BattleEvent::AbilityHeal { tick_count, .. }
+            | BattleEvent::AbilityMpRestore { tick_count, .. }
             | BattleEvent::StatusApplied { tick_count, .. }
             | BattleEvent::Defeat { tick_count, .. }
             | BattleEvent::StatusDamage { tick_count, .. }

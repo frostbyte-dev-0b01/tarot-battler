@@ -846,7 +846,21 @@ pub fn execute_primitives_with_context(
                 let target_indices = resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
                 for tidx in target_indices {
                     if ctx.actor_team[tidx].is_alive() {
+                        let before = ctx.actor_team[tidx].current_hp();
                         ctx.actor_team[tidx].heal(*amount);
+                        let after = ctx.actor_team[tidx].current_hp();
+                        let healed = after.saturating_sub(before);
+                        if healed > 0 {
+                            ctx.log.push(crate::logger::BattleEvent::AbilityHeal {
+                                tick_count: ctx.step,
+                                actor_id,
+                                target_id: ctx.actor_team[tidx].id(),
+                                target_name: ctx.actor_team[tidx].base_name().to_string(),
+                                amount: healed,
+                                target_hp_remaining: after,
+                            });
+                            capture_context_snapshot(ctx);
+                        }
                     }
                 }
             }
@@ -854,7 +868,21 @@ pub fn execute_primitives_with_context(
                 let target_indices = resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
                 for tidx in target_indices {
                     if ctx.actor_team[tidx].is_alive() {
+                        let before = ctx.actor_team[tidx].current_mp();
                         ctx.actor_team[tidx].restore_mp(*amount);
+                        let after = ctx.actor_team[tidx].current_mp();
+                        let restored = after.saturating_sub(before);
+                        if restored > 0 {
+                            ctx.log.push(crate::logger::BattleEvent::AbilityMpRestore {
+                                tick_count: ctx.step,
+                                actor_id,
+                                target_id: ctx.actor_team[tidx].id(),
+                                target_name: ctx.actor_team[tidx].base_name().to_string(),
+                                amount: restored,
+                                target_mp_after: after,
+                            });
+                            capture_context_snapshot(ctx);
+                        }
                     }
                 }
             }
@@ -904,13 +932,24 @@ pub fn execute_primitives_with_context(
                             resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
                         for tidx in target_indices {
                             if ctx.actor_team[tidx].is_alive() {
-                                ctx.actor_team[tidx].add_status(
+                                let applied = ctx.actor_team[tidx].add_status(
                                     &key,
                                     *stacks,
                                     actor_id,
                                     def,
                                     stat.clone(),
                                 );
+                                if applied {
+                                    log_status_applied(
+                                        ctx,
+                                        actor_id,
+                                        actor_idx,
+                                        tidx,
+                                        &key,
+                                        *stacks,
+                                        false,
+                                    );
+                                }
                             }
                         }
                     }
@@ -1310,7 +1349,24 @@ pub fn execute_primitives_with_context(
                         resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
                     for tidx in target_indices {
                         if ctx.actor_team[tidx].cleanse(*amount) {
-                            ctx.actor_team[tidx].add_status(&key, *stacks, actor_id, def, stat.clone());
+                            let applied = ctx.actor_team[tidx].add_status(
+                                &key,
+                                *stacks,
+                                actor_id,
+                                def,
+                                stat.clone(),
+                            );
+                            if applied {
+                                log_status_applied(
+                                    ctx,
+                                    actor_id,
+                                    actor_idx,
+                                    tidx,
+                                    &key,
+                                    *stacks,
+                                    false,
+                                );
+                            }
                         }
                     }
                 }

@@ -201,6 +201,8 @@ Verification:
 
 ### Stage 7: Replay, UI, And Validation Cleanup
 
+Status: completed in `replay and UI visibility cleanup` stage commit.
+
 - update replay formatting / timeline text where new mechanics need clearer names
 - update UI catalogs and hover descriptions
 - update team validation if new value keys or status names are required
