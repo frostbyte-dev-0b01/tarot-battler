@@ -10,6 +10,7 @@ The replay viewer should be able to render:
 - initial team state
 - a readable timeline
 - board state changes over time
+- full point-in-time battle state without replaying combat logic in the UI
 
 The schema is designed to be frontend-friendly. It should not require the UI to reimplement battle logic in order to display HP, MP, statuses, defeats, or event causes.
 
@@ -45,7 +46,8 @@ cargo run -- --json-out path/to/replay.json
       "characters": []
     }
   },
-  "events": []
+  "events": [],
+  "snapshots": []
 }
 ```
 
@@ -57,12 +59,14 @@ cargo run -- --json-out path/to/replay.json
 - `tick_count: number`
 - `teams: ReplayTeams`
 - `events: ReplayEvent[]`
+- `snapshots: ReplaySnapshot[]`
 
 ### Notes
 
 - `tick_count` is the final world tick when the battle ends
 - `teams` is the initial battle snapshot, not live mutable state
 - `events` is the ordered battle timeline
+- `snapshots` is the ordered full-state playback stream for the UI
 
 ## Team Snapshot
 
@@ -113,6 +117,109 @@ cargo run -- --json-out path/to/replay.json
 - `id` should be stable across the replay
 - `display_name` is intended for UI labels and replay text
 - `max_hp` and `max_mp` are included so the viewer can render bars without recomputing derived values
+
+## Replay Snapshots
+
+The replay viewer should render board state from `snapshots`, not by replaying `events` in JavaScript.
+
+Recommended indexing model:
+
+- `snapshots[0]` is the initial battle state before any events are applied
+- `snapshots[n + 1]` is the battle state after `events[n]`
+
+That means:
+
+- event index `-1` maps to `snapshots[0]`
+- event index `n` maps to `snapshots[n + 1]`
+
+### ReplaySnapshot
+
+```json
+{
+  "tick": 4,
+  "event_index": 7,
+  "teams": {
+    "team_a": {
+      "name": "Imperial Phalanx",
+      "characters": []
+    },
+    "team_b": {
+      "name": "Omen Tribunal",
+      "characters": []
+    }
+  }
+}
+```
+
+- `tick: number`
+- `event_index: number`
+- `teams: ReplayTeamsState`
+
+### ReplayCharacterState
+
+```json
+{
+  "id": "the_emperor",
+  "display_name": "The Emperor",
+  "alive": true,
+  "position": { "row": 0, "col": 0 },
+  "current_hp": 36,
+  "max_hp": 36,
+  "current_mp": 8,
+  "max_mp": 12,
+  "stats": {
+    "vit": 12,
+    "mgt": 12,
+    "mag": 8,
+    "arm": 7,
+    "res": 5,
+    "spd": 8,
+    "wil": 12
+  },
+  "effective_stats": {
+    "vit": 12,
+    "mgt": 13,
+    "mag": 8,
+    "arm": 7,
+    "res": 5,
+    "spd": 8,
+    "wil": 12
+  },
+  "passive": "Imperial Formation",
+  "actives": ["Hold the Line", "Command", "Taunt"],
+  "current_target_id": "justice",
+  "companions": ["the_hierophant"],
+  "statuses": [
+    {
+      "name": "Empower:MGT",
+      "stacks": 1
+    }
+  ]
+}
+```
+
+- `id: string`
+- `display_name: string`
+- `alive: boolean`
+- `position: Position`
+- `current_hp: number`
+- `max_hp: number`
+- `current_mp: number`
+- `max_mp: number`
+- `stats: StatBlock`
+- `effective_stats: StatBlock`
+- `passive: string | null`
+- `actives: string[]`
+- `current_target_id: string | null`
+- `companions: string[]`
+- `statuses: ReplayStatusState[]`
+
+### Notes
+
+- snapshots are the source of truth for playback rendering
+- events remain the source of truth for timeline text
+- snapshots should include enough state for the inspector to render without recomputing combat rules
+- this includes effective stats, live status stacks, current targets, and live positions
 
 ## Common Event Envelope
 
