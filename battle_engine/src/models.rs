@@ -140,7 +140,9 @@ pub enum StatusTick {
 #[derive(Clone)]
 pub struct CharacterState {
     id: u32,
+    replay_id: String,
     base_name: String,
+    display_name: String,
     passive: String,
     actives: Vec<String>,
     base_stats: HashMap<Stat, u32>,
@@ -161,14 +163,35 @@ pub struct CharacterState {
 }
 
 impl CharacterState {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn from_config(id: u32, config: &CharacterConfig) -> Self {
+        let replay_id = config
+            .id
+            .clone()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| format!("character_{id}"));
+        let display_name = config
+            .display_name
+            .clone()
+            .unwrap_or_else(|| config.base_name.clone());
+        Self::from_config_with_identity(id, replay_id, display_name, config)
+    }
+
+    pub fn from_config_with_identity(
+        id: u32,
+        replay_id: String,
+        display_name: String,
+        config: &CharacterConfig,
+    ) -> Self {
         let hp = config.stats.get(&Stat::VIT).copied().unwrap_or(0) * 3;
         let mp = config.stats.get(&Stat::WIL).copied().unwrap_or(0);
         let dex = config.stats.get(&Stat::SPD).copied().unwrap_or(0) as i32;
         let max_ticks = 10 - dex;
         Self {
             id,
+            replay_id,
             base_name: config.base_name.clone(),
+            display_name,
             passive: config.passive.clone(),
             actives: config.actives.clone(),
             base_stats: config.stats.clone(),
@@ -197,8 +220,20 @@ impl CharacterState {
         &self.base_name
     }
 
+    pub fn replay_id(&self) -> &str {
+        &self.replay_id
+    }
+
+    pub fn display_name(&self) -> &str {
+        &self.display_name
+    }
+
     pub fn passive(&self) -> &str {
         &self.passive
+    }
+
+    pub fn actives(&self) -> &[String] {
+        &self.actives
     }
 
     pub fn has_active(&self, ability_name: &str) -> bool {
@@ -376,7 +411,6 @@ impl CharacterState {
         self.companions = ids;
     }
 
-    #[cfg(test)]
     pub fn statuses(&self) -> &HashMap<String, StatusInstance> {
         &self.statuses
     }

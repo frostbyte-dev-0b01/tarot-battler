@@ -46,14 +46,30 @@ impl BattleState {
         let team_a: Vec<CharacterState> = team_a_configs
             .iter()
             .enumerate()
-            .map(|(i, c)| CharacterState::from_config(i as u32, c))
+            .map(|(i, c)| {
+                CharacterState::from_config_with_identity(
+                    i as u32,
+                    replay_character_id(c, "team_a", i),
+                    replay_display_name(c),
+                    c,
+                )
+                
+            })
             .collect();
 
         let n = team_a.len() as u32;
         let team_b: Vec<CharacterState> = team_b_configs
             .iter()
             .enumerate()
-            .map(|(i, c)| CharacterState::from_config(n + i as u32, c))
+            .map(|(i, c)| {
+                CharacterState::from_config_with_identity(
+                    n + i as u32,
+                    replay_character_id(c, "team_b", i),
+                    replay_display_name(c),
+                    c,
+                )
+                
+            })
             .collect();
 
         let mut state = Self {
@@ -110,6 +126,7 @@ impl BattleState {
     }
 
     pub fn run(mut self) -> BattleLog {
+        self.log.capture_initial_snapshot(&self.team_a, &self.team_b);
         self.log.push(BattleEvent::BattleStart {
             tick_count: 0,
             team_a: self
@@ -137,6 +154,7 @@ impl BattleState {
                 })
                 .collect(),
         });
+        self.capture_latest_replay_snapshot();
 
         self.execute_battle_start_passives();
 
@@ -147,6 +165,10 @@ impl BattleState {
         }
 
         self.log
+    }
+
+    pub(crate) fn capture_latest_replay_snapshot(&mut self) {
+        self.log.capture_latest_snapshot(&self.team_a, &self.team_b);
     }
 
     /// Fire on_battle_start passives and apply permanent traits for all characters.
@@ -162,6 +184,7 @@ impl BattleState {
                 &mut self.rng,
                 &mut self.log,
                 0,
+                true,
                 &mut self.in_passive_phase,
                 &mut self.passive_fired_this_tick,
             );
@@ -187,6 +210,7 @@ impl BattleState {
                 &mut self.rng,
                 &mut self.log,
                 0,
+                false,
                 &mut self.in_passive_phase,
                 &mut self.passive_fired_this_tick,
             );
@@ -263,6 +287,7 @@ impl BattleState {
             &mut self.rng,
             &mut self.log,
             self.step,
+            actor_team_is_a,
             &mut self.in_passive_phase,
             &mut self.passive_fired_this_tick,
         );
@@ -304,6 +329,7 @@ impl BattleState {
                 tick_count: self.step,
                 winner: "draw".to_string(),
             });
+            self.capture_latest_replay_snapshot();
             return true;
         }
 
@@ -342,18 +368,21 @@ impl BattleState {
                 tick_count: self.step,
                 winner: "draw".to_string(),
             });
+            self.capture_latest_replay_snapshot();
             true
         } else if !b_alive {
             self.log.push(BattleEvent::BattleEnd {
                 tick_count: self.step,
                 winner: "team_a".to_string(),
             });
+            self.capture_latest_replay_snapshot();
             true
         } else if !a_alive {
             self.log.push(BattleEvent::BattleEnd {
                 tick_count: self.step,
                 winner: "team_b".to_string(),
             });
+            self.capture_latest_replay_snapshot();
             true
         } else {
             false
@@ -373,8 +402,12 @@ impl BattleState {
         // Start-of-turn statuses tick even when the actor is stunned.
         self.tick_and_log_statuses(actor_idx, is_team_a);
 
-        let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        if !actor_team[actor_idx].is_alive() {
+        let actor_alive = if is_team_a {
+            self.team_a[actor_idx].is_alive()
+        } else {
+            self.team_b[actor_idx].is_alive()
+        };
+        if !actor_alive {
             return;
         }
 
@@ -385,20 +418,38 @@ impl BattleState {
                 &mut self.rng,
                 &mut self.log,
                 self.step,
+                is_team_a,
             );
-            turns::log_turn_start(&mut runtime, actor_team, actor_idx);
+            let (actor_team, enemy_team) = if is_team_a {
+                (&self.team_a[..], &self.team_b[..])
+            } else {
+                (&self.team_b[..], &self.team_a[..])
+            };
+            turns::log_turn_start(&mut runtime, actor_team, enemy_team, actor_idx);
         }
 
         // Incapacitate check happens after start-of-turn passives and status ticks.
-        if actor_team[actor_idx].is_incapacitated() {
+        let actor_incapacitated = if is_team_a {
+            self.team_a[actor_idx].is_incapacitated()
+        } else {
+            self.team_b[actor_idx].is_incapacitated()
+        };
+        if actor_incapacitated {
             let mut runtime = TurnRuntime::new(
                 &self.abilities,
                 &self.status_defs,
                 &mut self.rng,
                 &mut self.log,
                 self.step,
+                is_team_a,
             );
-            turns::log_turn_skipped(&mut runtime, &actor_team[actor_idx]);
+            let (actor_team, enemy_team) = if is_team_a {
+                (&self.team_a[..], &self.team_b[..])
+            } else {
+                (&self.team_b[..], &self.team_a[..])
+            };
+            turns::log_turn_skipped(&mut runtime, &actor_team[actor_idx], actor_team, enemy_team);
+            let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
             actor_team[actor_idx].consume_skip_turn_statuses();
             self.finish_turn(actor_idx, is_team_a);
             return;
@@ -414,6 +465,7 @@ impl BattleState {
                 &mut self.rng,
                 &mut self.log,
                 self.step,
+                is_team_a,
             );
             match turns::resolve_target(actor_idx, actor_team, enemy_team, runtime.rng) {
                 Some(tid) => tid,
@@ -431,6 +483,7 @@ impl BattleState {
                 &mut self.rng,
                 &mut self.log,
                 self.step,
+                is_team_a,
             );
             turns::choose_ability(&runtime, actor_idx, actor_team, enemy_team, target_id)
         };
@@ -445,6 +498,7 @@ impl BattleState {
                     &mut self.rng,
                     &mut self.log,
                     self.step,
+                    is_team_a,
                 );
                 turns::execute_ability_action(
                     &mut runtime,
@@ -471,15 +525,16 @@ impl BattleState {
         }
 
         // Fallback: Rest
-        let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+        let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         let mut runtime = TurnRuntime::new(
             &self.abilities,
             &self.status_defs,
             &mut self.rng,
             &mut self.log,
             self.step,
+            is_team_a,
         );
-        turns::execute_rest_action(&mut runtime, actor_idx, actor_team);
+        turns::execute_rest_action(&mut runtime, actor_idx, actor_team, enemy_team);
         self.finish_turn(actor_idx, is_team_a);
     }
 
@@ -492,6 +547,7 @@ impl BattleState {
             &mut self.rng,
             &mut self.log,
             self.step,
+            is_team_a,
         );
         turns::finish_turn(&mut runtime, actor_idx, actor_team);
     }
@@ -530,6 +586,21 @@ impl BattleState {
         }
     }
 
+}
+
+fn replay_character_id(config: &CharacterConfig, team_key: &str, index: usize) -> String {
+    config
+        .id
+        .clone()
+        .filter(|id| !id.trim().is_empty())
+        .unwrap_or_else(|| format!("{team_key}_{index}"))
+}
+
+fn replay_display_name(config: &CharacterConfig) -> String {
+    config
+        .display_name
+        .clone()
+        .unwrap_or_else(|| config.base_name.clone())
 }
 
 #[cfg(test)]

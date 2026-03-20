@@ -91,6 +91,8 @@ This is intended to be a full UI-facing view of the battle state.
   - current target
   - companions
 
+Status: complete
+
 ### Stage 3: Snapshot Capture During Battle
 
 - capture an initial snapshot before any events are applied
@@ -102,11 +104,15 @@ This likely means:
 - adding a `BattleState` helper that appends snapshots when new log events are emitted
 - instrumenting the event-producing call sites so each event gets a matching post-event snapshot
 
+Status: complete
+
 ### Stage 4: Replay JSON Output
 
 - update `BattleLog::to_replay_json`
 - include `snapshots`
 - keep the current `events` output for timeline text
+
+Status: complete
 
 ### Stage 5: Replay Viewer Refactor
 
@@ -114,6 +120,8 @@ This likely means:
 - use `snapshots[event_index + 1]` for board rendering and inspector state
 - keep the event log and current-event summary based on `events`
 - simplify or remove the old event-application helpers in `tools/ui/app.js`
+
+Status: in progress
 
 ### Stage 6: Validation And Regression Tests
 
@@ -123,6 +131,8 @@ This likely means:
   - initial snapshot exists
   - snapshot count is `events.len() + 1`
   - moved / retargeted / status / HP / MP changes appear in snapshots
+
+Status: pending
 
 ## Notes
 

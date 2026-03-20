@@ -297,6 +297,7 @@ pub struct ExecutionContext<'a> {
     pub log: &'a mut BattleLog,
     pub step: u32,
     pub status_defs: &'a StatusMap,
+    pub actor_team_is_a: bool,
     pub trigger_target_id: Option<u32>,
 }
 
@@ -308,6 +309,7 @@ impl<'a> ExecutionContext<'a> {
         log: &'a mut BattleLog,
         step: u32,
         status_defs: &'a StatusMap,
+        actor_team_is_a: bool,
     ) -> Self {
         Self {
             actor_team,
@@ -316,6 +318,7 @@ impl<'a> ExecutionContext<'a> {
             log,
             step,
             status_defs,
+            actor_team_is_a,
             trigger_target_id: None,
         }
     }
@@ -345,6 +348,7 @@ pub fn execute_ability_with_context(
         ability_name: ability_name.to_string(),
         mp_cost: ability.mp_cost,
     });
+    capture_context_snapshot(ctx);
 
     execute_primitives_with_context(ctx, actor_idx, ability_name, &ability.primitives)
 }
@@ -352,6 +356,7 @@ pub fn execute_ability_with_context(
 /// Execute an ability's primitives.
 ///
 /// Returns a list of damage records for defeat checking by the caller.
+#[cfg_attr(not(test), allow(dead_code))]
 #[allow(clippy::too_many_arguments)]
 pub fn execute_ability(
     actor_idx: usize,
@@ -364,7 +369,34 @@ pub fn execute_ability(
     step: u32,
     status_defs: &StatusMap,
 ) -> Vec<DamageRecord> {
-    let mut ctx = ExecutionContext::new(actor_team, enemy_team, rng, log, step, status_defs);
+    execute_ability_for_side(
+        actor_idx,
+        ability_name,
+        ability,
+        actor_team,
+        enemy_team,
+        true,
+        rng,
+        log,
+        step,
+        status_defs,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn execute_ability_for_side(
+    actor_idx: usize,
+    ability_name: &str,
+    ability: &AbilityDef,
+    actor_team: &mut [CharacterState],
+    enemy_team: &mut [CharacterState],
+    actor_team_is_a: bool,
+    rng: &mut StdRng,
+    log: &mut BattleLog,
+    step: u32,
+    status_defs: &StatusMap,
+) -> Vec<DamageRecord> {
+    let mut ctx = ExecutionContext::new(actor_team, enemy_team, rng, log, step, status_defs, actor_team_is_a);
     execute_ability_with_context(&mut ctx, actor_idx, ability_name, ability)
 }
 
@@ -418,6 +450,7 @@ pub fn execute_primitives_with_context(
                         damage,
                         target_hp_remaining: hp,
                     });
+                    capture_context_snapshot(ctx);
                     damage_dealt.push(DamageRecord {
                         source_id: actor_id,
                         target_id: tid,
@@ -461,6 +494,7 @@ pub fn execute_primitives_with_context(
                         damage,
                         target_hp_remaining: hp,
                     });
+                    capture_context_snapshot(ctx);
                     damage_dealt.push(DamageRecord {
                         source_id: actor_id,
                         target_id: tid,
@@ -493,6 +527,7 @@ pub fn execute_primitives_with_context(
                         damage,
                         target_hp_remaining: hp,
                     });
+                    capture_context_snapshot(ctx);
                     damage_dealt.push(DamageRecord {
                         source_id: actor_id,
                         target_id: tid,
@@ -537,6 +572,7 @@ pub fn execute_primitives_with_context(
                         damage,
                         target_hp_remaining: hp,
                     });
+                    capture_context_snapshot(ctx);
                     damage_dealt.push(DamageRecord {
                         source_id: actor_id,
                         target_id: tid,
@@ -587,6 +623,7 @@ pub fn execute_primitives_with_context(
                         damage,
                         target_hp_remaining: hp,
                     });
+                    capture_context_snapshot(ctx);
                     damage_dealt.push(DamageRecord {
                         source_id: actor_id,
                         target_id: tid,
@@ -647,6 +684,7 @@ pub fn execute_primitives_with_context(
                                         stacks_added: *stacks,
                                         stacks_after: ctx.enemy_team[tidx].status_stacks(&key),
                                     });
+                                    capture_context_snapshot(ctx);
                                 }
                             }
                         }
@@ -816,6 +854,7 @@ pub fn execute_primitives_with_context(
                         new_target_name,
                         mode: retarget_mode_label(mode).to_string(),
                     });
+                    capture_context_snapshot(ctx);
                 }
             }
             Primitive::CommandAttack => {
@@ -851,6 +890,7 @@ pub fn execute_primitives_with_context(
                     damage,
                     target_hp_remaining: hp,
                 });
+                capture_context_snapshot(ctx);
                 damage_dealt.push(DamageRecord {
                     source_id,
                     target_id,
@@ -861,7 +901,16 @@ pub fn execute_primitives_with_context(
                 direction,
                 if_empty,
             } => {
-                try_move_actor(actor_idx, ctx.actor_team, direction, *if_empty, ctx.log, ctx.step);
+                try_move_actor(
+                    actor_idx,
+                    ctx.actor_team,
+                    ctx.enemy_team,
+                    ctx.actor_team_is_a,
+                    direction,
+                    *if_empty,
+                    ctx.log,
+                    ctx.step,
+                );
             }
             Primitive::IfTargetHasStatus {
                 target,
@@ -933,7 +982,7 @@ pub fn execute_primitives(
     status_defs: &StatusMap,
     trigger_target_id: Option<u32>,
 ) -> Vec<DamageRecord> {
-    let mut ctx = ExecutionContext::new(actor_team, enemy_team, rng, log, step, status_defs)
+    let mut ctx = ExecutionContext::new(actor_team, enemy_team, rng, log, step, status_defs, true)
         .with_trigger_target(trigger_target_id);
     execute_primitives_with_context(&mut ctx, actor_idx, source_name, primitives)
 }
@@ -946,13 +995,24 @@ fn retarget_mode_label(mode: &RetargetMode) -> &'static str {
     }
 }
 
+fn capture_context_snapshot(ctx: &mut ExecutionContext<'_>) {
+    if ctx.actor_team_is_a {
+        ctx.log.capture_latest_snapshot(ctx.actor_team, ctx.enemy_team);
+    } else {
+        ctx.log.capture_latest_snapshot(ctx.enemy_team, ctx.actor_team);
+    }
+}
+
 fn default_true() -> bool {
     true
 }
 
+#[allow(clippy::too_many_arguments)]
 fn try_move_actor(
     actor_idx: usize,
     actor_team: &mut [CharacterState],
+    enemy_team: &[CharacterState],
+    actor_team_is_a: bool,
     direction: &MoveDirection,
     if_empty: bool,
     log: &mut BattleLog,
@@ -990,6 +1050,11 @@ fn try_move_actor(
         to_row: destination.row,
         to_col: destination.col,
     });
+    if actor_team_is_a {
+        log.capture_latest_snapshot(actor_team, enemy_team);
+    } else {
+        log.capture_latest_snapshot(enemy_team, actor_team);
+    }
 }
 
 fn recompute_team_companions(team: &mut [CharacterState]) {

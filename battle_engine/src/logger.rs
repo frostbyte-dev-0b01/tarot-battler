@@ -130,13 +130,50 @@ pub enum BattleEvent {
     },
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ReplayStatusState {
+    pub name: String,
+    pub stacks: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ReplayCharacterState {
+    pub id: String,
+    pub display_name: String,
+    pub alive: bool,
+    pub position: serde_json::Value,
+    pub current_hp: u32,
+    pub max_hp: u32,
+    pub current_mp: u32,
+    pub max_mp: u32,
+    pub stats: serde_json::Value,
+    pub effective_stats: serde_json::Value,
+    pub passive: Option<String>,
+    pub actives: Vec<String>,
+    pub current_target_id: Option<String>,
+    pub companions: Vec<String>,
+    pub statuses: Vec<ReplayStatusState>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ReplaySnapshotRecord {
+    pub tick: u32,
+    pub event_index: i32,
+    pub team_a: Vec<ReplayCharacterState>,
+    pub team_b: Vec<ReplayCharacterState>,
+}
+
 pub struct BattleLog {
     events: Vec<BattleEvent>,
+    snapshots: Vec<ReplaySnapshotRecord>,
 }
 
 impl BattleLog {
     pub fn new() -> Self {
-        Self { events: Vec::new() }
+        Self {
+            events: Vec::new(),
+            snapshots: Vec::new(),
+        }
     }
 
     pub fn push(&mut self, event: BattleEvent) {
@@ -235,6 +272,27 @@ impl BattleLog {
 
     pub fn events_from(&self, start: usize) -> &[BattleEvent] {
         &self.events[start.min(self.events.len())..]
+    }
+
+    pub fn capture_initial_snapshot(&mut self, team_a: &[CharacterState], team_b: &[CharacterState]) {
+        self.snapshots.push(ReplaySnapshotRecord {
+            tick: 0,
+            event_index: -1,
+            team_a: build_runtime_team_snapshot(team_a, team_b),
+            team_b: build_runtime_team_snapshot(team_b, team_a),
+        });
+    }
+
+    pub fn capture_latest_snapshot(&mut self, team_a: &[CharacterState], team_b: &[CharacterState]) {
+        let Some(last_event) = self.events.last() else {
+            return;
+        };
+        self.snapshots.push(ReplaySnapshotRecord {
+            tick: last_event.tick_count(),
+            event_index: self.events.len() as i32 - 1,
+            team_a: build_runtime_team_snapshot(team_a, team_b),
+            team_b: build_runtime_team_snapshot(team_b, team_a),
+        });
     }
 
     #[cfg(test)]
@@ -505,6 +563,20 @@ impl BattleLog {
                 "team_b": team_b_snapshot,
             },
             "events": replay_events,
+            "snapshots": self.snapshots.iter().map(|snapshot| json!({
+                "tick": snapshot.tick,
+                "event_index": snapshot.event_index,
+                "teams": {
+                    "team_a": {
+                        "name": team_a_name,
+                        "characters": snapshot.team_a,
+                    },
+                    "team_b": {
+                        "name": team_b_name,
+                        "characters": snapshot.team_b,
+                    }
+                }
+            })).collect::<Vec<_>>(),
         }))
         .unwrap()
     }
@@ -749,6 +821,74 @@ fn build_team_snapshot(
                 "actives": config.actives,
             })
         }).collect::<Vec<_>>()
+    })
+}
+
+fn build_runtime_team_snapshot(
+    team: &[CharacterState],
+    opposing_team: &[CharacterState],
+) -> Vec<ReplayCharacterState> {
+    team.iter()
+        .map(|character| ReplayCharacterState {
+            id: character.replay_id().to_string(),
+            display_name: character.display_name().to_string(),
+            alive: character.is_alive(),
+            position: json!(character.position()),
+            current_hp: character.current_hp(),
+            max_hp: character.get_base_stat(&Stat::VIT) * 3,
+            current_mp: character.current_mp(),
+            max_mp: character.get_base_stat(&Stat::WIL),
+            stats: build_stat_block_json(character, false),
+            effective_stats: build_stat_block_json(character, true),
+            passive: if character.passive().is_empty() {
+                None
+            } else {
+                Some(character.passive().to_string())
+            },
+            actives: character.actives().to_vec(),
+            current_target_id: character.target().and_then(|target_id| {
+                opposing_team
+                    .iter()
+                    .find(|candidate| candidate.id() == target_id)
+                    .map(|candidate| candidate.replay_id().to_string())
+            }),
+            companions: character
+                .companions()
+                .iter()
+                .filter_map(|companion_id| {
+                    team.iter()
+                        .find(|candidate| candidate.id() == *companion_id)
+                        .map(|candidate| candidate.replay_id().to_string())
+                })
+                .collect(),
+            statuses: character
+                .statuses()
+                .iter()
+                .map(|(name, status)| ReplayStatusState {
+                    name: name.clone(),
+                    stacks: status.stacks,
+                })
+                .collect(),
+        })
+        .collect()
+}
+
+fn build_stat_block_json(character: &CharacterState, effective: bool) -> serde_json::Value {
+    let read = |stat: Stat| {
+        if effective {
+            character.get_eff_stat(&stat)
+        } else {
+            character.get_base_stat(&stat)
+        }
+    };
+    json!({
+        "vit": read(Stat::VIT),
+        "mgt": read(Stat::MGT),
+        "mag": read(Stat::MAG),
+        "arm": read(Stat::ARM),
+        "res": read(Stat::RES),
+        "spd": read(Stat::SPD),
+        "wil": read(Stat::WIL),
     })
 }
 

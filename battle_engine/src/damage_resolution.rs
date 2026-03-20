@@ -83,24 +83,47 @@ impl BattleState {
         }
 
         for (source_id, reflector_id, reflector_name, reflect) in &reflect_sources {
-            let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            let Some(source_idx) = actor_team.iter().position(|c| c.id() == *source_id) else {
+            let source_idx_opt = if is_team_a {
+                self.team_a.iter().position(|c| c.id() == *source_id)
+            } else {
+                self.team_b.iter().position(|c| c.id() == *source_id)
+            };
+            let Some(source_idx) = source_idx_opt else {
                 continue;
             };
-            if !actor_team[source_idx].is_alive() {
-                continue;
-            }
-            let reflect = actor_team[source_idx].take_hit(*reflect);
+            let reflect = {
+                let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                if !actor_team[source_idx].is_alive() {
+                    continue;
+                }
+                actor_team[source_idx].take_hit(*reflect)
+            };
+            let target_name = if is_team_a {
+                self.team_a[source_idx].base_name().to_string()
+            } else {
+                self.team_b[source_idx].base_name().to_string()
+            };
+            let target_hp_remaining = if is_team_a {
+                self.team_a[source_idx].current_hp()
+            } else {
+                self.team_b[source_idx].current_hp()
+            };
             self.log.push(BattleEvent::DamageReflect {
                 tick_count: self.step,
                 reflector_id: *reflector_id,
                 reflector_name: reflector_name.clone(),
                 target_id: *source_id,
-                target_name: actor_team[source_idx].base_name().to_string(),
+                target_name,
                 damage: reflect,
-                target_hp_remaining: actor_team[source_idx].current_hp(),
+                target_hp_remaining,
             });
-            if !actor_team[source_idx].is_alive() {
+            self.capture_latest_replay_snapshot();
+            let source_alive = if is_team_a {
+                self.team_a[source_idx].is_alive()
+            } else {
+                self.team_b[source_idx].is_alive()
+            };
+            if !source_alive {
                 self.resolve_character_death(source_idx, is_team_a);
             }
         }
@@ -171,9 +194,13 @@ impl BattleState {
 
         self.try_fire_passive(char_idx, &PassiveTrigger::OnDeath, is_team_a);
 
-        let (team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        team[char_idx].mark_defeat_resolved();
-        self.log.push_defeat(self.step, &team[char_idx]);
+        {
+            let (team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+            team[char_idx].mark_defeat_resolved();
+        }
+        let actor = if is_team_a { &self.team_a[char_idx] } else { &self.team_b[char_idx] };
+        self.log.push_defeat(self.step, actor);
+        self.capture_latest_replay_snapshot();
         self.refresh_auras();
     }
 }

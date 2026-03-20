@@ -18,17 +18,20 @@ pub(crate) struct PassiveRuntime<'a> {
     pub rng: &'a mut StdRng,
     pub log: &'a mut BattleLog,
     pub step: u32,
+    pub actor_team_is_a: bool,
     pub in_passive_phase: &'a mut bool,
     pub passive_fired_this_tick: &'a mut HashSet<(u32, String, u32)>,
 }
 
 impl<'a> PassiveRuntime<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         passives: &'a PassiveMap,
         status_defs: &'a StatusMap,
         rng: &'a mut StdRng,
         log: &'a mut BattleLog,
         step: u32,
+        actor_team_is_a: bool,
         in_passive_phase: &'a mut bool,
         passive_fired_this_tick: &'a mut HashSet<(u32, String, u32)>,
     ) -> Self {
@@ -38,6 +41,7 @@ impl<'a> PassiveRuntime<'a> {
             rng,
             log,
             step,
+            actor_team_is_a,
             in_passive_phase,
             passive_fired_this_tick,
         }
@@ -120,15 +124,27 @@ pub(crate) fn fire_passive_if_matches(
                 runtime.log,
                 runtime.step,
                 runtime.status_defs,
+                runtime.actor_team_is_a,
             )
             .with_trigger_target(trigger_target_id);
-            execute_primitives_with_context(&mut ctx, idx, passive_name, primitives)
+            let damage = execute_primitives_with_context(&mut ctx, idx, passive_name, primitives);
+            if runtime.actor_team_is_a {
+                runtime.log.capture_latest_snapshot(actor_team, enemy_team);
+            } else {
+                runtime.log.capture_latest_snapshot(enemy_team, actor_team);
+            }
+            damage
         }
         PassiveDef::Trait { effect } if matches!(expected, PassiveTrigger::OnBattleStart) => {
             runtime
                 .log
                 .push_passive_triggered(runtime.step, &actor_team[idx], passive_name);
             actor_team[idx].add_trait(effect.clone());
+            if runtime.actor_team_is_a {
+                runtime.log.capture_latest_snapshot(actor_team, enemy_team);
+            } else {
+                runtime.log.capture_latest_snapshot(enemy_team, actor_team);
+            }
             Vec::new()
         }
         PassiveDef::RowAura { .. } => Vec::new(),

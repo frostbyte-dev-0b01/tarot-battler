@@ -48,20 +48,30 @@ impl BattleState {
     /// Tick statuses on a character and log any DoT/HoT results.
     pub(crate) fn tick_and_log_statuses(&mut self, idx: usize, is_team_a: bool) {
         let step = self.step;
-        let log = &mut self.log;
-        let (team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        let ticks = team[idx].tick_statuses();
+        let ticks = {
+            let (team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+            team[idx].tick_statuses()
+        };
         for tick in ticks {
             match tick {
                 StatusTick::DamageDealt { name, damage } => {
-                    log.push_status_damage(step, &team[idx], &name, damage);
+                    let actor = if is_team_a { &self.team_a[idx] } else { &self.team_b[idx] };
+                    self.log.push_status_damage(step, actor, &name, damage);
+                    self.capture_latest_replay_snapshot();
                 }
                 StatusTick::HealApplied { name, amount } => {
-                    log.push_status_heal(step, &team[idx], &name, amount);
+                    let actor = if is_team_a { &self.team_a[idx] } else { &self.team_b[idx] };
+                    self.log.push_status_heal(step, actor, &name, amount);
+                    self.capture_latest_replay_snapshot();
                 }
             }
         }
-        if !team[idx].is_alive() {
+        let still_alive = if is_team_a {
+            self.team_a[idx].is_alive()
+        } else {
+            self.team_b[idx].is_alive()
+        };
+        if !still_alive {
             self.resolve_character_death(idx, is_team_a);
         }
     }

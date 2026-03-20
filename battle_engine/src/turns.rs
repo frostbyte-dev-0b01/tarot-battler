@@ -2,7 +2,7 @@
 
 use rand::rngs::StdRng;
 
-use crate::abilities::{AbilityDef, AbilityMap, DamageRecord, execute_ability};
+use crate::abilities::{AbilityDef, AbilityMap, DamageRecord, execute_ability_for_side};
 use crate::logger::BattleLog;
 use crate::models::{CharacterState, Stat};
 use crate::rules::{WorldState, evaluate_rules};
@@ -15,6 +15,7 @@ pub(crate) struct TurnRuntime<'a> {
     pub rng: &'a mut StdRng,
     pub log: &'a mut BattleLog,
     pub step: u32,
+    pub actor_team_is_a: bool,
 }
 
 impl<'a> TurnRuntime<'a> {
@@ -24,6 +25,7 @@ impl<'a> TurnRuntime<'a> {
         rng: &'a mut StdRng,
         log: &'a mut BattleLog,
         step: u32,
+        actor_team_is_a: bool,
     ) -> Self {
         Self {
             abilities,
@@ -31,6 +33,7 @@ impl<'a> TurnRuntime<'a> {
             rng,
             log,
             step,
+            actor_team_is_a,
         }
     }
 }
@@ -38,19 +41,24 @@ impl<'a> TurnRuntime<'a> {
 pub(crate) fn log_turn_start(
     runtime: &mut TurnRuntime<'_>,
     actor_team: &[CharacterState],
+    enemy_team: &[CharacterState],
     actor_idx: usize,
 ) {
     let actor = &actor_team[actor_idx];
     runtime.log.push_turn_start(runtime.step, actor);
+    capture_runtime_snapshot(runtime, actor_team, enemy_team);
 }
 
 pub(crate) fn log_turn_skipped(
     runtime: &mut TurnRuntime<'_>,
     actor: &CharacterState,
+    actor_team: &[CharacterState],
+    enemy_team: &[CharacterState],
 ) {
     runtime
         .log
         .push_turn_skipped(runtime.step, actor, "incapacitated");
+    capture_runtime_snapshot(runtime, actor_team, enemy_team);
 }
 
 pub(crate) fn resolve_target(
@@ -123,12 +131,13 @@ pub(crate) fn execute_ability_action(
     actor_team[actor_idx].record_ability_use(ability_name);
 
     let event_start = runtime.log.len();
-    let damage_dealt = execute_ability(
+    let damage_dealt = execute_ability_for_side(
         actor_idx,
         ability_name,
         ability_def,
         actor_team,
         enemy_team,
+        runtime.actor_team_is_a,
         runtime.rng,
         runtime.log,
         runtime.step,
@@ -142,10 +151,12 @@ pub(crate) fn execute_rest_action(
     runtime: &mut TurnRuntime<'_>,
     actor_idx: usize,
     actor_team: &mut [CharacterState],
+    enemy_team: &[CharacterState],
 ) {
     let restored = actor_team[actor_idx].get_base_stat(&Stat::WIL) / 2;
     actor_team[actor_idx].restore_mp(restored);
     runtime.log.push_rest(runtime.step, &actor_team[actor_idx], restored);
+    capture_runtime_snapshot(runtime, actor_team, enemy_team);
 }
 
 pub(crate) fn finish_turn(
@@ -157,4 +168,16 @@ pub(crate) fn finish_turn(
         return;
     }
     actor_team[actor_idx].reset_speed();
+}
+
+fn capture_runtime_snapshot(
+    runtime: &mut TurnRuntime<'_>,
+    actor_team: &[CharacterState],
+    enemy_team: &[CharacterState],
+) {
+    if runtime.actor_team_is_a {
+        runtime.log.capture_latest_snapshot(actor_team, enemy_team);
+    } else {
+        runtime.log.capture_latest_snapshot(enemy_team, actor_team);
+    }
 }
