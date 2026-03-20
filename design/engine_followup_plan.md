@@ -8,14 +8,9 @@ Close the highest-value remaining gaps between the current gameplay spec and the
 
 ### 1. Condition Layer
 
-The spec now treats conditions as separate from buffs and debuffs, but the engine still only has statuses plus retarget effects.
+Status: complete.
 
-Missing live support:
-
-- `Marked`
-- `Severed`
-
-Desired outcome:
+What landed:
 
 - conditions become a first-class engine layer
 - replay snapshots and logs expose them clearly
@@ -23,16 +18,14 @@ Desired outcome:
 - `Stunned` is modeled as a non-stacking condition that loses `1` stack at end of turn
 - `Marked` and `Severed` are modeled as stacking conditions that lose `1` stack at end of turn
 
+Remaining follow-up:
+
+- migrate live roster abilities to use `Marked` / `Severed`
+- remove the older prototype `Stun` status once bundled data no longer depends on it
+
 Future candidate conditions:
 
 - `Muted`
-
-Suggested implementation order:
-
-1. add runtime condition storage to `CharacterState`
-2. add apply/remove/query primitives for conditions
-3. add replay logging and snapshot serialization
-4. update abilities that should use conditions instead of placeholder status logic
 
 ### 2. Compound Ability Atomic Targeting
 

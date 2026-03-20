@@ -35,7 +35,7 @@ pub(crate) fn resolve_enemy_targets(
                 return Vec::new();
             };
 
-            let companion_ids = enemy_team[target_idx].companions().to_vec();
+            let companion_ids = enemy_team[target_idx].effective_companion_ids();
             let mut targets = vec![target_idx];
             targets.extend(
                 companion_ids
@@ -93,7 +93,7 @@ pub(crate) fn resolve_ally_targets(
     match target {
         AbilityTarget::Simple(SimpleAbilityTarget::SelfChar) => vec![actor_idx],
         AbilityTarget::Simple(SimpleAbilityTarget::Companions) => {
-            let comp_ids = actor_team[actor_idx].companions().to_vec();
+            let comp_ids = actor_team[actor_idx].effective_companion_ids();
             comp_ids
                 .iter()
                 .filter_map(|id| actor_team.iter().position(|c| c.id() == *id))
@@ -117,7 +117,7 @@ pub(crate) fn resolve_ally_targets(
             }
         }
         AbilityTarget::Detailed(spec) if matches!(spec.category, TargetCategory::Companion) => {
-            let comp_ids = actor_team[actor_idx].companions().to_vec();
+            let comp_ids = actor_team[actor_idx].effective_companion_ids();
             let mut candidates =
                 ally_candidates(actor_idx, actor_team, Some(&comp_ids), spec.position.as_ref());
             match spec.selector.as_ref() {
@@ -161,7 +161,7 @@ pub(crate) fn retarget_filter_matches(
         Some(RetargetFilter::TargetingSelf) => target.target() == Some(actor.id()),
         Some(RetargetFilter::TargetingCompanion) => target
             .target()
-            .is_some_and(|target_id| actor.companions().contains(&target_id)),
+            .is_some_and(|target_id| actor.effective_companion_ids().contains(&target_id)),
     }
 }
 

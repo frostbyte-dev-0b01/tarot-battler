@@ -45,7 +45,13 @@ The design now also distinguishes:
 - `target` as the immediate ability target
 - `conditions` such as `Stunned`, `Marked`, and `Severed` as a separate layer from buffs and debuffs
 
-The engine still mostly expresses these as target/retarget and ordinary statuses internally.
+The engine now has a first-class condition layer for `Stunned`, `Marked`, and `Severed`, with:
+
+- `Stunned` as non-stacking action denial
+- `Marked` as a stackable ability hook
+- `Severed` as a stackable "no companions" relationship break
+
+Bundled roster data does not yet use `Marked` or `Severed`, and the older prototype `Stun` status still exists as implementation cleanup debt.
 
 `Muted` is still a future candidate condition, not part of the intended near-term core set.
 

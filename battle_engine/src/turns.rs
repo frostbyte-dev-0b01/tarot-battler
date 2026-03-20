@@ -52,12 +52,11 @@ pub(crate) fn log_turn_start(
 pub(crate) fn log_turn_skipped(
     runtime: &mut TurnRuntime<'_>,
     actor: &CharacterState,
+    reason: &str,
     actor_team: &[CharacterState],
     enemy_team: &[CharacterState],
 ) {
-    runtime
-        .log
-        .push_turn_skipped(runtime.step, actor, "incapacitated");
+    runtime.log.push_turn_skipped(runtime.step, actor, reason);
     capture_runtime_snapshot(runtime, actor_team, enemy_team);
 }
 
@@ -164,6 +163,7 @@ pub(crate) fn finish_turn(
     actor_idx: usize,
     actor_team: &mut [CharacterState],
 ) {
+    actor_team[actor_idx].decay_conditions_end_of_turn();
     if !actor_team[actor_idx].is_alive() {
         return;
     }

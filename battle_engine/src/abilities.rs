@@ -9,7 +9,7 @@ use crate::abilities_targeting::{
     resolve_ally_targets, resolve_enemy_targets, retarget_filter_matches, target_is_enemy_side,
 };
 use crate::logger::{BattleEvent, BattleLog};
-use crate::models::{CharacterState, Stat};
+use crate::models::{CharacterState, ConditionKind, Stat};
 use crate::statuses::{StatusMap, status_key};
 use crate::targeting::select_target;
 
@@ -211,11 +211,21 @@ pub enum Primitive {
         stat: Option<Stat>,
         stacks: u32,
     },
+    ApplyCondition {
+        target: AbilityTarget,
+        condition: String,
+        stacks: u32,
+    },
     RemoveStatus {
         target: AbilityTarget,
         status: String,
         #[serde(default)]
         stat: Option<Stat>,
+        stacks: u32,
+    },
+    RemoveCondition {
+        target: AbilityTarget,
+        condition: String,
         stacks: u32,
     },
     RemoveOneBuff {
@@ -281,6 +291,16 @@ pub enum Primitive {
         status: String,
         #[serde(default)]
         stat: Option<Stat>,
+        primitives: Vec<Primitive>,
+    },
+    IfTargetHasCondition {
+        target: AbilityTarget,
+        condition: String,
+        primitives: Vec<Primitive>,
+    },
+    IfTargetLacksCondition {
+        target: AbilityTarget,
+        condition: String,
         primitives: Vec<Primitive>,
     },
 }
@@ -598,7 +618,7 @@ pub fn execute_primitives_with_context(
                     continue;
                 };
 
-                let companion_ids = ctx.enemy_team[target_idx].companions().to_vec();
+                let companion_ids = ctx.enemy_team[target_idx].effective_companion_ids();
                 let companion_indices: Vec<usize> = companion_ids
                     .iter()
                     .filter_map(|id| {
@@ -955,6 +975,58 @@ pub fn execute_primitives_with_context(
                     }
                 }
             }
+            Primitive::ApplyCondition {
+                target,
+                condition,
+                stacks,
+            } => {
+                let Some(kind) = ConditionKind::from_key(condition) else {
+                    continue;
+                };
+                if target_is_enemy_side(target) {
+                    let target_indices = resolve_enemy_targets(
+                        target,
+                        actor_idx,
+                        ctx.actor_team,
+                        ctx.enemy_team,
+                        ctx.rng,
+                        ctx.trigger_target_id,
+                    );
+                    for tidx in target_indices {
+                        if ctx.enemy_team[tidx].is_alive()
+                            && ctx.enemy_team[tidx].add_condition(kind, *stacks, actor_id)
+                        {
+                            log_condition_applied(
+                                ctx,
+                                actor_id,
+                                actor_idx,
+                                tidx,
+                                kind,
+                                *stacks,
+                                true,
+                            );
+                        }
+                    }
+                } else {
+                    let target_indices =
+                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                    for tidx in target_indices {
+                        if ctx.actor_team[tidx].is_alive()
+                            && ctx.actor_team[tidx].add_condition(kind, *stacks, actor_id)
+                        {
+                            log_condition_applied(
+                                ctx,
+                                actor_id,
+                                actor_idx,
+                                tidx,
+                                kind,
+                                *stacks,
+                                false,
+                            );
+                        }
+                    }
+                }
+            }
             Primitive::RemoveStatus {
                 target,
                 status,
@@ -978,6 +1050,34 @@ pub fn execute_primitives_with_context(
                     let target_indices = resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
                     for tidx in target_indices {
                         ctx.actor_team[tidx].remove_status(&key, *stacks);
+                    }
+                }
+            }
+            Primitive::RemoveCondition {
+                target,
+                condition,
+                stacks,
+            } => {
+                let Some(kind) = ConditionKind::from_key(condition) else {
+                    continue;
+                };
+                if target_is_enemy_side(target) {
+                    let target_indices = resolve_enemy_targets(
+                        target,
+                        actor_idx,
+                        ctx.actor_team,
+                        ctx.enemy_team,
+                        ctx.rng,
+                        ctx.trigger_target_id,
+                    );
+                    for tidx in target_indices {
+                        ctx.enemy_team[tidx].remove_condition(kind, *stacks);
+                    }
+                } else {
+                    let target_indices =
+                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                    for tidx in target_indices {
+                        ctx.actor_team[tidx].remove_condition(kind, *stacks);
                     }
                 }
             }
@@ -1068,7 +1168,7 @@ pub fn execute_primitives_with_context(
                         RetargetMode::ToSelf => Some(ctx.actor_team[actor_idx].id()),
                         RetargetMode::ToCompanion => {
                             let mut living_companion_ids: Vec<u32> = ctx.actor_team[actor_idx]
-                                .companions()
+                                .effective_companion_ids()
                                 .iter()
                                 .filter_map(|id| {
                                     ctx.actor_team
@@ -1202,7 +1302,7 @@ pub fn execute_primitives_with_context(
                     continue;
                 };
                 let Some(companion_idx) = ctx.actor_team[actor_idx]
-                    .companions()
+                    .effective_companion_ids()
                     .iter()
                     .filter_map(|id| ctx.actor_team.iter().position(|c| c.id() == *id && c.is_alive()))
                     .max_by_key(|idx| ctx.actor_team[*idx].get_eff_stat(&Stat::MGT))
@@ -1419,6 +1519,56 @@ pub fn execute_primitives_with_context(
                     damage_dealt.extend(nested_damage);
                 }
             }
+            Primitive::IfTargetHasCondition {
+                target,
+                condition,
+                primitives,
+            } => {
+                let Some(kind) = ConditionKind::from_key(condition) else {
+                    continue;
+                };
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    ctx.actor_team,
+                    ctx.enemy_team,
+                    ctx.rng,
+                    ctx.trigger_target_id,
+                );
+                let should_execute = target_indices.iter().any(|tidx| {
+                    ctx.enemy_team[*tidx].is_alive() && ctx.enemy_team[*tidx].has_condition(kind)
+                });
+                if should_execute {
+                    let nested_damage =
+                        execute_primitives_with_context(ctx, actor_idx, _source_name, primitives);
+                    damage_dealt.extend(nested_damage);
+                }
+            }
+            Primitive::IfTargetLacksCondition {
+                target,
+                condition,
+                primitives,
+            } => {
+                let Some(kind) = ConditionKind::from_key(condition) else {
+                    continue;
+                };
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    ctx.actor_team,
+                    ctx.enemy_team,
+                    ctx.rng,
+                    ctx.trigger_target_id,
+                );
+                let should_execute = target_indices.iter().any(|tidx| {
+                    ctx.enemy_team[*tidx].is_alive() && !ctx.enemy_team[*tidx].has_condition(kind)
+                });
+                if should_execute {
+                    let nested_damage =
+                        execute_primitives_with_context(ctx, actor_idx, _source_name, primitives);
+                    damage_dealt.extend(nested_damage);
+                }
+            }
         }
     }
 
@@ -1550,6 +1700,42 @@ fn log_status_applied(
     capture_context_snapshot(ctx);
 }
 
+fn log_condition_applied(
+    ctx: &mut ExecutionContext<'_>,
+    actor_id: u32,
+    actor_idx: usize,
+    target_idx: usize,
+    kind: ConditionKind,
+    stacks_added: u32,
+    enemy_side: bool,
+) {
+    let (target_id, target_name, stacks_after) = if enemy_side {
+        (
+            ctx.enemy_team[target_idx].id(),
+            ctx.enemy_team[target_idx].base_name().to_string(),
+            ctx.enemy_team[target_idx].condition_stacks(kind),
+        )
+    } else {
+        (
+            ctx.actor_team[target_idx].id(),
+            ctx.actor_team[target_idx].base_name().to_string(),
+            ctx.actor_team[target_idx].condition_stacks(kind),
+        )
+    };
+
+    ctx.log.push(BattleEvent::ConditionApplied {
+        tick_count: ctx.step,
+        actor_id,
+        actor_name: ctx.actor_team[actor_idx].base_name().to_string(),
+        target_id,
+        target_name,
+        condition_name: kind.as_key().to_string(),
+        stacks_added,
+        stacks_after,
+    });
+    capture_context_snapshot(ctx);
+}
+
 fn compute_retarget_target_id(
     mode: &RetargetMode,
     affected_character: &CharacterState,
@@ -1561,7 +1747,7 @@ fn compute_retarget_target_id(
         RetargetMode::ToSelf => Some(actor.id()),
         RetargetMode::ToCompanion => {
             let mut living_companion_ids: Vec<u32> = actor
-                .companions()
+                .effective_companion_ids()
                 .iter()
                 .filter_map(|id| {
                     actor_team

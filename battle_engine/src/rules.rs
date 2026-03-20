@@ -77,7 +77,7 @@ fn check_condition(
     }
 
     let living_companion_count = |character: &CharacterState, same_team: &[CharacterState]| -> u32 {
-        let companion_ids = character.companions();
+        let companion_ids = character.effective_companion_ids();
         same_team
             .iter()
             .filter(|other| other.is_alive() && companion_ids.contains(&other.id()))
@@ -107,7 +107,7 @@ fn check_condition(
         },
         ConditionSubject::Companion => {
             // True if ANY adjacent companion matches
-            let comp_ids = actor.companions();
+            let comp_ids = actor.effective_companion_ids();
             allies
                 .iter()
                 .filter(|c| c.is_alive() && comp_ids.contains(&c.id()))
@@ -756,6 +756,28 @@ mod tests {
         assert_eq!(
             evaluate_rules(&actor, None, &[companion], world(), &abilities).as_deref(),
             Some("Embolden")
+        );
+    }
+
+    #[test]
+    fn target_condition_query_matches() {
+        let rules = vec![Rule {
+            ability: "Crush".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::Target,
+                value: QueryValue::HasCondition("Marked".to_string()),
+                comparator: Comparator::Gte,
+                threshold: 1,
+            }],
+        }];
+        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let mut target = make_char(1, vec![(Stat::VIT, 10)]);
+        target.add_condition(crate::models::ConditionKind::Marked, 2, 99);
+        let abilities = make_abilities();
+
+        assert_eq!(
+            evaluate_rules(&actor, Some(&target), &[], world(), &abilities).as_deref(),
+            Some("Crush")
         );
     }
 }

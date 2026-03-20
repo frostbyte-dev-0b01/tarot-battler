@@ -14,6 +14,8 @@ The replay viewer should be able to render:
 
 The schema is designed to be frontend-friendly. It should not require the UI to reimplement battle logic in order to display HP, MP, statuses, defeats, or event causes.
 
+The live replay format now also includes battle `conditions` separately from ordinary `statuses`.
+
 The current engine writes replay JSON to:
 
 ```text
@@ -194,6 +196,12 @@ That means:
       "name": "Empower:MGT",
       "stacks": 1
     }
+  ],
+  "conditions": [
+    {
+      "name": "Marked",
+      "stacks": 2
+    }
   ]
 }
 ```
@@ -213,11 +221,13 @@ That means:
 - `current_target_id: string | null`
 - `companions: string[]`
 - `statuses: ReplayStatusState[]`
+- `conditions: ReplayConditionState[]`
 
 ### Notes
 
 - snapshots are the source of truth for playback rendering
 - events remain the source of truth for timeline text
+- conditions should be rendered separately from statuses in the inspector and timeline when present
 - snapshots should include enough state for the inspector to render without recomputing combat rules
 - this includes effective stats, live status stacks, current targets, and live positions
 

@@ -12,7 +12,7 @@ use rand::rngs::StdRng;
 
 use crate::abilities::{AbilityMap, DamageRecord, PassiveMap, PassiveTrigger};
 use crate::logger::{BattleEvent, BattleLog};
-use crate::models::{CharacterConfig, CharacterState};
+use crate::models::{CharacterConfig, CharacterState, ConditionKind};
 use crate::passive_system::{self, PassiveRuntime};
 use crate::statuses::StatusMap;
 use crate::targeting::select_target;
@@ -169,6 +169,10 @@ impl BattleState {
 
     pub(crate) fn capture_latest_replay_snapshot(&mut self) {
         self.log.capture_latest_snapshot(&self.team_a, &self.team_b);
+    }
+
+    pub(crate) fn refresh_latest_replay_snapshot(&mut self) {
+        self.log.refresh_latest_snapshot(&self.team_a, &self.team_b);
     }
 
     /// Fire on_battle_start passives and apply permanent traits for all characters.
@@ -448,7 +452,18 @@ impl BattleState {
             } else {
                 (&self.team_b[..], &self.team_a[..])
             };
-            turns::log_turn_skipped(&mut runtime, &actor_team[actor_idx], actor_team, enemy_team);
+            let reason = if actor_team[actor_idx].has_condition(ConditionKind::Stunned) {
+                "stunned"
+            } else {
+                "incapacitated"
+            };
+            turns::log_turn_skipped(
+                &mut runtime,
+                &actor_team[actor_idx],
+                reason,
+                actor_team,
+                enemy_team,
+            );
             let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
             actor_team[actor_idx].consume_skip_turn_statuses();
             self.finish_turn(actor_idx, is_team_a);
@@ -550,6 +565,7 @@ impl BattleState {
             is_team_a,
         );
         turns::finish_turn(&mut runtime, actor_idx, actor_team);
+        self.refresh_latest_replay_snapshot();
     }
 
     /// Split teams into (actor_team, enemy_team) based on which team the actor is on.

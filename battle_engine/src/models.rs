@@ -67,6 +67,8 @@ pub enum QueryValue {
     TargetCompanionCount,
     HasStatus(String),
     StatusStacks(String),
+    HasCondition(String),
+    ConditionStacks(String),
     TickCount,
     AllyCount,
     EnemyCount,
@@ -139,6 +141,43 @@ pub enum StatusTick {
     HealApplied { name: String, amount: u32 },
 }
 
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConditionKind {
+    Stunned,
+    Marked,
+    Severed,
+}
+
+impl ConditionKind {
+    pub fn from_key(value: &str) -> Option<Self> {
+        match value {
+            "Stunned" | "stunned" => Some(Self::Stunned),
+            "Marked" | "marked" => Some(Self::Marked),
+            "Severed" | "severed" => Some(Self::Severed),
+            _ => None,
+        }
+    }
+
+    pub fn as_key(&self) -> &'static str {
+        match self {
+            Self::Stunned => "Stunned",
+            Self::Marked => "Marked",
+            Self::Severed => "Severed",
+        }
+    }
+
+    pub fn stacks(self) -> bool {
+        !matches!(self, Self::Stunned)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ConditionInstance {
+    pub stacks: u32,
+    pub source_id: u32,
+}
+
 /// Mutable runtime state of a character during battle. Created from a [`CharacterConfig`].
 #[derive(Clone)]
 pub struct CharacterState {
@@ -157,6 +196,7 @@ pub struct CharacterState {
     target: Option<u32>,
     companions: Vec<u32>,
     statuses: HashMap<String, StatusInstance>,
+    conditions: HashMap<ConditionKind, ConditionInstance>,
     traits: Vec<TraitEffect>,
     rules: Vec<Rule>,
     defeat_resolved: bool,
@@ -206,6 +246,7 @@ impl CharacterState {
             target: None,
             companions: Vec::new(),
             statuses: HashMap::new(),
+            conditions: HashMap::new(),
             traits: Vec::new(),
             rules: config.rules.clone(),
             defeat_resolved: false,
@@ -252,6 +293,9 @@ impl CharacterState {
     }
 
     pub fn is_incapacitated(&self) -> bool {
+        if self.has_condition(ConditionKind::Stunned) {
+            return true;
+        }
         self.statuses
             .values()
             .any(|s| matches!(s.behavior, StatusBehavior::SkipTurn))
@@ -406,8 +450,17 @@ impl CharacterState {
         self.target = None;
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn companions(&self) -> &[u32] {
         &self.companions
+    }
+
+    pub fn effective_companion_ids(&self) -> Vec<u32> {
+        if self.has_condition(ConditionKind::Severed) {
+            Vec::new()
+        } else {
+            self.companions.clone()
+        }
     }
 
     pub fn set_companions(&mut self, ids: Vec<u32>) {
@@ -424,6 +477,26 @@ impl CharacterState {
 
     pub fn status_stacks(&self, key: &str) -> u32 {
         self.statuses.get(key).map_or(0, |s| s.stacks)
+    }
+
+    pub fn conditions(&self) -> &HashMap<ConditionKind, ConditionInstance> {
+        &self.conditions
+    }
+
+    pub fn has_condition(&self, kind: ConditionKind) -> bool {
+        self.conditions.contains_key(&kind)
+    }
+
+    pub fn condition_stacks(&self, kind: ConditionKind) -> u32 {
+        self.conditions.get(&kind).map_or(0, |condition| condition.stacks)
+    }
+
+    pub fn has_condition_key(&self, key: &str) -> bool {
+        ConditionKind::from_key(key).is_some_and(|kind| self.has_condition(kind))
+    }
+
+    pub fn condition_stacks_key(&self, key: &str) -> u32 {
+        ConditionKind::from_key(key).map_or(0, |kind| self.condition_stacks(kind))
     }
 
     pub fn add_trait(&mut self, t: TraitEffect) {
@@ -483,6 +556,8 @@ impl CharacterState {
             QueryValue::SelfRow => u32::from(self.position.row),
             QueryValue::HasStatus(key) => u32::from(self.has_status(key)),
             QueryValue::StatusStacks(key) => self.status_stacks(key),
+            QueryValue::HasCondition(key) => u32::from(self.has_condition_key(key)),
+            QueryValue::ConditionStacks(key) => self.condition_stacks_key(key),
             QueryValue::SelfCompanionCount
             | QueryValue::TargetCompanionCount
             | QueryValue::TickCount
@@ -622,6 +697,50 @@ impl CharacterState {
                 existing.stacks -= stacks;
             }
         }
+    }
+
+    pub fn add_condition(&mut self, kind: ConditionKind, stacks: u32, source_id: u32) -> bool {
+        if stacks == 0 {
+            return false;
+        }
+        if self.try_negate_debuff() {
+            return true;
+        }
+
+        if kind.stacks() {
+            if let Some(existing) = self.conditions.get_mut(&kind) {
+                existing.stacks += stacks;
+                existing.source_id = source_id;
+            } else {
+                self.conditions
+                    .insert(kind, ConditionInstance { stacks, source_id });
+            }
+        } else if let Some(existing) = self.conditions.get_mut(&kind) {
+            existing.stacks = existing.stacks.max(1);
+            existing.source_id = source_id;
+        } else {
+            self.conditions
+                .insert(kind, ConditionInstance { stacks: 1, source_id });
+        }
+
+        true
+    }
+
+    pub fn remove_condition(&mut self, kind: ConditionKind, stacks: u32) {
+        if let Some(existing) = self.conditions.get_mut(&kind) {
+            if existing.stacks <= stacks {
+                self.conditions.remove(&kind);
+            } else {
+                existing.stacks -= stacks;
+            }
+        }
+    }
+
+    pub fn decay_conditions_end_of_turn(&mut self) {
+        self.conditions.retain(|_, condition| {
+            condition.stacks = condition.stacks.saturating_sub(1);
+            condition.stacks > 0
+        });
     }
 
     pub fn remove_one_buff(&mut self) -> bool {
@@ -1257,6 +1376,42 @@ mod tests {
         state.add_status("Bleed", 3, 99, &bleed_def(), None);
         state.remove_status("Bleed", 5);
         assert!(!state.has_status("Bleed"));
+    }
+
+    #[test]
+    fn stunned_condition_does_not_stack() {
+        let config = make_config(vec![(Stat::VIT, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+
+        assert!(state.add_condition(ConditionKind::Stunned, 1, 99));
+        assert_eq!(state.condition_stacks(ConditionKind::Stunned), 1);
+        assert!(state.add_condition(ConditionKind::Stunned, 3, 99));
+        assert_eq!(state.condition_stacks(ConditionKind::Stunned), 1);
+    }
+
+    #[test]
+    fn marked_condition_stacks() {
+        let config = make_config(vec![(Stat::VIT, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+
+        assert!(state.add_condition(ConditionKind::Marked, 2, 99));
+        assert!(state.add_condition(ConditionKind::Marked, 3, 99));
+        assert_eq!(state.condition_stacks(ConditionKind::Marked), 5);
+    }
+
+    #[test]
+    fn conditions_decay_at_end_of_turn() {
+        let config = make_config(vec![(Stat::VIT, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.add_condition(ConditionKind::Stunned, 1, 99);
+        state.add_condition(ConditionKind::Marked, 2, 99);
+        state.add_condition(ConditionKind::Severed, 3, 99);
+
+        state.decay_conditions_end_of_turn();
+
+        assert!(!state.has_condition(ConditionKind::Stunned));
+        assert_eq!(state.condition_stacks(ConditionKind::Marked), 1);
+        assert_eq!(state.condition_stacks(ConditionKind::Severed), 2);
     }
 
     #[test]

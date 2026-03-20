@@ -7,7 +7,7 @@ use crate::abilities::{
     AbilityMap, AbilityTarget, PassiveDef, PassiveMap, Primitive, SimpleAbilityTarget,
     TargetCategory,
 };
-use crate::models::{CharacterConfig, QueryValue, Stat};
+use crate::models::{CharacterConfig, ConditionKind, QueryValue, Stat};
 use crate::statuses::{StatusBehavior, StatusDef, StatusMap};
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -287,6 +287,9 @@ fn validate_rule_query_value(
         QueryValue::HasStatus(key) | QueryValue::StatusStacks(key) => {
             validate_status_query_key(character_name, key, statuses, errors);
         }
+        QueryValue::HasCondition(key) | QueryValue::ConditionStacks(key) => {
+            validate_condition_key(character_name, key, errors);
+        }
         _ => {}
     }
 }
@@ -345,6 +348,15 @@ fn parse_status_query_stat(value: &str) -> Option<Stat> {
     }
 }
 
+fn validate_condition_key(source_name: &str, key: &str, errors: &mut Vec<String>) {
+    if ConditionKind::from_key(key).is_none() {
+        errors.push(format!(
+            "{} references unknown condition '{}'",
+            source_name, key
+        ));
+    }
+}
+
 fn validate_primitives(
     source_name: &str,
     primitives: &[Primitive],
@@ -399,6 +411,21 @@ fn validate_primitives(
                         "{} removes status '{}' from invalid target side '{}'",
                         source_name,
                         status,
+                        target_label(target),
+                    ));
+                }
+            }
+            Primitive::ApplyCondition {
+                condition, target, ..
+            }
+            | Primitive::RemoveCondition {
+                condition, target, ..
+            } => {
+                validate_condition_key(source_name, condition, errors);
+                if !is_enemy_target(target) && !is_ally_target(target) {
+                    errors.push(format!(
+                        "{} references invalid condition target side '{}'",
+                        source_name,
                         target_label(target),
                     ));
                 }
@@ -624,6 +651,28 @@ fn validate_primitives(
                         "{} checks missing status '{}' on invalid target side '{}'",
                         source_name,
                         status,
+                        target_label(target),
+                    ));
+                }
+
+                validate_primitives(source_name, primitives, statuses, errors);
+            }
+            Primitive::IfTargetHasCondition {
+                target,
+                condition,
+                primitives,
+            }
+            | Primitive::IfTargetLacksCondition {
+                target,
+                condition,
+                primitives,
+            } => {
+                validate_condition_key(source_name, condition, errors);
+                if !is_enemy_target(target) {
+                    errors.push(format!(
+                        "{} checks condition '{}' on invalid target side '{}'",
+                        source_name,
+                        condition,
                         target_label(target),
                     ));
                 }

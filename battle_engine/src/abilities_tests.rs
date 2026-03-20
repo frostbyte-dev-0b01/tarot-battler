@@ -1,5 +1,6 @@
 use super::*;
 use crate::logger::BattleEvent;
+use crate::models::ConditionKind;
 use crate::statuses::{StackType, StatusBehavior, StatusDef};
 use crate::test_support::{empty_statuses, make_adjacent_char, make_char, test_statuses};
 use rand::SeedableRng;
@@ -2166,4 +2167,86 @@ fn move_backward_requires_empty_destination_when_flagged() {
         .events()
         .iter()
         .all(|event| !matches!(event, BattleEvent::Moved { .. })));
+}
+
+#[test]
+fn apply_condition_applies_marked_and_logs_event() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
+    actor_team[0].set_target(1);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::ApplyCondition {
+            target: SimpleAbilityTarget::CurrentTarget.into(),
+            condition: "Marked".to_string(),
+            stacks: 2,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Mark",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+
+    assert_eq!(enemy_team[0].condition_stacks(ConditionKind::Marked), 2);
+    assert!(log.events().iter().any(|event| matches!(
+        event,
+        BattleEvent::ConditionApplied {
+            condition_name,
+            stacks_after,
+            ..
+        } if condition_name == "Marked" && *stacks_after == 2
+    )));
+}
+
+#[test]
+fn current_target_and_companions_ignores_severed_companions() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let mut actor_team = vec![make_char(
+        0,
+        vec![(Stat::MAG, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+    )];
+    let mut enemy_team = vec![
+        make_adjacent_char(1, 0, 0, vec![(Stat::RES, 1), (Stat::VIT, 10)]),
+        make_adjacent_char(2, 0, 1, vec![(Stat::RES, 1), (Stat::VIT, 10)]),
+    ];
+    enemy_team[0].set_companions(vec![2]);
+    enemy_team[1].set_companions(vec![1]);
+    enemy_team[0].add_condition(ConditionKind::Severed, 2, 99);
+    actor_team[0].set_target(1);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::DealMagicalDamage {
+            target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
+            multiplier: 1.0,
+        }],
+    };
+
+    let dealt = execute_ability(
+        0,
+        "Eclipse",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+
+    assert_eq!(dealt.len(), 1);
+    assert_eq!(dealt[0].target_id, 1);
+    assert_eq!(enemy_team[1].current_hp(), 30);
 }

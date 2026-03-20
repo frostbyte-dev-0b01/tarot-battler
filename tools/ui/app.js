@@ -829,7 +829,7 @@ function renderTeamBoard(container, characters, teamKey) {
 function renderUnitCard(character) {
   const hpValue = Number(character.current_hp) || 0;
   const mpValue = Number(character.current_mp) || 0;
-  const statusesText = formatStatuses(character.statuses);
+  const statusesText = formatEffects(character.statuses, character.conditions);
   const passiveDescription = character.passive ? getPassiveDescription(character.passive) : "";
 
   return `
@@ -2335,10 +2335,25 @@ function normalizeStatusEntries(statuses) {
     .filter((entry) => entry.stacks > 0);
 }
 
+function normalizeConditionEntries(conditions) {
+  return normalizeStatusEntries(conditions);
+}
+
 function formatStatuses(statuses) {
   const entries = normalizeStatusEntries(statuses);
   if (entries.length === 0) {
     return "No statuses";
+  }
+
+  return entries.map(({ name, stacks }) => `${name} x${stacks}`).join(" • ");
+}
+
+function formatEffects(statuses, conditions) {
+  const statusEntries = normalizeStatusEntries(statuses);
+  const conditionEntries = normalizeConditionEntries(conditions);
+  const entries = [...statusEntries, ...conditionEntries];
+  if (entries.length === 0) {
+    return "No effects";
   }
 
   return entries.map(({ name, stacks }) => `${name} x${stacks}`).join(" • ");
@@ -2395,6 +2410,7 @@ function renderInspector(character) {
 
   const effectiveStats = calculateEffectiveStats(character);
   const statusMarkup = renderStatusList(character.statuses);
+  const conditionMarkup = renderConditionList(character.conditions);
   const activeMarkup = (character.actives ?? [])
     .map((active) => `<span${renderTitleAttribute(getAbilityDescription(active))}>${escapeHtml(active)}</span>`)
     .join("");
@@ -2426,6 +2442,10 @@ function renderInspector(character) {
     <section class="inspector-section">
       <h5>Statuses</h5>
       <div class="status-list">${statusMarkup}</div>
+    </section>
+    <section class="inspector-section">
+      <h5>Conditions</h5>
+      <div class="status-list">${conditionMarkup}</div>
     </section>
     <section class="inspector-section">
       <h5>Target</h5>
@@ -2460,6 +2480,15 @@ function renderStatusList(statuses) {
   const entries = normalizeStatusEntries(statuses);
   if (entries.length === 0) {
     return "<span>No statuses</span>";
+  }
+
+  return entries.map(({ name, stacks }) => `<span>${escapeHtml(name)} x${stacks}</span>`).join("");
+}
+
+function renderConditionList(conditions) {
+  const entries = normalizeConditionEntries(conditions);
+  if (entries.length === 0) {
+    return "<span>No conditions</span>";
   }
 
   return entries.map(({ name, stacks }) => `<span>${escapeHtml(name)} x${stacks}</span>`).join("");
@@ -2524,6 +2553,7 @@ function isMajorEvent(type) {
     "damage",
     "healing",
     "status_applied",
+    "condition_applied",
     "status_removed",
     "status_tick",
     "passive_triggered",
@@ -2585,6 +2615,8 @@ function formatTimelineText(event) {
       return `${formatCharacterLabel(event.source_id, event.source_name)} restores ${event.amount ?? "?"} HP to ${formatCharacterLabel(event.target_id, event.target_name)}.`;
     case "status_applied":
       return `${formatCharacterLabel(event.target_id, event.target_name)} gains ${event.status ?? "a status"} (${event.stacks_after ?? "?"} stacks).`;
+    case "condition_applied":
+      return `${formatCharacterLabel(event.target_id, event.target_name)} gains ${event.condition ?? "a condition"} (${event.stacks_after ?? "?"} stacks).`;
     case "status_removed":
       return `${formatCharacterLabel(event.target_id, event.target_name)} loses ${event.status ?? "a status"} (${event.stacks_after ?? 0} stacks remain).`;
     case "status_tick":

@@ -81,6 +81,16 @@ pub enum BattleEvent {
         stacks_added: u32,
         stacks_after: u32,
     },
+    ConditionApplied {
+        tick_count: u32,
+        actor_id: u32,
+        actor_name: String,
+        target_id: u32,
+        target_name: String,
+        condition_name: String,
+        stacks_added: u32,
+        stacks_after: u32,
+    },
     Defeat {
         tick_count: u32,
         character_id: u32,
@@ -153,6 +163,12 @@ pub struct ReplayStatusState {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct ReplayConditionState {
+    pub name: String,
+    pub stacks: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ReplayCharacterState {
     pub id: String,
     pub display_name: String,
@@ -169,6 +185,7 @@ pub struct ReplayCharacterState {
     pub current_target_id: Option<String>,
     pub companions: Vec<String>,
     pub statuses: Vec<ReplayStatusState>,
+    pub conditions: Vec<ReplayConditionState>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -309,6 +326,30 @@ impl BattleLog {
             team_a: build_runtime_team_snapshot(team_a, team_b),
             team_b: build_runtime_team_snapshot(team_b, team_a),
         });
+    }
+
+    pub fn refresh_latest_snapshot(&mut self, team_a: &[CharacterState], team_b: &[CharacterState]) {
+        let Some(last_event) = self.events.last() else {
+            return;
+        };
+        let snapshot = ReplaySnapshotRecord {
+            tick: last_event.tick_count(),
+            event_index: self.events.len() as i32 - 1,
+            team_a: build_runtime_team_snapshot(team_a, team_b),
+            team_b: build_runtime_team_snapshot(team_b, team_a),
+        };
+
+        if self
+            .snapshots
+            .last()
+            .is_some_and(|existing| existing.event_index == snapshot.event_index)
+        {
+            if let Some(existing) = self.snapshots.last_mut() {
+                *existing = snapshot;
+            }
+        } else {
+            self.snapshots.push(snapshot);
+        }
     }
 
     #[cfg(test)]
@@ -480,6 +521,23 @@ impl BattleLog {
                     "source_id": stable_id(*actor_id, &id_map),
                     "target_id": stable_id(*target_id, &id_map),
                     "status": status_name,
+                    "stacks_added": stacks_added,
+                    "stacks_after": stacks_after,
+                })),
+                BattleEvent::ConditionApplied {
+                    tick_count,
+                    actor_id,
+                    target_id,
+                    condition_name,
+                    stacks_added,
+                    stacks_after,
+                    ..
+                } => replay_events.push(json!({
+                    "tick": tick_count,
+                    "type": "condition_applied",
+                    "source_id": stable_id(*actor_id, &id_map),
+                    "target_id": stable_id(*target_id, &id_map),
+                    "condition": condition_name,
                     "stacks_added": stacks_added,
                     "stacks_after": stacks_after,
                 })),
@@ -747,6 +805,19 @@ impl BattleLog {
                         "  {actor_name} applies {status_name} to {target_name} (+{stacks_added}, {stacks_after} total)"
                     );
                 }
+                BattleEvent::ConditionApplied {
+                    actor_name,
+                    target_name,
+                    condition_name,
+                    stacks_added,
+                    stacks_after,
+                    ..
+                } => {
+                    let _ = writeln!(
+                        out,
+                        "  {actor_name} applies {condition_name} to {target_name} (+{stacks_added}, {stacks_after} total)"
+                    );
+                }
                 BattleEvent::Defeat { character_name, .. } => {
                     let _ = writeln!(out, "  {character_name} is defeated");
                 }
@@ -866,6 +937,7 @@ impl BattleEvent {
             | BattleEvent::AbilityHeal { tick_count, .. }
             | BattleEvent::AbilityMpRestore { tick_count, .. }
             | BattleEvent::StatusApplied { tick_count, .. }
+            | BattleEvent::ConditionApplied { tick_count, .. }
             | BattleEvent::Defeat { tick_count, .. }
             | BattleEvent::StatusDamage { tick_count, .. }
             | BattleEvent::StatusHeal { tick_count, .. }
@@ -947,7 +1019,7 @@ fn build_runtime_team_snapshot(
                     .map(|candidate| candidate.replay_id().to_string())
             }),
             companions: character
-                .companions()
+                .effective_companion_ids()
                 .iter()
                 .filter_map(|companion_id| {
                     team.iter()
@@ -961,6 +1033,14 @@ fn build_runtime_team_snapshot(
                 .map(|(name, status)| ReplayStatusState {
                     name: name.clone(),
                     stacks: status.stacks,
+                })
+                .collect(),
+            conditions: character
+                .conditions()
+                .iter()
+                .map(|(kind, condition)| ReplayConditionState {
+                    name: kind.as_key().to_string(),
+                    stacks: condition.stacks,
                 })
                 .collect(),
         })

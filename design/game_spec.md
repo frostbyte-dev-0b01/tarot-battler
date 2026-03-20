@@ -469,8 +469,9 @@ Future candidate conditions:
 
 Current implementation note:
 
-- only `Stunned` is meaningfully live today
-- `Marked` and `Severed` remain intended gameplay-facing conditions, but are not yet implemented as a separate engine condition layer
+- the engine now has a separate live condition layer for `Stunned`, `Marked`, and `Severed`
+- bundled roster data does not yet ship abilities using `Marked` or `Severed`
+- the older prototype `Stun` status still exists as an implementation legacy and should be treated as cleanup debt
 
 ### Status Groups
 
