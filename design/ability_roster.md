@@ -25,7 +25,7 @@ Current first-pass multiplier bands:
 Current balancing shorthand:
 
 - `1 MP` is roughly worth a light attack, `cleanse 1`, `dispel 1`, `Omen 1`, or `restore 2-3 MP`
-- `2 MP` is roughly worth a strong single-target attack, `Omen 2`, a targeted retarget, or a strong row/column utility effect
+- `2 MP` is roughly worth a strong single-target attack, `Omen 2`, a targeted focus-control effect, or a strong row/column utility effect
 - `3 MP` is roughly worth splash damage, broad support, or strong conditional payoff
 - `4 MP` is for finishers and high-ceiling payoff buttons
 
@@ -39,6 +39,9 @@ Current design direction for economy:
 
 - `cleanse 1` means remove `1 tick` of debuffs
 - `dispel 1` means remove `1 tick` of buffs
+- `focus` means a unit's sticky ongoing attack intent, distinct from an ability's immediate target
+- `refocus` means clear the affected unit's current focus and choose a new one using default targeting rules
+- `disorient` means clear the affected unit's current focus and choose a new one using a less favorable targeting rule
 - `Omen N` means apply `N` Omen stacks
 - `Ward 1` blocks the next incoming hit
 - `Lethality N` adds `N` true damage after normal damage resolution
@@ -49,9 +52,9 @@ Current design direction for economy:
 ### Formation and Control
 
 - `Hold the Line`
-  `MP 4`
+  `MP 5`
   Apply `Ward 1` to allies in the user's row.
-  Balance notes: row-wide protection, usually 2 total Ward in 3v3
+  Balance notes: row-wide protection, usually 2-3 total Ward in 3v3, so it should cost more than a one-for-one substitution ability
 
 - `Command`
   `MP 4`
@@ -60,29 +63,31 @@ Current design direction for economy:
 
 - `Taunt`
   `MP 4`
-  Enemies with stronger `MGT` than `MAG` change their target to the user.
+  Enemies with higher `MGT` than `MAG` focus the user.
 
 - `Rebuke`
   `MP 2`
-  Force the user's current target to choose a new target using default retargeting.
+  The user's focused enemy is disoriented.
 
 - `Interpose`
   `MP 2`
-  Enemies targeting the user's companion change their target to the user.
+  Enemies focusing the user's companion change focus to the user.
 
 - `Decoy`
   `MP 2`
-  Enemies targeting the user change their target to one of the user's companions.
+  Enemies focusing the user change focus to one of the user's companions.
 
 ### Physical Offense and Payoff
 
 - `Charge`
   `MP 4`
-  Deal physical damage with `1.4x MGT`, then move one row forward in the same column if the tile is empty.
+  Deal physical damage with `1.2x MGT`, then move one row forward in the same column if the tile is empty. If the move succeeds, the user refocuses.
+  Balance notes: engage tool that should update pressure as part of movement, not just advance position
 
 - `Withdraw`
   `MP 4`
-  Deal physical damage with `1.2x MGT`, then move one row backward in the same column if the tile is empty.
+  Deal physical damage with `0.8x MGT`, then move one row backward in the same column if the tile is empty. If the move succeeds, enemies focusing the user refocus.
+  Balance notes: this is intended to be a real disengage tool, not just backward movement
 
 - `Breakthrough`
   `MP 6`

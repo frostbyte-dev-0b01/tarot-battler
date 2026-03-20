@@ -137,14 +137,16 @@ Targeting is split into two separate systems:
 
 These systems are intentionally independent.
 
-## Sticky Targeting
+## Focus
 
-Each character maintains a sticky target for:
+Each character maintains a sticky focus for:
 
 - basic attacks
 - any ability that targets `current_target`
 
-### Initial Sticky Target Selection
+`focus` is the ongoing attack intent a unit carries between actions. It is distinct from an ability's immediate target selection.
+
+### Initial Focus Selection
 
 At battle start, each character picks an enemy from the frontmost occupied enemy row:
 
@@ -154,18 +156,25 @@ At battle start, each character picks an enemy from the frontmost occupied enemy
 
 If multiple legal targets tie for the same best defensive stat, choose randomly among those tied targets.
 
-### Sticky Target Updates
+### Focus Updates
 
-A character keeps its sticky target until:
+A character keeps its current focus until:
 
-- that target is defeated
-- an effect explicitly forces the character to select a new target
+- that focused enemy is defeated
+- an effect explicitly forces the character to select a new focus
 
-When the sticky target is lost, a new one is selected using the same rules.
+When the current focus is lost, a new one is selected using the same rules.
 
-### Retargeting
+### Refocus Effects
 
-Retargeting effects mutate a character's sticky target directly.
+Refocus effects mutate a character's current focus directly.
+
+Design-facing ability text can use two control terms here:
+
+- `refocus` — choose a new focus using normal targeting rules
+- `disorient` — choose a new focus using a less favorable targeting rule
+
+The current engine still names these as retargeting modes internally. Design-facing ability text should prefer `focus` / `refocus`.
 
 Current supported retargeting modes are:
 
@@ -175,12 +184,12 @@ Current supported retargeting modes are:
 
 These effects are intentionally narrow:
 
-- they change the current sticky target
+- they change the current focus
 - they do not add target locks
 - they do not permanently rewrite row-protection rules
 - they do not create a broader control subsystem by themselves
 
-This keeps battlefield control effects like taunt and forced retargeting legible without overcomplicating the core targeting model.
+This keeps battlefield control effects like taunt and forced refocus legible without overcomplicating the core targeting model.
 
 ## Ability Targeting Model
 
