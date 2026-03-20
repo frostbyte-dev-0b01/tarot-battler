@@ -19,6 +19,7 @@ fn main() {
     let json_output = args.iter().any(|arg| arg == "--json");
     let mut team_a_path: Option<String> = None;
     let mut team_b_path: Option<String> = None;
+    let mut named_teams: Option<(String, String)> = None;
     let mut json_out_path: Option<String> = None;
     let mut i = 0;
     while i < args.len() {
@@ -36,6 +37,16 @@ fn main() {
                     .unwrap_or_else(|| panic!("--team-b requires a file path"));
                 team_b_path = Some(path.clone());
                 i += 2;
+            }
+            "--teams" => {
+                let team_a_name = args
+                    .get(i + 1)
+                    .unwrap_or_else(|| panic!("--teams requires two team names"));
+                let team_b_name = args
+                    .get(i + 2)
+                    .unwrap_or_else(|| panic!("--teams requires two team names"));
+                named_teams = Some((team_a_name.clone(), team_b_name.clone()));
+                i += 3;
             }
             "--json-out" => {
                 let path = args
@@ -55,21 +66,44 @@ fn main() {
         loader::load_passives(&data_dir.join("passives.json")).expect("Failed to load passives");
     let statuses =
         loader::load_statuses(&data_dir.join("statuses.json")).expect("Failed to load statuses");
-    let (team_a_name, team_b_name, team_a, team_b) = match (team_a_path, team_b_path) {
-        (Some(team_a_path), Some(team_b_path)) => {
+    let (team_a_name, team_b_name, team_a, team_b) = match (team_a_path, team_b_path, named_teams)
+    {
+        (Some(_), Some(_), Some(_)) | (Some(_), None, Some(_)) | (None, Some(_), Some(_)) => {
+            panic!("Use either --team-a/--team-b or --teams, not both")
+        }
+        (Some(team_a_path), Some(team_b_path), None) => {
             let team_a_config = loader::load_team_config(Path::new(&team_a_path))
                 .expect("Failed to load team A");
             let team_b_config = loader::load_team_config(Path::new(&team_b_path))
                 .expect("Failed to load team B");
-            let team_a = loader::validate_team_config(&team_a_config, &abilities, &passives, &statuses)
-                .expect("Invalid team A content");
-            let team_b = loader::validate_team_config(&team_b_config, &abilities, &passives, &statuses)
-                .expect("Invalid team B content");
+            let team_a =
+                loader::validate_team_config(&team_a_config, &abilities, &passives, &statuses)
+                    .expect("Invalid team A content");
+            let team_b =
+                loader::validate_team_config(&team_b_config, &abilities, &passives, &statuses)
+                    .expect("Invalid team B content");
             loader::validate_teams(&team_a, &team_b, &abilities, &passives, &statuses)
                 .expect("Invalid battle content");
             (team_a_config.name, team_b_config.name, team_a, team_b)
         }
-        (None, None) => {
+        (None, None, Some((team_a_name, team_b_name))) => {
+            let team_a_path = resolve_named_team_path(&team_a_name);
+            let team_b_path = resolve_named_team_path(&team_b_name);
+            let team_a_config = loader::load_team_config(&team_a_path)
+                .unwrap_or_else(|_| panic!("Failed to load team A from {}", team_a_path.display()));
+            let team_b_config = loader::load_team_config(&team_b_path)
+                .unwrap_or_else(|_| panic!("Failed to load team B from {}", team_b_path.display()));
+            let team_a =
+                loader::validate_team_config(&team_a_config, &abilities, &passives, &statuses)
+                    .expect("Invalid team A content");
+            let team_b =
+                loader::validate_team_config(&team_b_config, &abilities, &passives, &statuses)
+                    .expect("Invalid team B content");
+            loader::validate_teams(&team_a, &team_b, &abilities, &passives, &statuses)
+                .expect("Invalid battle content");
+            (team_a_config.name, team_b_config.name, team_a, team_b)
+        }
+        (None, None, None) => {
             let characters = loader::load_characters(&data_dir.join("characters.json"))
                 .expect("Failed to load characters");
             loader::validate_content(&characters, &abilities, &passives, &statuses)
@@ -87,22 +121,6 @@ fn main() {
 
     let seed: u64 = args.iter().find_map(|s| s.parse().ok()).unwrap_or(42);
 
-    eprintln!("=== {} ===", team_a_name);
-    for c in &team_a {
-        eprintln!(
-            "  {} (row {}, col {})",
-            c.base_name, c.position.row, c.position.col
-        );
-    }
-    eprintln!("=== {} ===", team_b_name);
-    for c in &team_b {
-        eprintln!(
-            "  {} (row {}, col {})",
-            c.base_name, c.position.row, c.position.col
-        );
-    }
-    eprintln!("Seed: {}\n", seed);
-
     let battle = engine::BattleState::new(&team_a, &team_b, abilities, passives, statuses, seed);
     let log = battle.run();
     let replay_json =
@@ -111,18 +129,32 @@ fn main() {
         .map(PathBuf::from)
         .unwrap_or_else(default_replay_output_path);
     write_replay_json(&replay_path, &replay_json);
-    eprintln!("Replay JSON written to {}", replay_path.display());
 
     if json_output {
         println!("{replay_json}");
     } else {
-        println!("{}", log.to_text());
+        match log.winner_key() {
+            "team_a" => println!("{team_a_name} defeats {team_b_name}"),
+            "team_b" => println!("{team_b_name} defeats {team_a_name}"),
+            _ => println!("draw"),
+        }
     }
 }
 
 fn default_replay_output_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../tools/ui/sample-data/latest_replay.json")
+}
+
+fn resolve_named_team_path(name: &str) -> PathBuf {
+    let filename = if name.ends_with(".json") {
+        name.to_string()
+    } else {
+        format!("{name}.json")
+    };
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../tools/ui/sample-data/teams")
+        .join(filename)
 }
 
 fn write_replay_json(path: &Path, replay_json: &str) {

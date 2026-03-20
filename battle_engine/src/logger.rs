@@ -695,6 +695,18 @@ impl BattleLog {
         .unwrap()
     }
 
+    pub fn winner_key(&self) -> &str {
+        self.events
+            .iter()
+            .rev()
+            .find_map(|event| match event {
+                BattleEvent::BattleEnd { winner, .. } => Some(winner.as_str()),
+                _ => None,
+            })
+            .unwrap_or("draw")
+    }
+
+    #[allow(dead_code)]
     pub fn to_text(&self) -> String {
         let mut out = String::new();
         let mut current_tick: Option<u32> = None;

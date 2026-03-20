@@ -34,12 +34,6 @@
               "value": "mp",
               "op": "gte",
               "threshold": 5
-            },
-            {
-              "subject": "self",
-              "value": "use_count",
-              "op": "lte",
-              "threshold": 0
             }
           ]
         },
@@ -51,12 +45,17 @@
               "value": "mp",
               "op": "gte",
               "threshold": 4
-            },
+            }
+          ]
+        },
+        {
+          "ability": "Command",
+          "when": [
             {
-              "subject": "self",
-              "value": "use_count",
-              "op": "lte",
-              "threshold": 0
+              "subject": "companion",
+              "value": "hp",
+              "op": "gte",
+              "threshold": 1
             }
           ]
         }
@@ -67,7 +66,7 @@
       "display_name": "The Hierophant",
       "position": {
         "row": 0,
-        "col": 2
+        "col": 1
       },
       "stats": {
         "vit": 14,
@@ -90,12 +89,6 @@
           "ability": "Blessing",
           "when": [
             {
-              "subject": "self",
-              "value": "mp",
-              "op": "gte",
-              "threshold": 4
-            },
-            {
               "subject": "companion",
               "value": "mp",
               "op": "lte",
@@ -107,12 +100,6 @@
           "ability": "Consecrate",
           "when": [
             {
-              "subject": "self",
-              "value": "mp",
-              "op": "gte",
-              "threshold": 6
-            },
-            {
               "subject": "target",
               "value": "target_companion_count",
               "op": "gte",
@@ -122,6 +109,62 @@
         },
         {
           "ability": "Smite",
+          "when": []
+        }
+      ]
+    },
+    {
+      "id": "justice",
+      "display_name": "Justice",
+      "position": {
+        "row": 0,
+        "col": 2
+      },
+      "stats": {
+        "vit": 15,
+        "mgt": 12,
+        "mag": 8,
+        "arm": 7,
+        "res": 7,
+        "spd": 8,
+        "wil": 10
+      },
+      "passive": "Sentence",
+      "actives": [
+        "Condemn",
+        "Verdict",
+        "Rebuke"
+      ],
+      "item": null,
+      "rules": [
+        {
+          "ability": "Verdict",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "status_stacks": "Omen"
+              },
+              "op": "gte",
+              "threshold": 3
+            }
+          ]
+        },
+        {
+          "ability": "Condemn",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "has_status": "Omen"
+              },
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Rebuke",
           "when": []
         }
       ]
@@ -166,12 +209,6 @@
         {
           "ability": "Charge",
           "when": [
-            {
-              "subject": "self",
-              "value": "mp",
-              "op": "gte",
-              "threshold": 4
-            },
             {
               "subject": "self",
               "value": "self_row",
