@@ -135,6 +135,8 @@ Verification:
 
 ### Stage 4: Ability Primitive Extensions
 
+Status: completed in `primitive extensions` stage commit.
+
 - add or generalize primitives needed by the revised live pool:
   - true damage rider / direct true-damage hit
   - split primary/secondary damage for target-and-companions abilities

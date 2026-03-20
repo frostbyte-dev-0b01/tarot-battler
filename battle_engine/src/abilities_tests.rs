@@ -1468,6 +1468,403 @@ fn disorient_retarget_picks_less_favorable_target() {
 }
 
 #[test]
+fn deal_true_damage_bypasses_ward() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let statuses = test_statuses();
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
+    enemy_team[0].add_status("Ward", 1, 99, statuses.get("Ward").unwrap(), None);
+    actor_team[0].set_target(1);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::DealTrueDamage {
+            target: SimpleAbilityTarget::CurrentTarget.into(),
+            amount: 4,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "True Strike",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &statuses,
+    );
+
+    assert_eq!(enemy_team[0].current_hp(), 26);
+    assert_eq!(enemy_team[0].status_stacks("Ward"), 1);
+}
+
+#[test]
+fn split_magical_damage_uses_separate_primary_and_companion_values() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let mut actor_team = vec![make_adjacent_char(
+        0,
+        0,
+        0,
+        vec![(Stat::MAG, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+    )];
+    actor_team[0].set_target(10);
+
+    let mut enemy_team = vec![
+        make_adjacent_char(10, 0, 1, vec![(Stat::RES, 4), (Stat::VIT, 10)]),
+        make_adjacent_char(11, 0, 2, vec![(Stat::RES, 4), (Stat::VIT, 10)]),
+    ];
+    enemy_team[0].set_companions(vec![11]);
+    enemy_team[1].set_companions(vec![10]);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::DealMagicalDamageCurrentTargetAndCompanions {
+            primary_multiplier: 1.0,
+            companion_multiplier: 0.5,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Consecrate",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+
+    assert_eq!(enemy_team[0].current_hp(), 24);
+    assert_eq!(enemy_team[1].current_hp(), 27);
+}
+
+#[test]
+fn transform_statuses_converts_empower_into_weaken() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let statuses = test_statuses();
+    let mut actor_team = vec![make_char(0, vec![(Stat::MAG, 10), (Stat::VIT, 10)])];
+    actor_team[0].set_target(1);
+    let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
+    enemy_team[0].add_status(
+        "Empower:MGT",
+        3,
+        99,
+        statuses.get("Empower").unwrap(),
+        Some(Stat::MGT),
+    );
+    enemy_team[0].add_status(
+        "Empower:ARM",
+        2,
+        99,
+        statuses.get("Empower").unwrap(),
+        Some(Stat::ARM),
+    );
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::TransformStatuses {
+            target: SimpleAbilityTarget::CurrentTarget.into(),
+            from_status: "Empower".to_string(),
+            to_status: "Weaken".to_string(),
+            stats: vec![Stat::MGT, Stat::ARM],
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Transmute",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &statuses,
+    );
+
+    assert_eq!(enemy_team[0].status_stacks("Empower:MGT"), 0);
+    assert_eq!(enemy_team[0].status_stacks("Empower:ARM"), 0);
+    assert_eq!(enemy_team[0].status_stacks("Weaken:MGT"), 3);
+    assert_eq!(enemy_team[0].status_stacks("Weaken:ARM"), 2);
+}
+
+#[test]
+fn true_damage_consume_target_status_removes_stacks_and_deals_damage() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let statuses = test_statuses();
+    let mut actor_team = vec![make_char(0, vec![(Stat::MAG, 10), (Stat::VIT, 10)])];
+    actor_team[0].set_target(1);
+    let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
+    enemy_team[0].add_status("Omen", 3, 99, statuses.get("Omen").unwrap(), None);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::DealTrueDamageConsumeTargetStatus {
+            target: SimpleAbilityTarget::CurrentTarget.into(),
+            status: "Omen".to_string(),
+            stat: None,
+            damage_per_stack: 2,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Harvest Night",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &statuses,
+    );
+
+    assert_eq!(enemy_team[0].current_hp(), 24);
+    assert_eq!(enemy_team[0].status_stacks("Omen"), 0);
+}
+
+#[test]
+fn true_damage_consume_self_statuses_removes_stacks_and_deals_damage() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let statuses = test_statuses();
+    let mut actor_team = vec![make_char(0, vec![(Stat::MGT, 10), (Stat::VIT, 10)])];
+    actor_team[0].set_target(1);
+    actor_team[0].add_status(
+        "Empower:MGT",
+        2,
+        99,
+        statuses.get("Empower").unwrap(),
+        Some(Stat::MGT),
+    );
+    actor_team[0].add_status(
+        "Empower:ARM",
+        1,
+        99,
+        statuses.get("Empower").unwrap(),
+        Some(Stat::ARM),
+    );
+    let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::DealTrueDamageConsumeSelfStatuses {
+            target: SimpleAbilityTarget::CurrentTarget.into(),
+            statuses: vec![
+                StatusRef {
+                    status: "Empower".to_string(),
+                    stat: Some(Stat::MGT),
+                },
+                StatusRef {
+                    status: "Empower".to_string(),
+                    stat: Some(Stat::ARM),
+                },
+            ],
+            damage_per_stack: 1,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Sever",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &statuses,
+    );
+
+    assert_eq!(enemy_team[0].current_hp(), 27);
+    assert_eq!(actor_team[0].status_stacks("Empower:MGT"), 0);
+    assert_eq!(actor_team[0].status_stacks("Empower:ARM"), 0);
+}
+
+#[test]
+fn retarget_enemies_focusing_targets_only_updates_matching_enemies() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let mut actor_team = vec![
+        make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10), (Stat::ARM, 2), (Stat::RES, 8)]),
+        make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10), (Stat::ARM, 8), (Stat::RES, 2)]),
+        make_adjacent_char(2, 0, 2, vec![(Stat::VIT, 10), (Stat::ARM, 8), (Stat::RES, 2)]),
+    ];
+    actor_team[0].set_companions(vec![1, 2]);
+    actor_team[1].take_damage(5);
+
+    let mut enemy_team = vec![
+        make_adjacent_char(10, 0, 3, vec![(Stat::MGT, 8), (Stat::VIT, 10)]),
+        make_adjacent_char(11, 1, 3, vec![(Stat::MGT, 8), (Stat::VIT, 10)]),
+    ];
+    enemy_team[0].set_target(1);
+    enemy_team[1].set_target(2);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::RetargetEnemiesFocusingTargets {
+            target: AbilityTarget::Detailed(TargetSpec {
+                category: TargetCategory::Companion,
+                selector: Some(TargetSelector::LowestHp),
+                position: None,
+                bypass_row_protection: false,
+            }),
+            mode: RetargetMode::DefaultRetarget,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Rescue",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+
+    assert_eq!(enemy_team[0].target(), Some(0));
+    assert_eq!(enemy_team[1].target(), Some(2));
+}
+
+#[test]
+fn refocus_allies_to_actors_target_updates_selected_allies() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let mut actor_team = vec![
+        make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(2, 1, 0, vec![(Stat::VIT, 10)]),
+    ];
+    actor_team[0].set_target(10);
+    actor_team[1].set_target(11);
+    actor_team[2].set_target(11);
+
+    let mut enemy_team = vec![
+        make_adjacent_char(10, 0, 3, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(11, 1, 3, vec![(Stat::VIT, 10)]),
+    ];
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::RefocusAlliesToActorsTarget {
+            target: AbilityTarget::Detailed(TargetSpec {
+                category: TargetCategory::Ally,
+                selector: None,
+                position: Some(PositionalCondition::SameRow),
+                bypass_row_protection: false,
+            }),
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Blessing",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+
+    assert_eq!(actor_team[1].target(), Some(10));
+    assert_eq!(actor_team[2].target(), Some(11));
+}
+
+#[test]
+fn move_target_repositions_selected_companion() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let mut actor_team = vec![
+        make_adjacent_char(0, 1, 0, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(1, 1, 1, vec![(Stat::VIT, 10)]),
+    ];
+    actor_team[0].set_companions(vec![1]);
+    actor_team[1].set_companions(vec![0]);
+    let mut enemy_team = vec![make_adjacent_char(10, 0, 3, vec![(Stat::VIT, 10)])];
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::MoveTarget {
+            target: SimpleAbilityTarget::Companions.into(),
+            direction: MoveDirection::Backward,
+            if_empty: true,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Rescue",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &empty_statuses(),
+    );
+
+    assert_eq!(actor_team[1].position().row, 2);
+}
+
+#[test]
+fn cleanse_and_apply_status_if_changed_only_applies_when_cleanse_works() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let statuses = test_statuses();
+    let mut actor_team = vec![
+        make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(2, 1, 0, vec![(Stat::VIT, 10)]),
+    ];
+    actor_team[1].add_status("Bleed", 2, 99, statuses.get("Bleed").unwrap(), None);
+    let mut enemy_team = vec![make_adjacent_char(10, 0, 3, vec![(Stat::VIT, 10)])];
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::CleanseAndApplyStatusIfChanged {
+            target: AbilityTarget::Detailed(TargetSpec {
+                category: TargetCategory::Ally,
+                selector: None,
+                position: Some(PositionalCondition::SameRow),
+                bypass_row_protection: false,
+            }),
+            amount: 1,
+            status: "Ward".to_string(),
+            stat: None,
+            stacks: 1,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Sanctify",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &statuses,
+    );
+
+    assert_eq!(actor_team[1].status_stacks("Ward"), 1);
+    assert_eq!(actor_team[2].status_stacks("Ward"), 0);
+}
+
+#[test]
 fn command_attack_uses_highest_str_living_companion() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();

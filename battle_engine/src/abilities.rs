@@ -159,6 +159,21 @@ pub enum Primitive {
         target: AbilityTarget,
         multiplier: f64,
     },
+    DealMagicalDamageCurrentTargetAndCompanions {
+        primary_multiplier: f64,
+        companion_multiplier: f64,
+    },
+    DealTrueDamage {
+        target: AbilityTarget,
+        amount: u32,
+    },
+    DealTrueDamageConsumeTargetStatus {
+        target: AbilityTarget,
+        status: String,
+        #[serde(default)]
+        stat: Option<Stat>,
+        damage_per_stack: u32,
+    },
     DealMagicalDamageConsumeStatus {
         target: AbilityTarget,
         multiplier: f64,
@@ -172,6 +187,11 @@ pub enum Primitive {
         multiplier: f64,
         statuses: Vec<StatusRef>,
         bonus_per_stack: u32,
+    },
+    DealTrueDamageConsumeSelfStatuses {
+        target: AbilityTarget,
+        statuses: Vec<StatusRef>,
+        damage_per_stack: u32,
     },
     RestoreHp {
         target: AbilityTarget,
@@ -212,11 +232,38 @@ pub enum Primitive {
         #[serde(default)]
         filter: Option<RetargetFilter>,
     },
+    RetargetEnemiesFocusingTargets {
+        target: AbilityTarget,
+        mode: RetargetMode,
+    },
+    RefocusAlliesToActorsTarget {
+        target: AbilityTarget,
+    },
     CommandAttack,
     Move {
         direction: MoveDirection,
         #[serde(default = "default_true")]
         if_empty: bool,
+    },
+    MoveTarget {
+        target: AbilityTarget,
+        direction: MoveDirection,
+        #[serde(default = "default_true")]
+        if_empty: bool,
+    },
+    TransformStatuses {
+        target: AbilityTarget,
+        from_status: String,
+        to_status: String,
+        stats: Vec<Stat>,
+    },
+    CleanseAndApplyStatusIfChanged {
+        target: AbilityTarget,
+        amount: u32,
+        status: String,
+        #[serde(default)]
+        stat: Option<Stat>,
+        stacks: u32,
     },
     IfTargetHasStatus {
         target: AbilityTarget,
@@ -536,6 +583,114 @@ pub fn execute_primitives_with_context(
                     });
                 }
             }
+            Primitive::DealMagicalDamageCurrentTargetAndCompanions {
+                primary_multiplier,
+                companion_multiplier,
+            } => {
+                let Some(target_id) = ctx.actor_team[actor_idx].target() else {
+                    continue;
+                };
+                let Some(target_idx) = ctx.enemy_team.iter().position(|c| c.id() == target_id && c.is_alive()) else {
+                    continue;
+                };
+
+                let companion_ids = ctx.enemy_team[target_idx].companions().to_vec();
+                let companion_indices: Vec<usize> = companion_ids
+                    .iter()
+                    .filter_map(|id| {
+                        ctx.enemy_team
+                            .iter()
+                            .position(|c| c.id() == *id && c.is_alive())
+                    })
+                    .collect();
+                let target_and_companions: Vec<usize> = std::iter::once(target_idx)
+                    .chain(companion_indices.into_iter())
+                    .collect();
+
+                for tidx in target_and_companions {
+                    let multiplier = if tidx == target_idx {
+                        *primary_multiplier
+                    } else {
+                        *companion_multiplier
+                    };
+                    let defender_res = ctx.enemy_team[tidx].get_eff_stat(&Stat::RES);
+                    let base = (actor_int as i32 - defender_res as i32).max(1) as u32;
+                    let raw_damage = ((base as f64 * multiplier).max(1.0)) as u32;
+                    let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
+                    log_ability_damage(ctx, actor_id, tidx, damage, true);
+                    damage_dealt.push(DamageRecord {
+                        source_id: actor_id,
+                        target_id: ctx.enemy_team[tidx].id(),
+                        damage,
+                    });
+                }
+            }
+            Primitive::DealTrueDamage { target, amount } => {
+                if target_is_enemy_side(target) {
+                    let target_indices = resolve_enemy_targets(
+                        target,
+                        actor_idx,
+                        ctx.actor_team,
+                        ctx.enemy_team,
+                        ctx.rng,
+                        ctx.trigger_target_id,
+                    );
+                    for tidx in target_indices {
+                        let damage = ctx.enemy_team[tidx].current_hp().min(*amount);
+                        ctx.enemy_team[tidx].take_damage(*amount);
+                        log_ability_damage(ctx, actor_id, tidx, damage, true);
+                        damage_dealt.push(DamageRecord {
+                            source_id: actor_id,
+                            target_id: ctx.enemy_team[tidx].id(),
+                            damage,
+                        });
+                    }
+                } else {
+                    let target_indices =
+                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                    for tidx in target_indices {
+                        let damage = ctx.actor_team[tidx].current_hp().min(*amount);
+                        ctx.actor_team[tidx].take_damage(*amount);
+                        log_ability_damage(ctx, actor_id, tidx, damage, false);
+                        damage_dealt.push(DamageRecord {
+                            source_id: actor_id,
+                            target_id: ctx.actor_team[tidx].id(),
+                            damage,
+                        });
+                    }
+                }
+            }
+            Primitive::DealTrueDamageConsumeTargetStatus {
+                target,
+                status,
+                stat,
+                damage_per_stack,
+            } => {
+                let key = status_key(status, stat.as_ref());
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    ctx.actor_team,
+                    ctx.enemy_team,
+                    ctx.rng,
+                    ctx.trigger_target_id,
+                );
+                for tidx in target_indices {
+                    let consumed_stacks = ctx.enemy_team[tidx].status_stacks(&key);
+                    if consumed_stacks > 0 {
+                        ctx.enemy_team[tidx].remove_status(&key, consumed_stacks);
+                    }
+                    let raw_damage = consumed_stacks.saturating_mul(*damage_per_stack);
+                    let damage = ctx.enemy_team[tidx].current_hp().min(raw_damage);
+                    ctx.enemy_team[tidx].take_damage(raw_damage);
+                    log_ability_damage(ctx, actor_id, tidx, damage, true);
+                    damage_dealt.push(DamageRecord {
+                        source_id: actor_id,
+                        target_id: ctx.enemy_team[tidx].id(),
+                        damage,
+                    });
+                }
+            }
             Primitive::DealMagicalDamageConsumeStatus {
                 target,
                 multiplier,
@@ -577,6 +732,43 @@ pub fn execute_primitives_with_context(
                     damage_dealt.push(DamageRecord {
                         source_id: actor_id,
                         target_id: tid,
+                        damage,
+                    });
+                }
+            }
+            Primitive::DealTrueDamageConsumeSelfStatuses {
+                target,
+                statuses,
+                damage_per_stack,
+            } => {
+                let consumed_stacks: u32 = statuses
+                    .iter()
+                    .map(|status_ref| {
+                        let key = status_key(&status_ref.status, status_ref.stat.as_ref());
+                        let stacks = ctx.actor_team[actor_idx].status_stacks(&key);
+                        if stacks > 0 {
+                            ctx.actor_team[actor_idx].remove_status(&key, stacks);
+                        }
+                        stacks
+                    })
+                    .sum();
+
+                let raw_damage = consumed_stacks.saturating_mul(*damage_per_stack);
+                let target_indices = resolve_enemy_targets(
+                    target,
+                    actor_idx,
+                    ctx.actor_team,
+                    ctx.enemy_team,
+                    ctx.rng,
+                    ctx.trigger_target_id,
+                );
+                for tidx in target_indices {
+                    let damage = ctx.enemy_team[tidx].current_hp().min(raw_damage);
+                    ctx.enemy_team[tidx].take_damage(raw_damage);
+                    log_ability_damage(ctx, actor_id, tidx, damage, true);
+                    damage_dealt.push(DamageRecord {
+                        source_id: actor_id,
+                        target_id: ctx.enemy_team[tidx].id(),
                         damage,
                     });
                 }
@@ -866,6 +1058,69 @@ pub fn execute_primitives_with_context(
                     capture_context_snapshot(ctx);
                 }
             }
+            Primitive::RetargetEnemiesFocusingTargets { target, mode } => {
+                let focused_target_ids: Vec<u32> =
+                    resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng)
+                        .into_iter()
+                        .filter_map(|idx| ctx.actor_team.get(idx))
+                        .filter(|character| character.is_alive())
+                        .map(CharacterState::id)
+                        .collect();
+                if focused_target_ids.is_empty() {
+                    continue;
+                }
+
+                for tidx in 0..ctx.enemy_team.len() {
+                    if !ctx.enemy_team[tidx].is_alive()
+                        || !ctx.enemy_team[tidx]
+                            .target()
+                            .is_some_and(|focus_id| focused_target_ids.contains(&focus_id))
+                    {
+                        continue;
+                    }
+
+                    let new_target = compute_retarget_target_id(
+                        mode,
+                        &ctx.enemy_team[tidx],
+                        &ctx.actor_team[actor_idx],
+                        ctx.actor_team,
+                        ctx.rng,
+                    );
+                    if let Some(new_target_id) = new_target {
+                        ctx.enemy_team[tidx].set_target(new_target_id);
+                    }
+
+                    log_retarget_event(
+                        ctx,
+                        ctx.enemy_team[tidx].id(),
+                        ctx.enemy_team[tidx].base_name().to_string(),
+                        ctx.enemy_team[tidx].target(),
+                        lookup_name(ctx.actor_team, ctx.enemy_team[tidx].target()),
+                        retarget_mode_label(mode).to_string(),
+                    );
+                }
+            }
+            Primitive::RefocusAlliesToActorsTarget { target } => {
+                let Some(actor_target_id) = ctx.actor_team[actor_idx].target() else {
+                    continue;
+                };
+                let target_name = lookup_name(ctx.enemy_team, Some(actor_target_id));
+                let target_indices = resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                for tidx in target_indices {
+                    if !ctx.actor_team[tidx].is_alive() {
+                        continue;
+                    }
+                    ctx.actor_team[tidx].set_target(actor_target_id);
+                    log_retarget_event(
+                        ctx,
+                        ctx.actor_team[tidx].id(),
+                        ctx.actor_team[tidx].base_name().to_string(),
+                        Some(actor_target_id),
+                        target_name.clone(),
+                        "to_actors_target".to_string(),
+                    );
+                }
+            }
             Primitive::CommandAttack => {
                 let target_id = match ctx.actor_team[actor_idx].target() {
                     Some(target_id) => target_id,
@@ -910,7 +1165,7 @@ pub fn execute_primitives_with_context(
                 direction,
                 if_empty,
             } => {
-                try_move_actor(
+                try_move_character(
                     actor_idx,
                     ctx.actor_team,
                     ctx.enemy_team,
@@ -920,6 +1175,112 @@ pub fn execute_primitives_with_context(
                     ctx.log,
                     ctx.step,
                 );
+            }
+            Primitive::MoveTarget {
+                target,
+                direction,
+                if_empty,
+            } => {
+                let target_indices = resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                for tidx in target_indices {
+                    try_move_character(
+                        tidx,
+                        ctx.actor_team,
+                        ctx.enemy_team,
+                        ctx.actor_team_is_a,
+                        direction,
+                        *if_empty,
+                        ctx.log,
+                        ctx.step,
+                    );
+                }
+            }
+            Primitive::TransformStatuses {
+                target,
+                from_status,
+                to_status,
+                stats,
+            } => {
+                let Some(to_def) = ctx.status_defs.get(to_status) else {
+                    continue;
+                };
+                if target_is_enemy_side(target) {
+                    let target_indices = resolve_enemy_targets(
+                        target,
+                        actor_idx,
+                        ctx.actor_team,
+                        ctx.enemy_team,
+                        ctx.rng,
+                        ctx.trigger_target_id,
+                    );
+                    for tidx in target_indices {
+                        transform_statuses(
+                            &mut ctx.enemy_team[tidx],
+                            from_status,
+                            to_status,
+                            stats,
+                            actor_id,
+                            to_def,
+                        );
+                    }
+                } else {
+                    let target_indices =
+                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                    for tidx in target_indices {
+                        transform_statuses(
+                            &mut ctx.actor_team[tidx],
+                            from_status,
+                            to_status,
+                            stats,
+                            actor_id,
+                            to_def,
+                        );
+                    }
+                }
+            }
+            Primitive::CleanseAndApplyStatusIfChanged {
+                target,
+                amount,
+                status,
+                stat,
+                stacks,
+            } => {
+                let Some(def) = ctx.status_defs.get(status) else {
+                    continue;
+                };
+                let key = status_key(status, stat.as_ref());
+                if target_is_enemy_side(target) {
+                    let target_indices = resolve_enemy_targets(
+                        target,
+                        actor_idx,
+                        ctx.actor_team,
+                        ctx.enemy_team,
+                        ctx.rng,
+                        ctx.trigger_target_id,
+                    );
+                    for tidx in target_indices {
+                        if ctx.enemy_team[tidx].cleanse(*amount) {
+                            let applied = ctx.enemy_team[tidx].add_status(
+                                &key,
+                                *stacks,
+                                actor_id,
+                                def,
+                                stat.clone(),
+                            );
+                            if applied {
+                                log_status_applied(ctx, actor_id, actor_idx, tidx, &key, *stacks, true);
+                            }
+                        }
+                    }
+                } else {
+                    let target_indices =
+                        resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng);
+                    for tidx in target_indices {
+                        if ctx.actor_team[tidx].cleanse(*amount) {
+                            ctx.actor_team[tidx].add_status(&key, *stacks, actor_id, def, stat.clone());
+                        }
+                    }
+                }
             }
             Primitive::IfTargetHasStatus {
                 target,
@@ -1005,6 +1366,137 @@ fn retarget_mode_label(mode: &RetargetMode) -> &'static str {
     }
 }
 
+fn lookup_name(team: &[CharacterState], target_id: Option<u32>) -> Option<String> {
+    target_id.and_then(|id| {
+        team.iter()
+            .find(|character| character.id() == id)
+            .map(|character| character.base_name().to_string())
+    })
+}
+
+fn log_ability_damage(
+    ctx: &mut ExecutionContext<'_>,
+    actor_id: u32,
+    target_idx: usize,
+    damage: u32,
+    enemy_side: bool,
+) {
+    let (target_id, target_name, target_hp_remaining) = if enemy_side {
+        (
+            ctx.enemy_team[target_idx].id(),
+            ctx.enemy_team[target_idx].base_name().to_string(),
+            ctx.enemy_team[target_idx].current_hp(),
+        )
+    } else {
+        (
+            ctx.actor_team[target_idx].id(),
+            ctx.actor_team[target_idx].base_name().to_string(),
+            ctx.actor_team[target_idx].current_hp(),
+        )
+    };
+
+    ctx.log.push(BattleEvent::AbilityDamage {
+        tick_count: ctx.step,
+        actor_id,
+        target_id,
+        target_name,
+        damage,
+        target_hp_remaining,
+    });
+    capture_context_snapshot(ctx);
+}
+
+fn log_retarget_event(
+    ctx: &mut ExecutionContext<'_>,
+    character_id: u32,
+    character_name: String,
+    new_target_id: Option<u32>,
+    new_target_name: Option<String>,
+    mode: String,
+) {
+    ctx.log.push(BattleEvent::Retargeted {
+        tick_count: ctx.step,
+        character_id,
+        character_name,
+        new_target_id,
+        new_target_name,
+        mode,
+    });
+    capture_context_snapshot(ctx);
+}
+
+fn log_status_applied(
+    ctx: &mut ExecutionContext<'_>,
+    actor_id: u32,
+    actor_idx: usize,
+    target_idx: usize,
+    key: &str,
+    stacks_added: u32,
+    enemy_side: bool,
+) {
+    let (target_id, target_name, stacks_after) = if enemy_side {
+        (
+            ctx.enemy_team[target_idx].id(),
+            ctx.enemy_team[target_idx].base_name().to_string(),
+            ctx.enemy_team[target_idx].status_stacks(key),
+        )
+    } else {
+        (
+            ctx.actor_team[target_idx].id(),
+            ctx.actor_team[target_idx].base_name().to_string(),
+            ctx.actor_team[target_idx].status_stacks(key),
+        )
+    };
+
+    ctx.log.push(BattleEvent::StatusApplied {
+        tick_count: ctx.step,
+        actor_id,
+        actor_name: ctx.actor_team[actor_idx].base_name().to_string(),
+        target_id,
+        target_name,
+        status_name: key.to_string(),
+        stacks_added,
+        stacks_after,
+    });
+    capture_context_snapshot(ctx);
+}
+
+fn compute_retarget_target_id(
+    mode: &RetargetMode,
+    affected_character: &CharacterState,
+    actor: &CharacterState,
+    actor_team: &[CharacterState],
+    rng: &mut StdRng,
+) -> Option<u32> {
+    match mode {
+        RetargetMode::ToSelf => Some(actor.id()),
+        RetargetMode::ToCompanion => {
+            let mut living_companion_ids: Vec<u32> = actor
+                .companions()
+                .iter()
+                .filter_map(|id| {
+                    actor_team
+                        .iter()
+                        .find(|c| c.id() == *id && c.is_alive())
+                        .map(|c| c.id())
+                })
+                .collect();
+            living_companion_ids.shuffle(rng);
+            living_companion_ids.into_iter().next()
+        }
+        RetargetMode::DefaultRetarget => {
+            let mut retarget_source = affected_character.clone();
+            retarget_source.clear_target();
+            select_target(&retarget_source, actor_team, rng)
+        }
+        RetargetMode::Disorient => {
+            let mut retarget_source = affected_character.clone();
+            retarget_source.clear_target();
+            crate::targeting::select_disoriented_target(&retarget_source, actor_team, rng)
+        }
+    }
+}
+
 fn capture_context_snapshot(ctx: &mut ExecutionContext<'_>) {
     if ctx.actor_team_is_a {
         ctx.log.capture_latest_snapshot(ctx.actor_team, ctx.enemy_team);
@@ -1018,9 +1510,9 @@ fn default_true() -> bool {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn try_move_actor(
-    actor_idx: usize,
-    actor_team: &mut [CharacterState],
+fn try_move_character(
+    character_idx: usize,
+    moving_team: &mut [CharacterState],
     enemy_team: &[CharacterState],
     actor_team_is_a: bool,
     direction: &MoveDirection,
@@ -1028,7 +1520,7 @@ fn try_move_actor(
     log: &mut BattleLog,
     step: u32,
 ) {
-    let current = actor_team[actor_idx].position().clone();
+    let current = moving_team[character_idx].position().clone();
     let next_row = match direction {
         MoveDirection::Forward => current.row.checked_sub(1),
         MoveDirection::Backward => current.row.checked_add(1).filter(|row| *row < 3),
@@ -1041,29 +1533,49 @@ fn try_move_actor(
         row: next_row,
         col: current.col,
     };
-    let occupied = actor_team
+    let occupied = moving_team
         .iter()
         .enumerate()
-        .any(|(idx, c)| idx != actor_idx && c.is_alive() && c.position().row == destination.row && c.position().col == destination.col);
+        .any(|(idx, c)| idx != character_idx && c.is_alive() && c.position().row == destination.row && c.position().col == destination.col);
     if if_empty && occupied {
         return;
     }
 
-    actor_team[actor_idx].set_position(destination.clone());
-    recompute_team_companions(actor_team);
+    moving_team[character_idx].set_position(destination.clone());
+    recompute_team_companions(moving_team);
     log.push(BattleEvent::Moved {
         tick_count: step,
-        character_id: actor_team[actor_idx].id(),
-        character_name: actor_team[actor_idx].base_name().to_string(),
+        character_id: moving_team[character_idx].id(),
+        character_name: moving_team[character_idx].base_name().to_string(),
         from_row: current.row,
         from_col: current.col,
         to_row: destination.row,
         to_col: destination.col,
     });
     if actor_team_is_a {
-        log.capture_latest_snapshot(actor_team, enemy_team);
+        log.capture_latest_snapshot(moving_team, enemy_team);
     } else {
-        log.capture_latest_snapshot(enemy_team, actor_team);
+        log.capture_latest_snapshot(enemy_team, moving_team);
+    }
+}
+
+fn transform_statuses(
+    target: &mut CharacterState,
+    from_status: &str,
+    to_status: &str,
+    stats: &[Stat],
+    source_id: u32,
+    to_def: &crate::statuses::StatusDef,
+) {
+    for stat in stats {
+        let from_key = status_key(from_status, Some(stat));
+        let stacks = target.status_stacks(&from_key);
+        if stacks == 0 {
+            continue;
+        }
+        target.remove_status(&from_key, stacks);
+        let to_key = status_key(to_status, Some(stat));
+        target.add_status(&to_key, stacks, source_id, to_def, Some(stat.clone()));
     }
 }
 

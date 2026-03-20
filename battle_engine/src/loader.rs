@@ -448,6 +448,38 @@ fn validate_primitives(
                     );
                 }
             }
+            Primitive::DealTrueDamageConsumeTargetStatus {
+                status, stat, ..
+            } => {
+                let Some(def) = statuses.get(status) else {
+                    errors.push(format!(
+                        "{} references unknown status '{}'",
+                        source_name, status
+                    ));
+                    continue;
+                };
+
+                validate_status_stat_usage(source_name, status, stat.as_ref(), def, errors);
+            }
+            Primitive::DealTrueDamageConsumeSelfStatuses { statuses: refs, .. } => {
+                for status_ref in refs {
+                    let Some(def) = statuses.get(&status_ref.status) else {
+                        errors.push(format!(
+                            "{} references unknown status '{}'",
+                            source_name, status_ref.status
+                        ));
+                        continue;
+                    };
+
+                    validate_status_stat_usage(
+                        source_name,
+                        &status_ref.status,
+                        status_ref.stat.as_ref(),
+                        def,
+                        errors,
+                    );
+                }
+            }
             Primitive::Retarget { target, .. } => {
                 if !is_enemy_target(target) {
                     errors.push(format!(
@@ -457,6 +489,81 @@ fn validate_primitives(
                     ));
                 }
             }
+            Primitive::RetargetEnemiesFocusingTargets { target, .. }
+            | Primitive::RefocusAlliesToActorsTarget { target }
+            | Primitive::MoveTarget { target, .. } => {
+                if !is_ally_target(target) {
+                    errors.push(format!(
+                        "{} uses ally-target primitive on invalid target side '{}'",
+                        source_name,
+                        target_label(target),
+                    ));
+                }
+            }
+            Primitive::CleanseAndApplyStatusIfChanged {
+                target,
+                status,
+                stat,
+                ..
+            } => {
+                if !is_ally_target(target) {
+                    errors.push(format!(
+                        "{} uses ally-target primitive on invalid target side '{}'",
+                        source_name,
+                        target_label(target),
+                    ));
+                }
+                let Some(def) = statuses.get(status) else {
+                    errors.push(format!(
+                        "{} references unknown status '{}'",
+                        source_name, status
+                    ));
+                    continue;
+                };
+                validate_status_stat_usage(source_name, status, stat.as_ref(), def, errors);
+            }
+            Primitive::TransformStatuses {
+                target,
+                from_status,
+                to_status,
+                stats,
+            } => {
+                let Some(from_def) = statuses.get(from_status) else {
+                    errors.push(format!(
+                        "{} references unknown status '{}'",
+                        source_name, from_status
+                    ));
+                    continue;
+                };
+                let Some(to_def) = statuses.get(to_status) else {
+                    errors.push(format!(
+                        "{} references unknown status '{}'",
+                        source_name, to_status
+                    ));
+                    continue;
+                };
+                if !status_requires_stat(from_def) || !status_requires_stat(to_def) {
+                    errors.push(format!(
+                        "{} transform statuses must use stat-based statuses",
+                        source_name
+                    ));
+                }
+                if stats.is_empty() {
+                    errors.push(format!(
+                        "{} transform statuses must include at least one stat",
+                        source_name
+                    ));
+                }
+                if !is_enemy_target(target) && !is_ally_target(target) {
+                    errors.push(format!(
+                        "{} transforms invalid target side '{}'",
+                        source_name,
+                        target_label(target),
+                    ));
+                }
+            }
+            Primitive::DealTrueDamage { .. }
+            | Primitive::DealMagicalDamageCurrentTargetAndCompanions { .. } => {}
             Primitive::RemoveOneBuff { target } => {
                 if !is_enemy_target(target) {
                     errors.push(format!(
