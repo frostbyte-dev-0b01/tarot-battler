@@ -890,17 +890,10 @@ fn target_label(target: &AbilityTarget) -> &'static str {
 mod tests {
     use super::*;
     use crate::models::Stat;
+    use std::collections::HashMap;
+    use std::fs;
     use std::io::Write;
     use tempfile::NamedTempFile;
-
-    #[test]
-    fn load_characters_from_bundled_file() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/characters.json");
-        let chars = load_characters(&path).unwrap();
-        assert!(chars.len() >= 2);
-        assert_eq!(chars[0].base_name, "The Emperor");
-        assert_eq!(*chars[0].stats.get(&Stat::VIT).unwrap(), 12);
-    }
 
     #[test]
     fn load_characters_error_on_missing_file() {
@@ -1015,8 +1008,25 @@ mod tests {
 
     #[test]
     fn roundtrip_character_config() {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/characters.json");
-        let chars = load_characters(&path).unwrap();
+        let chars = vec![CharacterConfig {
+            id: Some("tester".to_string()),
+            base_name: "The Emperor".to_string(),
+            display_name: Some("The Emperor".to_string()),
+            stats: HashMap::from([
+                (Stat::VIT, 14),
+                (Stat::MGT, 12),
+                (Stat::MAG, 8),
+                (Stat::ARM, 9),
+                (Stat::RES, 6),
+                (Stat::SPD, 7),
+                (Stat::WIL, 11),
+            ]),
+            position: crate::models::Position { row: 0, col: 0 },
+            passive: "Imperial Formation".to_string(),
+            actives: vec!["Hold the Line".to_string(), "Command".to_string()],
+            item: None,
+            rules: vec![],
+        }];
         let json = serde_json::to_string_pretty(&chars).unwrap();
         let reloaded: Vec<CharacterConfig> = serde_json::from_str(&json).unwrap();
         assert_eq!(chars.len(), reloaded.len());
@@ -1029,12 +1039,29 @@ mod tests {
     #[test]
     fn bundled_content_references_are_valid() {
         let data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data");
-        let chars = load_characters(&data_dir.join("characters.json")).unwrap();
+        let teams_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../tools/ui/sample-data/teams");
+        let archetypes = load_archetypes(&data_dir.join("archetypes.json")).unwrap();
         let abilities = load_abilities(&data_dir.join("abilities.json")).unwrap();
         let passives = load_passives(&data_dir.join("passives.json")).unwrap();
         let statuses = load_statuses(&data_dir.join("statuses.json")).unwrap();
+        let items = load_items(&data_dir.join("items.json")).unwrap();
 
-        validate_content(&chars, &abilities, &passives, &statuses).unwrap();
+        for entry in fs::read_dir(teams_dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                continue;
+            }
+            let team = load_team_config(&path).unwrap();
+            let validated = validate_team_config(
+                &team,
+                &archetypes,
+                &items,
+                &abilities,
+                &passives,
+                &statuses,
+            );
+            assert!(validated.is_ok(), "{} should validate: {:?}", path.display(), validated);
+        }
     }
 
     #[test]

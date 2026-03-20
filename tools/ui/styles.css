@@ -1281,6 +1281,19 @@ textarea:focus-visible {
 .timeline-event-text {
   margin: 0;
   line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.event-character {
+  font-weight: 700;
+}
+
+.event-character-team_a {
+  color: rgba(38, 70, 83, 0.96);
+}
+
+.event-character-team_b {
+  color: rgba(162, 59, 42, 0.96);
 }
 
 .board-placeholder {
@@ -1771,13 +1784,15 @@ textarea:focus-visible {
 }
 
 .arena-cell-source {
-  outline: 1px solid rgba(38, 70, 83, 0.42);
+  outline: 3px solid rgba(41, 122, 82, 0.88);
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(41, 122, 82, 0.18);
 }
 
 .arena-cell-target {
-  outline: 1px solid rgba(162, 59, 42, 0.42);
+  outline: 3px solid rgba(177, 64, 44, 0.88);
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(177, 64, 44, 0.16);
 }
 
 .arena-cell-defeated {

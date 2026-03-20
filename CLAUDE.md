@@ -47,10 +47,11 @@ All cargo commands should be run from `battle_engine/`.
 - `src/rules.rs` — `evaluate_rules()` iterates a character's ordered rules, checking conditions and MP cost (reduced by `MpCostReduction` trait, minimum 1). Returns first matching ability or None (Rest fallback in the intended design).
 - `src/damage.rs` — Physical/magical damage calculation.
 - `src/targeting.rs` — Offensive/defensive type computation, front-row target selection with weakness preference.
-- `src/loader.rs` — `load_characters()`, `load_abilities()`, `load_passives()`, and `load_statuses()` from JSON, plus content validation for references, positions, target legality, and status-shape correctness.
+- `src/loader.rs` — `load_team_config()`, `load_archetypes()`, `load_items()`, `load_abilities()`, `load_passives()`, and `load_statuses()` from JSON, plus content validation for references, positions, target legality, and status-shape correctness.
 - `src/logger.rs` — `BattleEvent` and `BattleLog`, including replay-schema JSON export and human-readable replay formatting grouped by `tick_count`.
 - `src/main.rs` — Entry point: loads JSON data (characters, abilities, passives, statuses), validates content, splits teams, runs battle, prints readable text replay by default or JSON with `--json`.
-- `src/data/characters.json` — Current 3v3 sample roster used for trial battles and replay-tool iteration.
+- `src/data/archetypes.json` — Locked base templates for the current sample arcana.
+- `src/data/items.json` — Item catalog used for pre-battle stat augmentation.
 - `src/data/abilities.json` — Ability definitions for the current sample teams, including descriptions used by the UI hover tooltips.
 - `src/data/passives.json` — Passive definitions: triggered passives and permanent traits used by the sample roster.
 - `src/data/statuses.json` — Named status effect definitions used by the prototype, including `Omen`, `Ward`, and the current placeholder status vocabulary.

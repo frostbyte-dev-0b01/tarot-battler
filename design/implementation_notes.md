@@ -182,27 +182,18 @@ This is especially important once threshold unlocks and item-based identity shif
 
 ### Template-Based Character Builds
 
-The intended next structural step is to stop authoring final stats directly in team JSON.
-
-Instead:
+The engine and Team Builder now use the template-based `version: 2` team schema:
 
 - archetype templates own locked base stats
 - team files reference a `template_id`
 - items provide the first layer of pre-battle stat augmentation
 - the engine resolves authored loadouts into final runtime characters before battle start
 
-This implies an engine/UI split between:
+The Team Builder now treats stats as derived output rather than direct input:
 
-- authored loadout data
-- resolved combat-ready character data
-
-The Team Builder should eventually treat stats as derived output, not direct input:
-
-- show template base stats
-- show item bonuses
-- show final pre-battle totals
-
-The engine and Team Builder now use the template-based `version: 2` team schema.
+- template base stats
+- item bonuses
+- final pre-battle totals
 
 The older direct-stat team format has been retired.
 
