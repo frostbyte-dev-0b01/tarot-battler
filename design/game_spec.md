@@ -383,6 +383,11 @@ The current design direction is that many damaging abilities should eventually u
 
 This helps low-multiplier attacks stay meaningful through defense and creates more room to differentiate reliable hits, splash attacks, and payoff abilities.
 
+Current implementation note:
+
+- the live engine still primarily uses multiplier-only attacks plus a few explicit true-damage riders
+- `flat base + multiplier` should be treated as intended future-facing direction, not as fully live behavior
+
 ### Damage Resolution Order
 
 For a normal physical or magical hit:
@@ -422,7 +427,7 @@ The current intended core effects are:
 - `Lethality` — flat post-mitigation bonus damage on the attacker
 - `Omen` — true-damage setup effect that triggers at start of turn
 - `Restoration` — HP restoration over time
-- `Stunned` — skips the next action
+- `Stunned` — the unit cannot take actions while it has `Stunned`
 
 `Omen` is the official name for the intended true-damage setup effect.
 
@@ -440,7 +445,6 @@ They should stay relatively limited and should usually represent:
 Current intended condition list:
 
 - `Stunned`
-- `Muted`
 - `Marked`
 - `Severed`
 
@@ -448,10 +452,25 @@ More conditions can be added later, but the list should stay tight. Conditions s
 
 Current intended meanings:
 
-- `Stunned` — skips the next action
-- `Muted` — cannot reuse the same ability as the last turn
-- `Marked` — can be consumed or triggered by ally follow-up effects
+- `Stunned` — the unit cannot take actions while it has `Stunned`
+- `Marked` — has no intrinsic effect, but can be consumed or triggered by abilities
 - `Severed` — the unit is treated as having no companions for scripted and ability purposes
+
+Current intended condition behavior:
+
+- all current conditions lose `1` stack at end of turn unless they are consumed or removed earlier
+- `Stunned` does not stack and is usually applied as `1`
+- `Marked` stacks
+- `Severed` stacks
+
+Future candidate conditions:
+
+- `Muted` — cannot reuse the same ability as the last turn
+
+Current implementation note:
+
+- only `Stunned` is meaningfully live today
+- `Marked` and `Severed` remain intended gameplay-facing conditions, but are not yet implemented as a separate engine condition layer
 
 ### Status Groups
 
@@ -475,6 +494,11 @@ The current intended groups are:
   - `Restoration`
 
 `Stunned` and other conditions are separate from the `Body`, `Mind`, and `Fate` groups.
+
+Current implementation note:
+
+- the live engine does not yet implement explicit `Body` / `Mind` / `Fate` grouping
+- live generic `cleanse` / `dispel` still operates through broader prototype polarity rules
 
 ### Cleanse and Dispel
 
@@ -550,9 +574,32 @@ Current intended timing:
 - start of turn: `Omen` deals damage, then halves
 - start of turn: `Restoration` heals, then halves
 - end of turn: `Empower`, `Weaken`, and `Lethality` halve
-- `Stunned` is removed after it successfully denies an action
+- end of turn: current conditions lose `1` stack unless consumed or removed earlier
 
 The older prototype tick-down-by-1 behavior is an implementation detail, not the intended long-term design.
+
+Current implementation note:
+
+- the live engine still uses the older tick-down model
+- `Omen`, `Restoration`, `Empower`, `Weaken`, and `Lethality` do not yet use the intended halving decay model
+
+## Compound Ability Resolution
+
+Multi-step abilities resolve in written order.
+
+Default intended behavior:
+
+- an ability selects its targets for each step according to that step's own targeting text
+- if a later step depends on the result of an earlier step, that dependency should be explicit in the text
+- if an ability is intended to bind one target once and reuse it across all steps, that should be treated as atomic targeting and called out clearly in implementation notes or primitive design
+
+This matters for abilities such as `Rescue`, where:
+
+- move
+- heal
+- enemy refocus
+
+are conceptually about the same companion, even though the current prototype may still re-resolve the selector between steps.
 
 ## Passives and Traits
 

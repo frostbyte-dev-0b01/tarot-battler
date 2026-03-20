@@ -454,16 +454,6 @@
     "mp_cost": 4,
     "primitives": [
       {
-        "kind": "restore_hp",
-        "target": {
-          "category": "companion",
-          "selector": {
-            "kind": "lowest_hp"
-          }
-        },
-        "amount": 6
-      },
-      {
         "kind": "move_target",
         "target": {
           "category": "companion",
@@ -473,6 +463,16 @@
         },
         "direction": "backward",
         "if_empty": true
+      },
+      {
+        "kind": "restore_hp",
+        "target": {
+          "category": "companion",
+          "selector": {
+            "kind": "lowest_hp"
+          }
+        },
+        "amount": 6
       },
       {
         "kind": "retarget_enemies_focusing_targets",

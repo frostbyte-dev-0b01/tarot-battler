@@ -43,9 +43,13 @@ The design now also distinguishes:
 
 - `focus` as the sticky ongoing attack intent
 - `target` as the immediate ability target
-- `conditions` such as `Stunned`, `Muted`, `Marked`, and `Severed` as a separate layer from buffs and debuffs
+- `conditions` such as `Stunned`, `Marked`, and `Severed` as a separate layer from buffs and debuffs
 
 The engine still mostly expresses these as target/retarget and ordinary statuses internally.
+
+`Muted` is still a future candidate condition, not part of the intended near-term core set.
+
+`Rescue` also still has one known implementation shortcut: its move, heal, and enemy-refocus steps each resolve the companion selector separately instead of binding one selected companion for the whole ability. The current mitigation is to move before healing so the chosen companion is less likely to change mid-resolution. A future cleanup should support atomic multi-step execution with one bound target reused across the full ability.
 
 ### Stat Naming
 
