@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import itertools
 import json
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -47,18 +48,33 @@ def load_team_names(teams_dir: Path) -> dict[str, str]:
     return team_names
 
 
-def run_match(repo_root: Path, team_a: str, team_b: str, seed: int) -> str:
+def sanitize_name(name: str) -> str:
+    normalized = "".join(char.lower() if char.isalnum() else "_" for char in name)
+    parts = [part for part in normalized.split("_") if part]
+    return "_".join(parts) or "unknown_team"
+
+
+def run_match(
+    repo_root: Path,
+    team_a: str,
+    team_b: str,
+    seed: int,
+    replay_out_path: Path | None = None,
+) -> str:
+    command = [
+        "cargo",
+        "run",
+        "-q",
+        "--",
+        "--teams",
+        team_a,
+        team_b,
+    ]
+    if replay_out_path is not None:
+        command.extend(["--json-out", str(replay_out_path)])
+    command.append(str(seed))
     result = subprocess.run(
-        [
-            "cargo",
-            "run",
-            "-q",
-            "--",
-            "--teams",
-            team_a,
-            team_b,
-            str(seed),
-        ],
+        command,
         cwd=repo_root / "battle_engine",
         capture_output=True,
         text=True,
@@ -95,6 +111,9 @@ def main() -> int:
     args = parse_args()
     repo_root = Path(__file__).resolve().parents[1]
     teams_dir = repo_root / "tools" / "ui" / "sample-data" / "teams"
+    replays_dir = repo_root / "tools" / "ui" / "sample-data" / "replays"
+    replays_dir.mkdir(parents=True, exist_ok=True)
+    temp_replay_path = replays_dir / "__battle_royale_tmp.json"
     teams = load_team_names(teams_dir)
     team_keys = sorted(teams)
     if len(team_keys) < 2:
@@ -117,11 +136,24 @@ def main() -> int:
             else:
                 team_a, team_b = team_two, team_one
             seed = 1000 + pair_index * rounds + round_index
+            replay_out_path = temp_replay_path if round_index == 0 else None
             winner = parse_result(
-                run_match(repo_root, team_a, team_b, seed),
+                run_match(repo_root, team_a, team_b, seed, replay_out_path),
                 teams[team_a],
                 teams[team_b],
             )
+            if round_index == 0 and temp_replay_path.exists():
+                if winner == "draw":
+                    replay_name = (
+                        f"{sanitize_name(teams[team_one])}_draws_with_"
+                        f"{sanitize_name(teams[team_two])}.json"
+                    )
+                else:
+                    loser = teams[team_b] if winner == teams[team_a] else teams[team_a]
+                    replay_name = (
+                        f"{sanitize_name(winner)}_defeats_{sanitize_name(loser)}.json"
+                    )
+                shutil.copyfile(temp_replay_path, replays_dir / replay_name)
             pair_record = pair_records[(team_one, team_two)]
             totals[team_one].played += 1
             totals[team_two].played += 1
@@ -159,6 +191,8 @@ def main() -> int:
 
     print(f"Battle royale across {len(team_keys)} teams ({rounds} matches per pairing)\n")
     print(build_table(headers, rows))
+    if temp_replay_path.exists():
+        temp_replay_path.unlink()
     return 0
 
 
