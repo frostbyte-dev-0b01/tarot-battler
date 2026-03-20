@@ -183,6 +183,9 @@ Allowed values:
 
 - `"hp"`
 - `"mp"`
+- `"self_row"`
+- `"self_companion_count"`
+- `"target_companion_count"`
 - `"use_count"`
 - `"turns_since_use"`
 - `"tick_count"`

@@ -62,6 +62,9 @@ pub enum QueryValue {
     Stat(Stat),
     Hp,
     Mp,
+    SelfRow,
+    SelfCompanionCount,
+    TargetCompanionCount,
     HasStatus(String),
     StatusStacks(String),
     TickCount,
@@ -477,9 +480,12 @@ impl CharacterState {
             QueryValue::Stat(stat) => self.get_eff_stat(stat),
             QueryValue::Hp => self.curr_hp,
             QueryValue::Mp => self.curr_mp,
+            QueryValue::SelfRow => u32::from(self.position.row),
             QueryValue::HasStatus(key) => u32::from(self.has_status(key)),
             QueryValue::StatusStacks(key) => self.status_stacks(key),
-            QueryValue::TickCount
+            QueryValue::SelfCompanionCount
+            | QueryValue::TargetCompanionCount
+            | QueryValue::TickCount
             | QueryValue::AllyCount
             | QueryValue::EnemyCount
             | QueryValue::UseCount

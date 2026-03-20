@@ -103,6 +103,8 @@ Verification:
 
 ### Stage 2: Rule Query Support
 
+Status: completed in `rule query support` stage commit.
+
 - add rule query support for:
   - `self_row`
   - `self_companion_count`

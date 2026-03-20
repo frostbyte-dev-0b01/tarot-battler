@@ -18,6 +18,9 @@ const ruleSubjectOptions = [
 const ruleValueTypeOptions = [
   { value: "hp", label: "HP" },
   { value: "mp", label: "MP" },
+  { value: "self_row", label: "Row" },
+  { value: "self_companion_count", label: "Own Companions" },
+  { value: "target_companion_count", label: "Target Companions" },
   { value: "use_count", label: "Uses" },
   { value: "turns_since_use", label: "Turns Since Use" },
   { value: "tick_count", label: "Tick Count" },

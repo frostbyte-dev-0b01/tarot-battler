@@ -76,14 +76,31 @@ fn check_condition(
         _ => {}
     }
 
+    let living_companion_count = |character: &CharacterState, same_team: &[CharacterState]| -> u32 {
+        let companion_ids = character.companions();
+        same_team
+            .iter()
+            .filter(|other| other.is_alive() && companion_ids.contains(&other.id()))
+            .count() as u32
+    };
+
     match &cond.subject {
         ConditionSubject::SelfChar => {
-            let val = actor.query_value(&cond.value);
+            let val = match &cond.value {
+                QueryValue::SelfCompanionCount => living_companion_count(actor, allies),
+                QueryValue::TargetCompanionCount => 0,
+                _ => actor.query_value(&cond.value),
+            };
             compare(val, &cond.comparator, cond.threshold)
         }
         ConditionSubject::Target => match target {
             Some(t) => {
-                let val = t.query_value(&cond.value);
+                let val = match &cond.value {
+                    QueryValue::SelfCompanionCount | QueryValue::TargetCompanionCount => {
+                        living_companion_count(t, allies)
+                    }
+                    _ => t.query_value(&cond.value),
+                };
                 compare(val, &cond.comparator, cond.threshold)
             }
             None => false,
@@ -95,7 +112,12 @@ fn check_condition(
                 .iter()
                 .filter(|c| c.is_alive() && comp_ids.contains(&c.id()))
                 .any(|c| {
-                    let val = c.query_value(&cond.value);
+                    let val = match &cond.value {
+                        QueryValue::SelfCompanionCount | QueryValue::TargetCompanionCount => {
+                            living_companion_count(c, allies)
+                        }
+                        _ => c.query_value(&cond.value),
+                    };
                     compare(val, &cond.comparator, cond.threshold)
                 })
         }
@@ -412,6 +434,85 @@ mod tests {
             .as_deref(),
             Some("Crush")
         );
+    }
+
+    #[test]
+    fn self_row_condition_reads_actor_row() {
+        let rules = vec![Rule {
+            ability: "Crush".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::SelfChar,
+                value: QueryValue::SelfRow,
+                comparator: Comparator::Gte,
+                threshold: 2,
+            }],
+        }];
+        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        actor.set_position(Position { row: 2, col: 1 });
+
+        let abilities = make_abilities();
+        let result = evaluate_rules(&actor, None, &[], world(), &abilities);
+        assert_eq!(result.as_deref(), Some("Crush"));
+    }
+
+    #[test]
+    fn self_companion_count_uses_living_companions() {
+        let rules = vec![Rule {
+            ability: "Crush".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::SelfChar,
+                value: QueryValue::SelfCompanionCount,
+                comparator: Comparator::Gte,
+                threshold: 2,
+            }],
+        }];
+        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        actor.set_companions(vec![1, 2, 3]);
+
+        let ally_one = make_char(1, vec![(Stat::VIT, 5)]);
+        let ally_two = make_char(2, vec![(Stat::VIT, 5)]);
+        let mut defeated_ally = make_char(3, vec![(Stat::VIT, 5)]);
+        defeated_ally.take_damage(15);
+
+        let abilities = make_abilities();
+        let result = evaluate_rules(
+            &actor,
+            None,
+            &[ally_one, ally_two, defeated_ally],
+            world(),
+            &abilities,
+        );
+        assert_eq!(result.as_deref(), Some("Crush"));
+    }
+
+    #[test]
+    fn target_companion_count_reads_living_target_companions() {
+        let rules = vec![Rule {
+            ability: "Crush".to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::Target,
+                value: QueryValue::TargetCompanionCount,
+                comparator: Comparator::Gte,
+                threshold: 1,
+            }],
+        }];
+        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let mut target = make_char(10, vec![(Stat::VIT, 5)]);
+        target.set_companions(vec![11, 12]);
+
+        let living_companion = make_char(11, vec![(Stat::VIT, 5)]);
+        let mut defeated_companion = make_char(12, vec![(Stat::VIT, 5)]);
+        defeated_companion.take_damage(15);
+
+        let abilities = make_abilities();
+        let result = evaluate_rules(
+            &actor,
+            Some(&target),
+            &[living_companion, defeated_companion],
+            world(),
+            &abilities,
+        );
+        assert_eq!(result.as_deref(), Some("Crush"));
     }
 
     #[test]
