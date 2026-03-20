@@ -188,6 +188,8 @@ Verification:
 
 ### Stage 6: Sample Roster And Rule Alignment
 
+Status: completed in `sample roster and rules alignment` stage commit.
+
 - update bundled characters to use the revised live abilities
 - update MP thresholds and scripts to use the new costs and new rule queries
 - make at least one sample team show off the newer support/control directions cleanly

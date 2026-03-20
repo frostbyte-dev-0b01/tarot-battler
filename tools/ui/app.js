@@ -108,7 +108,7 @@ const demoTeam = {
           {
             ability: "Hold the Line",
             when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 4 },
+              { subject: "self", value: "mp", op: "gte", threshold: 5 },
               { subject: "self", value: "use_count", op: "lte", threshold: 0 },
             ],
           },
@@ -134,12 +134,15 @@ const demoTeam = {
             ability: "Blessing",
             when: [
               { subject: "self", value: "mp", op: "gte", threshold: 4 },
-              { subject: "self", value: "use_count", op: "lte", threshold: 0 },
+              { subject: "companion", value: "mp", op: "lte", threshold: 2 },
             ],
           },
           {
             ability: "Consecrate",
-            when: [{ subject: "world", value: "enemy_count", op: "gte", threshold: 2 }],
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 6 },
+              { subject: "target", value: "target_companion_count", op: "gte", threshold: 1 },
+            ],
           },
           {
             ability: "Smite",
@@ -162,11 +165,14 @@ const demoTeam = {
           },
           {
             ability: "Charge",
-            when: [{ subject: "self", value: "use_count", op: "lte", threshold: 0 }],
+            when: [
+              { subject: "self", value: "mp", op: "gte", threshold: 4 },
+              { subject: "self", value: "self_row", op: "gte", threshold: 1 },
+            ],
           },
           {
             ability: "Withdraw",
-            when: [{ subject: "self", value: { has_status: "Ward" }, op: "gte", threshold: 1 }],
+            when: [{ subject: "self", value: "hp", op: "lte", threshold: 16 }],
           },
         ],
       },

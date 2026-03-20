@@ -33,7 +33,7 @@
               "subject": "self",
               "value": "mp",
               "op": "gte",
-              "threshold": 4
+              "threshold": 5
             },
             {
               "subject": "self",
@@ -96,10 +96,10 @@
               "threshold": 4
             },
             {
-              "subject": "self",
-              "value": "use_count",
+              "subject": "companion",
+              "value": "mp",
               "op": "lte",
-              "threshold": 0
+              "threshold": 2
             }
           ]
         },
@@ -107,10 +107,16 @@
           "ability": "Consecrate",
           "when": [
             {
-              "subject": "world",
-              "value": "enemy_count",
+              "subject": "self",
+              "value": "mp",
               "op": "gte",
-              "threshold": 2
+              "threshold": 6
+            },
+            {
+              "subject": "target",
+              "value": "target_companion_count",
+              "op": "gte",
+              "threshold": 1
             }
           ]
         },
@@ -162,9 +168,15 @@
           "when": [
             {
               "subject": "self",
-              "value": "use_count",
-              "op": "lte",
-              "threshold": 0
+              "value": "mp",
+              "op": "gte",
+              "threshold": 4
+            },
+            {
+              "subject": "self",
+              "value": "self_row",
+              "op": "gte",
+              "threshold": 1
             }
           ]
         },
@@ -173,11 +185,9 @@
           "when": [
             {
               "subject": "self",
-              "value": {
-                "has_status": "Ward"
-              },
-              "op": "gte",
-              "threshold": 1
+              "value": "hp",
+              "op": "lte",
+              "threshold": 16
             }
           ]
         }

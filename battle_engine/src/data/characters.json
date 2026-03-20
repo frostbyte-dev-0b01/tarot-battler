@@ -17,7 +17,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 4
+            "threshold": 5
           },
           {
             "subject": "self",
@@ -67,10 +67,10 @@
             "threshold": 4
           },
           {
-            "subject": "self",
-            "value": "use_count",
+            "subject": "companion",
+            "value": "mp",
             "op": "lte",
-            "threshold": 0
+            "threshold": 2
           }
         ]
       },
@@ -78,10 +78,16 @@
         "ability": "Consecrate",
         "when": [
           {
-            "subject": "world",
-            "value": "enemy_count",
+            "subject": "self",
+            "value": "mp",
             "op": "gte",
-            "threshold": 2
+            "threshold": 6
+          },
+          {
+            "subject": "target",
+            "value": "target_companion_count",
+            "op": "gte",
+            "threshold": 1
           }
         ]
       },
@@ -118,9 +124,15 @@
         "when": [
           {
             "subject": "self",
-            "value": "use_count",
-            "op": "lte",
-            "threshold": 0
+            "value": "mp",
+            "op": "gte",
+            "threshold": 4
+          },
+          {
+            "subject": "self",
+            "value": "self_row",
+            "op": "gte",
+            "threshold": 1
           }
         ]
       },
@@ -129,9 +141,9 @@
         "when": [
           {
             "subject": "self",
-            "value": { "has_status": "Ward" },
-            "op": "gte",
-            "threshold": 1
+            "value": "hp",
+            "op": "lte",
+            "threshold": 16
           }
         ]
       }
@@ -172,7 +184,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 4
+            "threshold": 3
           },
           {
             "subject": "self",
@@ -219,7 +231,7 @@
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 8
+            "threshold": 6
           },
           {
             "subject": "target",
@@ -239,10 +251,10 @@
             "threshold": 6
           },
           {
-            "subject": "self",
-            "value": "use_count",
-            "op": "lte",
-            "threshold": 0
+            "subject": "target",
+            "value": "target_companion_count",
+            "op": "gte",
+            "threshold": 1
           }
         ]
       },
@@ -262,7 +274,7 @@
   {
     "base_name": "The Magician",
     "passive": "Catalyst",
-    "actives": ["Channel", "Distill", "Transmute"],
+    "actives": ["Seal", "Distill", "Transmute"],
     "item": null,
     "position": { "row": 2, "col": 1 },
     "stats": {
@@ -271,19 +283,36 @@
     },
     "rules": [
       {
-        "ability": "Channel",
+        "ability": "Transmute",
         "when": [
           {
             "subject": "self",
             "value": "mp",
             "op": "gte",
-            "threshold": 2
+            "threshold": 4
           },
           {
-            "subject": "companion",
-            "value": "mp",
-            "op": "lte",
+            "subject": "target",
+            "value": { "status_stacks": "Empower:MGT" },
+            "op": "gte",
             "threshold": 1
+          }
+        ]
+      },
+      {
+        "ability": "Seal",
+        "when": [
+          {
+            "subject": "self",
+            "value": "mp",
+            "op": "gte",
+            "threshold": 4
+          },
+          {
+            "subject": "self",
+            "value": "use_count",
+            "op": "lte",
+            "threshold": 0
           }
         ]
       },
@@ -295,29 +324,6 @@
             "value": "mp",
             "op": "gte",
             "threshold": 4
-          },
-          {
-            "subject": "target",
-            "value": { "status_stacks": "Omen" },
-            "op": "gte",
-            "threshold": 4
-          }
-        ]
-      },
-      {
-        "ability": "Transmute",
-        "when": [
-          {
-            "subject": "self",
-            "value": "mp",
-            "op": "gte",
-            "threshold": 2
-          },
-          {
-            "subject": "target",
-            "value": { "has_status": "Omen" },
-            "op": "gte",
-            "threshold": 1
           }
         ]
       }
