@@ -498,8 +498,9 @@ The current intended groups are:
 
 Current implementation note:
 
-- the live engine does not yet implement explicit `Body` / `Mind` / `Fate` grouping
-- live generic `cleanse` / `dispel` still operates through broader prototype polarity rules
+- the live engine now carries explicit `Body` / `Mind` / `Fate` group metadata for statuses
+- stat-mod groups are derived from the affected stat, and explicit group tags are used for effects such as `Omen`
+- generic `cleanse` / `dispel` still works broadly by polarity unless a group filter is specified
 
 ### Cleanse and Dispel
 

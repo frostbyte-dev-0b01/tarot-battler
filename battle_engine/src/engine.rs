@@ -744,6 +744,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
                 stack_type: StackType::TickDown,
+                group: None,
                 opposes: Some("Weaken".to_string()),
             },
         )]
@@ -813,6 +814,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
                 stack_type: StackType::TickDown,
+                group: None,
                 opposes: Some("Weaken".to_string()),
             },
         )]
@@ -909,6 +911,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::DamagePerStack { value: 1 },
                 stack_type: StackType::TickDown,
+                group: Some(crate::statuses::StatusGroup::Fate),
                 opposes: None,
             },
         )]
@@ -995,6 +998,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::DamagePerStack { value: 1 },
                 stack_type: StackType::TickDown,
+                group: Some(crate::statuses::StatusGroup::Fate),
                 opposes: None,
             },
         )]
@@ -1939,6 +1943,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::DamagePerStack { value: 2 },
                 stack_type: StackType::TickDown,
+                group: None,
                 opposes: None,
             },
         );
@@ -1997,6 +2002,7 @@ mod tests {
         let stun_def = StatusDef {
             behavior: StatusBehavior::SkipTurn,
             stack_type: StackType::NoStack,
+            group: None,
             opposes: None,
         };
 
@@ -2056,11 +2062,13 @@ mod tests {
         let stun_def = StatusDef {
             behavior: StatusBehavior::SkipTurn,
             stack_type: StackType::NoStack,
+            group: None,
             opposes: None,
         };
         let bleed_def = StatusDef {
             behavior: StatusBehavior::DamagePerStack { value: 1 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: None,
         };
 
@@ -2148,6 +2156,7 @@ mod tests {
         let bleed_def = StatusDef {
             behavior: StatusBehavior::DamagePerStack { value: 1 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: None,
         };
 
@@ -2244,6 +2253,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
                 stack_type: StackType::Permanent,
+                group: None,
                 opposes: None,
             },
         );
@@ -2323,6 +2333,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
                 stack_type: StackType::Permanent,
+                group: None,
                 opposes: None,
             },
         );
@@ -2931,6 +2942,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
                 stack_type: StackType::Permanent,
+                group: None,
                 opposes: None,
             },
         );
@@ -3046,6 +3058,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::DamagePerStack { value: 1 },
                 stack_type: StackType::TickDown,
+                group: Some(crate::statuses::StatusGroup::Fate),
                 opposes: None,
             },
         );
@@ -3114,6 +3127,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
                 stack_type: StackType::Permanent,
+                group: None,
                 opposes: None,
             },
         );
@@ -3328,6 +3342,7 @@ mod tests {
         let poison = StatusDef {
             behavior: StatusBehavior::DamagePerStack { value: 2 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: None,
         };
         let mut statuses: StatusMap = HashMap::new();

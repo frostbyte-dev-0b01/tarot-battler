@@ -4,6 +4,14 @@ use std::collections::HashMap;
 
 use crate::models::Stat;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StatusGroup {
+    Body,
+    Mind,
+    Fate,
+}
+
 /// How stacks behave over time.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -33,6 +41,8 @@ pub struct StatusDef {
     #[serde(flatten)]
     pub behavior: StatusBehavior,
     pub stack_type: StackType,
+    #[serde(default)]
+    pub group: Option<StatusGroup>,
     /// Name of the opposing status (e.g., Empower opposes Weaken).
     /// When applied, cancels stacks of the opposing status on the same stat.
     #[serde(default)]
@@ -48,6 +58,7 @@ pub struct StatusInstance {
     pub source_id: u32,
     pub behavior: StatusBehavior,
     pub stack_type: StackType,
+    pub group: Option<StatusGroup>,
     /// For StatModPerStack: which stat is modified.
     pub stat: Option<Stat>,
 }

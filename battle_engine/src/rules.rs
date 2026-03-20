@@ -682,6 +682,7 @@ mod tests {
             &crate::statuses::StatusDef {
                 behavior: crate::statuses::StatusBehavior::Ward,
                 stack_type: crate::statuses::StackType::Permanent,
+                group: None,
                 opposes: None,
             },
             None,
@@ -714,6 +715,7 @@ mod tests {
             &crate::statuses::StatusDef {
                 behavior: crate::statuses::StatusBehavior::DamagePerStack { value: 1 },
                 stack_type: crate::statuses::StackType::TickDown,
+                group: None,
                 opposes: None,
             },
             None,
@@ -747,6 +749,7 @@ mod tests {
             &crate::statuses::StatusDef {
                 behavior: crate::statuses::StatusBehavior::StatModPerStack { magnitude: 1 },
                 stack_type: crate::statuses::StackType::TickDown,
+                group: None,
                 opposes: Some("Weaken".to_string()),
             },
             Some(Stat::MGT),

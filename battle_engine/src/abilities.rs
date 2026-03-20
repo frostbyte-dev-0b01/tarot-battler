@@ -10,7 +10,7 @@ use crate::abilities_targeting::{
 };
 use crate::logger::{BattleEvent, BattleLog};
 use crate::models::{CharacterState, ConditionKind, Stat};
-use crate::statuses::{StatusMap, status_key};
+use crate::statuses::{StatusGroup, StatusMap, status_key};
 use crate::targeting::select_target;
 
 /// Simple target categories used by existing sample data.
@@ -240,10 +240,14 @@ pub enum Primitive {
     Cleanse {
         target: AbilityTarget,
         amount: u32,
+        #[serde(default)]
+        group: Option<StatusGroup>,
     },
     Dispel {
         target: AbilityTarget,
         amount: u32,
+        #[serde(default)]
+        group: Option<StatusGroup>,
     },
     Retarget {
         target: AbilityTarget,
@@ -1087,31 +1091,39 @@ pub fn execute_primitives_with_context(
                     ctx.enemy_team[tidx].remove_one_buff();
                 }
             }
-            Primitive::Cleanse { target, amount } => {
+            Primitive::Cleanse {
+                target,
+                amount,
+                group,
+            } => {
                 if target_is_enemy_side(target) {
                     let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
-                        ctx.enemy_team[tidx].cleanse(*amount);
+                        ctx.enemy_team[tidx].cleanse(*amount, *group);
                     }
                 } else {
                     let target_indices =
                         resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
-                        ctx.actor_team[tidx].cleanse(*amount);
+                        ctx.actor_team[tidx].cleanse(*amount, *group);
                     }
                 }
             }
-            Primitive::Dispel { target, amount } => {
+            Primitive::Dispel {
+                target,
+                amount,
+                group,
+            } => {
                 if target_is_enemy_side(target) {
                     let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
-                        ctx.enemy_team[tidx].dispel(*amount);
+                        ctx.enemy_team[tidx].dispel(*amount, *group);
                     }
                 } else {
                     let target_indices =
                         resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
-                        ctx.actor_team[tidx].dispel(*amount);
+                        ctx.actor_team[tidx].dispel(*amount, *group);
                     }
                 }
             }
@@ -1389,7 +1401,7 @@ pub fn execute_primitives_with_context(
                 if target_is_enemy_side(target) {
                     let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
-                        if ctx.enemy_team[tidx].cleanse(*amount) {
+                        if ctx.enemy_team[tidx].cleanse(*amount, None) {
                             let applied = ctx.enemy_team[tidx].add_status(
                                 &key,
                                 *stacks,
@@ -1406,7 +1418,7 @@ pub fn execute_primitives_with_context(
                     let target_indices =
                         resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
-                        if ctx.actor_team[tidx].cleanse(*amount) {
+                        if ctx.actor_team[tidx].cleanse(*amount, None) {
                             let applied = ctx.actor_team[tidx].add_status(
                                 &key,
                                 *stacks,

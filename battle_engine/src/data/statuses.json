@@ -17,7 +17,8 @@
   "Omen": {
     "behavior": "damage_per_stack",
     "value": 1,
-    "stack_type": "tick_down"
+    "stack_type": "tick_down",
+    "group": "fate"
   },
   "Empower": {
     "behavior": "stat_mod_per_stack",

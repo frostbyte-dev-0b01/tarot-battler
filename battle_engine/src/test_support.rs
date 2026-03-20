@@ -38,6 +38,7 @@ pub fn ward_statuses() -> StatusMap {
         StatusDef {
             behavior: StatusBehavior::Ward,
             stack_type: StackType::Permanent,
+            group: None,
             opposes: None,
         },
     );
@@ -51,6 +52,7 @@ pub fn test_statuses() -> StatusMap {
         StatusDef {
             behavior: StatusBehavior::DamagePerStack { value: 1 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: None,
         },
     );
@@ -59,6 +61,7 @@ pub fn test_statuses() -> StatusMap {
         StatusDef {
             behavior: StatusBehavior::HealPerStack { value: 2 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: None,
         },
     );
@@ -67,6 +70,7 @@ pub fn test_statuses() -> StatusMap {
         StatusDef {
             behavior: StatusBehavior::DamagePerStack { value: 1 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: None,
         },
     );
@@ -75,6 +79,7 @@ pub fn test_statuses() -> StatusMap {
         StatusDef {
             behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: Some("Weaken".to_string()),
         },
     );
@@ -83,6 +88,7 @@ pub fn test_statuses() -> StatusMap {
         StatusDef {
             behavior: StatusBehavior::StatModPerStack { magnitude: -1 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: Some("Empower".to_string()),
         },
     );
@@ -91,6 +97,7 @@ pub fn test_statuses() -> StatusMap {
         StatusDef {
             behavior: StatusBehavior::Ward,
             stack_type: StackType::Permanent,
+            group: None,
             opposes: None,
         },
     );

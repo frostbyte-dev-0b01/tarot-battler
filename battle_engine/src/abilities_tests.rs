@@ -314,6 +314,7 @@ fn cleanse_reduces_all_timed_debuffs_on_allies() {
     let stun = StatusDef {
         behavior: StatusBehavior::SkipTurn,
         stack_type: StackType::NoStack,
+        group: None,
         opposes: None,
     };
     actor_team[1].add_status("Stun", 1, 99, &stun, None);
@@ -323,6 +324,7 @@ fn cleanse_reduces_all_timed_debuffs_on_allies() {
         primitives: vec![Primitive::Cleanse {
             target: SimpleAbilityTarget::Companions.into(),
             amount: 1,
+            group: None,
         }],
     };
 
@@ -371,6 +373,7 @@ fn dispel_reduces_all_timed_buffs_on_enemies() {
         primitives: vec![Primitive::Dispel {
             target: SimpleAbilityTarget::CurrentTarget.into(),
             amount: 1,
+            group: None,
         }],
     };
 
@@ -1178,6 +1181,7 @@ fn companion_selector_can_target_same_row_companion() {
         StatusDef {
             behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: Some("Weaken".to_string()),
         },
     );

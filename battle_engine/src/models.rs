@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 
-use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusInstance, opposite_key, status_key};
+use crate::statuses::{
+    StackType, StatusBehavior, StatusDef, StatusGroup, StatusInstance, opposite_key, status_key,
+};
 
 /// The current character attributes.
 #[derive(Hash, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -660,6 +662,7 @@ impl CharacterState {
                             source_id,
                             behavior: def.behavior.clone(),
                             stack_type: def.stack_type.clone(),
+                            group: resolve_status_group(def, stat.as_ref()),
                             stat,
                         },
                     );
@@ -679,6 +682,7 @@ impl CharacterState {
                             source_id,
                             behavior: def.behavior.clone(),
                             stack_type: def.stack_type.clone(),
+                            group: resolve_status_group(def, stat.as_ref()),
                             stat,
                         },
                     );
@@ -767,15 +771,20 @@ impl CharacterState {
         true
     }
 
-    pub fn cleanse(&mut self, amount: u32) -> bool {
-        self.reduce_matching_timed_effects(amount, EffectPolarity::Debuff)
+    pub fn cleanse(&mut self, amount: u32, group: Option<StatusGroup>) -> bool {
+        self.reduce_matching_timed_effects(amount, EffectPolarity::Debuff, group)
     }
 
-    pub fn dispel(&mut self, amount: u32) -> bool {
-        self.reduce_matching_timed_effects(amount, EffectPolarity::Buff)
+    pub fn dispel(&mut self, amount: u32, group: Option<StatusGroup>) -> bool {
+        self.reduce_matching_timed_effects(amount, EffectPolarity::Buff, group)
     }
 
-    fn reduce_matching_timed_effects(&mut self, amount: u32, polarity: EffectPolarity) -> bool {
+    fn reduce_matching_timed_effects(
+        &mut self,
+        amount: u32,
+        polarity: EffectPolarity,
+        group: Option<StatusGroup>,
+    ) -> bool {
         if amount == 0 {
             return false;
         }
@@ -785,6 +794,7 @@ impl CharacterState {
             .iter()
             .filter(|(_, inst)| matches!(inst.stack_type, StackType::TickDown))
             .filter(|(_, inst)| effect_polarity(inst) == Some(polarity))
+            .filter(|(_, inst)| group.is_none_or(|expected| inst.group == Some(expected)))
             .map(|(key, _)| key.clone())
             .collect();
 
@@ -868,6 +878,19 @@ impl CharacterState {
     }
 }
 
+fn resolve_status_group(def: &StatusDef, stat: Option<&Stat>) -> Option<StatusGroup> {
+    def.group.or_else(|| {
+        if !matches!(def.behavior, StatusBehavior::StatModPerStack { .. }) {
+            return None;
+        }
+        match stat {
+            Some(Stat::MGT | Stat::ARM) => Some(StatusGroup::Body),
+            Some(Stat::MAG | Stat::RES) => Some(StatusGroup::Mind),
+            _ => None,
+        }
+    })
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EffectPolarity {
     Buff,
@@ -914,6 +937,7 @@ mod tests {
         StatusDef {
             behavior: StatusBehavior::DamagePerStack { value: 1 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: None,
         }
     }
@@ -922,6 +946,7 @@ mod tests {
         StatusDef {
             behavior: StatusBehavior::HealPerStack { value: 2 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: None,
         }
     }
@@ -930,6 +955,7 @@ mod tests {
         StatusDef {
             behavior: StatusBehavior::DamagePerStack { value: 1 },
             stack_type: StackType::TickDown,
+            group: Some(StatusGroup::Fate),
             opposes: None,
         }
     }
@@ -938,6 +964,7 @@ mod tests {
         StatusDef {
             behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: Some("Weaken".to_string()),
         }
     }
@@ -946,6 +973,7 @@ mod tests {
         StatusDef {
             behavior: StatusBehavior::StatModPerStack { magnitude: -1 },
             stack_type: StackType::TickDown,
+            group: None,
             opposes: Some("Empower".to_string()),
         }
     }
@@ -954,6 +982,7 @@ mod tests {
         StatusDef {
             behavior: StatusBehavior::SkipTurn,
             stack_type: StackType::NoStack,
+            group: None,
             opposes: None,
         }
     }
@@ -962,6 +991,7 @@ mod tests {
         StatusDef {
             behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
             stack_type: StackType::Permanent,
+            group: None,
             opposes: None,
         }
     }
@@ -970,6 +1000,7 @@ mod tests {
         StatusDef {
             behavior: StatusBehavior::Ward,
             stack_type: StackType::Permanent,
+            group: None,
             opposes: None,
         }
     }
@@ -1412,6 +1443,21 @@ mod tests {
         assert!(!state.has_condition(ConditionKind::Stunned));
         assert_eq!(state.condition_stacks(ConditionKind::Marked), 1);
         assert_eq!(state.condition_stacks(ConditionKind::Severed), 2);
+    }
+
+    #[test]
+    fn cleanse_respects_status_group_filter() {
+        let config = make_config(vec![(Stat::MGT, 10), (Stat::MAG, 10), (Stat::VIT, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        let weaken_mgt = status_key("Weaken", Some(&Stat::MGT));
+        let weaken_mag = status_key("Weaken", Some(&Stat::MAG));
+
+        state.add_status(&weaken_mgt, 2, 99, &weaken_def(), Some(Stat::MGT));
+        state.add_status(&weaken_mag, 2, 99, &weaken_def(), Some(Stat::MAG));
+
+        assert!(state.cleanse(1, Some(StatusGroup::Body)));
+        assert_eq!(state.status_stacks(&weaken_mgt), 1);
+        assert_eq!(state.status_stacks(&weaken_mag), 2);
     }
 
     #[test]

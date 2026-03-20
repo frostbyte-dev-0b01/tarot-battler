@@ -37,7 +37,7 @@ This is useful for prototyping, but the intended design direction is now:
 
 `Bleed` and `Poison` should still be treated as implementation placeholders so the design docs and engine behavior do not get confused.
 
-The intended design now also groups timed effects into `Body`, `Mind`, and `Fate`, with generic ally cleanse reducing all debuffs by `1 tick` and generic enemy dispel reducing all buffs by `1 tick`. The engine does not implement that grouped removal model yet.
+The intended design now also groups timed effects into `Body`, `Mind`, and `Fate`, with generic ally cleanse reducing all debuffs by `1 tick` and generic enemy dispel reducing all buffs by `1 tick`. The engine now carries explicit group metadata and supports optional group-aware `cleanse` / `dispel` targeting, though bundled live abilities still mostly use the broad generic form.
 
 The design now also distinguishes:
 

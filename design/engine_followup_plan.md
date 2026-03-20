@@ -59,20 +59,18 @@ Result:
 
 ### 4. Status Grouping
 
-The spec now groups effects into `Body`, `Mind`, and `Fate`, but the engine still uses generic polarity-only cleanse/dispel behavior.
+Status: complete.
 
-Desired outcome:
+What landed:
 
 - statuses carry an explicit group tag
-- generic cleanse / dispel follows the intended group rules
+- stat-mod groups are derived from the affected stat when needed
+- generic cleanse / dispel can optionally filter by group
 - specialized cleanse / dispel can target a specific group later
 
-Suggested implementation order:
+Remaining follow-up:
 
-1. add optional group metadata to status definitions
-2. migrate bundled statuses
-3. update generic cleanse / dispel behavior
-4. add tests for grouped removal rules
+- decide which bundled abilities should start using explicit group filters
 
 ### 5. Halving Decay
 

@@ -1126,6 +1126,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
                 stack_type: crate::statuses::StackType::TickDown,
+                group: None,
                 opposes: None,
             },
         )]
@@ -1158,6 +1159,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::DamagePerStack { value: 1 },
                 stack_type: crate::statuses::StackType::TickDown,
+                group: None,
                 opposes: None,
             },
         )]
@@ -1222,6 +1224,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
                 stack_type: crate::statuses::StackType::TickDown,
+                group: None,
                 opposes: None,
             },
         )]
@@ -1254,6 +1257,7 @@ mod tests {
             StatusDef {
                 behavior: StatusBehavior::DamagePerStack { value: 1 },
                 stack_type: crate::statuses::StackType::TickDown,
+                group: None,
                 opposes: None,
             },
         )]
@@ -1356,6 +1360,7 @@ mod tests {
                 StatusDef {
                     behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
                     stack_type: crate::statuses::StackType::TickDown,
+                    group: None,
                     opposes: None,
                 },
             ),
@@ -1364,6 +1369,7 @@ mod tests {
                 StatusDef {
                     behavior: StatusBehavior::Ward,
                     stack_type: crate::statuses::StackType::Permanent,
+                    group: None,
                     opposes: None,
                 },
             ),
