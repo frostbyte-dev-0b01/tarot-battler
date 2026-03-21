@@ -1,7 +1,7 @@
 {
   "the_emperor": {
     "display_name": "The Emperor",
-    "stats": { "vit": 14, "mgt": 13, "mag": 9, "arm": 9, "res": 9, "spd": 10, "wil": 11 },
+    "stats": { "vit": 16, "mgt": 11, "mag": 9, "arm": 15, "res": 12, "spd": 10, "wil": 11 },
     "default_passive": "Imperial Formation",
     "passive_pool": ["Imperial Formation"],
     "active_pool": ["Hold the Line", "Command", "Taunt", "Interpose", "Sunder"],
@@ -9,7 +9,7 @@
   },
   "the_hierophant": {
     "display_name": "The Hierophant",
-    "stats": { "vit": 14, "mgt": 9, "mag": 13, "arm": 8, "res": 11, "spd": 9, "wil": 13 },
+    "stats": { "vit": 14, "mgt": 9, "mag": 12, "arm": 9, "res": 14, "spd": 8, "wil": 13 },
     "default_passive": "Sanctuary",
     "passive_pool": ["Sanctuary"],
     "active_pool": ["Smite", "Consecrate", "Blessing", "Sanctify", "Rescue"],
@@ -17,7 +17,7 @@
   },
   "the_chariot": {
     "display_name": "The Chariot",
-    "stats": { "vit": 11, "mgt": 15, "mag": 9, "arm": 7, "res": 7, "spd": 14, "wil": 10 },
+    "stats": { "vit": 10, "mgt": 15, "mag": 9, "arm": 8, "res": 7, "spd": 14, "wil": 10 },
     "default_passive": "Pursuit",
     "passive_pool": ["Pursuit"],
     "active_pool": ["Charge", "Withdraw", "Breakthrough", "Sever", "Pursue"],
@@ -25,7 +25,7 @@
   },
   "justice": {
     "display_name": "Justice",
-    "stats": { "vit": 14, "mgt": 12, "mag": 12, "arm": 8, "res": 8, "spd": 10, "wil": 10 },
+    "stats": { "vit": 14, "mgt": 12, "mag": 12, "arm": 13, "res": 13, "spd": 10, "wil": 10 },
     "default_passive": "Sentence",
     "passive_pool": ["Sentence"],
     "active_pool": ["Rebuke", "Condemn", "Verdict", "Seal", "Detonate Mark"],
@@ -33,7 +33,7 @@
   },
   "the_moon": {
     "display_name": "The Moon",
-    "stats": { "vit": 12, "mgt": 9, "mag": 15, "arm": 8, "res": 9, "spd": 12, "wil": 13 },
+    "stats": { "vit": 12, "mgt": 9, "mag": 13, "arm": 7, "res": 8, "spd": 12, "wil": 13 },
     "default_passive": "Foreboding",
     "passive_pool": ["Foreboding"],
     "active_pool": ["Hex", "Eclipse", "Harvest Night", "Death Mark", "Withdraw"],
@@ -41,7 +41,7 @@
   },
   "the_magician": {
     "display_name": "The Magician",
-    "stats": { "vit": 10, "mgt": 8, "mag": 15, "arm": 7, "res": 9, "spd": 12, "wil": 14 },
+    "stats": { "vit": 10, "mgt": 8, "mag": 15, "arm": 6, "res": 7, "spd": 9, "wil": 14 },
     "default_passive": "Catalyst",
     "passive_pool": ["Catalyst"],
     "active_pool": ["Offer", "Seal", "Distill", "Transmute", "Smite"],
@@ -49,7 +49,7 @@
   },
   "the_hermit": {
     "display_name": "The Hermit",
-    "stats": { "vit": 12, "mgt": 8, "mag": 14, "arm": 8, "res": 11, "spd": 9, "wil": 13 },
+    "stats": { "vit": 13, "mgt": 8, "mag": 12, "arm": 8, "res": 11, "spd": 9, "wil": 15 },
     "default_passive": "Lonely Road",
     "passive_pool": ["Lonely Road"],
     "active_pool": ["Sever Thread", "Shatter Faith", "Smite", "Consecrate", "Cleanse the Throne"],
@@ -57,7 +57,7 @@
   },
   "the_fool": {
     "display_name": "The Fool",
-    "stats": { "vit": 12, "mgt": 12, "mag": 11, "arm": 8, "res": 8, "spd": 13, "wil": 10 },
+    "stats": { "vit": 12, "mgt": 12, "mag": 11, "arm": 9, "res": 9, "spd": 13, "wil": 10 },
     "default_passive": "Chance Opening",
     "passive_pool": ["Chance Opening"],
     "active_pool": ["Hunt the Weak", "Inheritance", "Concuss", "Pursue", "Last Rites"],

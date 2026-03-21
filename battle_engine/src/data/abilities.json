@@ -60,23 +60,20 @@
     ]
   },
   "Blessing": {
-    "description": "Allies in the user's row restore MP 2 and refocus on the user's focused enemy.",
+    "description": "Apply Restoration 3 to the user and the user's companions.",
     "mp_cost": 4,
     "primitives": [
       {
-        "kind": "restore_mp",
-        "target": {
-          "category": "ally",
-          "position": "same_row"
-        },
-        "amount": 2
+        "kind": "apply_status",
+        "target": "self",
+        "status": "Restoration",
+        "stacks": 3
       },
       {
-        "kind": "refocus_allies_to_actors_target",
-        "target": {
-          "category": "ally",
-          "position": "same_row"
-        }
+        "kind": "apply_status",
+        "target": "companions",
+        "status": "Restoration",
+        "stacks": 3
       }
     ]
   },
@@ -613,27 +610,17 @@
     ]
   },
   "Last Rites": {
-    "description": "Deal 2 + 1.5x MAG damage to the lowest-HP enemy below 50% HP.",
+    "description": "Deal 2 + 1.5x MAG damage to the lowest-HP enemy.",
     "mp_cost": 5,
     "primitives": [
       {
-        "kind": "if_target_hp_at_or_below_percent",
+        "kind": "deal_magical_damage",
         "target": {
           "category": "enemy",
           "selector": { "kind": "lowest_hp" }
         },
-        "percent": 50,
-        "primitives": [
-          {
-            "kind": "deal_magical_damage",
-            "target": {
-              "category": "enemy",
-              "selector": { "kind": "lowest_hp" }
-            },
-            "base_damage": 2,
-            "multiplier": 1.5
-          }
-        ]
+        "base_damage": 2,
+        "multiplier": 1.5
       }
     ]
   },

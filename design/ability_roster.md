@@ -184,8 +184,8 @@ Design note:
 
 - `Blessing`
   `MP 4`
-  Allies in the user's row restore `MP 2` and refocus on the user's focused enemy.
-  Balance notes: support should help the team act together, not just hand out a small resource bump
+  Apply `Restoration 3` to the user and the user's companions.
+  Balance notes: this is now a real sustain shell enabler rather than a light coordination rider
 
 - `Offer`
   `MP 2`
@@ -241,7 +241,7 @@ These ideas still look promising, but are lower priority than the near-term prom
   put this on a backline caster between passive healers or durable companions so the team converts survivable self-damage into burst.
 
 - `Last Rites`
-  Deal `2 + 1.5x MAG` damage to an enemy below `50% HP`. If that enemy is defeated, all allies refocus.
+  Deal `2 + 1.5x MAG` damage to the lowest-HP enemy.
 
 - `Cleanse the Throne`
   Target the enemy with the most buffs. Remove all buffs from that enemy. That enemy is disoriented.
