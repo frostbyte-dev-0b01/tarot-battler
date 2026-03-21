@@ -36,26 +36,26 @@
     ]
   },
   "Smite": {
-    "description": "Deal 1.4x MAG damage to the user's focused enemy.",
+    "description": "Deal 1.5x MAG damage to the user's focused enemy.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "multiplier": 1.4
+        "multiplier": 1.5
       }
     ]
   },
   "Consecrate": {
-    "description": "Deal 3 + 1.0x MAG damage to the user's focused enemy and 2 + 0.7x MAG damage to that enemy's companions.",
+    "description": "Deal 2 + 1.5x MAG damage to the user's focused enemy and 1 + 1.0x MAG damage to that enemy's companions.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_magical_damage_current_target_and_companions",
-        "primary_base_damage": 3,
-        "primary_multiplier": 1.0,
-        "companion_base_damage": 2,
-        "companion_multiplier": 0.7
+        "primary_base_damage": 2,
+        "primary_multiplier": 1.5,
+        "companion_base_damage": 1,
+        "companion_multiplier": 1.0
       }
     ]
   },
@@ -81,13 +81,13 @@
     ]
   },
   "Charge": {
-    "description": "Deal 1.2x MGT damage to the user's focused enemy. Then move one row forward if the tile is empty and refocus.",
+    "description": "Deal 1.5x MGT damage to the user's focused enemy. Then move one row forward if the tile is empty and refocus.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.2,
+        "multiplier": 1.5,
         "double_empower_stat": null
       },
       {
@@ -101,13 +101,13 @@
     ]
   },
   "Withdraw": {
-    "description": "Deal 0.8x MGT damage to the user's focused enemy. Then move one row backward if the tile is empty and enemies focusing the user refocus.",
+    "description": "Deal 1.0x MGT damage to the user's focused enemy. Then move one row backward if the tile is empty and enemies focusing the user refocus.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 0.8,
+        "multiplier": 1.0,
         "double_empower_stat": null
       },
       {
@@ -123,26 +123,26 @@
     ]
   },
   "Breakthrough": {
-    "description": "Deal physical damage. Empower MGT on the user counts double for this attack.",
+    "description": "Deal 1.5x MGT damage to the user's focused enemy. Empower MGT on the user counts double for this attack.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.0,
+        "multiplier": 1.5,
         "double_empower_stat": "mgt"
       }
     ]
   },
   "Hex": {
-    "description": "Deal 3 + 0.8x MAG damage to the user's focused enemy. Apply Omen 2.",
+    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. Apply Omen 2.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "base_damage": 3,
-        "multiplier": 0.8
+        "base_damage": 2,
+        "multiplier": 1.0
       },
       {
         "kind": "apply_status",
@@ -153,14 +153,14 @@
     ]
   },
   "Eclipse": {
-    "description": "Deal 2 + 0.8x MAG damage to the user's focused enemy and that enemy's companions. Apply Omen 1 to each.",
+    "description": "Deal 1.0x MAG damage to the user's focused enemy and that enemy's companions. Apply Omen 1 to each.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target_and_companions",
-        "base_damage": 2,
-        "multiplier": 0.8
+        "base_damage": 0,
+        "multiplier": 1.0
       },
       {
         "kind": "apply_status",
@@ -171,13 +171,13 @@
     ]
   },
   "Harvest Night": {
-    "description": "Deal 3 + 1.0x MAG damage to the user's focused enemy. Then consume all Omen on that enemy and deal 2 true damage per stack consumed.",
+    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. Then consume all Omen on that enemy and deal 2 true damage per stack consumed.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "base_damage": 3,
+        "base_damage": 2,
         "multiplier": 1.0
       },
       {
@@ -246,7 +246,7 @@
     ]
   },
   "Condemn": {
-    "description": "Deal 1.4x MGT damage to the user's focused enemy. If that enemy has Omen, this attack instead uses 1.6x MGT.",
+    "description": "Deal 1.5x MGT damage to the user's focused enemy. If that enemy has Omen, this attack instead uses 2.0x MGT.",
     "mp_cost": 6,
     "primitives": [
       {
@@ -257,7 +257,7 @@
           {
             "kind": "deal_physical_damage",
             "target": "current_target",
-            "multiplier": 1.4,
+            "multiplier": 1.5,
             "double_empower_stat": null
           }
         ]
@@ -270,7 +270,7 @@
           {
             "kind": "deal_physical_damage",
             "target": "current_target",
-            "multiplier": 1.6,
+            "multiplier": 2.0,
             "double_empower_stat": null
           }
         ]
@@ -278,26 +278,26 @@
     ]
   },
   "Verdict": {
-    "description": "Deal 1.8x MGT damage to the user's focused enemy.",
+    "description": "Deal 2.0x MGT damage to the user's focused enemy.",
     "mp_cost": 8,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.8,
+        "multiplier": 2.0,
         "double_empower_stat": null
       }
     ]
   },
   "Rebuke": {
-    "description": "Deal 3 + 0.8x MAG damage to the user's focused enemy. That enemy is disoriented.",
+    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. That enemy is disoriented.",
     "mp_cost": 3,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "base_damage": 3,
-        "multiplier": 0.8
+        "base_damage": 2,
+        "multiplier": 1.0
       },
       {
         "kind": "retarget",
@@ -323,13 +323,13 @@
     ]
   },
   "Sunder": {
-    "description": "Deal 0.8x MGT damage to the user's focused enemy. Apply Weaken ARM 2.",
+    "description": "Deal 1.0x MGT damage to the user's focused enemy. Apply Weaken ARM 2.",
     "mp_cost": 2,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 0.8,
+        "multiplier": 1.0,
         "double_empower_stat": null
       },
       {
@@ -342,14 +342,14 @@
     ]
   },
   "Seal": {
-    "description": "Deal 3 + 0.8x MAG damage to the user's focused enemy. Apply Weaken MAG 4 and Weaken RES 2.",
+    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. Apply Weaken MAG 4 and Weaken RES 2.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "base_damage": 3,
-        "multiplier": 0.8
+        "base_damage": 2,
+        "multiplier": 1.0
       },
       {
         "kind": "apply_status",
@@ -368,13 +368,13 @@
     ]
   },
   "Sever": {
-    "description": "Deal 1.4x MGT damage to the user's focused enemy. Consume the user's Empower MGT and Empower ARM, then deal 1 true damage per consumed stack.",
+    "description": "Deal 1.5x MGT damage to the user's focused enemy. Consume the user's Empower MGT and Empower ARM, then deal 1 true damage per consumed stack.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_physical_damage_consume_self_statuses",
         "target": "current_target",
-        "multiplier": 1.4,
+        "multiplier": 1.5,
         "statuses": [
           {
             "status": "Empower",
@@ -496,14 +496,14 @@
     ]
   },
   "Detonate Mark": {
-    "description": "Deal 3 + 0.8x MAG damage to the user's focused enemy. If that enemy is Marked, consume it and deal 6 true damage.",
+    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. If that enemy is Marked, consume it and deal 6 true damage.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "base_damage": 3,
-        "multiplier": 0.8
+        "base_damage": 2,
+        "multiplier": 1.0
       },
       {
         "kind": "if_target_has_condition",
@@ -526,7 +526,7 @@
     ]
   },
   "Pursue": {
-    "description": "Deal 3 + 1.0x MGT damage to a Marked enemy. Consume Marked and focus that enemy.",
+    "description": "Deal 2 + 1.5x MGT damage to a Marked enemy. Consume Marked and focus that enemy.",
     "mp_cost": 5,
     "primitives": [
       {
@@ -542,8 +542,8 @@
           {
             "kind": "deal_physical_damage",
             "target": "bound_enemy",
-            "base_damage": 3,
-            "multiplier": 1.0,
+            "base_damage": 2,
+            "multiplier": 1.5,
             "double_empower_stat": null
           },
           {
@@ -589,7 +589,7 @@
     ]
   },
   "Hunt the Weak": {
-    "description": "Deal 3 + 1.0x MGT damage to the lowest-HP enemy and focus that enemy.",
+    "description": "Deal 2 + 1.5x MGT damage to the lowest-HP enemy and focus that enemy.",
     "mp_cost": 4,
     "primitives": [
       {
@@ -602,8 +602,8 @@
           {
             "kind": "deal_physical_damage",
             "target": "bound_enemy",
-            "base_damage": 3,
-            "multiplier": 1.0,
+            "base_damage": 2,
+            "multiplier": 1.5,
             "double_empower_stat": null
           },
           {
@@ -631,7 +631,7 @@
     ]
   },
   "Last Rites": {
-    "description": "Deal 3 + 1.2x MAG damage to the lowest-HP enemy below 50% HP.",
+    "description": "Deal 2 + 1.5x MAG damage to the lowest-HP enemy below 50% HP.",
     "mp_cost": 5,
     "primitives": [
       {
@@ -648,8 +648,8 @@
               "category": "enemy",
               "selector": { "kind": "lowest_hp" }
             },
-            "base_damage": 3,
-            "multiplier": 1.2
+            "base_damage": 2,
+            "multiplier": 1.5
           }
         ]
       }

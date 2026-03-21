@@ -21,7 +21,7 @@ Current first-pass multiplier bands:
 - `1.0x` for weak but meaningful single-target damage
 - `1.5x` for medium single-target damage
 - `2.0x` for strong payoff damage
-- `0.8x-1.0x` per target for splash abilities that still need to matter through defense
+- `1.0x` per target is the normal floor for splash abilities; lower scaling should be reserved for rare utility attacks like stun
 
 Current damage-shape principle:
 
@@ -74,7 +74,7 @@ Design note:
 
 - `Rebuke`
   `MP 3`
-  Deal `3 + 0.8x MAG` damage to the user's focused enemy. That enemy is disoriented.
+  Deal `2 + 1.0x MAG` damage to the user's focused enemy. That enemy is disoriented.
 
 - `Interpose`
   `MP 2`
@@ -100,35 +100,35 @@ Design note:
 
 - `Charge`
   `MP 4`
-  Deal `1.2x MGT` damage to the user's focused enemy. Then, if the tile one row forward in the same column is empty, move there. If the move succeeds, the user refocuses.
+  Deal `1.5x MGT` damage to the user's focused enemy. Then, if the tile one row forward in the same column is empty, move there. If the move succeeds, the user refocuses.
   Balance notes: engage tool that should update pressure as part of movement, not just advance position
 
 - `Withdraw`
   `MP 4`
-  Deal `0.8x MGT` damage to the user's focused enemy. Then, if the tile one row backward in the same column is empty, move there. If the move succeeds, enemies focusing the user refocus.
+  Deal `1.0x MGT` damage to the user's focused enemy. Then, if the tile one row backward in the same column is empty, move there. If the move succeeds, enemies focusing the user refocus.
   Balance notes: this is intended to be a real disengage tool, not just backward movement
 
 - `Breakthrough`
   `MP 6`
-  Deal `1.0x MGT` damage to the user's focused enemy. `Empower MGT` on the user counts double for this attack.
+  Deal `1.5x MGT` damage to the user's focused enemy. `Empower MGT` on the user counts double for this attack.
   Balance notes: baseline hit is modest, ceiling comes from setup
 
 - `Condemn`
   `MP 6`
-  Deal `1.4x MGT` damage to the user's focused enemy. If that enemy has `Omen`, this attack instead uses `1.6x MGT`.
+  Deal `1.5x MGT` damage to the user's focused enemy. If that enemy has `Omen`, this attack instead uses `2.0x MGT`.
 
 - `Verdict`
   `MP 8`
-  Deal `1.8x MGT` damage to the user's focused enemy.
+  Deal `2.0x MGT` damage to the user's focused enemy.
   Balance notes: clean finisher / heavy commitment button
 
 - `Sunder`
   `MP 2`
-  Deal `0.8x MGT` damage to the user's focused enemy. Apply `Weaken ARM 2`.
+  Deal `1.0x MGT` damage to the user's focused enemy. Apply `Weaken ARM 2`.
 
 - `Sever`
   `MP 6`
-  Deal `1.4x MGT` damage to the user's focused enemy. Consume the user's `Empower MGT` and `Empower ARM`, then deal `1` true damage per consumed stack.
+  Deal `1.5x MGT` damage to the user's focused enemy. Consume the user's `Empower MGT` and `Empower ARM`, then deal `1` true damage per consumed stack.
   Balance notes: physical self-buff payoff, mirrors `Harvest Night`
 
 - `Concuss`
@@ -137,12 +137,12 @@ Design note:
 
 - `Pursue`
   `MP 4`
-  Deal `3 + 1.5x MGT` damage to a `Marked` enemy. Consume `Marked` and focus that enemy.
+  Deal `2 + 1.5x MGT` damage to a `Marked` enemy. Consume `Marked` and focus that enemy.
   Balance notes: gives physical teams a real marked-target pursuit tool instead of relying only on normal sticky focus
 
 - `Hunt the Weak`
   `MP 4`
-  Deal `1.5x MGT` damage to the lowest-HP enemy. If that enemy survives, the user focuses it.
+  Deal `2 + 1.5x MGT` damage to the lowest-HP enemy. If that enemy survives, the user focuses it.
 
 ### Magical Offense and Omen Package
 
@@ -152,24 +152,24 @@ Design note:
 
 - `Consecrate`
   `MP 6`
-  Deal `3 + 1.5x MAG` damage to the user's focused enemy and `2 + 1.0x MAG` damage to that enemy's companions.
+  Deal `2 + 1.5x MAG` damage to the user's focused enemy and `1 + 1.0x MAG` damage to that enemy's companions.
   Balance notes: intended to be a real bomb when enemy formation clusters, not just light splash
 
 - `Hex`
   `MP 4`
-  Deal `3 + 1.0x MAG` damage to the user's focused enemy. Apply `Omen 2`.
+  Deal `2 + 1.0x MAG` damage to the user's focused enemy. Apply `Omen 2`.
 
 - `Eclipse`
   `MP 6`
-  Deal `2 + 1.0x MAG` damage to the user's focused enemy and that enemy's companions. Apply `Omen 1` to each damaged enemy.
+  Deal `1.0x MAG` damage to the user's focused enemy and that enemy's companions. Apply `Omen 1` to each damaged enemy.
 
 - `Harvest Night`
   `MP 6`
-  Deal `3 + 1.5x MAG` damage to the user's focused enemy. Then consume all `Omen` on that enemy and deal `2` true damage per stack consumed.
+  Deal `2 + 1.0x MAG` damage to the user's focused enemy. Then consume all `Omen` on that enemy and deal `2` true damage per stack consumed.
 
 - `Seal`
   `MP 4`
-  Deal `3 + 1.0x MAG` damage to the user's focused enemy. Apply `Weaken MAG 4` and `Weaken RES 2`.
+  Deal `2 + 1.0x MAG` damage to the user's focused enemy. Apply `Weaken MAG 4` and `Weaken RES 2`.
 
 - `Transmute`
   `MP 4`
@@ -177,7 +177,7 @@ Design note:
 
 - `Detonate Mark`
   `MP 4`
-  Deal `3 + 1.0x MAG` damage to the user's focused enemy. If that enemy has `Marked`, consume `Marked` and deal `6` true damage.
+  Deal `2 + 1.0x MAG` damage to the user's focused enemy. If that enemy has `Marked`, consume `Marked` and deal `6` true damage.
   Balance notes: explicit magical mark payoff that stays meaningful through defense
 
 ### Support, Sustain, and Utility
@@ -241,7 +241,7 @@ These ideas still look promising, but are lower priority than the near-term prom
   put this on a backline caster between passive healers or durable companions so the team converts survivable self-damage into burst.
 
 - `Last Rites`
-  Deal `1.2x MAG` damage to an enemy below `50% HP`. If that enemy is defeated, all allies refocus.
+  Deal `2 + 1.5x MAG` damage to an enemy below `50% HP`. If that enemy is defeated, all allies refocus.
 
 - `Cleanse the Throne`
   Target the enemy with the most buffs. Remove all buffs from that enemy. That enemy is disoriented.

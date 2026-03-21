@@ -1759,7 +1759,7 @@ mod tests {
                 (Stat::MAG, 4),
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
-                (Stat::SPD, 10),
+                (Stat::SPD, 14),
                 (Stat::WIL, 4),
             ],
         );
@@ -2259,7 +2259,7 @@ mod tests {
                 (Stat::MAG, 3),
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
-                (Stat::SPD, 10),
+                (Stat::SPD, 14),
                 (Stat::WIL, 4),
             ],
         );
@@ -2338,7 +2338,7 @@ mod tests {
                 (Stat::MAG, 3),
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
-                (Stat::SPD, 10),
+                (Stat::SPD, 14),
                 (Stat::WIL, 4),
             ],
         );

@@ -422,7 +422,7 @@ These are intended balancing anchors, not hard-coded categories:
 - weak hit: around `1.0x`
 - medium hit: around `1.5x`
 - strong hit: around `2.0x`
-- AOE per target: around `0.8x` to `1.0x`
+- AOE per target: usually around `1.0x`, with lower scaling reserved for rare utility attacks like `Concuss`
 - execute: around `2.0x` to `2.5x`, usually conditional
 
 Multipliers apply before defense subtraction. This means offensive Empower and Weaken effects on `MGT` or `MAG` naturally scale ability damage up or down.

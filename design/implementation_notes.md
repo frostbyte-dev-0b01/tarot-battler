@@ -47,7 +47,7 @@ Bundled roster data now uses both `Marked` and `Severed`.
 
 Compound abilities can now opt into atomic target binding. `Rescue` uses a bound companion target so its move, heal, and enemy-refocus steps stay on the same unit through the full sequence.
 
-The engine now also supports optional `flat base + multiplier` damage on physical and magical hit primitives. Bundled live content only uses that shape on part of the roster so far, mostly lower-multiplier magical setup and splash abilities that benefit most from a stronger damage floor.
+The engine now supports optional `flat base + multiplier` damage on physical and magical hit primitives, and the live first-pass roster uses that shape broadly for setup, splash, and payoff attacks.
 
 ### Stat Naming
 
@@ -81,7 +81,7 @@ These are real design questions but not yet settled enough to be part of the cor
 - exact stat point budgets and adjustment caps
 - exact team point budget size
 - season-to-season pricing formula
-- the exact long-term numeric stat scale, even though the likely direction is much larger totals than the current prototype
+- deeper balance tuning on the new shared stat scale, now that opener timing uses `15 - SPD` and the live damage bands have been moved to the `1.0 / 1.5 / 2.0` framework
 
 ## Future Design Ideas
 

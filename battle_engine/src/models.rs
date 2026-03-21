@@ -254,7 +254,7 @@ impl CharacterState {
         let hp = config.stats.get(&Stat::VIT).copied().unwrap_or(0) * 3;
         let mp = config.stats.get(&Stat::WIL).copied().unwrap_or(0);
         let dex = config.stats.get(&Stat::SPD).copied().unwrap_or(0) as i32;
-        let max_ticks = 10 - dex;
+        let max_ticks = 15 - dex;
         Self {
             id,
             replay_id,
@@ -1245,7 +1245,7 @@ mod tests {
 
     #[test]
     fn speed_system_ticks_and_escalates() {
-        let config = make_config(vec![(Stat::SPD, 3)]);
+        let config = make_config(vec![(Stat::SPD, 8)]);
         let mut state = CharacterState::from_config(0, &config);
         for _ in 0..6 {
             assert!(!state.tick_speed());
@@ -1265,7 +1265,7 @@ mod tests {
 
     #[test]
     fn speed_system_clamps_high_dex_to_one_tick() {
-        let config = make_config(vec![(Stat::SPD, 12)]);
+        let config = make_config(vec![(Stat::SPD, 17)]);
         let mut state = CharacterState::from_config(0, &config);
 
         assert!(state.tick_speed());
@@ -1633,7 +1633,7 @@ mod tests {
 
         state.apply_haste(3);
 
-        assert_eq!(state.ticks_until_turn, 1);
+        assert_eq!(state.ticks_until_turn, 4);
     }
 
     #[test]
@@ -1645,7 +1645,7 @@ mod tests {
         state.apply_haste(3);
         state.reset_speed();
 
-        assert_eq!(state.ticks_until_turn, 1);
+        assert_eq!(state.ticks_until_turn, 6);
     }
 
     #[test]
