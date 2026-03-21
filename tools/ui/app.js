@@ -1607,11 +1607,15 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
   const isSelectedBrowser =
     appState.teamBrowserMode === mode &&
     appState.teamBrowserSlotIndex === (slotIndex ?? 0);
+  const displayValue =
+    mode === "aspect"
+      ? getAspectDisplayName(value)
+      : value;
   const description =
     mode === "passive"
       ? getPassiveDescription(value)
       : mode === "aspect"
-        ? getAspectDescription(value)
+        ? getAspectSummary(value)
         : getAbilityDescription(value);
   const mpCost = mode === "active" ? getAbilityMpCost(value) : null;
 
@@ -1627,7 +1631,7 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
       <span class="loadout-slot-label">${label}</span>
       <span class="loadout-slot-value-row">
         <span class="loadout-slot-value"${renderTitleAttribute(description)}>
-          ${escapeHtml(value || `No ${label.toLowerCase()} selected`)}
+          ${escapeHtml(displayValue || `No ${label.toLowerCase()} selected`)}
         </span>
         ${mpCost == null ? "" : `<span class="loadout-slot-cost">${escapeHtml(`${mpCost} MP`)}</span>`}
       </span>
@@ -1702,6 +1706,10 @@ function renderSelectionBrowser(character) {
       : mode === "aspect"
         ? "Aspect Browser"
         : `Active ${slotIndex + 1} Browser`;
+  const currentLabel =
+    mode === "aspect"
+      ? getAspectDisplayName(currentValue)
+      : currentValue;
 
   return `
     <div class="builder-pane-header">
@@ -1710,7 +1718,7 @@ function renderSelectionBrowser(character) {
         <h4>${title}</h4>
       </div>
       <div class="editor-card-actions">
-        <span class="browser-current-label">${escapeHtml(currentValue || "Nothing selected")}</span>
+        <span class="browser-current-label">${escapeHtml(currentLabel || "Nothing selected")}</span>
       </div>
     </div>
     <div class="selection-browser-list">
@@ -1736,6 +1744,8 @@ function renderSelectionBrowser(character) {
 
 function renderBrowserEntry(entry, mode, slotIndex, currentValue) {
   const mpCost = mode === "active" ? getAbilityMpCost(entry.name) : null;
+  const entryLabel = mode === "aspect" ? getAspectDisplayName(entry.name) : entry.name;
+  const entryDescription = mode === "aspect" ? getAspectSummary(entry.name) : (entry.description || "No description yet.");
   return `
     <button
       type="button"
@@ -1746,10 +1756,10 @@ function renderBrowserEntry(entry, mode, slotIndex, currentValue) {
       data-entry-value="${escapeHtml(entry.name)}"
     >
       <span class="selection-browser-entry-header">
-        <strong>${escapeHtml(entry.name)}</strong>
+        <strong>${escapeHtml(entryLabel)}</strong>
         ${mpCost == null ? "" : `<span class="selection-browser-entry-cost">${escapeHtml(`${mpCost} MP`)}</span>`}
       </span>
-      <span>${escapeHtml(entry.description || "No description yet.")}</span>
+      <span>${escapeHtml(entryDescription)}</span>
     </button>
   `;
 }
@@ -2632,6 +2642,62 @@ function getAspectDescription(aspectName) {
   }
 
   return appState.catalogs.aspectDescriptions?.[aspectName] ?? "";
+}
+
+function getAspectDisplayName(aspectName) {
+  if (!aspectName) {
+    return "";
+  }
+
+  const definition = getAspectDefinition(aspectName);
+  if (definition?.display_name) {
+    return definition.display_name;
+  }
+
+  return aspectName
+    .split("_")
+    .filter(Boolean)
+    .map((segment) => segment[0].toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function getAspectSummary(aspectName) {
+  if (!aspectName) {
+    return "";
+  }
+
+  const definition = getAspectDefinition(aspectName);
+  if (!definition) {
+    return getAspectDescription(aspectName);
+  }
+
+  const statSummary = formatAspectStatBonuses(definition.stat_bonuses);
+  const passiveName = definition.passive ? getPassiveDisplayName(definition.passive) : "";
+  const passiveSummary = passiveName ? `Passive: ${passiveName}` : "";
+  const details = [statSummary, passiveSummary].filter(Boolean).join(" • ");
+  return details || definition.description || "";
+}
+
+function formatAspectStatBonuses(statBonuses) {
+  const bonuses = normalizeStatBlock(statBonuses);
+  const entries = statFieldOptions
+    .map((statKey) => {
+      const amount = Number(bonuses?.[statKey] ?? 0);
+      if (amount === 0) {
+        return null;
+      }
+      const sign = amount > 0 ? "+" : "";
+      return `${statKey.toUpperCase()} ${sign}${amount}`;
+    })
+    .filter(Boolean);
+  return entries.length > 0 ? `Stats: ${entries.join(", ")}` : "";
+}
+
+function getPassiveDisplayName(passiveName) {
+  if (!passiveName) {
+    return "";
+  }
+  return passiveName;
 }
 
 function getArchetypeDefinition(templateId) {
