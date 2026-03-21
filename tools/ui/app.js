@@ -2645,7 +2645,8 @@ function renderDerivedStatValue(baseValue, finalValue) {
   if (bonus === 0) {
     return `${finalValue}`;
   }
-  return `${finalValue} (+${bonus})`;
+  const sign = bonus > 0 ? "+" : "";
+  return `${finalValue} (${sign}${bonus})`;
 }
 
 function getCharacterInitials(character) {
