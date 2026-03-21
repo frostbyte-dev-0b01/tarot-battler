@@ -5,7 +5,11 @@ const replayFileButton = document.querySelector("#replay-file-button");
 const replayJsonInput = document.querySelector("#replay-json-input");
 const replayDemoButton = document.querySelector("#replay-demo-button");
 const replayValidationOutput = document.querySelector("#replay-validation-output");
-const latestReplayPath = "./sample-data/latest_replay.json";
+const latestReplayPaths = [
+  "./sample-data/latest_replay.json",
+  "./tools/ui/sample-data/latest_replay.json",
+  "../sample-data/latest_replay.json",
+];
 const basicAttackActionName = "Basic Attack";
 const archetypeCatalogPath = "../../battle_engine/src/data/archetypes.json";
 const passiveCatalogPath = "../../battle_engine/src/data/passives.json";
@@ -532,20 +536,32 @@ async function loadEditorCatalogs() {
 }
 
 async function loadLatestReplay() {
+  let lastError = null;
   try {
-    const response = await fetch(latestReplayPath, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`Request failed with ${response.status}`);
-    }
+    for (const replayPath of latestReplayPaths) {
+      try {
+        const response = await fetch(replayPath, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Request failed with ${response.status}`);
+        }
 
-    const content = await response.text();
-    replayJsonInput.value = content;
-    loadReplayFromText(content.trim());
+        const content = await response.text();
+        replayJsonInput.value = content;
+        loadReplayFromText(content.trim());
+        return;
+      } catch (error) {
+        lastError = `${replayPath}: ${error.message}`;
+      }
+    }
   } catch (error) {
+    lastError = error.message;
+  }
+
+  {
     renderReplayValidation({
       ok: false,
       errors: [
-        `Could not load latest replay from ${latestReplayPath}: ${error.message}. Run the engine to generate it, then try again.`,
+        `Could not load latest replay. Tried ${latestReplayPaths.join(", ")}. Last error: ${lastError}. Run the engine to generate it, then try again.`,
       ],
     });
     appState.replay = null;
