@@ -484,8 +484,8 @@ Future candidate conditions:
 Current implementation note:
 
 - the engine now has a separate live condition layer for `Stunned`, `Marked`, and `Severed`
-- bundled roster data does not yet ship abilities using `Marked` or `Severed`
-- the older prototype `Stun` status still exists as an implementation legacy and should be treated as cleanup debt
+- the live roster now uses both `Marked` and `Severed`
+- the older prototype `Stun` status has been removed from the live status catalog
 
 ### Status Groups
 
@@ -546,16 +546,17 @@ More specialized abilities can still target a specific group:
 - remove `1 tick` of all `Mind` buffs
 - remove all `Fate` debuffs
 
-### Prototype Cleanup Debt
+### First-Pass Live Status Set
 
-The engine still contains some older placeholder effects and legacy naming such as:
+The first balance-pass live status set is:
 
-- `Bleed`
-- `Poison`
-- `Regen`
-- `Stun`
+- `Omen`
+- `Restoration`
+- `Ward`
+- `Empower`
+- `Weaken`
 
-These should not be treated as part of the first balance-pass live set. They are implementation leftovers and should eventually be removed or replaced with the intended status vocabulary above.
+`Stunned`, `Marked`, and `Severed` are conditions, not statuses.
 
 ### Intended Design Direction
 
@@ -596,7 +597,7 @@ The older prototype tick-down-by-1 behavior is an implementation detail, not the
 Current implementation note:
 
 - the live engine now uses the intended halving decay model for `Omen`, `Restoration`, `Empower`, and `Weaken`
-- legacy placeholder effects such as `Bleed` and `Poison` still use the older tick-down model
+- the live status catalog has been trimmed to the first-pass set above
 
 ## Compound Ability Resolution
 

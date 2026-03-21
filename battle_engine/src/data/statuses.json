@@ -1,21 +1,12 @@
 {
-  "Bleed": {
-    "behavior": "damage_per_stack",
-    "value": 1,
-    "stack_type": "tick_down"
-  },
-  "Poison": {
-    "behavior": "damage_per_stack",
-    "value": 2,
-    "stack_type": "tick_down"
-  },
-  "Regen": {
-    "behavior": "heal_per_stack",
-    "value": 2,
-    "stack_type": "tick_down"
-  },
   "Omen": {
     "behavior": "damage_per_stack",
+    "value": 1,
+    "stack_type": "tick_down",
+    "group": "fate"
+  },
+  "Restoration": {
+    "behavior": "heal_per_stack",
     "value": 1,
     "stack_type": "tick_down",
     "group": "fate"
@@ -32,24 +23,9 @@
     "stack_type": "tick_down",
     "opposes": "Empower"
   },
-  "Fortify": {
-    "behavior": "stat_mod_per_stack",
-    "magnitude": 1,
-    "stack_type": "permanent",
-    "opposes": "Enfeeble"
-  },
-  "Enfeeble": {
-    "behavior": "stat_mod_per_stack",
-    "magnitude": -1,
-    "stack_type": "permanent",
-    "opposes": "Fortify"
-  },
   "Ward": {
     "behavior": "ward",
-    "stack_type": "permanent"
-  },
-  "Stun": {
-    "behavior": "skip_turn",
-    "stack_type": "no_stack"
+    "stack_type": "permanent",
+    "group": "fate"
   }
 }

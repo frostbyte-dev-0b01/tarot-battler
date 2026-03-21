@@ -14,28 +14,18 @@ Use [game_spec.md](/home/frostbyte/Work/tarot-battler/design/game_spec.md) as th
 
 ### Status Vocabulary
 
-The current prototype still uses familiar RPG effects such as:
-
-- `Bleed`
-- `Omen`
-- `Poison`
-- `Regen`
-- `Empower`
-- `Weaken`
-- `Fortify`
-- `Enfeeble`
-- `Stun`
-
-This is useful for prototyping, but the intended design direction is now:
+The live status catalog is now trimmed to the intended first-pass set:
 
 - `Omen` as the official true-damage setup effect
-- `Lethality` as a post-mitigation offensive stack
+- `Restoration` as the main sustain effect
 - `Empower` / `Weaken` as the main offensive and defensive stat-mod families
-- `Restoration` and `Stunned` as the main sustain and turn-denial effects
+- `Ward` as the scarce defensive layer
 
-`Omen` now exists in the engine as the intended named setup effect, and the live engine now uses the intended halving-decay behavior for `Omen`, `Restoration`, `Empower`, `Weaken`, and `Lethality`. Legacy placeholder effects such as `Bleed` and `Poison` still use the older tick-down status model.
+`Stunned` is no longer a status concern at all. It is a condition.
 
-`Bleed` and `Poison` should still be treated as implementation placeholders so the design docs and engine behavior do not get confused.
+The live engine now uses the intended halving-decay behavior for `Omen`, `Restoration`, `Empower`, and `Weaken`.
+
+Legacy placeholder effects such as `Bleed`, `Poison`, `Regen`, `Fortify`, `Enfeeble`, and the older `Stun` status have been removed from the live status catalog. The engine still supports generic status behaviors internally for testing and future experimentation, but those names should not be treated as live gameplay content.
 
 The intended design now also groups timed effects into `Body`, `Mind`, and `Fate`, with generic ally cleanse reducing all debuffs by `1 tick` and generic enemy dispel reducing all buffs by `1 tick`. The engine now carries explicit group metadata and supports optional group-aware `cleanse` / `dispel` targeting, though bundled live abilities still mostly use the broad generic form.
 
@@ -51,7 +41,7 @@ The engine now has a first-class condition layer for `Stunned`, `Marked`, and `S
 - `Marked` as a non-stacking ability hook that persists until consumed or removed
 - `Severed` as a stackable "no companions" relationship break
 
-Bundled roster data does not yet use `Marked` or `Severed`, and the older prototype `Stun` status still exists as implementation cleanup debt.
+Bundled roster data now uses both `Marked` and `Severed`.
 
 `Muted` is still a future candidate condition, not part of the intended near-term core set.
 
