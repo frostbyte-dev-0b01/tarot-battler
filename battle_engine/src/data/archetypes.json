@@ -4,7 +4,7 @@
     "stats": { "vit": 14, "mgt": 12, "mag": 8, "arm": 7, "res": 5, "spd": 8, "wil": 12 },
     "default_passive": "Imperial Formation",
     "passive_pool": ["Imperial Formation"],
-    "active_pool": ["Hold the Line", "Command", "Taunt", "Interpose", "Decoy", "Sunder"],
+    "active_pool": ["Hold the Line", "Command", "Taunt", "Interpose", "Sunder"],
     "item_slots": 1
   },
   "the_hierophant": {
@@ -20,7 +20,7 @@
     "stats": { "vit": 10, "mgt": 15, "mag": 8, "arm": 5, "res": 4, "spd": 14, "wil": 10 },
     "default_passive": "Pursuit",
     "passive_pool": ["Pursuit"],
-    "active_pool": ["Charge", "Withdraw", "Breakthrough", "Sever"],
+    "active_pool": ["Charge", "Withdraw", "Breakthrough", "Sever", "Decoy"],
     "item_slots": 1
   },
   "justice": {
@@ -28,7 +28,7 @@
     "stats": { "vit": 15, "mgt": 12, "mag": 10, "arm": 7, "res": 7, "spd": 6, "wil": 10 },
     "default_passive": "Sentence",
     "passive_pool": ["Sentence"],
-    "active_pool": ["Rebuke", "Condemn", "Verdict"],
+    "active_pool": ["Rebuke", "Condemn", "Verdict", "Seal", "Breakthrough"],
     "item_slots": 1
   },
   "the_moon": {
@@ -36,7 +36,7 @@
     "stats": { "vit": 11, "mgt": 8, "mag": 15, "arm": 5, "res": 6, "spd": 12, "wil": 14 },
     "default_passive": "Foreboding",
     "passive_pool": ["Foreboding"],
-    "active_pool": ["Hex", "Eclipse", "Harvest Night"],
+    "active_pool": ["Hex", "Eclipse", "Harvest Night", "Decoy", "Withdraw"],
     "item_slots": 1
   },
   "the_magician": {
@@ -44,7 +44,7 @@
     "stats": { "vit": 8, "mgt": 8, "mag": 14, "arm": 4, "res": 5, "spd": 12, "wil": 16 },
     "default_passive": "Catalyst",
     "passive_pool": ["Catalyst"],
-    "active_pool": ["Offer", "Seal", "Distill", "Transmute"],
+    "active_pool": ["Offer", "Seal", "Distill", "Transmute", "Smite"],
     "item_slots": 1
   }
 }
