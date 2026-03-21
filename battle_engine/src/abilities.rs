@@ -20,6 +20,7 @@ pub enum SimpleAbilityTarget {
     CurrentTarget,
     CurrentTargetAndCompanions,
     TriggerTarget,
+    TriggerAlly,
     BoundAlly,
     BoundEnemy,
     #[serde(rename = "self")]
@@ -216,6 +217,10 @@ pub enum Primitive {
     LoseCurrentHpPercent {
         percent: u32,
     },
+    ApplyHaste {
+        target: AbilityTarget,
+        amount: u32,
+    },
     RestoreHp {
         target: AbilityTarget,
         amount: u32,
@@ -327,6 +332,14 @@ pub enum Primitive {
         condition: String,
         primitives: Vec<Primitive>,
     },
+    IfTargetHasNoCompanions {
+        target: AbilityTarget,
+        primitives: Vec<Primitive>,
+    },
+    IfTargetHasAnyCondition {
+        target: AbilityTarget,
+        primitives: Vec<Primitive>,
+    },
 }
 
 /// A complete ability definition.
@@ -347,10 +360,16 @@ pub enum PassiveTrigger {
     OnDeath,
     OnKill,
     OnDealDamage,
+    OnBasicAttack,
     OnTakeDamage,
+    OnSelfBelowHalfHp,
+    OnCompanionBelowHalfHp,
     OnTurnStart,
     OnAllyDamageMyTarget,
+    OnRowAllyDamageMyTarget,
     OnAllyApplyOmen,
+    OnAffectAllyWithAbility,
+    OnFocusChanged,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -367,6 +386,8 @@ pub enum PassiveDef {
         trigger: PassiveTrigger,
         #[serde(default)]
         once_per_tick: bool,
+        #[serde(default)]
+        once_per_battle: bool,
         primitives: Vec<Primitive>,
     },
     Trait {
@@ -465,6 +486,11 @@ fn resolve_ally_targets_for_context(
             .into_iter()
             .flatten()
             .filter_map(|id| ctx.actor_team.iter().position(|c| c.id() == *id && c.is_alive()))
+            .collect(),
+        AbilityTarget::Simple(SimpleAbilityTarget::TriggerAlly) => ctx
+            .trigger_target_id
+            .and_then(|id| ctx.actor_team.iter().position(|c| c.id() == id && c.is_alive()))
+            .into_iter()
             .collect(),
         _ => resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng),
     }
@@ -933,6 +959,24 @@ pub fn execute_primitives_with_context(
                     });
                 }
             }
+            Primitive::ApplyHaste { target, amount } => {
+                if target_is_enemy_side(target) {
+                    let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
+                    for tidx in target_indices {
+                        if ctx.enemy_team[tidx].is_alive() {
+                            ctx.enemy_team[tidx].apply_haste(*amount);
+                        }
+                    }
+                } else {
+                    let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
+                    for tidx in target_indices {
+                        if ctx.actor_team[tidx].is_alive() {
+                            ctx.actor_team[tidx].apply_haste(*amount);
+                        }
+                    }
+                }
+                capture_context_snapshot(ctx);
+            }
             Primitive::RestoreHp { target, amount } => {
                 let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
@@ -1215,7 +1259,7 @@ pub fn execute_primitives_with_context(
                     };
 
                     if let Some(new_target_id) = new_target {
-                        ctx.enemy_team[tidx].set_target(new_target_id);
+                        ctx.enemy_team[tidx].set_target_tracked(new_target_id, ctx.step);
                     }
 
                     let new_target_name = new_target.and_then(|target_id| {
@@ -1264,7 +1308,7 @@ pub fn execute_primitives_with_context(
                         ctx.rng,
                     );
                     if let Some(new_target_id) = new_target {
-                        ctx.enemy_team[tidx].set_target(new_target_id);
+                        ctx.enemy_team[tidx].set_target_tracked(new_target_id, ctx.step);
                     }
 
                     log_retarget_event(
@@ -1281,7 +1325,7 @@ pub fn execute_primitives_with_context(
                 let actor_clone = ctx.actor_team[actor_idx].clone();
                 let new_target = select_target(&actor_clone, ctx.enemy_team, ctx.rng);
                 if let Some(new_target_id) = new_target {
-                    ctx.actor_team[actor_idx].set_target(new_target_id);
+                    ctx.actor_team[actor_idx].set_target_tracked(new_target_id, ctx.step);
                 }
                 log_retarget_event(
                     ctx,
@@ -1302,7 +1346,7 @@ pub fn execute_primitives_with_context(
                     if !ctx.actor_team[tidx].is_alive() {
                         continue;
                     }
-                    ctx.actor_team[tidx].set_target(actor_target_id);
+                    ctx.actor_team[tidx].set_target_tracked(actor_target_id, ctx.step);
                     log_retarget_event(
                         ctx,
                         ctx.actor_team[tidx].id(),
@@ -1542,6 +1586,29 @@ pub fn execute_primitives_with_context(
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 let should_execute = target_indices.iter().any(|tidx| {
                     ctx.enemy_team[*tidx].is_alive() && !ctx.enemy_team[*tidx].has_condition(kind)
+                });
+                if should_execute {
+                    let nested_damage =
+                        execute_primitives_with_context(ctx, actor_idx, _source_name, primitives);
+                    damage_dealt.extend(nested_damage);
+                }
+            }
+            Primitive::IfTargetHasNoCompanions { target, primitives } => {
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
+                let should_execute = target_indices.iter().any(|tidx| {
+                    ctx.enemy_team[*tidx].is_alive()
+                        && ctx.enemy_team[*tidx].effective_companion_ids().is_empty()
+                });
+                if should_execute {
+                    let nested_damage =
+                        execute_primitives_with_context(ctx, actor_idx, _source_name, primitives);
+                    damage_dealt.extend(nested_damage);
+                }
+            }
+            Primitive::IfTargetHasAnyCondition { target, primitives } => {
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
+                let should_execute = target_indices.iter().any(|tidx| {
+                    ctx.enemy_team[*tidx].is_alive() && !ctx.enemy_team[*tidx].conditions().is_empty()
                 });
                 if should_execute {
                     let nested_damage =

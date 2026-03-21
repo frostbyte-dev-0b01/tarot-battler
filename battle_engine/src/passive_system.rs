@@ -21,6 +21,7 @@ pub(crate) struct PassiveRuntime<'a> {
     pub actor_team_is_a: bool,
     pub in_passive_phase: &'a mut bool,
     pub passive_fired_this_tick: &'a mut HashSet<(u32, String, u32)>,
+    pub passive_fired_this_battle: &'a mut HashSet<(u32, String)>,
 }
 
 impl<'a> PassiveRuntime<'a> {
@@ -34,6 +35,7 @@ impl<'a> PassiveRuntime<'a> {
         actor_team_is_a: bool,
         in_passive_phase: &'a mut bool,
         passive_fired_this_tick: &'a mut HashSet<(u32, String, u32)>,
+        passive_fired_this_battle: &'a mut HashSet<(u32, String)>,
     ) -> Self {
         Self {
             passives,
@@ -44,6 +46,7 @@ impl<'a> PassiveRuntime<'a> {
             actor_team_is_a,
             in_passive_phase,
             passive_fired_this_tick,
+            passive_fired_this_battle,
         }
     }
 }
@@ -90,6 +93,21 @@ pub(crate) fn begin_passive_trigger(
             return false;
         }
         runtime.passive_fired_this_tick.insert(key);
+    }
+
+    if matches!(
+        passive_def,
+        PassiveDef::Triggered {
+            once_per_battle: true,
+            ..
+        }
+    ) {
+        let owner_id = actor_team[char_idx].id();
+        let key = (owner_id, passive_name.to_string());
+        if runtime.passive_fired_this_battle.contains(&key) {
+            return false;
+        }
+        runtime.passive_fired_this_battle.insert(key);
     }
 
     *runtime.in_passive_phase = true;

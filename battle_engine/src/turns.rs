@@ -72,6 +72,7 @@ pub(crate) fn resolve_target(
     actor_team: &mut [CharacterState],
     enemy_team: &[CharacterState],
     rng: &mut StdRng,
+    step: u32,
 ) -> Option<u32> {
     let current = actor_team[actor_idx].target();
     let needs_new = match current {
@@ -86,7 +87,7 @@ pub(crate) fn resolve_target(
         let new_target = select_target(&actor_team[actor_idx], enemy_team, rng);
         match new_target {
             Some(tid) => {
-                actor_team[actor_idx].set_target(tid);
+                actor_team[actor_idx].set_target_tracked(tid, step);
                 Some(tid)
             }
             None => None,

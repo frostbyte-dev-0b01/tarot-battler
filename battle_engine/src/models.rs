@@ -217,6 +217,7 @@ pub struct CharacterState {
     max_ticks: i32,
     pending_haste: u32,
     target: Option<u32>,
+    pending_focus_change: Option<(u32, u32)>,
     companions: Vec<u32>,
     statuses: HashMap<String, StatusInstance>,
     conditions: HashMap<ConditionKind, ConditionInstance>,
@@ -269,6 +270,7 @@ impl CharacterState {
             max_ticks,
             pending_haste: 0,
             target: None,
+            pending_focus_change: None,
             companions: Vec::new(),
             statuses: HashMap::new(),
             conditions: HashMap::new(),
@@ -504,8 +506,32 @@ impl CharacterState {
         self.target = Some(target_id);
     }
 
+    pub fn set_target_tracked(&mut self, target_id: u32, step: u32) -> bool {
+        let changed = self.target != Some(target_id);
+        self.target = Some(target_id);
+        if changed {
+            self.pending_focus_change = Some((step, target_id));
+        }
+        changed
+    }
+
     pub fn clear_target(&mut self) {
         self.target = None;
+    }
+
+    #[allow(dead_code)]
+    pub fn clear_target_tracked(&mut self) {
+        self.target = None;
+    }
+
+    pub fn take_pending_focus_change(&mut self, step: u32) -> Option<u32> {
+        match self.pending_focus_change {
+            Some((changed_step, new_target_id)) if changed_step == step => {
+                self.pending_focus_change = None;
+                Some(new_target_id)
+            }
+            _ => None,
+        }
     }
 
     #[cfg_attr(not(test), allow(dead_code))]

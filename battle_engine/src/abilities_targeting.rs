@@ -56,6 +56,7 @@ pub(crate) fn resolve_enemy_targets(
                 .into_iter()
                 .collect()
         }
+        AbilityTarget::Simple(SimpleAbilityTarget::TriggerAlly) => Vec::new(),
         AbilityTarget::Simple(SimpleAbilityTarget::FrontRow) => front_row_enemy_indices(enemy_team),
         AbilityTarget::Simple(SimpleAbilityTarget::AllEnemies) => enemy_team
             .iter()
@@ -93,6 +94,7 @@ pub(crate) fn resolve_ally_targets(
 ) -> Vec<usize> {
     match target {
         AbilityTarget::Simple(SimpleAbilityTarget::SelfChar) => vec![actor_idx],
+        AbilityTarget::Simple(SimpleAbilityTarget::TriggerAlly) => Vec::new(),
         AbilityTarget::Simple(SimpleAbilityTarget::BoundAlly) => Vec::new(),
         AbilityTarget::Simple(SimpleAbilityTarget::Companions) => {
             let comp_ids = actor_team[actor_idx].effective_companion_ids();

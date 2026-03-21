@@ -30,6 +30,7 @@ pub struct BattleState {
     rng: StdRng,
     in_passive_phase: bool,
     passive_fired_this_tick: HashSet<(u32, String, u32)>,
+    passive_fired_this_battle: HashSet<(u32, String)>,
 }
 
 impl BattleState {
@@ -83,6 +84,7 @@ impl BattleState {
             rng,
             in_passive_phase: false,
             passive_fired_this_tick: HashSet::new(),
+            passive_fired_this_battle: HashSet::new(),
         };
         state.assign_companions();
         state.assign_all_targets();
@@ -191,6 +193,7 @@ impl BattleState {
                 true,
                 &mut self.in_passive_phase,
                 &mut self.passive_fired_this_tick,
+                &mut self.passive_fired_this_battle,
             );
             if let Some(passive_def) = passive_system::load_passive(&runtime, &passive_name) {
                 let damage_dealt = passive_system::fire_passive_if_matches(
@@ -217,6 +220,7 @@ impl BattleState {
                 false,
                 &mut self.in_passive_phase,
                 &mut self.passive_fired_this_tick,
+                &mut self.passive_fired_this_battle,
             );
             if let Some(passive_def) = passive_system::load_passive(&runtime, &passive_name) {
                 let damage_dealt = passive_system::fire_passive_if_matches(
@@ -305,6 +309,7 @@ impl BattleState {
                     actor_team_is_a,
                     &mut self.in_passive_phase,
                     &mut self.passive_fired_this_tick,
+                    &mut self.passive_fired_this_battle,
                 );
                 let passive_def = match passive_system::load_passive(&runtime, &passive_name) {
                     Some(def) => def,
@@ -487,9 +492,9 @@ impl BattleState {
         }
 
         // Get or reassign target
-        let (actor_team, enemy_team) =
-            Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         let target_id = {
+            let (actor_team, enemy_team) =
+                Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
             let runtime = TurnRuntime::new(
                 &self.abilities,
                 &self.status_defs,
@@ -498,7 +503,7 @@ impl BattleState {
                 self.step,
                 is_team_a,
             );
-            match turns::resolve_target(actor_idx, actor_team, enemy_team, runtime.rng) {
+            match turns::resolve_target(actor_idx, actor_team, enemy_team, runtime.rng, self.step) {
                 Some(tid) => tid,
                 None => {
                     self.finish_turn(actor_idx, is_team_a);
@@ -506,8 +511,11 @@ impl BattleState {
                 }
             }
         };
+        self.process_focus_change_passives();
 
         let action_choice = {
+            let (actor_team, enemy_team) =
+                Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
             let runtime = TurnRuntime::new(
                 &self.abilities,
                 &self.status_defs,
@@ -544,9 +552,15 @@ impl BattleState {
                     };
 
                     self.process_status_application_events(event_start, is_team_a);
+                    self.process_ally_ability_effect_events(event_start, actor_idx, is_team_a);
                     self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
                 }
                 turns::ChosenAction::BasicAttack => {
+                    let basic_attack_target_id = if is_team_a {
+                        self.team_a[actor_idx].target()
+                    } else {
+                        self.team_b[actor_idx].target()
+                    };
                     let (actor_team, enemy_team) =
                         Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
                     let damage_dealt = {
@@ -566,18 +580,32 @@ impl BattleState {
                         )
                     };
 
+                    if let Some(target_id) = basic_attack_target_id {
+                        self.try_fire_passive_with_target(
+                            actor_idx,
+                            &PassiveTrigger::OnBasicAttack,
+                            is_team_a,
+                            Some(target_id),
+                        );
+                    }
                     self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
                 }
             }
 
             let (actor_team, enemy_team) =
                 Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng);
+            Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng, self.step);
+            self.process_focus_change_passives();
             self.finish_turn(actor_idx, is_team_a);
             return;
         }
 
         // Fallback: Basic Attack
+        let basic_attack_target_id = if is_team_a {
+            self.team_a[actor_idx].target()
+        } else {
+            self.team_b[actor_idx].target()
+        };
         let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         let damage_dealt = {
             let mut runtime = TurnRuntime::new(
@@ -590,9 +618,18 @@ impl BattleState {
             );
             turns::execute_basic_attack_action(&mut runtime, actor_idx, actor_team, enemy_team)
         };
+        if let Some(target_id) = basic_attack_target_id {
+            self.try_fire_passive_with_target(
+                actor_idx,
+                &PassiveTrigger::OnBasicAttack,
+                is_team_a,
+                Some(target_id),
+            );
+        }
         self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
         let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng);
+        Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng, self.step);
+        self.process_focus_change_passives();
         self.finish_turn(actor_idx, is_team_a);
     }
 
@@ -630,6 +667,7 @@ impl BattleState {
         actor_team: &mut [CharacterState],
         enemy_team: &[CharacterState],
         rng: &mut StdRng,
+        step: u32,
     ) {
         if let Some(ct) = actor_team[actor_idx].target()
             && enemy_team
@@ -638,10 +676,90 @@ impl BattleState {
                 .is_none_or(|c| !c.is_alive())
         {
             if let Some(tid) = select_target(&actor_team[actor_idx], enemy_team, rng) {
-                actor_team[actor_idx].set_target(tid);
+                actor_team[actor_idx].set_target_tracked(tid, step);
             } else {
                 actor_team[actor_idx].clear_target();
             }
+        }
+    }
+
+    fn process_focus_change_passives(&mut self) {
+        for idx in 0..self.team_a.len() {
+            let target_id = self.team_a[idx].take_pending_focus_change(self.step);
+            if let Some(target_id) = target_id
+                && self.team_a[idx].is_alive()
+            {
+                self.try_fire_passive_with_target(
+                    idx,
+                    &PassiveTrigger::OnFocusChanged,
+                    true,
+                    Some(target_id),
+                );
+            }
+        }
+
+        for idx in 0..self.team_b.len() {
+            let target_id = self.team_b[idx].take_pending_focus_change(self.step);
+            if let Some(target_id) = target_id
+                && self.team_b[idx].is_alive()
+            {
+                self.try_fire_passive_with_target(
+                    idx,
+                    &PassiveTrigger::OnFocusChanged,
+                    false,
+                    Some(target_id),
+                );
+            }
+        }
+    }
+
+    fn process_ally_ability_effect_events(
+        &mut self,
+        event_start: usize,
+        actor_idx: usize,
+        actor_team_is_a: bool,
+    ) {
+        let actor_id = if actor_team_is_a {
+            self.team_a[actor_idx].id()
+        } else {
+            self.team_b[actor_idx].id()
+        };
+        let ally_ids: std::collections::HashSet<u32> = self
+            .log
+            .events_from(event_start)
+            .iter()
+            .filter_map(|event| match event {
+                BattleEvent::AbilityHeal {
+                    actor_id: event_actor_id,
+                    target_id,
+                    ..
+                }
+                | BattleEvent::AbilityMpRestore {
+                    actor_id: event_actor_id,
+                    target_id,
+                    ..
+                }
+                | BattleEvent::StatusApplied {
+                    actor_id: event_actor_id,
+                    target_id,
+                    ..
+                }
+                | BattleEvent::ConditionApplied {
+                    actor_id: event_actor_id,
+                    target_id,
+                    ..
+                } if *event_actor_id == actor_id && *target_id != actor_id => Some(*target_id),
+                _ => None,
+            })
+            .collect();
+
+        for ally_id in ally_ids {
+            self.try_fire_passive_with_target(
+                actor_idx,
+                &PassiveTrigger::OnAffectAllyWithAbility,
+                actor_team_is_a,
+                Some(ally_id),
+            );
         }
     }
 
@@ -775,6 +893,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnAllyDamageMyTarget,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -845,6 +964,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnAllyDamageMyTarget,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -941,6 +1061,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnAllyApplyOmen,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::TriggerTarget.into(),
                     status: "Omen".to_string(),
@@ -1028,6 +1149,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnAllyApplyOmen,
                 once_per_tick: true,
+                once_per_battle: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::TriggerTarget.into(),
                     status: "Omen".to_string(),
@@ -2242,6 +2364,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnTurnStart,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::RestoreMp {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     amount: 1,
@@ -2334,6 +2457,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnBattleStart,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -2414,6 +2538,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnBattleStart,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -2726,6 +2851,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     base_damage: 0,
@@ -2816,6 +2942,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnBattleStart,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Ward".to_string(),
@@ -2958,6 +3085,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnTurnStart,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::RestoreMp {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     amount: 1,
@@ -3024,6 +3152,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDealDamage,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -3141,6 +3270,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDealDamage,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::TriggerTarget.into(),
                     status: "Omen".to_string(),
@@ -3210,6 +3340,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnTakeDamage,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::ApplyStatus {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     status: "Empower".to_string(),
@@ -3287,6 +3418,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnKill,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::RestoreHp {
                     target: SimpleAbilityTarget::SelfChar.into(),
                     amount: 5,
@@ -3357,6 +3489,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     base_damage: 0,
@@ -3430,6 +3563,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     base_damage: 0,
@@ -3523,6 +3657,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDeath,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     base_damage: 0,
@@ -3667,6 +3802,7 @@ mod tests {
             PassiveDef::Triggered {
                 trigger: PassiveTrigger::OnDealDamage,
                 once_per_tick: false,
+                once_per_battle: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
                     base_damage: 0,

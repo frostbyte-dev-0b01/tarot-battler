@@ -20,7 +20,7 @@
     "stats": { "vit": 10, "mgt": 15, "mag": 8, "arm": 5, "res": 4, "spd": 14, "wil": 10 },
     "default_passive": "Pursuit",
     "passive_pool": ["Pursuit"],
-    "active_pool": ["Charge", "Withdraw", "Breakthrough", "Sever", "Decoy"],
+    "active_pool": ["Charge", "Withdraw", "Breakthrough", "Sever", "Pursue"],
     "aspect_slots": 1
   },
   "justice": {
@@ -28,7 +28,7 @@
     "stats": { "vit": 15, "mgt": 11, "mag": 11, "arm": 6, "res": 6, "spd": 6, "wil": 10 },
     "default_passive": "Sentence",
     "passive_pool": ["Sentence"],
-    "active_pool": ["Rebuke", "Condemn", "Verdict", "Seal", "Breakthrough"],
+    "active_pool": ["Rebuke", "Condemn", "Verdict", "Seal", "Detonate Mark"],
     "aspect_slots": 1
   },
   "the_moon": {
@@ -36,7 +36,7 @@
     "stats": { "vit": 11, "mgt": 8, "mag": 15, "arm": 5, "res": 6, "spd": 12, "wil": 14 },
     "default_passive": "Foreboding",
     "passive_pool": ["Foreboding"],
-    "active_pool": ["Hex", "Eclipse", "Harvest Night", "Decoy", "Withdraw"],
+    "active_pool": ["Hex", "Eclipse", "Harvest Night", "Death Mark", "Withdraw"],
     "aspect_slots": 1
   },
   "the_magician": {
@@ -45,6 +45,22 @@
     "default_passive": "Catalyst",
     "passive_pool": ["Catalyst"],
     "active_pool": ["Offer", "Seal", "Distill", "Transmute", "Smite"],
+    "aspect_slots": 1
+  },
+  "the_hermit": {
+    "display_name": "The Hermit",
+    "stats": { "vit": 11, "mgt": 8, "mag": 14, "arm": 5, "res": 8, "spd": 8, "wil": 14 },
+    "default_passive": "Lonely Road",
+    "passive_pool": ["Lonely Road"],
+    "active_pool": ["Sever Thread", "Shatter Faith", "Smite", "Consecrate", "Cleanse the Throne"],
+    "aspect_slots": 1
+  },
+  "the_fool": {
+    "display_name": "The Fool",
+    "stats": { "vit": 11, "mgt": 12, "mag": 10, "arm": 5, "res": 5, "spd": 13, "wil": 10 },
+    "default_passive": "Chance Opening",
+    "passive_pool": ["Chance Opening"],
+    "active_pool": ["Hunt the Weak", "Inheritance", "Concuss", "Pursue", "Last Rites"],
     "aspect_slots": 1
   }
 }

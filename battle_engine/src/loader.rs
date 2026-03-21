@@ -863,6 +863,7 @@ fn is_ally_target(target: &AbilityTarget) -> bool {
     matches!(
         target,
         AbilityTarget::Simple(SimpleAbilityTarget::BoundAlly)
+            | AbilityTarget::Simple(SimpleAbilityTarget::TriggerAlly)
             | AbilityTarget::Simple(SimpleAbilityTarget::SelfChar)
             | AbilityTarget::Simple(SimpleAbilityTarget::Companions)
             | AbilityTarget::Simple(SimpleAbilityTarget::AllAllies)
@@ -901,6 +902,7 @@ fn target_label(target: &AbilityTarget) -> &'static str {
             "current_target_and_companions"
         }
         AbilityTarget::Simple(SimpleAbilityTarget::TriggerTarget) => "trigger_target",
+        AbilityTarget::Simple(SimpleAbilityTarget::TriggerAlly) => "trigger_ally",
         AbilityTarget::Simple(SimpleAbilityTarget::BoundAlly) => "bound_ally",
         AbilityTarget::Simple(SimpleAbilityTarget::BoundEnemy) => "bound_enemy",
         AbilityTarget::Simple(SimpleAbilityTarget::SelfChar) => "self",

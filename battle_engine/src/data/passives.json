@@ -1,32 +1,46 @@
 {
   "Imperial Formation": {
-    "description": "Allies in The Emperor's row gain Empower MGT 1 and Empower MAG 1.",
-    "type": "row_aura",
-    "effects": [
+    "description": "When an ally in The Emperor's row attacks The Emperor's focused enemy, that ally gains Empower MGT 2.",
+    "type": "triggered",
+    "trigger": "on_row_ally_damage_my_target",
+    "once_per_tick": false,
+    "once_per_battle": false,
+    "primitives": [
       {
+        "kind": "apply_status",
+        "target": "trigger_ally",
+        "status": "Empower",
         "stat": "mgt",
-        "amount": 1
-      },
-      {
-        "stat": "mag",
-        "amount": 1
+        "stacks": 2
       }
     ]
   },
   "Sanctuary": {
-    "description": "Allies in The Hierophant's row gain Empower RES 1.",
-    "type": "row_aura",
-    "effects": [
+    "description": "The first time The Hierophant's companion falls below 50% HP, restore 10 HP and apply Ward 1.",
+    "type": "triggered",
+    "trigger": "on_companion_below_half_hp",
+    "once_per_tick": false,
+    "once_per_battle": true,
+    "primitives": [
       {
-        "stat": "res",
-        "amount": 1
+        "kind": "restore_hp",
+        "target": "trigger_ally",
+        "amount": 10
+      },
+      {
+        "kind": "apply_status",
+        "target": "trigger_ally",
+        "status": "Ward",
+        "stacks": 1
       }
     ]
   },
   "Pursuit": {
-    "description": "When an ally damages The Chariot's current target, The Chariot gains Empower MGT 1.",
+    "description": "When an ally damages The Chariot's focused enemy, The Chariot gains Empower MGT 1 and Haste 2.",
     "type": "triggered",
     "trigger": "on_ally_damage_my_target",
+    "once_per_tick": false,
+    "once_per_battle": false,
     "primitives": [
       {
         "kind": "apply_status",
@@ -34,19 +48,54 @@
         "status": "Empower",
         "stat": "mgt",
         "stacks": 1
+      },
+      {
+        "kind": "apply_haste",
+        "target": "self",
+        "amount": 2
+      }
+    ]
+  },
+  "Sentence": {
+    "description": "Justice's Basic Attack applies Marked.",
+    "type": "triggered",
+    "trigger": "on_basic_attack",
+    "once_per_tick": false,
+    "once_per_battle": false,
+    "primitives": [
+      {
+        "kind": "apply_condition",
+        "target": "trigger_target",
+        "condition": "Marked",
+        "stacks": 1
       }
     ]
   },
   "Foreboding": {
-    "description": "When The Moon deals magical damage to an enemy, apply Omen 1 to that enemy.",
+    "description": "The first time The Moon falls below 50% HP, disorient all enemies and apply Weaken MGT 2 and Weaken MAG 2 to them.",
     "type": "triggered",
-    "trigger": "on_deal_damage",
+    "trigger": "on_self_below_half_hp",
+    "once_per_tick": false,
+    "once_per_battle": true,
     "primitives": [
       {
+        "kind": "retarget",
+        "target": "all_enemies",
+        "mode": "disorient"
+      },
+      {
         "kind": "apply_status",
-        "target": "trigger_target",
-        "status": "Omen",
-        "stacks": 1
+        "target": "all_enemies",
+        "status": "Weaken",
+        "stat": "mgt",
+        "stacks": 2
+      },
+      {
+        "kind": "apply_status",
+        "target": "all_enemies",
+        "status": "Weaken",
+        "stat": "mag",
+        "stacks": 2
       }
     ]
   },
@@ -55,6 +104,7 @@
     "type": "triggered",
     "trigger": "on_ally_apply_omen",
     "once_per_tick": true,
+    "once_per_battle": false,
     "primitives": [
       {
         "kind": "apply_status",
@@ -64,24 +114,78 @@
       }
     ]
   },
-  "Sentence": {
-    "description": "When Justice deals damage to an enemy with Omen, apply Weaken MGT 1 to that enemy.",
+  "Lonely Road": {
+    "description": "When The Hermit damages an enemy with no companions, deal 4 true damage.",
     "type": "triggered",
     "trigger": "on_deal_damage",
+    "once_per_tick": false,
+    "once_per_battle": false,
     "primitives": [
       {
-        "kind": "if_target_has_status",
+        "kind": "if_target_has_no_companions",
         "target": "trigger_target",
-        "status": "Omen",
         "primitives": [
           {
-            "kind": "apply_status",
+            "kind": "deal_true_damage",
             "target": "trigger_target",
-            "status": "Weaken",
-            "stat": "mgt",
-            "stacks": 1
+            "amount": 4
           }
         ]
+      }
+    ]
+  },
+  "Chance Opening": {
+    "description": "The first time each tick The Fool changes focused target, apply Weaken ARM 2 to the new target and gain Haste 3.",
+    "type": "triggered",
+    "trigger": "on_focus_changed",
+    "once_per_tick": true,
+    "once_per_battle": false,
+    "primitives": [
+      {
+        "kind": "apply_status",
+        "target": "trigger_target",
+        "status": "Weaken",
+        "stat": "arm",
+        "stacks": 2
+      },
+      {
+        "kind": "apply_haste",
+        "target": "self",
+        "amount": 3
+      }
+    ]
+  },
+  "Ruinous": {
+    "description": "The first time each tick the user damages an enemy with a condition, deal 2 true damage.",
+    "type": "triggered",
+    "trigger": "on_deal_damage",
+    "once_per_tick": true,
+    "once_per_battle": false,
+    "primitives": [
+      {
+        "kind": "if_target_has_any_condition",
+        "target": "trigger_target",
+        "primitives": [
+          {
+            "kind": "deal_true_damage",
+            "target": "trigger_target",
+            "amount": 2
+          }
+        ]
+      }
+    ]
+  },
+  "Grace": {
+    "description": "The first time each tick the user affects an ally with an ability, that ally restores 2 HP.",
+    "type": "triggered",
+    "trigger": "on_affect_ally_with_ability",
+    "once_per_tick": true,
+    "once_per_battle": false,
+    "primitives": [
+      {
+        "kind": "restore_hp",
+        "target": "trigger_ally",
+        "amount": 2
       }
     ]
   }

@@ -160,12 +160,76 @@ impl BattleState {
             for owner_idx in owner_indices {
                 self.try_fire_passive(owner_idx, &PassiveTrigger::OnAllyDamageMyTarget, is_team_a);
             }
+
+            let row_owner_indices: Vec<usize> = {
+                let (actor_team, _) =
+                    Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                let Some(source_idx) = actor_team
+                    .iter()
+                    .position(|c| c.id() == record.source_id && c.is_alive())
+                else {
+                    continue;
+                };
+                let source_row = actor_team[source_idx].position().row;
+                actor_team
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| {
+                        c.is_alive()
+                            && c.id() != record.source_id
+                            && c.position().row == source_row
+                            && c.target() == Some(record.target_id)
+                    })
+                    .map(|(idx, _)| idx)
+                    .collect()
+            };
+
+            for owner_idx in row_owner_indices {
+                self.try_fire_passive_with_target(
+                    owner_idx,
+                    &PassiveTrigger::OnRowAllyDamageMyTarget,
+                    is_team_a,
+                    Some(record.source_id),
+                );
+            }
         }
 
         for eidx in damaged_enemy_indices {
-            let (_, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            if enemy_team[eidx].is_alive() {
+            let (enemy_alive, target_id, below_half, companion_owner_indices) = {
+                let (_, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                let enemy_alive = enemy_team[eidx].is_alive();
+                let target_id = enemy_team[eidx].id();
+                let below_half =
+                    enemy_team[eidx].current_hp() * 2 <= enemy_team[eidx].get_base_stat(&crate::models::Stat::VIT) * 3;
+                let companion_owner_indices = if enemy_alive && below_half {
+                    enemy_team
+                        .iter()
+                        .enumerate()
+                        .filter(|(idx, character)| {
+                            *idx != eidx
+                                && character.is_alive()
+                                && character.effective_companion_ids().contains(&target_id)
+                        })
+                        .map(|(idx, _)| idx)
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+                (enemy_alive, target_id, below_half, companion_owner_indices)
+            };
+            if enemy_alive {
                 self.try_fire_passive(eidx, &PassiveTrigger::OnTakeDamage, !is_team_a);
+            }
+            if enemy_alive && below_half {
+                self.try_fire_passive(eidx, &PassiveTrigger::OnSelfBelowHalfHp, !is_team_a);
+                for owner_idx in companion_owner_indices {
+                    self.try_fire_passive_with_target(
+                        owner_idx,
+                        &PassiveTrigger::OnCompanionBelowHalfHp,
+                        !is_team_a,
+                        Some(target_id),
+                    );
+                }
             }
         }
 
