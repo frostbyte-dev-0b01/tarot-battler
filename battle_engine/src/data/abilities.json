@@ -16,7 +16,7 @@
   },
   "Command": {
     "description": "One companion immediately makes a 1.0x MGT physical attack against the user's focused enemy.",
-    "mp_cost": 4,
+    "mp_cost": 3,
     "primitives": [
       {
         "kind": "command_attack"
@@ -37,7 +37,7 @@
   },
   "Smite": {
     "description": "Deal 1.5x MAG damage to the user's focused enemy.",
-    "mp_cost": 4,
+    "mp_cost": 5,
     "primitives": [
       {
         "kind": "deal_magical_damage",
@@ -48,7 +48,7 @@
   },
   "Consecrate": {
     "description": "Deal 2 + 1.5x MAG damage to the user's focused enemy and 1 + 1.0x MAG damage to that enemy's companions.",
-    "mp_cost": 6,
+    "mp_cost": 8,
     "primitives": [
       {
         "kind": "deal_magical_damage_current_target_and_companions",
@@ -81,13 +81,13 @@
     ]
   },
   "Charge": {
-    "description": "Deal 1.5x MGT damage to the user's focused enemy. Then move one row forward if the tile is empty and refocus.",
+    "description": "Deal 1.2x MGT damage to the user's focused enemy. Then move one row forward if the tile is empty and refocus.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.5,
+        "multiplier": 1.2,
         "double_empower_stat": null
       },
       {
@@ -342,7 +342,7 @@
     ]
   },
   "Seal": {
-    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. Apply Weaken MAG 4 and Weaken RES 2.",
+    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. Apply Weaken MAG 4.",
     "mp_cost": 4,
     "primitives": [
       {
@@ -357,49 +357,31 @@
         "status": "Weaken",
         "stat": "mag",
         "stacks": 4
-      },
-      {
-        "kind": "apply_status",
-        "target": "current_target",
-        "status": "Weaken",
-        "stat": "res",
-        "stacks": 2
       }
     ]
   },
   "Sever": {
-    "description": "Deal 1.5x MGT damage to the user's focused enemy. Consume the user's Empower MGT and Empower ARM, then deal 1 true damage per consumed stack.",
+    "description": "Deal 1.3x MGT damage to the user's focused enemy. Consume that enemy's Empower MGT and Empower ARM, then deal 1 true damage per consumed stack.",
     "mp_cost": 6,
     "primitives": [
       {
-        "kind": "deal_physical_damage_consume_self_statuses",
+        "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.5,
-        "statuses": [
-          {
-            "status": "Empower",
-            "stat": "mgt"
-          },
-          {
-            "status": "Empower",
-            "stat": "arm"
-          }
-        ],
-        "bonus_per_stack": 0
+        "multiplier": 1.3,
+        "double_empower_stat": null
       },
       {
-        "kind": "deal_true_damage_consume_self_statuses",
+        "kind": "deal_true_damage_consume_target_status",
         "target": "current_target",
-        "statuses": [
-          {
-            "status": "Empower",
-            "stat": "mgt"
-          },
-          {
-            "status": "Empower",
-            "stat": "arm"
-          }
-        ],
+        "status": "Empower",
+        "stat": "mgt",
+        "damage_per_stack": 1
+      },
+      {
+        "kind": "deal_true_damage_consume_target_status",
+        "target": "current_target",
+        "status": "Empower",
+        "stat": "arm",
         "damage_per_stack": 1
       }
     ]
@@ -589,7 +571,7 @@
     ]
   },
   "Hunt the Weak": {
-    "description": "Deal 2 + 1.5x MGT damage to the lowest-HP enemy and focus that enemy.",
+    "description": "Deal 2 + 1.0x MGT damage to the lowest-HP enemy and focus that enemy.",
     "mp_cost": 4,
     "primitives": [
       {
@@ -603,7 +585,7 @@
             "kind": "deal_physical_damage",
             "target": "bound_enemy",
             "base_damage": 2,
-            "multiplier": 1.5,
+            "multiplier": 1.0,
             "double_empower_stat": null
           },
           {

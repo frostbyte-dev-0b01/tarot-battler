@@ -64,7 +64,7 @@ Design note:
   Balance notes: row-wide protection, usually 2-3 total Ward in 3v3, so it should cost more than a one-for-one substitution ability
 
 - `Command`
-  `MP 4`
+  `MP 3`
   One companion immediately makes a `1.0x MGT` physical attack against the user's focused enemy.
   Balance notes: this is action substitution, not action gain; its value comes from using the better attacker
 
@@ -100,7 +100,7 @@ Design note:
 
 - `Charge`
   `MP 4`
-  Deal `1.5x MGT` damage to the user's focused enemy. Then, if the tile one row forward in the same column is empty, move there. If the move succeeds, the user refocuses.
+  Deal `1.2x MGT` damage to the user's focused enemy. Then, if the tile one row forward in the same column is empty, move there. If the move succeeds, the user refocuses.
   Balance notes: engage tool that should update pressure as part of movement, not just advance position
 
 - `Withdraw`
@@ -128,8 +128,8 @@ Design note:
 
 - `Sever`
   `MP 6`
-  Deal `1.5x MGT` damage to the user's focused enemy. Consume the user's `Empower MGT` and `Empower ARM`, then deal `1` true damage per consumed stack.
-  Balance notes: physical self-buff payoff, mirrors `Harvest Night`
+  Deal `1.3x MGT` damage to the user's focused enemy. Consume that enemy's `Empower MGT` and `Empower ARM`, then deal `1` true damage per consumed stack.
+  Balance notes: anti-buff physical payoff that punishes empowered frontliners without needing a separate dispel action
 
 - `Concuss`
   `MP 4`
@@ -142,16 +142,16 @@ Design note:
 
 - `Hunt the Weak`
   `MP 4`
-  Deal `2 + 1.5x MGT` damage to the lowest-HP enemy. If that enemy survives, the user focuses it.
+  Deal `2 + 1.0x MGT` damage to the lowest-HP enemy. If that enemy survives, the user focuses it.
 
 ### Magical Offense and Omen Package
 
 - `Smite`
-  `MP 4`
+  `MP 5`
   Deal `1.5x MAG` damage to the user's focused enemy.
 
 - `Consecrate`
-  `MP 6`
+  `MP 8`
   Deal `2 + 1.5x MAG` damage to the user's focused enemy and `1 + 1.0x MAG` damage to that enemy's companions.
   Balance notes: intended to be a real bomb when enemy formation clusters, not just light splash
 
@@ -169,7 +169,7 @@ Design note:
 
 - `Seal`
   `MP 4`
-  Deal `2 + 1.0x MAG` damage to the user's focused enemy. Apply `Weaken MAG 4` and `Weaken RES 2`.
+  Deal `2 + 1.0x MAG` damage to the user's focused enemy. Apply `Weaken MAG 4`.
 
 - `Transmute`
   `MP 4`
