@@ -48,7 +48,7 @@ The design now also distinguishes:
 The engine now has a first-class condition layer for `Stunned`, `Marked`, and `Severed`, with:
 
 - `Stunned` as non-stacking action denial
-- `Marked` as a stackable ability hook
+- `Marked` as a non-stacking ability hook that persists until consumed or removed
 - `Severed` as a stackable "no companions" relationship break
 
 Bundled roster data does not yet use `Marked` or `Severed`, and the older prototype `Stun` status still exists as implementation cleanup debt.
@@ -174,11 +174,11 @@ Useful spaces to explore later:
 Because rules use effective stats, the team builder and replay inspection tools should eventually show:
 
 - base stats
-- item bonuses
+- aspect bonuses
 - live Fortify and Weaken effects
 - resulting effective stat totals
 
-This is especially important once threshold unlocks and item-based identity shifts are in the main design.
+This is especially important once threshold unlocks and aspect-based identity shifts are in the main design.
 
 ### Template-Based Character Builds
 
@@ -186,13 +186,13 @@ The engine and Team Builder now use the template-based `version: 2` team schema:
 
 - archetype templates own locked base stats
 - team files reference a `template_id`
-- items provide the first layer of pre-battle stat augmentation
+- aspects should provide the first layer of pre-battle stat augmentation
 - the engine resolves authored loadouts into final runtime characters before battle start
 
 The Team Builder now treats stats as derived output rather than direct input:
 
 - template base stats
-- item bonuses
+- aspect bonuses
 - final pre-battle totals
 
 The older direct-stat team format has been retired.

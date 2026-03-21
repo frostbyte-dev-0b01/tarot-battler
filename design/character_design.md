@@ -205,7 +205,7 @@ They should not be the best specialist in both lanes.
 Two complementary systems should drive deeper character building:
 
 - character-specific threshold unlocks
-- seasonally priced items
+- seasonally priced aspects
 
 ### Threshold Unlocks
 
@@ -221,19 +221,19 @@ Strong threshold design rules:
 
 This helps turn one kit into multiple legitimate build paths.
 
-### Items as Identity Packages
+### Aspects as Identity Packages
 
-Items are external identity shifts.
+Aspects are external identity shifts.
 
-Each item should combine:
+Each aspect should combine:
 
 - stat bonuses
 - one defining passive
 - seasonal price pressure
 
-Items should let different characters express different versions of the same item. A good item is not just raw value; it changes what a character is good at or what matchup it answers.
+Aspects should let different characters express different versions of the same aspect. A good aspect is not just raw value; it changes what a character is good at or what matchup it answers.
 
-Together, threshold unlocks and items create two distinct axes:
+Together, threshold unlocks and aspects create two distinct axes:
 
 - how deeply a player invests in a character's specific identity
 - what external tool best complements that role in the current meta
@@ -251,11 +251,12 @@ Role:
 - frontline commander
 - formation enabler
 - target-flow control
+- balanced defensive anchor
 
 Passive:
 
 - `Imperial Formation`
-  Allies in The Emperor's row gain `Empower MGT 1` and `Empower MAG 1`.
+  When an ally in the user's row attacks the user's focused enemy, that ally gains `Empower MGT 2`.
 
 Abilities:
 
@@ -277,7 +278,7 @@ Role:
 Passive:
 
 - `Sanctuary`
-  Allies in Hierophant's row gain `Empower RES 1`.
+  The first time the user's companion falls below 50% HP, restore 10 HP and apply `Ward 1`.
 
 Abilities:
 
@@ -299,7 +300,7 @@ Role:
 Passive:
 
 - `Pursuit`
-  When an ally damages Chariot's current target, Chariot gains `Empower MGT 1`.
+  When an ally damages the user's focused enemy, gain `Empower MGT 1` and `Haste 2`.
 
 Abilities:
 
@@ -330,7 +331,7 @@ Role:
 Passive:
 
 - `Foreboding`
-  When The Moon deals magical damage to an enemy, apply `Omen 1` to that enemy.
+  The first time the user falls below 50% HP, disorient all enemies and apply `Weaken MGT 2` and `Weaken MAG 2` to them.
 
 Abilities:
 
@@ -368,13 +369,24 @@ Abilities:
 Role:
 
 - frontline control anchor
-- omen-aware execution bruiser
+- balanced hybrid bruiser
 - target disruption
+
+Stat direction:
+
+- `MGT` and `MAG` should match exactly
+- `ARM` and `RES` should match exactly at a lower value
+- Justice should stay one of the clearer hybrid units in the roster
+
+Ability direction:
+
+- Justice's pool should continue to include both physical and magical damage options
+- that hybrid mix should feel intentional, not incidental
 
 Passive:
 
 - `Sentence`
-  When Justice deals damage to an enemy with `Omen`, apply `Weaken MGT 1` to that enemy.
+  When the user uses Basic Attack against an enemy, apply `Marked 1` to that enemy.
 
 Abilities:
 
@@ -420,7 +432,7 @@ Role:
 Passive:
 
 - `Lonely Road`
-  When the Hermit damages an enemy with no companions, deal `2` true damage.
+  When the Hermit damages an enemy with no companions, deal `4` true damage.
 
 Why this works:
 
@@ -435,11 +447,12 @@ Role:
 - opportunistic skirmisher
 - target-switch tempo piece
 - disruptive cleanup attacker
+- light hybrid attacker
 
 Passive:
 
 - `Chance Opening`
-  The first time each tick the Fool changes focused target, gain `Empower MGT 1` and `Haste 3`.
+  The first time each tick the Fool changes focused target, apply `Weaken ARM 2` to the new target and gain `Haste 3`.
 
 Notes:
 

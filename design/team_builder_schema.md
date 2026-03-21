@@ -9,7 +9,7 @@ The current system is template-based:
 - teams do not author raw stats directly
 - each character references an archetype template
 - the template provides locked base stats
-- equipped items add pre-battle stat bonuses
+- equipped aspects add pre-battle stat bonuses and role identity
 - battle-time effects then modify those resolved stats further
 
 ## Top-Level Shape
@@ -47,7 +47,7 @@ The current system is template-based:
   "position": { "row": 0, "col": 0 },
   "passive": "Imperial Formation",
   "actives": ["Hold the Line", "Command", "Taunt"],
-  "item": "vitality_charm",
+  "aspect": "aspect_of_grace",
   "rules": []
 }
 ```
@@ -60,7 +60,7 @@ The current system is template-based:
 - `position: Position`
 - `passive: string`
 - `actives: string[]`
-- `item: string | null`
+- `aspect: string | null`
 - `rules: Rule[]`
 
 ### Notes
@@ -70,7 +70,7 @@ The current system is template-based:
 - `display_name` is a cosmetic/player-facing override
 - `stats` are intentionally absent from team JSON
 - `passive` and `actives` are loadout choices validated against the template pools
-- `item` is nullable, but when present must reference a defined item
+- `aspect` is nullable, but when present must reference a defined aspect
 - the current UI exposes up to three active slots explicitly
 
 ## Position
@@ -175,8 +175,8 @@ The engine loads archetypes from:
     },
     "default_passive": "Imperial Formation",
     "passive_pool": ["Imperial Formation"],
-    "active_pool": ["Hold the Line", "Command", "Taunt", "Interpose", "Decoy", "Sunder"],
-    "item_slots": 1
+    "active_pool": ["Hold the Line", "Command", "Taunt", "Interpose", "Sunder"],
+    "aspect_slots": 1
   }
 }
 ```
@@ -188,7 +188,7 @@ The engine loads archetypes from:
 - `default_passive: string`
 - `passive_pool: string[]`
 - `active_pool: string[]`
-- `item_slots: number`
+- `aspect_slots: number`
 
 ### Notes
 
@@ -196,23 +196,29 @@ The engine loads archetypes from:
 - the engine treats these as authoritative
 - `default_passive` supports builder defaults
 - `passive_pool` and `active_pool` define legal loadout choices
+- `aspect_slots` should currently be `1`
 
-## Item Catalog
+## Aspect Catalog
 
-The engine loads items from:
+The engine loads aspects from:
 
-- `battle_engine/src/data/items.json`
+- `battle_engine/src/data/aspects.json`
 
-### ItemDef
+### AspectDef
 
 ```json
 {
-  "vitality_charm": {
-    "display_name": "Vitality Charm",
-    "description": "Gain +2 VIT.",
+  "aspect_of_ruin": {
+    "display_name": "Aspect of Ruin",
+    "description": "A high-pressure role that rewards attacking conditioned enemies.",
     "stat_bonuses": {
-      "vit": 2
-    }
+      "mgt": 2,
+      "mag": 2,
+      "wil": 1,
+      "vit": -2,
+      "arm": -1
+    },
+    "passive": "Ruinous"
   }
 }
 ```
@@ -222,11 +228,27 @@ The engine loads items from:
 - `display_name: string`
 - `description: string`
 - `stat_bonuses: Partial<StatBlock>`
+- `passive?: string`
+- `active?: string`
 
 ### Notes
 
-- the current implementation keeps items simple: stat bonuses only
-- passive-like item effects can come later
+- each character can equip only one aspect
+- a team cannot repeat the same aspect
+- aspects should generally shift stats by about `+/-5` total, not provide huge stat spikes
+- aspects should usually grant one defining passive or active, most often a passive
+
+### First Aspects
+
+- `Aspect of Ruin`
+  - stats: `MGT +2`, `MAG +2`, `WIL +1`, `VIT -2`, `ARM -1`
+  - passive: `Ruinous`
+    - The first time each tick the user damages an enemy with a condition, deal `2` true damage.
+
+- `Aspect of Grace`
+  - stats: `VIT +2`, `RES +2`, `WIL +1`, `MGT -1`, `MAG -1`
+  - passive: `Grace`
+    - The first time each tick the user affects an ally with an ability, that ally restores `2 HP`.
 
 ## Resolution Model
 
@@ -234,7 +256,7 @@ The engine resolves authored loadouts into runtime characters like this:
 
 1. look up the referenced archetype
 2. copy the archetype base stats
-3. apply item stat bonuses
+3. apply aspect stat bonuses
 4. validate passive and active choices against the template pools
 5. build the resolved runtime `CharacterConfig`
 
@@ -254,7 +276,7 @@ This means team JSON is authoring input, not final combat state.
       "position": { "row": 0, "col": 0 },
       "passive": "Imperial Formation",
       "actives": ["Hold the Line", "Command", "Taunt"],
-      "item": "vitality_charm",
+      "aspect": "aspect_of_grace",
       "rules": [
         {
           "ability": "Hold the Line",

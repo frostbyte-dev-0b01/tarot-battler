@@ -4,7 +4,7 @@ This file tracks the current intended core active-ability pool.
 
 For now, all abilities are considered globally available to all characters, even though the longer-term design will likely restrict each ability to a smaller subset of characters.
 
-The current target is a core pool of 25 active abilities.
+The current target is a core pool of 35 active abilities.
 
 ## Balance Framework
 
@@ -17,10 +17,11 @@ This is the current first-pass balancing framework for active abilities.
 
 Current first-pass multiplier bands:
 
-- `0.5x-0.7x` per target for splash abilities
-- `0.8x-1.0x` for light single-target damage with extra utility
-- `1.2x-1.4x` for strong standard single-target damage
-- `1.6x-2.0x` for heavy payoff attacks
+- below `1.0x` only for special low-damage utility attacks such as stun
+- `1.0x` for weak but meaningful single-target damage
+- `1.5x` for medium single-target damage
+- `2.0x` for strong payoff damage
+- `0.8x-1.0x` per target for splash abilities that still need to matter through defense
 
 Current damage-shape principle:
 
@@ -83,6 +84,18 @@ Design note:
   `MP 2`
   Enemies focusing the user focus one of the user's companions instead.
 
+- `Sever Thread`
+  `MP 4`
+  Apply `Severed` to the user's focused enemy for `3` turns.
+
+- `Chorus`
+  `MP 5`
+  Until the user's next turn, when a companion uses an ability, all companions gain a copy of a random buff on that companion.
+
+- `Shatter Faith`
+  `MP 5`
+  Remove all `Ward` and `Restoration` from the enemy team. For each effect removed, deal `2` true damage to the user's focused enemy.
+
 ### Physical Offense and Payoff
 
 - `Charge`
@@ -118,37 +131,54 @@ Design note:
   Deal `1.4x MGT` damage to the user's focused enemy. Consume the user's `Empower MGT` and `Empower ARM`, then deal `1` true damage per consumed stack.
   Balance notes: physical self-buff payoff, mirrors `Harvest Night`
 
+- `Concuss`
+  `MP 4`
+  Deal `2 + 0.8x MGT` damage to the user's focused enemy. Apply `Stunned 1`.
+
+- `Pursue`
+  `MP 4`
+  Deal `3 + 1.5x MGT` damage to a `Marked` enemy. Consume `Marked` and focus that enemy.
+  Balance notes: gives physical teams a real marked-target pursuit tool instead of relying only on normal sticky focus
+
+- `Hunt the Weak`
+  `MP 4`
+  Deal `1.5x MGT` damage to the lowest-HP enemy. If that enemy survives, the user focuses it.
 
 ### Magical Offense and Omen Package
 
 - `Smite`
   `MP 4`
-  Deal `1.4x MAG` damage to the user's focused enemy.
+  Deal `1.5x MAG` damage to the user's focused enemy.
 
 - `Consecrate`
   `MP 6`
-  Deal `3 + 1.0x MAG` damage to the user's focused enemy and `2 + 0.7x MAG` damage to that enemy's companions.
+  Deal `3 + 1.5x MAG` damage to the user's focused enemy and `2 + 1.0x MAG` damage to that enemy's companions.
   Balance notes: intended to be a real bomb when enemy formation clusters, not just light splash
 
 - `Hex`
   `MP 4`
-  Deal `3 + 0.8x MAG` damage to the user's focused enemy. Apply `Omen 2`.
+  Deal `3 + 1.0x MAG` damage to the user's focused enemy. Apply `Omen 2`.
 
 - `Eclipse`
   `MP 6`
-  Deal `2 + 0.8x MAG` damage to the user's focused enemy and that enemy's companions. Apply `Omen 1` to each damaged enemy.
+  Deal `2 + 1.0x MAG` damage to the user's focused enemy and that enemy's companions. Apply `Omen 1` to each damaged enemy.
 
 - `Harvest Night`
   `MP 6`
-  Deal `3 + 1.0x MAG` damage to the user's focused enemy. Then consume all `Omen` on that enemy and deal `2` true damage per stack consumed.
+  Deal `3 + 1.5x MAG` damage to the user's focused enemy. Then consume all `Omen` on that enemy and deal `2` true damage per stack consumed.
 
 - `Seal`
   `MP 4`
-  Deal `3 + 0.8x MAG` damage to the user's focused enemy. Apply `Weaken MAG 4` and `Weaken RES 2`.
+  Deal `3 + 1.0x MAG` damage to the user's focused enemy. Apply `Weaken MAG 4` and `Weaken RES 2`.
 
 - `Transmute`
   `MP 4`
   Deal `1.0x MAG` damage to the user's focused enemy. Transform that enemy's `Empower MGT` and `Empower ARM` into equal `Weaken MGT` and `Weaken ARM`.
+
+- `Detonate Mark`
+  `MP 4`
+  Deal `3 + 1.0x MAG` damage to the user's focused enemy. If that enemy has `Marked`, consume `Marked` and deal `6` true damage.
+  Balance notes: explicit magical mark payoff that stays meaningful through defense
 
 ### Support, Sustain, and Utility
 
@@ -179,26 +209,17 @@ Design note:
   Team concept note:
   this kind of ability becomes much more interesting once rules can inspect `self_row`, allowing a tank to begin as a frontline anchor, get rescued backward, and then switch into a different backline damage plan
 
-## Near-Term Promotions
-
-These are the strongest current idea candidates to promote into the core pool next.
-
-- `Sever Thread`
-  Apply `Severed` to the user's focused enemy for `3` turns.
-
-- `Chorus`
-  Until the user's next turn, when a companion uses an ability, all companions gain a copy of a random buff on that companion.
+- `Death Mark`
+  `MP 3`
+  Apply `Marked 1` to the furthest back enemy.
+  Balance notes: baseline marked applier should be scriptable, backline-facing, and not require broader focus rewrites
 
 - `Profane Exchange`
-  Move all debuffs from the user onto the focused enemy.
-
-- `Shatter Faith`
-  Remove all `Ward` and `Restoration` from the enemy team. For each effect removed, deal `2` true damage to the user's focused enemy.
-
-- `Hunt the Weak`
-  Deal `1.0x MGT` damage to the lowest-HP enemy. If that enemy survives, the user focuses it.
+  `MP 5`
+  Move all debuffs from the user onto the user's focused enemy.
 
 - `Inheritance`
+  `MP 6`
   Choose one companion. The user gains that companion's passive permanently for the rest of battle.
 
 ## Brainstorming

@@ -54,9 +54,9 @@ The recommended team builder layout is:
 - top character strip with one tab per team member plus an add-character slot
 - a three-pane selected-character workspace:
   - left: portrait placeholder, identity fields, position, and stats
-  - middle: passive, active slots, and item slot
+  - middle: passive, active slots, and aspect slot
   - right: compact priority-rule list
-- lower selection browser that swaps between passive, active, and item choices
+- lower selection browser that swaps between passive, active, and aspect choices
 - optional lower panels: raw JSON import/export and saved-character workflow
 
 ## Replay Viewer
@@ -177,10 +177,10 @@ Each character editor should include:
 - stats
 - passive selected through the lower browser
 - `active_1`, `active_2`, and `active_3` style slots selected through the lower browser
-- item
+- aspect
 - rules
 
-The lower browser should now be the primary way to choose passives, actives, and items.
+The lower browser should now be the primary way to choose passives, actives, and aspects.
 
 The current UI may still keep lightweight fallback controls internally where useful, but the intended user interaction is browser-first.
 
@@ -203,7 +203,7 @@ The eventual Team Builder UI should move toward a more compact, composition-firs
 - center pane for the selected character
 - middle pane fields for:
   - active abilities
-  - item
+  - aspect
   - passive
   - previewed stats
 - a details panel where the current mockup image places character details
@@ -211,7 +211,7 @@ The eventual Team Builder UI should move toward a more compact, composition-firs
 - a lower browsing panel for the currently edited slot type:
   - active abilities
   - passives
-  - items
+  - aspects
   - each with readable descriptions
 
 This is not the immediate implementation target.

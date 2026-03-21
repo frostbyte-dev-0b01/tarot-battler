@@ -33,7 +33,7 @@ This file is the primary gameplay spec. It describes the intended game rules, ev
 ### Weekly Loop
 
 - Leaderboard resets weekly.
-- Character, ability, and item prices adjust based on prior-week popularity and performance.
+- Character, ability, and aspect prices adjust based on prior-week popularity and performance.
 - Players are rewarded for identifying undervalued options before the market corrects.
 
 ## Team Construction
@@ -45,7 +45,7 @@ Each character loadout consists of:
 - one passive selected from that character's passive pool
 - two or three equipped active abilities
 - up to five ordered rules
-- one item slot
+- one aspect slot
 - a formation position on a 3-column by 3-row grid
 
 The intended near-term direction is that players do **not** allocate raw base stats directly.
@@ -53,7 +53,7 @@ The intended near-term direction is that players do **not** allocate raw base st
 Instead:
 
 - each arcana has a locked base stat profile
-- items provide the main pre-battle stat augmentation layer
+- aspects provide the main pre-battle stat augmentation layer
 - runtime effective stats are then modified further by battle effects
 
 ### Character Stats
@@ -70,9 +70,9 @@ The current intended base stat set is:
 
 These are the intended v1 stat names and roles.
 
-Provisional starting stat ranges are still being tuned, but the current design expectation is that most characters begin with `WIL` somewhere in the `8-16` range. This keeps starting MP and basic-attack MP recovery large enough to support more granular ability pricing.
+Provisional starting stat ranges are still being tuned, but the current design expectation is that all core stats should live in a similar midrange band. This keeps each stat comparably valuable and reduces integer breakpoint weirdness.
 
-Conceptually, the likely direction is that each character has a fixed base spread and items provide most of the flexible pre-battle stat shaping. Those larger totals are a balance target, not a current engine requirement.
+Conceptually, the likely direction is that each character has a fixed base spread and aspects provide most of the flexible pre-battle stat shaping. Those larger totals are a balance target, not a current engine requirement.
 
 ### Derived Resources
 
@@ -111,7 +111,7 @@ Companion status matters for rules and ability targeting, but the specific compa
 
 Each character has a speed counter derived from `SPD`.
 
-- `max_ticks = 10 - SPD`
+- `max_ticks = 15 - SPD`
 - at battle start, `ticks_until_turn = max(max_ticks, 1)`
 - battle time advances in discrete steps
 - each step reduces all living characters' counters by 1
@@ -123,6 +123,11 @@ Each character has a speed counter derived from `SPD`.
 This preserves the value of high `SPD` while softening the advantage over long fights.
 
 Turn timing effects still happen if a character is stunned. Stun prevents the action itself, not the rest of turn processing.
+
+Design note:
+
+- the intent is that `SPD` should live in the same rough numeric range as the other stats
+- the `15 - SPD` opener formula keeps that shared scale workable without making fast characters act too often
 
 ### Turn Resolution Order
 
@@ -413,29 +418,30 @@ For a normal physical or magical hit:
 
 These are intended balancing anchors, not hard-coded categories:
 
-- weak tap: around `0.7x`
-- standard attack: `1.0x`
-- strong attack: around `1.5x`
-- heavy attack: around `2.0x`
-- AOE per target: around `0.5x` to `0.7x`
+- sub-`1.0x`: reserved for special low-damage utility attacks such as stun
+- weak hit: around `1.0x`
+- medium hit: around `1.5x`
+- strong hit: around `2.0x`
+- AOE per target: around `0.8x` to `1.0x`
 - execute: around `2.0x` to `2.5x`, usually conditional
 
-Multipliers apply before defense subtraction. This means offensive Fortify and Weaken effects on `MGT` or `MAG` naturally scale ability damage up or down.
+Multipliers apply before defense subtraction. This means offensive Empower and Weaken effects on `MGT` or `MAG` naturally scale ability damage up or down.
 
 ## Status and Effect System
 
 Statuses are a core team-building axis, and the intended vocabulary should support archetypes and payoff patterns rather than only generic RPG effects.
 
-### Official Status Direction
+### First Balance-Pass Status Set
 
-The current intended core effects are:
+For the first real balance pass, the live status list should stay tight:
 
-- `Empower(stat)` — positive stack-based modifier to `MGT`, `MAG`, `ARM`, or `RES`
-- `Weaken(stat)` — negative stack-based modifier to `MGT`, `MAG`, `ARM`, or `RES`
-- `Lethality` — flat post-mitigation bonus damage on the attacker
+- `Ward` — blocks the next hit and is then consumed
 - `Omen` — true-damage setup effect that triggers at start of turn
 - `Restoration` — HP restoration over time
-- `Stunned` — the unit cannot take actions while it has `Stunned`
+- `Empower(stat)` — positive stack-based modifier to `MGT`, `MAG`, `ARM`, or `RES`
+- `Weaken(stat)` — negative stack-based modifier to `MGT`, `MAG`, `ARM`, or `RES`
+
+`Ward` should remain a status rather than a condition. It behaves like a scarce defensive layer or buff, not like a special rule-state flag.
 
 `Omen` is the official name for the intended true-damage setup effect.
 
@@ -468,7 +474,7 @@ Current intended condition behavior:
 
 - all current conditions lose `1` stack at end of turn unless they are consumed or removed earlier
 - `Stunned` does not stack and is usually applied as `1`
-- `Marked` stacks
+- `Marked` does not stack and does not decay naturally; it remains until consumed or explicitly removed
 - `Severed` stacks
 
 Future candidate conditions:
@@ -492,7 +498,6 @@ The current intended groups are:
   - `Weaken MGT`
   - `Empower ARM`
   - `Weaken ARM`
-  - `Lethality`
 - `Mind`
   - `Empower MAG`
   - `Weaken MAG`
@@ -501,6 +506,7 @@ The current intended groups are:
 - `Fate`
   - `Omen`
   - `Restoration`
+  - `Ward`
 
 `Stunned` and other conditions are separate from the `Body`, `Mind`, and `Fate` groups.
 
@@ -540,17 +546,16 @@ More specialized abilities can still target a specific group:
 - remove `1 tick` of all `Mind` buffs
 - remove all `Fate` debuffs
 
-### Current Engine Prototype
+### Prototype Cleanup Debt
 
-The current implementation still uses familiar effects such as:
+The engine still contains some older placeholder effects and legacy naming such as:
 
 - `Bleed`
 - `Poison`
 - `Regen`
-- stat buffs and debuffs
 - `Stun`
 
-`Bleed` and `Poison` should currently be treated as engine placeholders for a more thematic future status model, with `Omen` being the intended design direction.
+These should not be treated as part of the first balance-pass live set. They are implementation leftovers and should eventually be removed or replaced with the intended status vocabulary above.
 
 ### Intended Design Direction
 
@@ -583,14 +588,14 @@ Current intended timing:
 
 - start of turn: `Omen` deals damage, then halves
 - start of turn: `Restoration` heals, then halves
-- end of turn: `Empower`, `Weaken`, and `Lethality` halve
+- end of turn: `Empower`, `Weaken`, `Ward`, and `Omen` lose value according to their own rules, with the main halving-decay family currently being `Omen`, `Restoration`, `Empower`, and `Weaken`
 - end of turn: current conditions lose `1` stack unless consumed or removed earlier
 
 The older prototype tick-down-by-1 behavior is an implementation detail, not the intended long-term design.
 
 Current implementation note:
 
-- the live engine now uses the intended halving decay model for `Omen`, `Restoration`, `Empower`, `Weaken`, and `Lethality`
+- the live engine now uses the intended halving decay model for `Omen`, `Restoration`, `Empower`, and `Weaken`
 - legacy placeholder effects such as `Bleed` and `Poison` still use the older tick-down model
 
 ## Compound Ability Resolution
@@ -649,12 +654,12 @@ Examples:
 - row-bypass permission
 - target redirection
 
-## Items and Build Depth
+## Aspects and Build Depth
 
 Build depth should come from two complementary systems:
 
 - character-specific identity through stat allocation and ability thresholds
-- flexible external identity through items
+- flexible external identity through aspects
 
 ### Ability Threshold Unlocks
 
@@ -674,27 +679,35 @@ Examples:
 - `Taunt`: high `MAG` could also Weaken enemy `MAG`, turning it toward a hexblade/control angle
 - `Blessing`: high `MGT` could also grant `Fortify MGT`, turning it toward battle support
 
-### Items
+### Aspects
 
-Each character equips one item.
+Each character equips one aspect.
 
-The intended first implementation of items should be simpler:
+The intended first implementation of aspects should be simpler:
 
 - stat bonuses
+- one defining passive or active, usually passive
 - a seasonal price
 
-Items should act as identity packages rather than generic efficiency bundles.
+Aspects should act as identity packages rather than generic efficiency bundles.
 
-Additional passive-like item effects can come later once the base template system is stable.
+Each team should be restricted to one copy of each aspect.
 
-Examples of intended item identities:
+First aspect direction:
 
-- gap exploiters
-- durable battlemages
-- vengeance tanks
-- omen accelerators
+- `Aspect of Ruin`
+  - stats: `MGT +2`, `MAG +2`, `WIL +1`, `VIT -2`, `ARM -1`
+  - passive: `Ruinous`
+    - The first time each tick the user damages an enemy with a condition, deal `2` true damage.
 
-Item prices are expected to shift with seasonal popularity and performance, creating budget pressure and meta-based tradeoffs.
+- `Aspect of Grace`
+  - stats: `VIT +2`, `RES +2`, `WIL +1`, `MGT -1`, `MAG -1`
+  - passive: `Grace`
+    - The first time each tick the user affects an ally with an ability, that ally restores `2 HP`.
+
+Aspects should usually stay around a modest `+/-5` total stat swing, not a massive raw-stat package.
+
+Aspect prices are expected to shift with seasonal popularity and performance, creating budget pressure and meta-based tradeoffs.
 
 ### Effective Stats
 
@@ -703,7 +716,7 @@ Rule conditions check effective stats during battle.
 Effective stats include:
 
 - base stats
-- item bonuses
+- aspect bonuses
 - active Fortify and Weaken stacks
 
 The team builder and inspection tools should make effective stats legible so rule scripting remains understandable.
@@ -740,7 +753,7 @@ These are intentionally not locked in yet:
 
 - final stat names and exact stat tuning
 - final MP regeneration rate
-- exact item pricing and budget rules
+- exact aspect pricing and budget rules
 - field effects
 - reversed character mode
 - pricing formula details
