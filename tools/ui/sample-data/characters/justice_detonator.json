@@ -1,0 +1,53 @@
+{
+  "id": "new_character_1",
+  "template_id": "justice",
+  "display_name": "Justice",
+  "position": {
+    "row": 0,
+    "col": 1
+  },
+  "passive": "Sentence",
+  "actives": [
+    "Detonate Mark",
+    "Verdict",
+    "Rebuke"
+  ],
+  "aspect": null,
+  "rules": [
+    {
+      "ability": "Basic Attack",
+      "when": [
+        {
+          "subject": "target",
+          "value": "hp",
+          "op": "lte",
+          "threshold": 4
+        }
+      ]
+    },
+    {
+      "ability": "Detonate Mark",
+      "when": [
+        {
+          "subject": "target",
+          "value": {
+            "condition_stacks": "Marked"
+          },
+          "op": "gte",
+          "threshold": 1
+        }
+      ]
+    },
+    {
+      "ability": "Verdict",
+      "when": [
+        {
+          "subject": "self",
+          "value": "mp",
+          "op": "gte",
+          "threshold": 7
+        }
+      ]
+    }
+  ]
+}
