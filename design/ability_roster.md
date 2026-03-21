@@ -32,19 +32,6 @@ Current damage-shape principle:
   - splash/setup attacks
   - payoff finishers
 
-Current balancing shorthand:
-
-- `1 MP` is roughly worth a light attack, `cleanse 1`, `dispel 1`, `Omen 1`, or `restore 2-3 MP`
-- `2 MP` is roughly worth a strong single-target attack, `Omen 2`, a targeted focus-control effect, or a strong row/column utility effect
-- `3 MP` is roughly worth splash damage, broad support, or strong conditional payoff
-- `4 MP` is for finishers and high-ceiling payoff buttons
-
-Current design direction for economy:
-
-- all characters have `Rest`
-- `Rest` restores `floor(WIL / 2)` MP
-- `WIL` and MP costs will likely both scale upward later for more granularity
-
 ## Notation
 
 - `cleanse 1` means remove `1 tick` of debuffs
@@ -192,74 +179,18 @@ Design note:
   Team concept note:
   this kind of ability becomes much more interesting once rules can inspect `self_row`, allowing a tank to begin as a frontline anchor, get rescued backward, and then switch into a different backline damage plan
 
-## Brainstorming
+## Near-Term Promotions
 
-New ability ideas and balance experiments can be added here before they are promoted into the core pool.
-
-- `Split`
-  Move one companion to the opposite side of the user, if open. Both units gain `Ward 1`.
-
-- `Coronate`
-  Choose one companion. Until that companion acts, all enemies focusing the user focus that companion instead, and that companion gains `Empower MGT 3`.
+These are the strongest current idea candidates to promote into the core pool next.
 
 - `Sever Thread`
   Apply `Severed` to the user's focused enemy for `3` turns.
-
-- `Sanctuary`
-  The user's row cannot be focused from outside that row until the user's next turn.
-
-- `Brand of Ruin`
-  Apply a new status: `Marked`.
-  When allies attack a `Marked` enemy, remove `Marked` and deal `3` true damage.
-  Strong use case:
-  mark a target, then use focus tools and coordinated rules to collapse on that enemy.
-
-- `Tether`
-  Link the user and one companion.
-  The next time either takes damage, split it evenly, then end the effect.
-
-- `Silence`
-  Apply new condition: `Muted`.
-  A `Muted` unit cannot use the same ability it used last turn.
-
-- `Revelation`
-  Reveal the focused enemy’s top priority rule in the replay/log and apply `Weaken RES 3`.
-
-- `Invert`
-  Swap the focused enemy’s `MGT` and `MAG` until its next turn.
-
-- `Anchor`
-  The user cannot move or refocus until its next turn. Gain `Ward 1`, `Empower ARM 4`, and `Empower RES 4`.
-
-- `Echo`
-  The next ally ability used this tick repeats its non-damage effects on the same target.
-
-- `Exile`
-  Move the focused enemy to the back row if an open tile exists. If moved, it is disoriented.
-
-- `Mirror`
-  Until the user's next turn, whenever the focused enemy gains `Empower`, the user gains the same amount.
-
-- `Hush`
-  Apply new condition: `Delayed`.
-  The affected enemy’s next action happens one tick cycle later than normal.
-
-- `Judgment Day`
-  Compare total buffs on both teams. The side with more loses half of them.
 
 - `Chorus`
   Until the user's next turn, when a companion uses an ability, all companions gain a copy of a random buff on that companion.
 
 - `Profane Exchange`
   Move all debuffs from the user onto the focused enemy.
-
-- `Covenant`
-  Until the user's next turn, allies in the user's row cannot be reduced below `1 HP` by direct damage.
-
-- `Blood Rite`
-  Deal `5` true damage to each companion. Then deal `1.0x MAG` damage to the user's focused enemy, plus `1` true damage for each damage dealt this way.
-  Strong use case:
-  put this on a backline caster between passive healers or durable companions so the team converts survivable self-damage into burst.
 
 - `Shatter Faith`
   Remove all `Ward` and `Restoration` from the enemy team. For each effect removed, deal `2` true damage to the user's focused enemy.
@@ -269,6 +200,24 @@ New ability ideas and balance experiments can be added here before they are prom
 
 - `Inheritance`
   Choose one companion. The user gains that companion's passive permanently for the rest of battle.
+
+## Brainstorming
+
+These ideas still look promising, but are lower priority than the near-term promotions above.
+
+- `Brand of Ruin`
+  Apply a new status: `Marked`.
+  When allies attack a `Marked` enemy, remove `Marked` and deal `3` true damage.
+  Strong use case:
+  mark a target, then use focus tools and coordinated rules to collapse on that enemy.
+
+- `Covenant`
+  Until the user's next turn, allies in the user's row cannot be reduced below `1 HP` by direct damage.
+
+- `Blood Rite`
+  Deal `5` true damage to each companion. Then deal `1.0x MAG` damage to the user's focused enemy, plus `1` true damage for each damage dealt this way.
+  Strong use case:
+  put this on a backline caster between passive healers or durable companions so the team converts survivable self-damage into burst.
 
 - `Last Rites`
   Deal `1.2x MAG` damage to an enemy below `50% HP`. If that enemy is defeated, all allies refocus.
@@ -282,5 +231,48 @@ New ability ideas and balance experiments can be added here before they are prom
 - `Execution Order`
   Target the lowest-HP enemy. All allies who refocus before your next turn must focus that enemy.
 
+## Cut / Shelved Ideas
+
+These are intentionally not current priorities, but are kept here as reference.
+
+- `Split`
+  Too movement-focused for the current design direction.
+
+- `Coronate`
+  Awkward short-window scripting and unclear payoff.
+
+- `Sanctuary`
+  Interesting, but too rules-heavy and interaction-sensitive for now.
+
+- `Tether`
+  Likely wants a dedicated linked-damage system rather than a one-off ability.
+
+- `Silence`
+  Depends on `Muted`, which is explicitly shelved for now.
+
+- `Revelation`
+  Too meta/tooling-oriented for the current gameplay focus.
+
+- `Invert`
+  Interesting, but likely too weird and swingy for the first pass.
+
+- `Anchor`
+  Weak design: anti-synergy between `Ward` and raw mitigation, plus poor scripting value.
+
+- `Echo`
+  Promising space, but more implementation-heavy than the near-term list.
+
+- `Exile`
+  Movement/displacement is not where the current design wants to invest most depth.
+
+- `Mirror`
+  Too reactive and narrow compared to stronger state-change abilities.
+
+- `Hush`
+  Depends on a `Delayed` condition/system that does not exist yet.
+
+- `Judgment Day`
+  Splashy, but too global and hard to tune cleanly for an early pass.
+
 - `Last Stand`
-  If the user is in the front row and below `50% HP`, all companions gain `Empower MGT 3` and `Empower MAG 3`.
+  Serviceable, but less interesting and less identity-rich than the stronger options above.
