@@ -617,11 +617,43 @@ function validateReplay(candidate) {
   } else {
     if (candidate.snapshots.length === 0) {
       errors.push("`snapshots` must contain at least one entry.");
-    }
+    } else {
+      const maxEventIndex = Array.isArray(candidate.events) ? candidate.events.length - 1 : -1;
+      let previousEventIndex = null;
 
-    candidate.snapshots.forEach((snapshot, index) => {
-      validateReplaySnapshot(snapshot, index, errors);
-    });
+      candidate.snapshots.forEach((snapshot, index) => {
+        validateReplaySnapshot(snapshot, index, errors);
+
+        if (!isPlainObject(snapshot) || typeof snapshot.event_index !== "number") {
+          return;
+        }
+
+        if (index === 0 && snapshot.event_index !== -1) {
+          errors.push("`snapshots[0].event_index` must be -1.");
+        }
+
+        if (snapshot.event_index < -1 || snapshot.event_index > maxEventIndex) {
+          errors.push(
+            `snapshots[${index}].event_index must be between -1 and ${maxEventIndex}.`,
+          );
+        }
+
+        if (previousEventIndex !== null && snapshot.event_index < previousEventIndex) {
+          errors.push("`snapshots` event_index values must be nondecreasing.");
+        }
+
+        previousEventIndex = snapshot.event_index;
+      });
+
+      if (Array.isArray(candidate.events) && candidate.events.length > 0) {
+        const lastSnapshot = candidate.snapshots[candidate.snapshots.length - 1];
+        if (isPlainObject(lastSnapshot) && lastSnapshot.event_index !== maxEventIndex) {
+          errors.push(
+            `The last snapshot must cover the last replay event (expected event_index ${maxEventIndex}).`,
+          );
+        }
+      }
+    }
   }
 
   return {
