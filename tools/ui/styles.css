@@ -631,6 +631,26 @@ main {
   font-size: 0.9rem;
 }
 
+.loadout-slot-value-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.loadout-slot-cost {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(38, 70, 83, 0.08);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
 .loadout-slot-description {
   flex: 1 1 auto;
   min-width: 0;
@@ -754,6 +774,26 @@ main {
 
 .selection-browser-entry strong {
   font-size: 0.9rem;
+}
+
+.selection-browser-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.selection-browser-entry-cost {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(38, 70, 83, 0.08);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .selection-browser-entry span {

@@ -109,6 +109,7 @@ const appState = {
     statuses: [],
     conditions: [...conditionCatalog],
     passiveDescriptions: {},
+    abilityDefinitions: {},
     abilityDescriptions: {},
     aspectDescriptions: {},
     aspectDefinitions: {},
@@ -512,6 +513,7 @@ async function loadEditorCatalogs() {
     appState.catalogs.passiveDescriptions = Object.fromEntries(
       Object.entries(passives).map(([name, definition]) => [name, definition?.description ?? ""]),
     );
+    appState.catalogs.abilityDefinitions = abilities;
     appState.catalogs.abilityDescriptions = Object.fromEntries(
       Object.entries(abilities).map(([name, definition]) => [name, definition?.description ?? ""]),
     );
@@ -529,6 +531,7 @@ async function loadEditorCatalogs() {
     appState.catalogs.statuses = [...ruleStatusCatalog];
     appState.catalogs.conditions = [...conditionCatalog];
     appState.catalogs.passiveDescriptions = {};
+    appState.catalogs.abilityDefinitions = {};
     appState.catalogs.abilityDescriptions = {};
     appState.catalogs.aspectDescriptions = {};
     appState.catalogs.aspectDefinitions = {};
@@ -1610,6 +1613,7 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
       : mode === "aspect"
         ? getAspectDescription(value)
         : getAbilityDescription(value);
+  const mpCost = mode === "active" ? getAbilityMpCost(value) : null;
 
   return `
     <button
@@ -1621,8 +1625,11 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
       data-character-index="${characterIndex}"
     >
       <span class="loadout-slot-label">${label}</span>
-      <span class="loadout-slot-value"${renderTitleAttribute(description)}>
-        ${escapeHtml(value || `No ${label.toLowerCase()} selected`)}
+      <span class="loadout-slot-value-row">
+        <span class="loadout-slot-value"${renderTitleAttribute(description)}>
+          ${escapeHtml(value || `No ${label.toLowerCase()} selected`)}
+        </span>
+        ${mpCost == null ? "" : `<span class="loadout-slot-cost">${escapeHtml(`${mpCost} MP`)}</span>`}
       </span>
       <span class="loadout-slot-description">${escapeHtml(description || "No description yet.")}</span>
     </button>
@@ -1728,6 +1735,7 @@ function renderSelectionBrowser(character) {
 }
 
 function renderBrowserEntry(entry, mode, slotIndex, currentValue) {
+  const mpCost = mode === "active" ? getAbilityMpCost(entry.name) : null;
   return `
     <button
       type="button"
@@ -1737,7 +1745,10 @@ function renderBrowserEntry(entry, mode, slotIndex, currentValue) {
       data-browser-slot-index="${slotIndex}"
       data-entry-value="${escapeHtml(entry.name)}"
     >
-      <strong>${escapeHtml(entry.name)}</strong>
+      <span class="selection-browser-entry-header">
+        <strong>${escapeHtml(entry.name)}</strong>
+        ${mpCost == null ? "" : `<span class="selection-browser-entry-cost">${escapeHtml(`${mpCost} MP`)}</span>`}
+      </span>
       <span>${escapeHtml(entry.description || "No description yet.")}</span>
     </button>
   `;
@@ -2603,6 +2614,16 @@ function getAbilityDescription(abilityName) {
   }
 
   return appState.catalogs.abilityDescriptions?.[abilityName] ?? "";
+}
+
+function getAbilityMpCost(abilityName) {
+  if (!abilityName) {
+    return null;
+  }
+
+  const abilityDefinition = appState.catalogs.abilityDefinitions?.[abilityName];
+  const rawCost = abilityDefinition?.mp_cost;
+  return Number.isFinite(rawCost) ? rawCost : null;
 }
 
 function getAspectDescription(aspectName) {
