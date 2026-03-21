@@ -1,0 +1,33 @@
+{
+  "aspect_of_ruin": {
+    "display_name": "Aspect of Ruin",
+    "description": "Trade durability for pressure and turn conditions into extra damage.",
+    "stat_bonuses": {
+      "mgt": 2,
+      "mag": 2,
+      "wil": 1,
+      "vit": -2,
+      "arm": -1
+    },
+    "passive": "Ruinous"
+  },
+  "aspect_of_grace": {
+    "display_name": "Aspect of Grace",
+    "description": "Trade some offense for sturdier support and bonus healing.",
+    "stat_bonuses": {
+      "vit": 2,
+      "res": 2,
+      "wil": 1,
+      "mgt": -1,
+      "mag": -1
+    },
+    "passive": "Grace"
+  },
+  "vitality_charm": {
+    "display_name": "Vitality Charm",
+    "description": "Legacy placeholder aspect for migrated sample teams.",
+    "stat_bonuses": {
+      "vit": 2
+    }
+  }
+}

@@ -12,7 +12,7 @@ use crate::statuses::{StatusBehavior, StatusDef, StatusMap};
 use crate::turns::BASIC_ATTACK_ACTION;
 
 pub type ArchetypeMap = HashMap<String, ArchetypeTemplate>;
-pub type ItemMap = HashMap<String, ItemDef>;
+pub type AspectMap = HashMap<String, AspectDef>;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ArchetypeTemplate {
@@ -21,15 +21,20 @@ pub struct ArchetypeTemplate {
     pub default_passive: String,
     pub passive_pool: Vec<String>,
     pub active_pool: Vec<String>,
-    pub item_slots: u32,
+    #[serde(alias = "item_slots")]
+    pub aspect_slots: u32,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct ItemDef {
+pub struct AspectDef {
     pub display_name: String,
     pub description: String,
     #[serde(default)]
-    pub stat_bonuses: HashMap<Stat, u32>,
+    pub stat_bonuses: HashMap<Stat, i32>,
+    #[serde(default)]
+    pub passive: Option<String>,
+    #[serde(default)]
+    pub active: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -48,7 +53,8 @@ pub struct TeamCharacterLoadout {
     pub position: crate::models::Position,
     pub passive: String,
     pub actives: Vec<String>,
-    pub item: Option<String>,
+    #[serde(default, alias = "item")]
+    pub aspect: Option<String>,
     #[serde(default)]
     pub rules: Vec<crate::models::Rule>,
 }
@@ -90,7 +96,7 @@ pub fn load_statuses(path: &Path) -> Result<StatusMap, String> {
     serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
 }
 
-pub fn load_items(path: &Path) -> Result<ItemMap, String> {
+pub fn load_aspects(path: &Path) -> Result<AspectMap, String> {
     let data = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
     serde_json::from_str(&data).map_err(|e| format!("Failed to parse {}: {}", path.display(), e))
@@ -162,13 +168,14 @@ pub fn validate_teams(
 pub fn validate_team_config(
     team: &TeamConfig,
     archetypes: &ArchetypeMap,
-    items: &ItemMap,
+    aspects: &AspectMap,
     abilities: &AbilityMap,
     passives: &PassiveMap,
     statuses: &StatusMap,
 ) -> Result<Vec<CharacterConfig>, String> {
     let mut errors = Vec::new();
     let mut seen_ids = HashSet::new();
+    let mut seen_aspects = HashSet::new();
 
     if team.version != 2 {
         errors.push(format!(
@@ -188,11 +195,19 @@ pub fn validate_team_config(
                 team.name, character.id
             ));
         }
+        if let Some(aspect) = &character.aspect
+            && !seen_aspects.insert(aspect.as_str())
+        {
+            errors.push(format!(
+                "team '{}' repeats aspect '{}'",
+                team.name, aspect
+            ));
+        }
     }
 
     let mut characters = Vec::with_capacity(team.characters.len());
     for character in &team.characters {
-        match resolve_team_character(character, archetypes, items) {
+        match resolve_team_character(character, archetypes, aspects) {
             Ok(resolved) => characters.push(resolved),
             Err(error) => errors.push(format!("team '{}': {}", team.name, error)),
         }
@@ -240,7 +255,7 @@ pub fn validate_team_config(
 fn resolve_team_character(
     character: &TeamCharacterLoadout,
     archetypes: &ArchetypeMap,
-    items: &ItemMap,
+    aspects: &AspectMap,
 ) -> Result<CharacterConfig, String> {
     let archetype = archetypes.get(&character.template_id).ok_or_else(|| {
         format!(
@@ -266,15 +281,26 @@ fn resolve_team_character(
     }
 
     let mut stats = archetype.stats.clone();
-    if let Some(item_name) = &character.item {
-        let item = items.get(item_name).ok_or_else(|| {
+    let mut actives = character.actives.clone();
+    let mut aspect_passive = None;
+    if let Some(aspect_name) = &character.aspect {
+        let aspect = aspects.get(aspect_name).ok_or_else(|| {
             format!(
-                "character '{}' references unknown item '{}'",
-                character.id, item_name
+                "character '{}' references unknown aspect '{}'",
+                character.id, aspect_name
             )
         })?;
-        for (stat, amount) in &item.stat_bonuses {
-            *stats.entry(stat.clone()).or_insert(0) += *amount;
+        for (stat, amount) in &aspect.stat_bonuses {
+            let current = stats.get(stat).copied().unwrap_or(0) as i32;
+            stats.insert(stat.clone(), (current + amount).max(0) as u32);
+        }
+        if let Some(passive) = &aspect.passive {
+            aspect_passive = Some(passive.clone());
+        }
+        if let Some(active) = &aspect.active
+            && !actives.contains(active)
+        {
+            actives.push(active.clone());
         }
     }
 
@@ -287,8 +313,9 @@ fn resolve_team_character(
         } else {
             character.passive.clone()
         },
-        actives: character.actives.clone(),
-        item: character.item.clone(),
+        aspect_passive,
+        actives,
+        aspect: character.aspect.clone(),
         position: character.position.clone(),
         stats,
         rules: character.rules.clone(),
@@ -966,8 +993,9 @@ mod tests {
             &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/abilities.json"),
         )
         .unwrap();
-        let items = load_items(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/items.json"))
-            .unwrap();
+        let aspects =
+            load_aspects(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/aspects.json"))
+                .unwrap();
         let passives = load_passives(
             &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/passives.json"),
         )
@@ -988,7 +1016,7 @@ mod tests {
                     position: crate::models::Position { row: 0, col: 0 },
                     passive: "Imperial Formation".to_string(),
                     actives: vec!["Hold the Line".to_string()],
-                    item: None,
+                    aspect: None,
                     rules: vec![],
                 },
                 TeamCharacterLoadout {
@@ -998,15 +1026,83 @@ mod tests {
                     position: crate::models::Position { row: 0, col: 1 },
                     passive: "Sanctuary".to_string(),
                     actives: vec!["Smite".to_string()],
-                    item: None,
+                    aspect: None,
                     rules: vec![],
                 },
             ],
         };
 
-        let err = validate_team_config(&team, &archetypes, &items, &abilities, &passives, &statuses)
+        let err = validate_team_config(
+            &team,
+            &archetypes,
+            &aspects,
+            &abilities,
+            &passives,
+            &statuses,
+        )
             .unwrap_err();
         assert!(err.contains("duplicate character id 'dup'"));
+    }
+
+    #[test]
+    fn validate_team_config_rejects_duplicate_aspects() {
+        let archetypes = load_archetypes(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/archetypes.json"),
+        )
+        .unwrap();
+        let abilities = load_abilities(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/abilities.json"),
+        )
+        .unwrap();
+        let aspects =
+            load_aspects(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/aspects.json"))
+                .unwrap();
+        let passives = load_passives(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/passives.json"),
+        )
+        .unwrap();
+        let statuses = load_statuses(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/statuses.json"),
+        )
+        .unwrap();
+
+        let team = TeamConfig {
+            version: 2,
+            name: "Repeated Aspects".to_string(),
+            characters: vec![
+                TeamCharacterLoadout {
+                    id: "one".to_string(),
+                    template_id: "the_emperor".to_string(),
+                    display_name: Some("One".to_string()),
+                    position: crate::models::Position { row: 0, col: 0 },
+                    passive: "Imperial Formation".to_string(),
+                    actives: vec!["Hold the Line".to_string()],
+                    aspect: Some("aspect_of_ruin".to_string()),
+                    rules: vec![],
+                },
+                TeamCharacterLoadout {
+                    id: "two".to_string(),
+                    template_id: "justice".to_string(),
+                    display_name: Some("Two".to_string()),
+                    position: crate::models::Position { row: 0, col: 1 },
+                    passive: "Sentence".to_string(),
+                    actives: vec!["Rebuke".to_string()],
+                    aspect: Some("aspect_of_ruin".to_string()),
+                    rules: vec![],
+                },
+            ],
+        };
+
+        let err = validate_team_config(
+            &team,
+            &archetypes,
+            &aspects,
+            &abilities,
+            &passives,
+            &statuses,
+        )
+        .unwrap_err();
+        assert!(err.contains("repeats aspect 'aspect_of_ruin'"));
     }
 
     #[test]
@@ -1027,7 +1123,8 @@ mod tests {
             position: crate::models::Position { row: 0, col: 0 },
             passive: "Imperial Formation".to_string(),
             actives: vec!["Hold the Line".to_string(), "Command".to_string()],
-            item: None,
+            aspect_passive: None,
+            aspect: None,
             rules: vec![],
         }];
         let json = serde_json::to_string_pretty(&chars).unwrap();
@@ -1047,7 +1144,7 @@ mod tests {
         let abilities = load_abilities(&data_dir.join("abilities.json")).unwrap();
         let passives = load_passives(&data_dir.join("passives.json")).unwrap();
         let statuses = load_statuses(&data_dir.join("statuses.json")).unwrap();
-        let items = load_items(&data_dir.join("items.json")).unwrap();
+        let aspects = load_aspects(&data_dir.join("aspects.json")).unwrap();
 
         for entry in fs::read_dir(teams_dir).unwrap() {
             let path = entry.unwrap().path();
@@ -1058,7 +1155,7 @@ mod tests {
             let validated = validate_team_config(
                 &team,
                 &archetypes,
-                &items,
+                &aspects,
                 &abilities,
                 &passives,
                 &statuses,
@@ -1075,7 +1172,8 @@ mod tests {
             display_name: None,
             passive: "UnknownPassive".to_string(),
             actives: vec!["KnownAbility".to_string(), "MissingAbility".to_string()],
-            item: None,
+            aspect_passive: None,
+            aspect: None,
             position: crate::models::Position { row: 0, col: 0 },
             stats: [(Stat::VIT, 10)].into_iter().collect(),
             rules: vec![crate::models::Rule {
@@ -1108,7 +1206,8 @@ mod tests {
             display_name: None,
             passive: String::new(),
             actives: vec!["KnownAbility".to_string()],
-            item: None,
+            aspect_passive: None,
+            aspect: None,
             position: crate::models::Position { row: 0, col: 0 },
             stats: [(Stat::VIT, 10)].into_iter().collect(),
             rules: vec![crate::models::Rule {
@@ -1149,7 +1248,8 @@ mod tests {
                 display_name: None,
                 passive: String::new(),
                 actives: Vec::new(),
-                item: None,
+                aspect_passive: None,
+                aspect: None,
                 position: crate::models::Position { row: 3, col: 0 },
                 stats: [(Stat::VIT, 10)].into_iter().collect(),
                 rules: Vec::new(),
@@ -1160,7 +1260,8 @@ mod tests {
                 display_name: None,
                 passive: String::new(),
                 actives: Vec::new(),
-                item: None,
+                aspect_passive: None,
+                aspect: None,
                 position: crate::models::Position { row: 0, col: 0 },
                 stats: [(Stat::VIT, 10)].into_iter().collect(),
                 rules: Vec::new(),
@@ -1171,7 +1272,8 @@ mod tests {
                 display_name: None,
                 passive: String::new(),
                 actives: Vec::new(),
-                item: None,
+                aspect_passive: None,
+                aspect: None,
                 position: crate::models::Position { row: 1, col: 1 },
                 stats: [(Stat::VIT, 10)].into_iter().collect(),
                 rules: Vec::new(),
@@ -1182,7 +1284,8 @@ mod tests {
                 display_name: None,
                 passive: String::new(),
                 actives: Vec::new(),
-                item: None,
+                aspect_passive: None,
+                aspect: None,
                 position: crate::models::Position { row: 1, col: 1 },
                 stats: [(Stat::VIT, 10)].into_iter().collect(),
                 rules: Vec::new(),
@@ -1274,7 +1377,8 @@ mod tests {
             display_name: None,
             passive: String::new(),
             actives: vec!["BadTaunt".to_string()],
-            item: None,
+            aspect_passive: None,
+            aspect: None,
             position: crate::models::Position { row: 0, col: 0 },
             stats: [(Stat::VIT, 10)].into_iter().collect(),
             rules: Vec::new(),
@@ -1372,7 +1476,8 @@ mod tests {
             display_name: None,
             passive: String::new(),
             actives: vec!["Crush".to_string()],
-            item: None,
+            aspect_passive: None,
+            aspect: None,
             position: crate::models::Position { row: 0, col: 0 },
             stats: [(Stat::VIT, 10), (Stat::WIL, 5)].into_iter().collect(),
             rules: vec![crate::models::Rule {
@@ -1408,7 +1513,8 @@ mod tests {
             display_name: None,
             passive: String::new(),
             actives: vec!["Crush".to_string()],
-            item: None,
+            aspect_passive: None,
+            aspect: None,
             position: crate::models::Position { row: 0, col: 0 },
             stats: [(Stat::VIT, 10), (Stat::WIL, 5)].into_iter().collect(),
             rules: vec![

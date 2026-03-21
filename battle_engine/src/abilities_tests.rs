@@ -2257,14 +2257,14 @@ fn apply_condition_applies_marked_and_logs_event() {
         &empty_statuses(),
     );
 
-    assert_eq!(enemy_team[0].condition_stacks(ConditionKind::Marked), 2);
+    assert_eq!(enemy_team[0].condition_stacks(ConditionKind::Marked), 1);
     assert!(log.events().iter().any(|event| matches!(
         event,
         BattleEvent::ConditionApplied {
             condition_name,
             stacks_after,
             ..
-        } if condition_name == "Marked" && *stacks_after == 2
+        } if condition_name == "Marked" && *stacks_after == 1
     )));
 }
 

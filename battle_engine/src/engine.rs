@@ -268,60 +268,76 @@ impl BattleState {
         actor_team_is_a: bool,
         trigger_target_id: Option<u32>,
     ) -> Vec<DamageRecord> {
-        let (actor_team, enemy_team) = if actor_team_is_a {
-            (
-                &mut self.team_a as &mut [CharacterState],
-                &mut self.team_b as &mut [CharacterState],
-            )
+        let passive_names: Vec<String> = if actor_team_is_a {
+            self.team_a[char_idx]
+                .passive_names()
+                .into_iter()
+                .map(str::to_string)
+                .collect()
         } else {
-            (
-                &mut self.team_b as &mut [CharacterState],
-                &mut self.team_a as &mut [CharacterState],
-            )
+            self.team_b[char_idx]
+                .passive_names()
+                .into_iter()
+                .map(str::to_string)
+                .collect()
         };
+        let mut total_damage = Vec::new();
 
-        let passive_name = actor_team[char_idx].passive().to_string();
-        if passive_name.is_empty() {
-            return Vec::new();
+        for passive_name in passive_names {
+            let damage_dealt = {
+                let (actor_team, enemy_team) = if actor_team_is_a {
+                    (
+                        &mut self.team_a as &mut [CharacterState],
+                        &mut self.team_b as &mut [CharacterState],
+                    )
+                } else {
+                    (
+                        &mut self.team_b as &mut [CharacterState],
+                        &mut self.team_a as &mut [CharacterState],
+                    )
+                };
+                let mut runtime = PassiveRuntime::new(
+                    &self.passives,
+                    &self.status_defs,
+                    &mut self.rng,
+                    &mut self.log,
+                    self.step,
+                    actor_team_is_a,
+                    &mut self.in_passive_phase,
+                    &mut self.passive_fired_this_tick,
+                );
+                let passive_def = match passive_system::load_passive(&runtime, &passive_name) {
+                    Some(def) => def,
+                    None => continue,
+                };
+                if !passive_system::begin_passive_trigger(
+                    &mut runtime,
+                    actor_team,
+                    char_idx,
+                    &passive_name,
+                    &passive_def,
+                ) {
+                    continue;
+                }
+
+                let damage_dealt = passive_system::fire_passive_if_matches(
+                    char_idx,
+                    &passive_name,
+                    &passive_def,
+                    trigger,
+                    &mut runtime,
+                    actor_team,
+                    enemy_team,
+                    trigger_target_id,
+                );
+                passive_system::end_passive_trigger(&mut runtime);
+                damage_dealt
+            };
+            self.resolve_defeats_from_damage(&damage_dealt, !actor_team_is_a);
+            total_damage.extend(damage_dealt);
         }
 
-        let mut runtime = PassiveRuntime::new(
-            &self.passives,
-            &self.status_defs,
-            &mut self.rng,
-            &mut self.log,
-            self.step,
-            actor_team_is_a,
-            &mut self.in_passive_phase,
-            &mut self.passive_fired_this_tick,
-        );
-        let passive_def = match passive_system::load_passive(&runtime, &passive_name) {
-            Some(def) => def,
-            None => return Vec::new(),
-        };
-        if !passive_system::begin_passive_trigger(
-            &mut runtime,
-            actor_team,
-            char_idx,
-            &passive_name,
-            &passive_def,
-        ) {
-            return Vec::new();
-        }
-
-        let damage_dealt = passive_system::fire_passive_if_matches(
-            char_idx,
-            &passive_name,
-            &passive_def,
-            trigger,
-            &mut runtime,
-            actor_team,
-            enemy_team,
-            trigger_target_id,
-        );
-        passive_system::end_passive_trigger(&mut runtime);
-        self.resolve_defeats_from_damage(&damage_dealt, !actor_team_is_a);
-        damage_dealt
+        total_damage
     }
 
     /// Advance one step. Returns true if the battle is over.

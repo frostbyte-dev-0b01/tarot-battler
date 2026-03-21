@@ -116,7 +116,8 @@ pub fn make_config_at(name: &str, row: u8, col: u8, stats: Vec<(Stat, u32)>) -> 
         display_name: None,
         passive: String::new(),
         actives: vec!["Strike".to_string()],
-        item: None,
+        aspect_passive: None,
+        aspect: None,
         position: Position { row, col },
         stats: stats.into_iter().collect(),
         rules: vec![Rule {

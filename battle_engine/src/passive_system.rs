@@ -51,8 +51,11 @@ impl<'a> PassiveRuntime<'a> {
 pub(crate) fn collect_passive_names(team: &[CharacterState]) -> Vec<(usize, String)> {
     team.iter()
         .enumerate()
-        .filter(|(_, c)| !c.passive().is_empty())
-        .map(|(i, c)| (i, c.passive().to_string()))
+        .flat_map(|(i, c)| {
+            c.passive_names()
+                .into_iter()
+                .map(move |passive| (i, passive.to_string()))
+        })
         .collect()
 }
 
@@ -157,9 +160,14 @@ pub(crate) fn apply_row_auras(team: &mut [CharacterState], passives: &PassiveMap
         .iter()
         .enumerate()
         .filter(|(_, character)| character.is_alive())
-        .filter_map(|(idx, character)| match passives.get(character.passive()) {
-            Some(PassiveDef::RowAura { effects }) => Some((idx, effects.clone())),
-            _ => None,
+        .flat_map(|(idx, character)| {
+            character
+                .passive_names()
+                .into_iter()
+                .filter_map(move |passive_name| match passives.get(passive_name) {
+                    Some(PassiveDef::RowAura { effects }) => Some((idx, effects.clone())),
+                    _ => None,
+                })
         })
         .collect();
 

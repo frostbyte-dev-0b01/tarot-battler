@@ -68,7 +68,8 @@ fn main() {
         loader::load_passives(&data_dir.join("passives.json")).expect("Failed to load passives");
     let statuses =
         loader::load_statuses(&data_dir.join("statuses.json")).expect("Failed to load statuses");
-    let items = loader::load_items(&data_dir.join("items.json")).expect("Failed to load items");
+    let aspects =
+        loader::load_aspects(&data_dir.join("aspects.json")).expect("Failed to load aspects");
     let (team_a_name, team_b_name, team_a, team_b) = match (team_a_path, team_b_path, named_teams)
     {
         (Some(_), Some(_), Some(_)) | (Some(_), None, Some(_)) | (None, Some(_), Some(_)) => {
@@ -82,7 +83,7 @@ fn main() {
             let team_a = loader::validate_team_config(
                 &team_a_config,
                 &archetypes,
-                &items,
+                &aspects,
                 &abilities,
                 &passives,
                 &statuses,
@@ -91,7 +92,7 @@ fn main() {
             let team_b = loader::validate_team_config(
                 &team_b_config,
                 &archetypes,
-                &items,
+                &aspects,
                 &abilities,
                 &passives,
                 &statuses,
@@ -111,7 +112,7 @@ fn main() {
             let team_a = loader::validate_team_config(
                 &team_a_config,
                 &archetypes,
-                &items,
+                &aspects,
                 &abilities,
                 &passives,
                 &statuses,
@@ -120,7 +121,7 @@ fn main() {
             let team_b = loader::validate_team_config(
                 &team_b_config,
                 &archetypes,
-                &items,
+                &aspects,
                 &abilities,
                 &passives,
                 &statuses,
@@ -140,7 +141,7 @@ fn main() {
             let team_a = loader::validate_team_config(
                 &team_a_config,
                 &archetypes,
-                &items,
+                &aspects,
                 &abilities,
                 &passives,
                 &statuses,
@@ -149,7 +150,7 @@ fn main() {
             let team_b = loader::validate_team_config(
                 &team_b_config,
                 &archetypes,
-                &items,
+                &aspects,
                 &abilities,
                 &passives,
                 &statuses,

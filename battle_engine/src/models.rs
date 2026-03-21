@@ -113,8 +113,11 @@ pub struct CharacterConfig {
     #[serde(default)]
     pub display_name: Option<String>,
     pub passive: String,
+    #[serde(default)]
+    pub aspect_passive: Option<String>,
     pub actives: Vec<String>,
-    pub item: Option<String>,
+    #[serde(default, alias = "item")]
+    pub aspect: Option<String>,
     pub position: Position,
     pub stats: HashMap<Stat, u32>,
     #[serde(default)]
@@ -182,7 +185,11 @@ impl ConditionKind {
     }
 
     pub fn stacks(self) -> bool {
-        !matches!(self, Self::Stunned)
+        matches!(self, Self::Severed)
+    }
+
+    pub fn decays_end_of_turn(self) -> bool {
+        !matches!(self, Self::Marked)
     }
 }
 
@@ -200,6 +207,7 @@ pub struct CharacterState {
     base_name: String,
     display_name: String,
     passive: String,
+    aspect_passive: Option<String>,
     actives: Vec<String>,
     base_stats: HashMap<Stat, u32>,
     position: Position,
@@ -207,6 +215,7 @@ pub struct CharacterState {
     curr_mp: u32,
     ticks_until_turn: u32,
     max_ticks: i32,
+    pending_haste: u32,
     target: Option<u32>,
     companions: Vec<u32>,
     statuses: HashMap<String, StatusInstance>,
@@ -250,6 +259,7 @@ impl CharacterState {
             base_name: config.base_name.clone(),
             display_name,
             passive: config.passive.clone(),
+            aspect_passive: config.aspect_passive.clone(),
             actives: config.actives.clone(),
             base_stats: config.stats.clone(),
             position: config.position.clone(),
@@ -257,6 +267,7 @@ impl CharacterState {
             curr_mp: mp,
             ticks_until_turn: max_ticks.max(1) as u32,
             max_ticks,
+            pending_haste: 0,
             target: None,
             companions: Vec::new(),
             statuses: HashMap::new(),
@@ -288,6 +299,23 @@ impl CharacterState {
 
     pub fn passive(&self) -> &str {
         &self.passive
+    }
+
+    pub fn aspect_passive(&self) -> Option<&str> {
+        self.aspect_passive.as_deref()
+    }
+
+    pub fn passive_names(&self) -> Vec<&str> {
+        let mut names = Vec::new();
+        if !self.passive.is_empty() {
+            names.push(self.passive.as_str());
+        }
+        if let Some(aspect_passive) = self.aspect_passive()
+            && !aspect_passive.is_empty()
+        {
+            names.push(aspect_passive);
+        }
+        names
     }
 
     pub fn actives(&self) -> &[String] {
@@ -450,6 +478,22 @@ impl CharacterState {
     pub fn reset_speed(&mut self) {
         self.max_ticks += 2;
         self.ticks_until_turn = self.max_ticks.max(1) as u32;
+        if self.pending_haste > 0 {
+            self.ticks_until_turn = self.ticks_until_turn.saturating_sub(self.pending_haste).max(1);
+            self.pending_haste = 0;
+        }
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn apply_haste(&mut self, amount: u32) {
+        if amount == 0 || !self.is_alive() {
+            return;
+        }
+        if self.ticks_until_turn == 0 {
+            self.pending_haste = self.pending_haste.saturating_add(amount);
+        } else {
+            self.ticks_until_turn = self.ticks_until_turn.saturating_sub(amount).max(1);
+        }
     }
 
     pub fn target(&self) -> Option<u32> {
@@ -732,7 +776,7 @@ impl CharacterState {
                     .insert(kind, ConditionInstance { stacks, source_id });
             }
         } else if let Some(existing) = self.conditions.get_mut(&kind) {
-            existing.stacks = existing.stacks.max(1);
+            existing.stacks = 1;
             existing.source_id = source_id;
         } else {
             self.conditions
@@ -753,7 +797,10 @@ impl CharacterState {
     }
 
     pub fn decay_conditions_end_of_turn(&mut self) {
-        self.conditions.retain(|_, condition| {
+        self.conditions.retain(|kind, condition| {
+            if !kind.decays_end_of_turn() {
+                return true;
+            }
             condition.stacks = condition.stacks.saturating_sub(1);
             condition.stacks > 0
         });
@@ -965,7 +1012,8 @@ mod tests {
             display_name: None,
             passive: String::new(),
             actives: Vec::new(),
-            item: None,
+            aspect_passive: None,
+            aspect: None,
             position: Position { row: 0, col: 0 },
             stats: stats.into_iter().collect(),
             rules: Vec::new(),
@@ -1514,13 +1562,13 @@ mod tests {
     }
 
     #[test]
-    fn marked_condition_stacks() {
+    fn marked_condition_is_non_stacking() {
         let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
 
         assert!(state.add_condition(ConditionKind::Marked, 2, 99));
         assert!(state.add_condition(ConditionKind::Marked, 3, 99));
-        assert_eq!(state.condition_stacks(ConditionKind::Marked), 5);
+        assert_eq!(state.condition_stacks(ConditionKind::Marked), 1);
     }
 
     #[test]
@@ -1536,6 +1584,28 @@ mod tests {
         assert!(!state.has_condition(ConditionKind::Stunned));
         assert_eq!(state.condition_stacks(ConditionKind::Marked), 1);
         assert_eq!(state.condition_stacks(ConditionKind::Severed), 2);
+    }
+
+    #[test]
+    fn haste_reduces_live_countdown() {
+        let config = make_config(vec![(Stat::SPD, 8), (Stat::VIT, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+
+        state.apply_haste(3);
+
+        assert_eq!(state.ticks_until_turn, 1);
+    }
+
+    #[test]
+    fn haste_applies_after_turn_reset_when_gained_on_turn() {
+        let config = make_config(vec![(Stat::SPD, 8), (Stat::VIT, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        state.ticks_until_turn = 0;
+
+        state.apply_haste(3);
+        state.reset_speed();
+
+        assert_eq!(state.ticks_until_turn, 1);
     }
 
     #[test]
