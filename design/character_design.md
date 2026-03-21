@@ -397,6 +397,56 @@ Abilities:
 - Team A is a formation-and-focus-fire team built around row support and an Empower payoff striker
 - Team B is a setup-and-payoff control team built around `Omen`, MP support, and selective executions
 
+## Next Character Adds
+
+The next intended additions to reach an 8-character first-pass roster are:
+
+- `The Hermit`
+- `The Fool`
+
+These two broaden the roster in useful directions:
+
+- `The Hermit` adds isolation and anti-relationship gameplay
+- `The Fool` adds target-switch tempo and opportunistic pressure
+
+### The Hermit
+
+Role:
+
+- isolation payoff controller
+- anti-cluster / anti-companion specialist
+- deliberate backline magic pressure
+
+Passive:
+
+- `Lonely Road`
+  When the Hermit damages an enemy with no companions, deal `2` true damage.
+
+Why this works:
+
+- pays off both naturally isolated targets and `Severed` targets
+- creates a literal gameplay hook instead of a passive stat bonus
+- gives the Hermit a clear reason to pair with `Sever Thread` and other isolation tools
+
+### The Fool
+
+Role:
+
+- opportunistic skirmisher
+- target-switch tempo piece
+- disruptive cleanup attacker
+
+Passive:
+
+- `Chance Opening`
+  The first time each tick the Fool changes focused target, gain `Empower MGT 1` and `Haste 3`.
+
+Notes:
+
+- this should only trigger when the Fool actually changes focused target
+- if the trigger happens during the Fool's own turn, the turn reset should happen first and then `Haste` should be applied to the new countdown
+- this makes the passive work with both proactive refocus tools and enemy disruption such as `disorient`
+
 ## Pivot Unit Design
 
 ### Why Pivot Units Matter
