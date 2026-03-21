@@ -577,26 +577,25 @@ The intended effect model includes:
 
 ### Decay Model
 
-For timed stacked effects, the intended default decay behavior is:
+For timed stacked effects, decay is intentionally allowed to vary by status family.
 
-- halve stacks at the appropriate resolution point
-- round down
-- remove the effect when stacks reach `0`
-
-This creates a self-limiting equilibrium when the same effect is applied repeatedly.
-
-Current intended timing:
+Current live implementation:
 
 - start of turn: `Omen` deals damage, then halves
 - start of turn: `Restoration` heals, then halves
-- end of turn: `Empower`, `Weaken`, `Ward`, and `Omen` lose value according to their own rules, with the main halving-decay family currently being `Omen`, `Restoration`, `Empower`, and `Weaken`
+- end of turn: `Empower` and `Weaken` halve
 - end of turn: current conditions lose `1` stack unless consumed or removed earlier
 
-The older prototype tick-down-by-1 behavior is an implementation detail, not the intended long-term design.
+Future direction currently favored:
+
+- `Omen` should likely move back to tick-down-by-`1` so setup/payoff scripting is more reliable
+- `Restoration` should stay on halving decay so it is hard to stack and does not become a payoff mechanic
+- `Lethality` should also fit the halving-decay family as a short-lived burst window if it returns to the live roster
+- `Empower` and `Weaken` should likely become much stickier, potentially permanent until removed, and harder to apply
 
 Current implementation note:
 
-- the live engine now uses the intended halving decay model for `Omen`, `Restoration`, `Empower`, and `Weaken`
+- the live engine currently uses halving decay for `Omen`, `Restoration`, `Empower`, and `Weaken`
 - the live status catalog has been trimmed to the first-pass set above
 
 ## Compound Ability Resolution

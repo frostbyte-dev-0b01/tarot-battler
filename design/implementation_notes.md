@@ -23,7 +23,14 @@ The live status catalog is now trimmed to the intended first-pass set:
 
 `Stunned` is no longer a status concern at all. It is a condition.
 
-The live engine now uses the intended halving-decay behavior for `Omen`, `Restoration`, `Empower`, and `Weaken`.
+The live engine currently uses halving decay for `Omen`, `Restoration`, `Empower`, and `Weaken`.
+
+Current likely future direction:
+
+- move `Omen` back toward tick-down-by-`1` so setup/payoff scripting is more reliable
+- keep `Restoration` on halving decay so sustain stacks are self-limiting
+- keep `Lethality` in the halving-decay family as a short-lived burst effect if it returns
+- make `Empower` / `Weaken` much stickier, potentially permanent until removed, while also making them harder to apply
 
 Legacy placeholder effects such as `Bleed`, `Poison`, `Regen`, `Fortify`, `Enfeeble`, and the older `Stun` status have been removed from the live status catalog. The engine still supports generic status behaviors internally for testing and future experimentation, but those names should not be treated as live gameplay content.
 
@@ -109,7 +116,7 @@ Potential long-term direction:
 
 - replace generic DOTs and generic buff names with tarot-flavored effect families
 - ensure status families create tactical ecosystems, not just passive penalties
-- keep permanent and non-stacking effects where useful, but migrate timed stack decay away from tick-down-by-1 toward halving decay
+- keep permanent and non-stacking effects where useful, but allow different status families to use different decay models rather than forcing one global rule
 
 Possible effect families include:
 
