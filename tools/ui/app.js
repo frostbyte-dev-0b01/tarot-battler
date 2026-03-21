@@ -209,19 +209,27 @@ for (const button of tabButtons) {
   button.addEventListener("click", () => {
     const targetId = button.dataset.tabTarget;
 
-    for (const workspace of workspaces) {
-      workspace.classList.toggle("is-active", workspace.id === targetId);
-    }
+    setActiveWorkspace(targetId);
 
-    for (const tabButton of tabButtons) {
-      tabButton.classList.toggle("is-active", tabButton === button);
+    if (targetId === "replay-viewer" && !appState.replay) {
+      void loadLatestReplay();
     }
-
-    replayInlineActions?.classList.toggle("is-visible", targetId === "replay-viewer");
   });
 }
 
 replayInlineActions?.classList.remove("is-visible");
+
+function setActiveWorkspace(targetId) {
+  for (const workspace of workspaces) {
+    workspace.classList.toggle("is-active", workspace.id === targetId);
+  }
+
+  for (const tabButton of tabButtons) {
+    tabButton.classList.toggle("is-active", tabButton.dataset.tabTarget === targetId);
+  }
+
+  replayInlineActions?.classList.toggle("is-visible", targetId === "replay-viewer");
+}
 
 function setActiveReplaySidebarPanel(panelName) {
   for (const panel of replaySidebarPanels) {
@@ -300,6 +308,7 @@ function loadReplayFromText(sourceText) {
 }
 
 replayDemoButton.addEventListener("click", () => {
+  setActiveWorkspace("replay-viewer");
   void loadLatestReplay();
 });
 
