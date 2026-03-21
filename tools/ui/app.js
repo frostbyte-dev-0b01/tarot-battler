@@ -1617,6 +1617,10 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
       : mode === "aspect"
         ? getAspectSummary(value)
         : getAbilityDescription(value);
+  const descriptionMarkup =
+    mode === "aspect"
+      ? renderAspectSummaryMarkup(value)
+      : escapeHtml(description || "No description yet.");
   const mpCost = mode === "active" ? getAbilityMpCost(value) : null;
 
   return `
@@ -1635,7 +1639,7 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
         </span>
         ${mpCost == null ? "" : `<span class="loadout-slot-cost">${escapeHtml(`${mpCost} MP`)}</span>`}
       </span>
-      <span class="loadout-slot-description">${escapeHtml(description || "No description yet.")}</span>
+      <span class="loadout-slot-description">${descriptionMarkup}</span>
     </button>
   `;
 }
@@ -1746,6 +1750,7 @@ function renderBrowserEntry(entry, mode, slotIndex, currentValue) {
   const mpCost = mode === "active" ? getAbilityMpCost(entry.name) : null;
   const entryLabel = mode === "aspect" ? getAspectDisplayName(entry.name) : entry.name;
   const entryDescription = mode === "aspect" ? getAspectSummary(entry.name) : (entry.description || "No description yet.");
+  const entryDescriptionMarkup = mode === "aspect" ? renderAspectSummaryMarkup(entry.name) : escapeHtml(entryDescription);
   return `
     <button
       type="button"
@@ -1759,7 +1764,7 @@ function renderBrowserEntry(entry, mode, slotIndex, currentValue) {
         <strong>${escapeHtml(entryLabel)}</strong>
         ${mpCost == null ? "" : `<span class="selection-browser-entry-cost">${escapeHtml(`${mpCost} MP`)}</span>`}
       </span>
-      <span>${escapeHtml(entryDescription)}</span>
+      <span>${entryDescriptionMarkup}</span>
     </button>
   `;
 }
@@ -2672,10 +2677,29 @@ function getAspectSummary(aspectName) {
   }
 
   const statSummary = formatAspectStatBonuses(definition.stat_bonuses);
-  const passiveName = definition.passive ? getPassiveDisplayName(definition.passive) : "";
-  const passiveSummary = passiveName ? `Passive: ${passiveName}` : "";
+  const passiveSummary = definition.passive ? getPassiveDescription(definition.passive) : "";
   const details = [statSummary, passiveSummary].filter(Boolean).join(" • ");
   return details || definition.description || "";
+}
+
+function renderAspectSummaryMarkup(aspectName) {
+  if (!aspectName) {
+    return escapeHtml("No description yet.");
+  }
+
+  const definition = getAspectDefinition(aspectName);
+  if (!definition) {
+    return escapeHtml(getAspectSummary(aspectName) || "No description yet.");
+  }
+
+  const statSummary = formatAspectStatBonuses(definition.stat_bonuses);
+  const passiveSummary = definition.passive ? getPassiveDescription(definition.passive) : "";
+  const lines = [statSummary, passiveSummary].filter(Boolean);
+  if (lines.length === 0) {
+    return escapeHtml(definition.description || "No description yet.");
+  }
+
+  return lines.map((line) => `<span class="aspect-summary-line">${escapeHtml(line)}</span>`).join("");
 }
 
 function formatAspectStatBonuses(statBonuses) {
@@ -2691,13 +2715,6 @@ function formatAspectStatBonuses(statBonuses) {
     })
     .filter(Boolean);
   return entries.length > 0 ? `Stats: ${entries.join(", ")}` : "";
-}
-
-function getPassiveDisplayName(passiveName) {
-  if (!passiveName) {
-    return "";
-  }
-  return passiveName;
 }
 
 function getArchetypeDefinition(templateId) {

@@ -659,6 +659,10 @@ main {
   line-height: 1.25;
 }
 
+.aspect-summary-line {
+  display: block;
+}
+
 .compact-rule-list {
   display: grid;
   gap: 8px;
