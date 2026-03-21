@@ -632,11 +632,12 @@ impl BattleState {
 }
 
 fn replay_character_id(config: &CharacterConfig, team_key: &str, index: usize) -> String {
-    config
+    let local_id = config
         .id
         .clone()
         .filter(|id| !id.trim().is_empty())
-        .unwrap_or_else(|| format!("{team_key}_{index}"))
+        .unwrap_or_else(|| index.to_string());
+    format!("{team_key}:{local_id}")
 }
 
 fn replay_display_name(config: &CharacterConfig) -> String {
