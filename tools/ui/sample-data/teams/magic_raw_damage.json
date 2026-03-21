@@ -1,0 +1,153 @@
+{
+  "version": 2,
+  "name": "Magic Raw Damage",
+  "characters": [
+    {
+      "id": "the_emperor",
+      "template_id": "the_emperor",
+      "display_name": "The Emperor",
+      "position": {
+        "row": 0,
+        "col": 0
+      },
+      "passive": "Imperial Formation",
+      "actives": [
+        "Taunt",
+        "Sunder",
+        "Command"
+      ],
+      "aspect": "vitality_charm",
+      "rules": [
+        {
+          "ability": "Taunt",
+          "when": [
+            {
+              "subject": "world",
+              "value": "use_count",
+              "op": "lte",
+              "threshold": 0
+            }
+          ]
+        },
+        {
+          "ability": "Command",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "hp",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Sunder",
+          "when": []
+        }
+      ]
+    },
+    {
+      "id": "the_chariot",
+      "template_id": "the_chariot",
+      "display_name": "The Chariot",
+      "position": {
+        "row": 0,
+        "col": 1
+      },
+      "passive": "Pursuit",
+      "actives": [
+        "Charge",
+        "Withdraw",
+        "Breakthrough"
+      ],
+      "aspect": null,
+      "rules": [
+        {
+          "ability": "Breakthrough",
+          "when": [
+            {
+              "subject": "self",
+              "value": {
+                "status_stacks": "Empower:MGT"
+              },
+              "op": "gte",
+              "threshold": 2
+            }
+          ]
+        },
+        {
+          "ability": "Withdraw",
+          "when": [
+            {
+              "subject": "self",
+              "value": "hp",
+              "op": "lte",
+              "threshold": 16
+            }
+          ]
+        },
+        {
+          "ability": "Charge",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "stat": "arm"
+              },
+              "op": "gte",
+              "threshold": 6
+            }
+          ]
+        },
+        {
+          "ability": "Charge",
+          "when": []
+        }
+      ]
+    },
+    {
+      "id": "new_character_3",
+      "template_id": "the_hierophant",
+      "display_name": "The Hierophant",
+      "position": {
+        "row": 0,
+        "col": 2
+      },
+      "passive": "Sanctuary",
+      "actives": [
+        "Smite",
+        "Blessing",
+        "Sanctify"
+      ],
+      "aspect": null,
+      "rules": [
+        {
+          "ability": "Smite",
+          "when": []
+        }
+      ]
+    },
+    {
+      "id": "new_character_4",
+      "template_id": "the_magician",
+      "display_name": "The Magician",
+      "position": {
+        "row": 2,
+        "col": 2
+      },
+      "passive": "Catalyst",
+      "actives": [
+        "Offer",
+        "Transmute",
+        "Seal"
+      ],
+      "aspect": null,
+      "rules": [
+        {
+          "ability": "Seal",
+          "when": []
+        }
+      ]
+    }
+  ]
+}

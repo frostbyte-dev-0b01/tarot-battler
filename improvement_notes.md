@@ -1,3 +1,5 @@
+Show MP cost of abilities in team builder UI on both ability roster and loadout screen
+
 Add script to postprocess any battle replay to generate stats like mag damage dealt, physical damage dealt, abilities used, buffs applied, debuffs applied, conditions applied, damage taken by source
 
 Start adding in abilities from the ability_roster design doc
