@@ -9,7 +9,7 @@
       "position": { "row": 0, "col": 0 },
       "passive": "Sentence",
       "actives": ["Rebuke", "Condemn", "Verdict"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Verdict", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 3 }] },
         { "ability": "Condemn", "when": [{ "subject": "target", "value": { "has_status": "Omen" }, "op": "gte", "threshold": 1 }] },
@@ -23,7 +23,7 @@
       "position": { "row": 0, "col": 1 },
       "passive": "Imperial Formation",
       "actives": ["Hold the Line", "Interpose", "Command"],
-      "item": "vitality_charm",
+      "aspect": "vitality_charm",
       "rules": [
         { "ability": "Hold the Line", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 5 }] },
         { "ability": "Interpose", "when": [{ "subject": "companion", "value": "hp", "op": "lte", "threshold": 14 }] },
@@ -37,7 +37,7 @@
       "position": { "row": 1, "col": 1 },
       "passive": "Sanctuary",
       "actives": ["Sanctify", "Blessing", "Smite"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Blessing", "when": [{ "subject": "companion", "value": "mp", "op": "lte", "threshold": 2 }] },
         { "ability": "Sanctify", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 4 }] },
@@ -51,7 +51,7 @@
       "position": { "row": 2, "col": 1 },
       "passive": "Foreboding",
       "actives": ["Hex", "Eclipse", "Harvest Night"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Harvest Night", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 4 }] },
         { "ability": "Eclipse", "when": [{ "subject": "target", "value": "target_companion_count", "op": "gte", "threshold": 1 }] },

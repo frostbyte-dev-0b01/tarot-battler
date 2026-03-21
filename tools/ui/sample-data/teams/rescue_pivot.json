@@ -9,7 +9,7 @@
       "position": { "row": 0, "col": 0 },
       "passive": "Imperial Formation",
       "actives": ["Hold the Line", "Command", "Taunt"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Hold the Line", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 5 }] },
         { "ability": "Taunt", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 4 }] },
@@ -23,7 +23,7 @@
       "position": { "row": 0, "col": 1 },
       "passive": "Pursuit",
       "actives": ["Charge", "Withdraw", "Breakthrough"],
-      "item": "vitality_charm",
+      "aspect": "vitality_charm",
       "rules": [
         { "ability": "Breakthrough", "when": [{ "subject": "self", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 3 }] },
         { "ability": "Charge", "when": [{ "subject": "self", "value": "self_row", "op": "gte", "threshold": 1 }] },
@@ -37,7 +37,7 @@
       "position": { "row": 0, "col": 2 },
       "passive": "Sanctuary",
       "actives": ["Rescue", "Blessing", "Smite"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Rescue", "when": [{ "subject": "companion", "value": "hp", "op": "lte", "threshold": 12 }] },
         { "ability": "Blessing", "when": [{ "subject": "companion", "value": "mp", "op": "lte", "threshold": 2 }] },
@@ -51,7 +51,7 @@
       "position": { "row": 2, "col": 1 },
       "passive": "Catalyst",
       "actives": ["Offer", "Seal", "Transmute"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Transmute", "when": [{ "subject": "target", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 1 }] },
         { "ability": "Offer", "when": [{ "subject": "self", "value": "use_count", "op": "lte", "threshold": 0 }] },

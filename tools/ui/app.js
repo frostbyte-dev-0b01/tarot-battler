@@ -14,7 +14,7 @@ const basicAttackActionName = "Basic Attack";
 const archetypeCatalogPath = "../../battle_engine/src/data/archetypes.json";
 const passiveCatalogPath = "../../battle_engine/src/data/passives.json";
 const abilityCatalogPath = "../../battle_engine/src/data/abilities.json";
-const itemCatalogPath = "../../battle_engine/src/data/items.json";
+const aspectCatalogPath = "../../battle_engine/src/data/aspects.json";
 const statusCatalogPath = "../../battle_engine/src/data/statuses.json";
 const conditionCatalog = ["Stunned", "Marked", "Severed"];
 const ruleStatusCatalog = ["Omen", "Restoration", "Ward", "Empower:MGT", "Empower:MAG", "Empower:ARM", "Empower:RES", "Weaken:MGT", "Weaken:MAG", "Weaken:ARM", "Weaken:RES"];
@@ -105,13 +105,13 @@ const appState = {
     archetypeIds: [],
     passives: [],
     abilities: [],
-    items: [],
+    aspects: [],
     statuses: [],
     conditions: [...conditionCatalog],
     passiveDescriptions: {},
     abilityDescriptions: {},
-    itemDescriptions: {},
-    itemDefinitions: {},
+    aspectDescriptions: {},
+    aspectDefinitions: {},
   },
 };
 const metadataFields = {
@@ -133,7 +133,7 @@ const demoTeam = {
         position: { row: 0, col: 0 },
         passive: "Imperial Formation",
         actives: ["Hold the Line", "Command", "Taunt"],
-        item: "vitality_charm",
+        aspect: "aspect_of_grace",
         rules: [
           {
             ability: "Hold the Line",
@@ -158,7 +158,7 @@ const demoTeam = {
         position: { row: 0, col: 2 },
         passive: "Sanctuary",
         actives: ["Smite", "Consecrate", "Blessing"],
-        item: null,
+        aspect: null,
         rules: [
           {
             ability: "Blessing",
@@ -187,7 +187,7 @@ const demoTeam = {
         position: { row: 1, col: 1 },
         passive: "Pursuit",
         actives: ["Charge", "Withdraw", "Breakthrough"],
-        item: null,
+        aspect: null,
         rules: [
           {
             ability: "Breakthrough",
@@ -480,11 +480,11 @@ void loadLatestReplay();
 
 async function loadEditorCatalogs() {
   try {
-    const [archetypeResponse, passiveResponse, abilityResponse, itemResponse, statusResponse] = await Promise.all([
+    const [archetypeResponse, passiveResponse, abilityResponse, aspectResponse, statusResponse] = await Promise.all([
       fetch(archetypeCatalogPath, { cache: "no-store" }),
       fetch(passiveCatalogPath, { cache: "no-store" }),
       fetch(abilityCatalogPath, { cache: "no-store" }),
-      fetch(itemCatalogPath, { cache: "no-store" }).catch(() => null),
+      fetch(aspectCatalogPath, { cache: "no-store" }).catch(() => null),
       fetch(statusCatalogPath, { cache: "no-store" }).catch(() => null),
     ]);
 
@@ -494,11 +494,11 @@ async function loadEditorCatalogs() {
       );
     }
 
-    const [archetypes, passives, abilities, items, statuses] = await Promise.all([
+    const [archetypes, passives, abilities, aspects, statuses] = await Promise.all([
       archetypeResponse.json(),
       passiveResponse.json(),
       abilityResponse.json(),
-      itemResponse?.ok ? itemResponse.json() : Promise.resolve({}),
+      aspectResponse?.ok ? aspectResponse.json() : Promise.resolve({}),
       statusResponse?.ok ? statusResponse.json() : Promise.resolve({}),
     ]);
 
@@ -506,7 +506,7 @@ async function loadEditorCatalogs() {
     appState.catalogs.archetypeIds = Object.keys(archetypes).sort();
     appState.catalogs.passives = Object.keys(passives).sort();
     appState.catalogs.abilities = Object.keys(abilities).sort();
-    appState.catalogs.items = Object.keys(items).sort();
+    appState.catalogs.aspects = Object.keys(aspects).sort();
     appState.catalogs.statuses = buildRuleStatusOptions(statuses);
     appState.catalogs.conditions = [...conditionCatalog];
     appState.catalogs.passiveDescriptions = Object.fromEntries(
@@ -515,23 +515,23 @@ async function loadEditorCatalogs() {
     appState.catalogs.abilityDescriptions = Object.fromEntries(
       Object.entries(abilities).map(([name, definition]) => [name, definition?.description ?? ""]),
     );
-    appState.catalogs.itemDescriptions = Object.fromEntries(
-      Object.entries(items).map(([name, definition]) => [name, definition?.description ?? ""]),
+    appState.catalogs.aspectDescriptions = Object.fromEntries(
+      Object.entries(aspects).map(([name, definition]) => [name, definition?.description ?? ""]),
     );
-    appState.catalogs.itemDefinitions = items;
+    appState.catalogs.aspectDefinitions = aspects;
     renderTeamEditor();
   } catch (_error) {
     appState.catalogs.archetypes = {};
     appState.catalogs.archetypeIds = [];
     appState.catalogs.passives = [];
     appState.catalogs.abilities = [];
-    appState.catalogs.items = [];
+    appState.catalogs.aspects = [];
     appState.catalogs.statuses = [...ruleStatusCatalog];
     appState.catalogs.conditions = [...conditionCatalog];
     appState.catalogs.passiveDescriptions = {};
     appState.catalogs.abilityDescriptions = {};
-    appState.catalogs.itemDescriptions = {};
-    appState.catalogs.itemDefinitions = {};
+    appState.catalogs.aspectDescriptions = {};
+    appState.catalogs.aspectDefinitions = {};
   }
 }
 
@@ -1248,10 +1248,10 @@ function validateCharacterConfig(candidate, prefix = "character") {
     }
   }
 
-  if (candidate.item != null && typeof candidate.item !== "string") {
-    errors.push(`${prefix}.item must be a string or null.`);
-  } else if (typeof candidate.item === "string" && candidate.item && !appState.catalogs.items.includes(candidate.item)) {
-    errors.push(`${prefix}.item must reference a known item.`);
+  if (candidate.aspect != null && typeof candidate.aspect !== "string") {
+    errors.push(`${prefix}.aspect must be a string or null.`);
+  } else if (typeof candidate.aspect === "string" && candidate.aspect && !appState.catalogs.aspects.includes(candidate.aspect)) {
+    errors.push(`${prefix}.aspect must reference a known aspect.`);
   }
 
   if (!Array.isArray(candidate.rules)) {
@@ -1596,7 +1596,7 @@ function renderLoadoutPane(character, characterIndex) {
     ${renderLoadoutSlot("Passive", character.passive, "passive", characterIndex)}
     ${normalizeActiveSelections(character.actives).map((abilityName, activeIndex) =>
       renderLoadoutSlot(`Active ${activeIndex + 1}`, abilityName, "active", characterIndex, activeIndex)).join("")}
-    ${renderLoadoutSlot("Item", character.item, "item", characterIndex)}
+    ${renderLoadoutSlot("Aspect", character.aspect, "aspect", characterIndex)}
   `;
 }
 
@@ -1607,8 +1607,8 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
   const description =
     mode === "passive"
       ? getPassiveDescription(value)
-      : mode === "item"
-        ? getItemDescription(value)
+      : mode === "aspect"
+        ? getAspectDescription(value)
         : getAbilityDescription(value);
 
   return `
@@ -1686,14 +1686,14 @@ function renderSelectionBrowser(character) {
   const currentValue =
     mode === "passive"
       ? character.passive ?? ""
-      : mode === "item"
-        ? character.item ?? ""
+      : mode === "aspect"
+        ? character.aspect ?? ""
         : normalizeActiveSelections(character.actives)[slotIndex] ?? "";
   const title =
     mode === "passive"
       ? "Passive Browser"
-      : mode === "item"
-        ? "Item Browser"
+      : mode === "aspect"
+        ? "Aspect Browser"
         : `Active ${slotIndex + 1} Browser`;
 
   return `
@@ -1720,7 +1720,7 @@ function renderSelectionBrowser(character) {
       </button>
       ${
         entries.length === 0
-          ? `<div class="board-empty-state">${mode === "item" ? "Items are not in the catalog yet." : "No entries are available for this browser."}</div>`
+          ? `<div class="board-empty-state">${mode === "aspect" ? "Aspects are not in the catalog yet." : "No entries are available for this browser."}</div>`
           : entries.map((entry) => renderBrowserEntry(entry, mode, slotIndex, currentValue)).join("")
       }
     </div>
@@ -1885,8 +1885,8 @@ function handleTeamEditorInput(event) {
       const nextActives = normalizeActiveSelections(character.actives);
       nextActives[activeIndex] = target.value.trim();
       character.actives = nextActives.filter(Boolean);
-    } else if (target.dataset.characterField === "item") {
-      character.item = target.value.trim() === "" ? null : target.value;
+    } else if (target.dataset.characterField === "aspect") {
+      character.aspect = target.value.trim() === "" ? null : target.value;
     } else {
       character[target.dataset.characterField] = target.value;
     }
@@ -2250,7 +2250,7 @@ function createEmptyCharacter(index, row = 0, col = 0) {
     position: { row: slotPosition.row, col: slotPosition.col },
     passive: template?.default_passive ?? "",
     actives: Array.isArray(template?.active_pool) ? template.active_pool.slice(0, 3) : [],
-    item: null,
+    aspect: null,
     rules: [],
   };
 }
@@ -2294,8 +2294,8 @@ function applyBrowserSelection(target) {
 
   if (mode === "passive") {
     character.passive = value;
-  } else if (mode === "item") {
-    character.item = value || null;
+  } else if (mode === "aspect") {
+    character.aspect = value || null;
   } else {
     const nextActives = normalizeActiveSelections(character.actives);
     nextActives[slotIndex] = value;
@@ -2321,8 +2321,8 @@ function getBrowserEntries(mode) {
     const pool = Array.isArray(archetype?.passive_pool) ? archetype.passive_pool : appState.catalogs.passives;
     return pool.map((name) => ({ name, description: getPassiveDescription(name) }));
   }
-  if (mode === "item") {
-    return appState.catalogs.items.map((name) => ({ name, description: getItemDescription(name) }));
+  if (mode === "aspect") {
+    return appState.catalogs.aspects.map((name) => ({ name, description: getAspectDescription(name) }));
   }
   const pool = Array.isArray(archetype?.active_pool) ? archetype.active_pool : appState.catalogs.abilities;
   return pool.map((name) => ({ name, description: getAbilityDescription(name) }));
@@ -2605,12 +2605,12 @@ function getAbilityDescription(abilityName) {
   return appState.catalogs.abilityDescriptions?.[abilityName] ?? "";
 }
 
-function getItemDescription(itemName) {
-  if (!itemName) {
+function getAspectDescription(aspectName) {
+  if (!aspectName) {
     return "";
   }
 
-  return appState.catalogs.itemDescriptions?.[itemName] ?? "";
+  return appState.catalogs.aspectDescriptions?.[aspectName] ?? "";
 }
 
 function getArchetypeDefinition(templateId) {
@@ -2623,7 +2623,7 @@ function getArchetypeDefinition(templateId) {
 function getDerivedCharacterStats(character) {
   const archetype = getArchetypeDefinition(character?.template_id);
   const baseStats = normalizeStatBlock(archetype?.stats);
-  const itemBonuses = normalizeStatBlock(getItemDefinition(character?.item)?.stat_bonuses);
+  const itemBonuses = normalizeStatBlock(getAspectDefinition(character?.aspect)?.stat_bonuses);
   const result = { ...baseStats };
 
   for (const statKey of statFieldOptions) {
@@ -2633,11 +2633,11 @@ function getDerivedCharacterStats(character) {
   return result;
 }
 
-function getItemDefinition(itemName) {
-  if (!itemName) {
+function getAspectDefinition(aspectName) {
+  if (!aspectName) {
     return null;
   }
-  return appState.catalogs.itemDefinitions?.[itemName] ?? null;
+  return appState.catalogs.aspectDefinitions?.[aspectName] ?? null;
 }
 
 function renderDerivedStatValue(baseValue, finalValue) {

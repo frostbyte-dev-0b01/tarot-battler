@@ -9,7 +9,7 @@
       "position": { "row": 0, "col": 0 },
       "passive": "Pursuit",
       "actives": ["Charge", "Sever", "Withdraw"],
-      "item": "vitality_charm",
+      "aspect": "vitality_charm",
       "rules": [
         { "ability": "Sever", "when": [{ "subject": "self", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 3 }] },
         { "ability": "Withdraw", "when": [{ "subject": "self", "value": "hp", "op": "lte", "threshold": 15 }] },
@@ -23,7 +23,7 @@
       "position": { "row": 0, "col": 1 },
       "passive": "Sentence",
       "actives": ["Rebuke", "Condemn", "Verdict"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Verdict", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 3 }] },
         { "ability": "Condemn", "when": [{ "subject": "target", "value": { "has_status": "Omen" }, "op": "gte", "threshold": 1 }] },
@@ -37,7 +37,7 @@
       "position": { "row": 0, "col": 2 },
       "passive": "Imperial Formation",
       "actives": ["Command", "Sunder", "Taunt"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Taunt", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 4 }] },
         { "ability": "Command", "when": [{ "subject": "companion", "value": "hp", "op": "gte", "threshold": 1 }] },
@@ -51,7 +51,7 @@
       "position": { "row": 2, "col": 1 },
       "passive": "Catalyst",
       "actives": ["Offer", "Seal", "Transmute"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Transmute", "when": [{ "subject": "target", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 1 }] },
         { "ability": "Offer", "when": [{ "subject": "self", "value": "use_count", "op": "lte", "threshold": 0 }] },

@@ -9,7 +9,7 @@
       "position": { "row": 0, "col": 1 },
       "passive": "Sentence",
       "actives": ["Condemn", "Verdict", "Rebuke"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Verdict", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 3 }] },
         { "ability": "Condemn", "when": [{ "subject": "target", "value": { "has_status": "Omen" }, "op": "gte", "threshold": 1 }] },
@@ -23,7 +23,7 @@
       "position": { "row": 1, "col": 1 },
       "passive": "Foreboding",
       "actives": ["Hex", "Eclipse", "Harvest Night"],
-      "item": "vitality_charm",
+      "aspect": "vitality_charm",
       "rules": [
         { "ability": "Harvest Night", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 4 }] },
         { "ability": "Eclipse", "when": [{ "subject": "target", "value": "target_companion_count", "op": "gte", "threshold": 1 }] },
@@ -37,7 +37,7 @@
       "position": { "row": 1, "col": 2 },
       "passive": "Sanctuary",
       "actives": ["Smite", "Consecrate", "Blessing"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Blessing", "when": [{ "subject": "companion", "value": "mp", "op": "lte", "threshold": 2 }] },
         { "ability": "Consecrate", "when": [{ "subject": "target", "value": "target_companion_count", "op": "gte", "threshold": 1 }] },
@@ -51,7 +51,7 @@
       "position": { "row": 2, "col": 1 },
       "passive": "Catalyst",
       "actives": ["Seal", "Distill", "Transmute"],
-      "item": null,
+      "aspect": null,
       "rules": [
         { "ability": "Transmute", "when": [{ "subject": "target", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 1 }] },
         { "ability": "Distill", "when": [{ "subject": "target", "value": { "has_status": "Ward" }, "op": "gte", "threshold": 1 }] },
