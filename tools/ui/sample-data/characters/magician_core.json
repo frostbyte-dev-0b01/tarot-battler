@@ -1,0 +1,72 @@
+{
+  "id": "new_character_4",
+  "template_id": "the_magician",
+  "display_name": "The Magician",
+  "position": {
+    "row": 2,
+    "col": 1
+  },
+  "passive": "Catalyst",
+  "actives": [
+    "Smite",
+    "Seal",
+    "Transmute"
+  ],
+  "aspect": null,
+  "rules": [
+    {
+      "ability": "Basic Attack",
+      "when": [
+        {
+          "subject": "target",
+          "value": "hp",
+          "op": "lte",
+          "threshold": 4
+        }
+      ]
+    },
+    {
+      "ability": "Smite",
+      "when": []
+    },
+    {
+      "ability": "Seal",
+      "when": [
+        {
+          "subject": "target",
+          "value": {
+            "stat": "mag"
+          },
+          "op": "gte",
+          "threshold": 12
+        }
+      ]
+    },
+    {
+      "ability": "Transmute",
+      "when": [
+        {
+          "subject": "target",
+          "value": {
+            "status_stacks": "Empower:MGT"
+          },
+          "op": "gte",
+          "threshold": 1
+        }
+      ]
+    },
+    {
+      "ability": "Transmute",
+      "when": [
+        {
+          "subject": "target",
+          "value": {
+            "status_stacks": "Empower:ARM"
+          },
+          "op": "gte",
+          "threshold": 1
+        }
+      ]
+    }
+  ]
+}

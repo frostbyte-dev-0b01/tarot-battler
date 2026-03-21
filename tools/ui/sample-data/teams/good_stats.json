@@ -1,0 +1,228 @@
+{
+  "version": 2,
+  "name": "Good Stats",
+  "characters": [
+    {
+      "id": "new_character_1",
+      "template_id": "justice",
+      "display_name": "Justice",
+      "position": {
+        "row": 0,
+        "col": 0
+      },
+      "passive": "Sentence",
+      "actives": [
+        "Detonate Mark",
+        "Verdict",
+        "Rebuke"
+      ],
+      "aspect": "aspect_of_grace",
+      "rules": [
+        {
+          "ability": "Basic Attack",
+          "when": [
+            {
+              "subject": "target",
+              "value": "hp",
+              "op": "lte",
+              "threshold": 4
+            }
+          ]
+        },
+        {
+          "ability": "Detonate Mark",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "condition_stacks": "Marked"
+              },
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Verdict",
+          "when": [
+            {
+              "subject": "self",
+              "value": "mp",
+              "op": "gte",
+              "threshold": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "new_character_2",
+      "template_id": "the_emperor",
+      "display_name": "The Emperor",
+      "position": {
+        "row": 0,
+        "col": 2
+      },
+      "passive": "Imperial Formation",
+      "actives": [
+        "Taunt",
+        "Command",
+        "Sunder"
+      ],
+      "aspect": null,
+      "rules": [
+        {
+          "ability": "Taunt",
+          "when": [
+            {
+              "subject": "world",
+              "value": "use_count",
+              "op": "lte",
+              "threshold": 0
+            }
+          ]
+        },
+        {
+          "ability": "Command",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "hp",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Sunder",
+          "when": []
+        }
+      ]
+    },
+    {
+      "id": "new_character_3",
+      "template_id": "the_chariot",
+      "display_name": "The Chariot",
+      "position": {
+        "row": 0,
+        "col": 1
+      },
+      "passive": "Pursuit",
+      "actives": [
+        "Withdraw",
+        "Charge",
+        "Breakthrough"
+      ],
+      "aspect": "aspect_of_ruin",
+      "rules": [
+        {
+          "ability": "Charge",
+          "when": [
+            {
+              "subject": "world",
+              "value": "use_count",
+              "op": "lte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Withdraw",
+          "when": [
+            {
+              "subject": "world",
+              "value": "use_count",
+              "op": "lte",
+              "threshold": 0
+            }
+          ]
+        },
+        {
+          "ability": "Breakthrough",
+          "when": [
+            {
+              "subject": "self",
+              "value": {
+                "status_stacks": "Empower:MGT"
+              },
+              "op": "gte",
+              "threshold": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "new_character_4",
+      "template_id": "the_magician",
+      "display_name": "The Magician",
+      "position": {
+        "row": 2,
+        "col": 1
+      },
+      "passive": "Catalyst",
+      "actives": [
+        "Smite",
+        "Seal",
+        "Transmute"
+      ],
+      "aspect": null,
+      "rules": [
+        {
+          "ability": "Basic Attack",
+          "when": [
+            {
+              "subject": "target",
+              "value": "hp",
+              "op": "lte",
+              "threshold": 4
+            }
+          ]
+        },
+        {
+          "ability": "Smite",
+          "when": []
+        },
+        {
+          "ability": "Seal",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "stat": "mag"
+              },
+              "op": "gte",
+              "threshold": 12
+            }
+          ]
+        },
+        {
+          "ability": "Transmute",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "status_stacks": "Empower:MGT"
+              },
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Transmute",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "status_stacks": "Empower:ARM"
+              },
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
