@@ -615,8 +615,8 @@ function validateReplay(candidate) {
   if (!Array.isArray(candidate.snapshots)) {
     errors.push("`snapshots` must be an array.");
   } else {
-    if (Array.isArray(candidate.events) && candidate.snapshots.length !== candidate.events.length + 1) {
-      errors.push("`snapshots` must contain exactly one more entry than `events`.");
+    if (candidate.snapshots.length === 0) {
+      errors.push("`snapshots` must contain at least one entry.");
     }
 
     candidate.snapshots.forEach((snapshot, index) => {
@@ -825,8 +825,18 @@ function getReplaySnapshot(replay, selectedEventIndex) {
     return null;
   }
 
-  const snapshotIndex = clampValue(selectedEventIndex + 1, 0, replay.snapshots.length - 1);
-  const snapshot = replay.snapshots[snapshotIndex];
+  const desiredEventIndex = Math.max(-1, selectedEventIndex);
+  let snapshot = replay.snapshots[0];
+  for (const candidate of replay.snapshots) {
+    if (!isPlainObject(candidate) || typeof candidate.event_index !== "number") {
+      continue;
+    }
+    if (candidate.event_index <= desiredEventIndex) {
+      snapshot = candidate;
+    } else {
+      break;
+    }
+  }
   if (!isPlainObject(snapshot) || !isPlainObject(snapshot.teams)) {
     return null;
   }
