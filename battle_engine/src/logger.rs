@@ -353,8 +353,9 @@ impl BattleLog {
         let team_b_snapshot = build_team_snapshot(team_b_name, team_b_configs, "team_b");
         let mut last_ability_by_actor: HashMap<u32, String> = HashMap::new();
         let mut replay_events = Vec::new();
+        let mut raw_to_replay_event_index: HashMap<i32, i32> = HashMap::new();
 
-        for event in &self.events {
+        for (raw_index, event) in self.events.iter().enumerate() {
             match event {
                 BattleEvent::BattleStart { tick_count, .. } => replay_events.push(json!({
                     "tick": tick_count,
@@ -628,6 +629,8 @@ impl BattleLog {
                     "winner": winner,
                 })),
             }
+
+            raw_to_replay_event_index.insert(raw_index as i32, replay_events.len() as i32 - 1);
         }
 
         let winner = self
@@ -653,7 +656,14 @@ impl BattleLog {
             "events": replay_events,
             "snapshots": self.snapshots.iter().map(|snapshot| json!({
                 "tick": snapshot.tick,
-                "event_index": snapshot.event_index,
+                "event_index": if snapshot.event_index < 0 {
+                    -1
+                } else {
+                    raw_to_replay_event_index
+                        .get(&snapshot.event_index)
+                        .copied()
+                        .unwrap_or(snapshot.event_index)
+                },
                 "teams": {
                     "team_a": {
                         "name": team_a_name,
