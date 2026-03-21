@@ -81,6 +81,13 @@ pub enum TargetSelector {
         #[serde(default)]
         stat: Option<Stat>,
     },
+    HasCondition {
+        condition: String,
+    },
+    LacksCondition {
+        condition: String,
+    },
+    MostBuffs,
     Random,
 }
 
@@ -253,6 +260,9 @@ pub enum Primitive {
         condition: String,
         stacks: u32,
     },
+    SetFocusToTarget {
+        target: AbilityTarget,
+    },
     RemoveOneBuff {
         target: AbilityTarget,
     },
@@ -339,6 +349,22 @@ pub enum Primitive {
     IfTargetHasAnyCondition {
         target: AbilityTarget,
         primitives: Vec<Primitive>,
+    },
+    IfTargetHpAtOrBelowPercent {
+        target: AbilityTarget,
+        percent: u32,
+        primitives: Vec<Primitive>,
+    },
+    PurgeStatuses {
+        target: AbilityTarget,
+        statuses: Vec<StatusRef>,
+        #[serde(default)]
+        damage_target: Option<AbilityTarget>,
+        #[serde(default)]
+        damage_per_removed: u32,
+    },
+    CopyPassiveFromAlly {
+        target: AbilityTarget,
     },
 }
 
@@ -1165,6 +1191,23 @@ pub fn execute_primitives_with_context(
                     }
                 }
             }
+            Primitive::SetFocusToTarget { target } => {
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
+                if let Some(&tidx) = target_indices.first()
+                    && ctx.enemy_team[tidx].is_alive()
+                {
+                    let new_target_id = ctx.enemy_team[tidx].id();
+                    ctx.actor_team[actor_idx].set_target_tracked(new_target_id, ctx.step);
+                    log_retarget_event(
+                        ctx,
+                        ctx.actor_team[actor_idx].id(),
+                        ctx.actor_team[actor_idx].base_name().to_string(),
+                        Some(new_target_id),
+                        lookup_name(ctx.enemy_team, Some(new_target_id)),
+                        "to_ability_target".to_string(),
+                    );
+                }
+            }
             Primitive::RemoveOneBuff { target } => {
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
@@ -1614,6 +1657,94 @@ pub fn execute_primitives_with_context(
                     let nested_damage =
                         execute_primitives_with_context(ctx, actor_idx, _source_name, primitives);
                     damage_dealt.extend(nested_damage);
+                }
+            }
+            Primitive::IfTargetHpAtOrBelowPercent {
+                target,
+                percent,
+                primitives,
+            } => {
+                let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
+                let should_execute = target_indices.iter().any(|tidx| {
+                    let target = &ctx.enemy_team[*tidx];
+                    let max_hp = target.get_base_stat(&Stat::VIT) * 3;
+                    target.is_alive() && target.current_hp() * 100 <= max_hp.saturating_mul(*percent)
+                });
+                if should_execute {
+                    let nested_damage =
+                        execute_primitives_with_context(ctx, actor_idx, _source_name, primitives);
+                    damage_dealt.extend(nested_damage);
+                }
+            }
+            Primitive::PurgeStatuses {
+                target,
+                statuses,
+                damage_target,
+                damage_per_removed,
+            } => {
+                let mut removed_total = 0;
+                if target_is_enemy_side(target) {
+                    let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
+                    for tidx in target_indices {
+                        for status_ref in statuses {
+                            let key = status_key(&status_ref.status, status_ref.stat.as_ref());
+                            let stacks = ctx.enemy_team[tidx].status_stacks(&key);
+                            if stacks > 0 {
+                                ctx.enemy_team[tidx].remove_status(&key, stacks);
+                                removed_total += stacks;
+                            }
+                        }
+                    }
+                } else {
+                    let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
+                    for tidx in target_indices {
+                        for status_ref in statuses {
+                            let key = status_key(&status_ref.status, status_ref.stat.as_ref());
+                            let stacks = ctx.actor_team[tidx].status_stacks(&key);
+                            if stacks > 0 {
+                                ctx.actor_team[tidx].remove_status(&key, stacks);
+                                removed_total += stacks;
+                            }
+                        }
+                    }
+                }
+                if removed_total > 0 {
+                    capture_context_snapshot(ctx);
+                }
+                if removed_total > 0 && *damage_per_removed > 0 {
+                    if let Some(damage_target) = damage_target {
+                        let target_indices = resolve_enemy_targets_for_context(ctx, damage_target, actor_idx);
+                        if let Some(&tidx) = target_indices.first()
+                            && ctx.enemy_team[tidx].is_alive()
+                        {
+                            let amount = removed_total * *damage_per_removed;
+                            let damage = ctx.enemy_team[tidx].take_hit(amount);
+                            ctx.log.push(BattleEvent::AbilityDamage {
+                                tick_count: ctx.step,
+                                actor_id,
+                                target_id: ctx.enemy_team[tidx].id(),
+                                target_name: ctx.enemy_team[tidx].base_name().to_string(),
+                                damage,
+                                target_hp_remaining: ctx.enemy_team[tidx].current_hp(),
+                            });
+                            capture_context_snapshot(ctx);
+                            damage_dealt.push(DamageRecord {
+                                source_id: actor_id,
+                                target_id: ctx.enemy_team[tidx].id(),
+                                damage,
+                            });
+                        }
+                    }
+                }
+            }
+            Primitive::CopyPassiveFromAlly { target } => {
+                let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
+                if let Some(&tidx) = target_indices.first()
+                    && ctx.actor_team[tidx].is_alive()
+                {
+                    let passive_name = ctx.actor_team[tidx].passive().to_string();
+                    ctx.actor_team[actor_idx].gain_bonus_passive(&passive_name);
+                    capture_context_snapshot(ctx);
                 }
             }
         }

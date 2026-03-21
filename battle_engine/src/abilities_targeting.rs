@@ -7,7 +7,7 @@ use crate::abilities::{
     AbilityTarget, PositionalCondition, RetargetFilter, SimpleAbilityTarget, TargetCategory,
     TargetSelector,
 };
-use crate::models::{CharacterState, Stat};
+use crate::models::{CharacterState, ConditionKind, Stat};
 use crate::statuses::status_key;
 
 pub(crate) fn resolve_enemy_targets(
@@ -382,6 +382,39 @@ fn select_single_target(
                 .filter(|idx| !team[*idx].has_status(&key))
                 .collect()
         }
+        TargetSelector::HasCondition { condition } => {
+            let Some(kind) = ConditionKind::from_key(condition) else {
+                return None;
+            };
+            candidates
+                .iter()
+                .copied()
+                .filter(|idx| team[*idx].has_condition(kind))
+                .collect()
+        }
+        TargetSelector::LacksCondition { condition } => {
+            let Some(kind) = ConditionKind::from_key(condition) else {
+                return None;
+            };
+            candidates
+                .iter()
+                .copied()
+                .filter(|idx| !team[*idx].has_condition(kind))
+                .collect()
+        }
+        TargetSelector::MostBuffs => extrema_indices(candidates, |idx| {
+            team[*idx]
+                .statuses()
+                .values()
+                .filter(|status| match status.behavior {
+                    crate::statuses::StatusBehavior::HealPerStack { .. }
+                    | crate::statuses::StatusBehavior::Ward => true,
+                    crate::statuses::StatusBehavior::StatModPerStack { magnitude } => magnitude > 0,
+                    _ => false,
+                })
+                .map(|status| status.stacks)
+                .sum::<u32>()
+        }, true),
         TargetSelector::Random => candidates.to_owned(),
     };
 

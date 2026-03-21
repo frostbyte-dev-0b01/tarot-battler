@@ -208,6 +208,7 @@ pub struct CharacterState {
     display_name: String,
     passive: String,
     aspect_passive: Option<String>,
+    bonus_passives: Vec<String>,
     actives: Vec<String>,
     base_stats: HashMap<Stat, u32>,
     position: Position,
@@ -261,6 +262,7 @@ impl CharacterState {
             display_name,
             passive: config.passive.clone(),
             aspect_passive: config.aspect_passive.clone(),
+            bonus_passives: Vec::new(),
             actives: config.actives.clone(),
             base_stats: config.stats.clone(),
             position: config.position.clone(),
@@ -317,7 +319,19 @@ impl CharacterState {
         {
             names.push(aspect_passive);
         }
+        for passive in &self.bonus_passives {
+            if !passive.is_empty() {
+                names.push(passive.as_str());
+            }
+        }
         names
+    }
+
+    pub fn gain_bonus_passive(&mut self, passive_name: &str) {
+        if passive_name.is_empty() || self.passive_names().contains(&passive_name) {
+            return;
+        }
+        self.bonus_passives.push(passive_name.to_string());
     }
 
     pub fn actives(&self) -> &[String] {

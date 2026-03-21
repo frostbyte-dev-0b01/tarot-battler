@@ -460,5 +460,224 @@
         "filter": "targeting_self"
       }
     ]
+  },
+  "Concuss": {
+    "description": "Deal 2 + 0.8x MGT damage to the user's focused enemy. Apply Stunned 1.",
+    "mp_cost": 4,
+    "primitives": [
+      {
+        "kind": "deal_physical_damage",
+        "target": "current_target",
+        "base_damage": 2,
+        "multiplier": 0.8,
+        "double_empower_stat": null
+      },
+      {
+        "kind": "apply_condition",
+        "target": "current_target",
+        "condition": "Stunned",
+        "stacks": 1
+      }
+    ]
+  },
+  "Death Mark": {
+    "description": "Apply Marked 1 to the furthest back enemy.",
+    "mp_cost": 3,
+    "primitives": [
+      {
+        "kind": "apply_condition",
+        "target": {
+          "category": "enemy",
+          "position": "backmost"
+        },
+        "condition": "Marked",
+        "stacks": 1
+      }
+    ]
+  },
+  "Detonate Mark": {
+    "description": "Deal 3 + 0.8x MAG damage to the user's focused enemy. If that enemy is Marked, consume it and deal 6 true damage.",
+    "mp_cost": 4,
+    "primitives": [
+      {
+        "kind": "deal_magical_damage",
+        "target": "current_target",
+        "base_damage": 3,
+        "multiplier": 0.8
+      },
+      {
+        "kind": "if_target_has_condition",
+        "target": "current_target",
+        "condition": "Marked",
+        "primitives": [
+          {
+            "kind": "remove_condition",
+            "target": "current_target",
+            "condition": "Marked",
+            "stacks": 1
+          },
+          {
+            "kind": "deal_true_damage",
+            "target": "current_target",
+            "amount": 6
+          }
+        ]
+      }
+    ]
+  },
+  "Pursue": {
+    "description": "Deal 3 + 1.0x MGT damage to a Marked enemy. Consume Marked and focus that enemy.",
+    "mp_cost": 5,
+    "primitives": [
+      {
+        "kind": "bind_targets",
+        "target": {
+          "category": "enemy",
+          "selector": {
+            "kind": "has_condition",
+            "condition": "Marked"
+          }
+        },
+        "primitives": [
+          {
+            "kind": "deal_physical_damage",
+            "target": "bound_enemy",
+            "base_damage": 3,
+            "multiplier": 1.0,
+            "double_empower_stat": null
+          },
+          {
+            "kind": "remove_condition",
+            "target": "bound_enemy",
+            "condition": "Marked",
+            "stacks": 1
+          },
+          {
+            "kind": "set_focus_to_target",
+            "target": "bound_enemy"
+          }
+        ]
+      }
+    ]
+  },
+  "Sever Thread": {
+    "description": "Apply Severed 3 to the user's focused enemy.",
+    "mp_cost": 5,
+    "primitives": [
+      {
+        "kind": "apply_condition",
+        "target": "current_target",
+        "condition": "Severed",
+        "stacks": 3
+      }
+    ]
+  },
+  "Shatter Faith": {
+    "description": "Remove all Ward and Restoration from the enemy team. Deal 2 true damage to the user's focused enemy for each stack removed.",
+    "mp_cost": 5,
+    "primitives": [
+      {
+        "kind": "purge_statuses",
+        "target": "all_enemies",
+        "statuses": [
+          { "status": "Ward" },
+          { "status": "Restoration" }
+        ],
+        "damage_target": "current_target",
+        "damage_per_removed": 2
+      }
+    ]
+  },
+  "Hunt the Weak": {
+    "description": "Deal 3 + 1.0x MGT damage to the lowest-HP enemy and focus that enemy.",
+    "mp_cost": 4,
+    "primitives": [
+      {
+        "kind": "bind_targets",
+        "target": {
+          "category": "enemy",
+          "selector": { "kind": "lowest_hp" }
+        },
+        "primitives": [
+          {
+            "kind": "deal_physical_damage",
+            "target": "bound_enemy",
+            "base_damage": 3,
+            "multiplier": 1.0,
+            "double_empower_stat": null
+          },
+          {
+            "kind": "set_focus_to_target",
+            "target": "bound_enemy"
+          }
+        ]
+      }
+    ]
+  },
+  "Inheritance": {
+    "description": "Copy one companion's passive for the rest of battle.",
+    "mp_cost": 6,
+    "primitives": [
+      {
+        "kind": "copy_passive_from_ally",
+        "target": {
+          "category": "companion",
+          "selector": {
+            "kind": "highest_stat",
+            "stat": "mgt"
+          }
+        }
+      }
+    ]
+  },
+  "Last Rites": {
+    "description": "Deal 3 + 1.2x MAG damage to the lowest-HP enemy below 50% HP.",
+    "mp_cost": 5,
+    "primitives": [
+      {
+        "kind": "if_target_hp_at_or_below_percent",
+        "target": {
+          "category": "enemy",
+          "selector": { "kind": "lowest_hp" }
+        },
+        "percent": 50,
+        "primitives": [
+          {
+            "kind": "deal_magical_damage",
+            "target": {
+              "category": "enemy",
+              "selector": { "kind": "lowest_hp" }
+            },
+            "base_damage": 3,
+            "multiplier": 1.2
+          }
+        ]
+      }
+    ]
+  },
+  "Cleanse the Throne": {
+    "description": "Remove all buffs from the enemy with the most buffs. That enemy is disoriented.",
+    "mp_cost": 5,
+    "primitives": [
+      {
+        "kind": "bind_targets",
+        "target": {
+          "category": "enemy",
+          "selector": { "kind": "most_buffs" }
+        },
+        "primitives": [
+          {
+            "kind": "dispel",
+            "target": "bound_enemy",
+            "amount": 99
+          },
+          {
+            "kind": "retarget",
+            "target": "bound_enemy",
+            "mode": "disorient"
+          }
+        ]
+      }
+    ]
   }
 }
