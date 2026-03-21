@@ -37,8 +37,8 @@ const ruleValueTypeOptions = [
   { value: "ally_count", label: "Allies Alive" },
   { value: "enemy_count", label: "Enemies Alive" },
   { value: "stat", label: "Stat" },
-  { value: "status_stacks", label: "Status Stacks" },
-  { value: "condition_stacks", label: "Condition Stacks" },
+  { value: "status_stacks", label: "Status" },
+  { value: "condition_stacks", label: "Condition" },
 ];
 const ruleValueOptionsBySubject = {
   self: ["hp", "mp", "self_row", "stat", "status_stacks", "condition_stacks", "self_companion_count"],
@@ -1449,19 +1449,21 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
   return `
     <article class="builder-character-workspace">
       <div class="team-detail-tabbar" role="tablist" aria-label="Character editing tabs">
-        <button type="button" class="team-detail-tab ${isDesignTab ? "is-active" : ""}" role="tab" aria-selected="${isDesignTab ? "true" : "false"}" data-team-action="select-detail-tab" data-detail-tab="design">Design</button>
-        <button type="button" class="team-detail-tab ${!isDesignTab ? "is-active" : ""}" role="tab" aria-selected="${!isDesignTab ? "true" : "false"}" data-team-action="select-detail-tab" data-detail-tab="rules">Rules</button>
+        <div class="team-detail-tabbar-tabs">
+          <button type="button" class="team-detail-tab ${isDesignTab ? "is-active" : ""}" role="tab" aria-selected="${isDesignTab ? "true" : "false"}" data-team-action="select-detail-tab" data-detail-tab="design">Design</button>
+          <button type="button" class="team-detail-tab ${!isDesignTab ? "is-active" : ""}" role="tab" aria-selected="${!isDesignTab ? "true" : "false"}" data-team-action="select-detail-tab" data-detail-tab="rules">Rules</button>
+        </div>
+        <div class="team-detail-tabbar-actions">
+          <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}">Save</button>
+          <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}">Load</button>
+          <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Delete</button>
+        </div>
       </div>
       <input class="visually-hidden" type="file" accept=".json,application/json" data-team-action="load-character-file" data-character-index="${characterIndex}">
       ${
         isDesignTab
           ? `
             <section class="builder-pane builder-pane-stats">
-              <div class="editor-card-actions editor-card-actions-wide">
-                <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}">Save Character</button>
-                <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}">Load Character</button>
-                <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Delete</button>
-              </div>
               <div class="portrait-card">
                 <div class="portrait-placeholder">${escapeHtml(getCharacterInitials(character))}</div>
                 <div class="portrait-meta">
@@ -2412,18 +2414,18 @@ function formatConditionPreview(condition) {
   const valueType = getConditionValueType(condition);
   const operatorLabel = getRuleOptionLabel(ruleOperatorOptions, condition.op ?? condition.comparator ?? "gte");
   const threshold = condition.threshold ?? 0;
-  const prefix = subject === "world" ? "" : `${subjectLabel} `;
+  const prefix = subject === "self" || subject === "world" ? "" : `${subjectLabel} `;
 
   if (valueType === "stat") {
     return `${prefix}${String(condition.value?.stat ?? "vit").toUpperCase()} ${operatorLabel} ${threshold}`;
   }
 
   if (valueType === "status_stacks") {
-    return `${prefix}${condition.value?.status_stacks ?? "Empower:MGT"} Stacks ${operatorLabel} ${threshold}`;
+    return `${prefix}${condition.value?.status_stacks ?? "Empower:MGT"} ${operatorLabel} ${threshold}`;
   }
 
   if (valueType === "condition_stacks") {
-    return `${prefix}${condition.value?.condition_stacks ?? "Stunned"} Stacks ${operatorLabel} ${threshold}`;
+    return `${prefix}${condition.value?.condition_stacks ?? "Stunned"} ${operatorLabel} ${threshold}`;
   }
 
   const contextualLabel = getContextualRuleValueLabel(subject, valueType);
@@ -2596,7 +2598,7 @@ function getCharacterInitials(character) {
 function renderStatIcon(statKey) {
   const icons = {
     vit: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13s-4.5-2.7-4.5-6.1A2.4 2.4 0 0 1 8 5a2.4 2.4 0 0 1 4.5 1.9C12.5 10.3 8 13 8 13Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
-    mgt: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 10.5c.8 1.2 2 2 3.7 2h1.8v-2.2l-1.3-.6-.4-1.5 1.2-1.7 2 .6.8 1.9v4H8.7c-2.4 0-4-1.1-4.9-2.9L5 10.5Zm5.5-6 .8-1.4 1.9.8-.8 1.5-1.9-.9Z" fill="currentColor"/></svg>',
+    mgt: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m9.9 2.1 4 4-1.4 1.4-.9-.9-2.2 2.2-1.4-1.4 2.2-2.2-.9-.9 1.4-1.4ZM6.8 8.5l.7.7-4.2 4.2H2.6v-.7l4.2-4.2Z" fill="currentColor"/><path d="m8.4 3.6 4 4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>',
     mag: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m8 2 1.2 3.1L12.5 6 9.9 8.1l.8 3.4L8 9.7l-2.7 1.8.8-3.4L3.5 6l3.3-.9L8 2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
     arm: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 12 3.7v3.1c0 2.5-1.5 4.7-4 6-2.5-1.3-4-3.5-4-6V3.7L8 2.2Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
     res: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 12.8 5v6L8 13.8 3.2 11V5L8 2.2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',

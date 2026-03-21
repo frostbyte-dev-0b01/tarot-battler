@@ -489,11 +489,24 @@ main {
 
 .team-detail-tabbar {
   grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.team-detail-tabbar-tabs {
   display: inline-flex;
   gap: 4px;
   padding: 4px;
   border-radius: 999px;
   background: rgba(33, 25, 16, 0.06);
+}
+
+.team-detail-tabbar-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .team-detail-tab {
