@@ -109,7 +109,7 @@ They are evaluated in array order:
 
 - the first satisfied rule is used
 - later rules are ignored once one rule fires
-- if no rule is satisfied, the character uses `Rest`
+- if no rule is satisfied, the character uses `Basic Attack`
 
 ### Fields
 

@@ -1345,6 +1345,8 @@ pub fn execute_primitives_with_context(
                     target_name: ctx.enemy_team[target_idx].base_name().to_string(),
                     damage,
                     target_hp_remaining: hp,
+                    mp_restored: 0,
+                    actor_mp_after: ctx.actor_team[companion_idx].current_mp(),
                 });
                 capture_context_snapshot(ctx);
                 damage_dealt.push(DamageRecord {

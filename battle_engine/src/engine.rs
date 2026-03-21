@@ -491,7 +491,7 @@ impl BattleState {
             }
         };
 
-        let ability_choice = {
+        let action_choice = {
             let runtime = TurnRuntime::new(
                 &self.abilities,
                 &self.status_defs,
@@ -500,56 +500,83 @@ impl BattleState {
                 self.step,
                 is_team_a,
             );
-            turns::choose_ability(&runtime, actor_idx, actor_team, enemy_team, target_id)
+            turns::choose_action(&runtime, actor_idx, actor_team, enemy_team, target_id)
         };
 
-        if let Some((ability_name, ability_def)) = ability_choice {
-            let (actor_team, enemy_team) =
-                Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            let (event_start, damage_dealt) = {
-                let mut runtime = TurnRuntime::new(
-                    &self.abilities,
-                    &self.status_defs,
-                    &mut self.rng,
-                    &mut self.log,
-                    self.step,
-                    is_team_a,
-                );
-                turns::execute_ability_action(
-                    &mut runtime,
-                    actor_idx,
-                    actor_team,
-                    enemy_team,
-                    &ability_name,
-                    &ability_def,
-                )
-            };
+        if let Some(action_choice) = action_choice {
+            match action_choice {
+                turns::ChosenAction::Ability(ability_name, ability_def) => {
+                    let (actor_team, enemy_team) =
+                        Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                    let (event_start, damage_dealt) = {
+                        let mut runtime = TurnRuntime::new(
+                            &self.abilities,
+                            &self.status_defs,
+                            &mut self.rng,
+                            &mut self.log,
+                            self.step,
+                            is_team_a,
+                        );
+                        turns::execute_ability_action(
+                            &mut runtime,
+                            actor_idx,
+                            actor_team,
+                            enemy_team,
+                            &ability_name,
+                            &ability_def,
+                        )
+                    };
 
-            self.process_status_application_events(event_start, is_team_a);
+                    self.process_status_application_events(event_start, is_team_a);
+                    self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
+                }
+                turns::ChosenAction::BasicAttack => {
+                    let (actor_team, enemy_team) =
+                        Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                    let damage_dealt = {
+                        let mut runtime = TurnRuntime::new(
+                            &self.abilities,
+                            &self.status_defs,
+                            &mut self.rng,
+                            &mut self.log,
+                            self.step,
+                            is_team_a,
+                        );
+                        turns::execute_basic_attack_action(
+                            &mut runtime,
+                            actor_idx,
+                            actor_team,
+                            enemy_team,
+                        )
+                    };
 
-            // Process damage results: defeats, reflect, and passive triggers
-            self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
+                    self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
+                }
+            }
 
-            // Reassign target if current target is dead
             let (actor_team, enemy_team) =
                 Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
             Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng);
-
             self.finish_turn(actor_idx, is_team_a);
             return;
         }
 
-        // Fallback: Rest
+        // Fallback: Basic Attack
         let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-        let mut runtime = TurnRuntime::new(
-            &self.abilities,
-            &self.status_defs,
-            &mut self.rng,
-            &mut self.log,
-            self.step,
-            is_team_a,
-        );
-        turns::execute_rest_action(&mut runtime, actor_idx, actor_team, enemy_team);
+        let damage_dealt = {
+            let mut runtime = TurnRuntime::new(
+                &self.abilities,
+                &self.status_defs,
+                &mut self.rng,
+                &mut self.log,
+                self.step,
+                is_team_a,
+            );
+            turns::execute_basic_attack_action(&mut runtime, actor_idx, actor_team, enemy_team)
+        };
+        self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
+        let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+        Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng);
         self.finish_turn(actor_idx, is_team_a);
     }
 
@@ -1769,8 +1796,8 @@ mod tests {
     }
 
     #[test]
-    fn emperor_rests_when_mp_exhausted() {
-        // Emperor with only 2 max MP from WIL — can Crush once, then Rest
+    fn emperor_basic_attacks_when_mp_exhausted() {
+        // Emperor with only 2 max MP from WIL — can Crush once, then fall back to Basic Attack
         let mut emperor = emperor_config();
         emperor.stats.insert(Stat::WIL, 2);
 
@@ -1807,25 +1834,25 @@ mod tests {
                 )
             })
             .count();
-        let rest_count = events
+        let basic_attack_count = events
             .iter()
             .filter(|e| {
                 matches!(e,
-                    BattleEvent::Rest { actor_id, .. } if *actor_id == 0
+                    BattleEvent::BasicAttack { actor_id, .. } if *actor_id == 0
                 )
             })
             .count();
 
         assert!(crush_count >= 1, "Should use Crush at least once");
         assert!(
-            rest_count >= 1,
-            "Should fall back to Rest when MP runs out"
+            basic_attack_count >= 1,
+            "Should fall back to Basic Attack when MP runs out"
         );
     }
 
     #[test]
-    fn characters_without_rules_rest() {
-        // Two characters with no rules — should Rest instead of attacking.
+    fn characters_without_rules_basic_attack() {
+        // Two characters with no rules — should Basic Attack instead of resting.
         let mut a = make_config(
             "A",
             0,
@@ -1870,7 +1897,6 @@ mod tests {
             .events()
             .iter()
             .any(|e| matches!(e, BattleEvent::AbilityUsed { .. }));
-        let has_rest = log.events().iter().any(|e| matches!(e, BattleEvent::Rest { .. }));
         let has_basic = log
             .events()
             .iter()
@@ -1879,11 +1905,63 @@ mod tests {
             !has_ability,
             "Characters without rules should not use abilities"
         );
-        assert!(has_rest, "Characters without rules should Rest");
-        assert!(
-            !has_basic,
-            "Characters without rules should not produce fallback basic attacks"
+        assert!(has_basic, "Characters without rules should Basic Attack");
+    }
+
+    #[test]
+    fn basic_attack_restores_one_third_wil_mp() {
+        let mut a = make_config(
+            "A",
+            0,
+            vec![
+                (Stat::VIT, 10),
+                (Stat::MGT, 6),
+                (Stat::MAG, 4),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 6),
+            ],
         );
+        a.actives.clear();
+        a.rules.clear();
+
+        let mut b = make_config(
+            "B",
+            0,
+            vec![
+                (Stat::VIT, 10),
+                (Stat::MGT, 6),
+                (Stat::MAG, 4),
+                (Stat::ARM, 3),
+                (Stat::RES, 3),
+                (Stat::SPD, 5),
+                (Stat::WIL, 5),
+            ],
+        );
+        b.actives.clear();
+        b.rules.clear();
+
+        let log = BattleState::new(
+            &[a],
+            &[b],
+            test_abilities(),
+            empty_passives(),
+            empty_statuses(),
+            42,
+        )
+        .run();
+
+        let mp_restore_on_basic = log.events().iter().find_map(|event| match event {
+            BattleEvent::BasicAttack {
+                actor_id,
+                mp_restored,
+                ..
+            } if *actor_id == 0 => Some(*mp_restored),
+            _ => None,
+        });
+
+        assert_eq!(mp_restore_on_basic, Some(2));
     }
 
     // --- Effect ticking tests ---

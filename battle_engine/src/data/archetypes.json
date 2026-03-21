@@ -4,7 +4,7 @@
     "stats": { "vit": 14, "mgt": 12, "mag": 8, "arm": 7, "res": 5, "spd": 8, "wil": 12 },
     "default_passive": "Imperial Formation",
     "passive_pool": ["Imperial Formation"],
-    "active_pool": ["Hold the Line", "Command", "Taunt", "Interpose", "Sunder"],
+    "active_pool": ["Hold the Line", "Command", "Taunt", "Interpose", "Decoy", "Sunder"],
     "item_slots": 1
   },
   "the_hierophant": {

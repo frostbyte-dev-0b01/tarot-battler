@@ -31,14 +31,8 @@ pub enum BattleEvent {
         target_name: String,
         damage: u32,
         target_hp_remaining: u32,
-    },
-    #[allow(dead_code)]
-    Rest {
-        tick_count: u32,
-        actor_id: u32,
-        actor_name: String,
         mp_restored: u32,
-        mp_after: u32,
+        actor_mp_after: u32,
     },
     AbilityUsed {
         tick_count: u32,
@@ -223,17 +217,6 @@ impl BattleLog {
         });
     }
 
-    #[allow(dead_code)]
-    pub fn push_rest(&mut self, tick_count: u32, actor: &CharacterState, mp_restored: u32) {
-        self.push(BattleEvent::Rest {
-            tick_count,
-            actor_id: actor.id(),
-            actor_name: actor.base_name().to_string(),
-            mp_restored,
-            mp_after: actor.current_mp(),
-        });
-    }
-
     pub fn push_turn_skipped(&mut self, tick_count: u32, actor: &CharacterState, reason: &str) {
         self.push(BattleEvent::TurnSkipped {
             tick_count,
@@ -396,6 +379,8 @@ impl BattleLog {
                     target_id,
                     damage,
                     target_hp_remaining,
+                    mp_restored,
+                    actor_mp_after,
                     ..
                 } => {
                     replay_events.push(json!({
@@ -404,6 +389,8 @@ impl BattleLog {
                         "actor_id": stable_id(*actor_id, &id_map),
                         "target_id": stable_id(*target_id, &id_map),
                         "damage_kind": "basic",
+                        "mp_restored": mp_restored,
+                        "actor_mp_after": actor_mp_after,
                     }));
                     replay_events.push(json!({
                         "tick": tick_count,
@@ -417,19 +404,6 @@ impl BattleLog {
                         "target_hp_after": target_hp_remaining,
                     }));
                 }
-                BattleEvent::Rest {
-                    tick_count,
-                    actor_id,
-                    mp_restored,
-                    mp_after,
-                    ..
-                } => replay_events.push(json!({
-                    "tick": tick_count,
-                    "type": "rest",
-                    "actor_id": stable_id(*actor_id, &id_map),
-                    "mp_restored": mp_restored,
-                    "mp_after": mp_after,
-                })),
                 BattleEvent::AbilityUsed {
                     tick_count,
                     actor_id,
@@ -742,22 +716,13 @@ impl BattleLog {
                     target_name,
                     damage,
                     target_hp_remaining,
-                    ..
-                } => {
-                    let _ = writeln!(
-                        out,
-                        "  {actor_name} basic attacks {target_name} for {damage} ({target_hp_remaining} HP left)"
-                    );
-                }
-                BattleEvent::Rest {
-                    actor_name,
                     mp_restored,
-                    mp_after,
+                    actor_mp_after,
                     ..
                 } => {
                     let _ = writeln!(
                         out,
-                        "  {actor_name} rests and restores {mp_restored} MP ({mp_after} MP total)"
+                        "  {actor_name} basic attacks {target_name} for {damage} ({target_hp_remaining} HP left, +{mp_restored} MP to {actor_mp_after})"
                     );
                 }
                 BattleEvent::AbilityUsed {
@@ -943,7 +908,6 @@ impl BattleEvent {
             BattleEvent::BattleStart { tick_count, .. }
             | BattleEvent::TurnStart { tick_count, .. }
             | BattleEvent::BasicAttack { tick_count, .. }
-            | BattleEvent::Rest { tick_count, .. }
             | BattleEvent::AbilityUsed { tick_count, .. }
             | BattleEvent::AbilityDamage { tick_count, .. }
             | BattleEvent::AbilityHeal { tick_count, .. }

@@ -66,11 +66,11 @@ The current intended base stat set is:
 - `ARM` — physical defense
 - `RES` — magical defense
 - `SPD` — speed
-- `WIL` — will; determines MP pool size and Rest recovery
+- `WIL` — will; determines MP pool size and basic-attack MP recovery
 
 These are the intended v1 stat names and roles.
 
-Provisional starting stat ranges are still being tuned, but the current design expectation is that most characters begin with `WIL` somewhere in the `8-16` range. This keeps starting MP and `Rest` recovery large enough to support more granular ability pricing.
+Provisional starting stat ranges are still being tuned, but the current design expectation is that most characters begin with `WIL` somewhere in the `8-16` range. This keeps starting MP and basic-attack MP recovery large enough to support more granular ability pricing.
 
 Conceptually, the likely direction is that each character has a fixed base spread and items provide most of the flexible pre-battle stat shaping. Those larger totals are a balance target, not a current engine requirement.
 
@@ -81,8 +81,8 @@ Conceptually, the likely direction is that each character has a fixed base sprea
 - `MP` = spendable battle resource used to cast abilities
 - characters begin battle with `MP = WIL`
 - characters do not passively regain MP between turns
-- every character has a default `Rest` action
-- `Rest` restores `floor(WIL / 2)` MP
+- every character has a default `Basic Attack` action
+- `Basic Attack` restores `floor(WIL / 3)` MP after resolving
 
 `WIL` is the base stat. `MP` is the runtime resource.
 
@@ -258,7 +258,7 @@ Rules answer only one question:
 
 - should this ability be used right now
 
-If the first rule's conditions are met and the character has enough MP to pay the cost, that ability is used. Otherwise the next rule is checked. If no rule is satisfied, the character uses `Rest`.
+If the first rule's conditions are met and the character has enough MP to pay the cost, that action is used. Otherwise the next rule is checked. If no rule is satisfied, the character uses `Basic Attack`.
 
 ### Rule Condition Groups
 
@@ -322,15 +322,15 @@ Rules do not observe half-resolved action states.
 
 ## Combat Actions
 
-### Rest
+### Basic Attack
 
-- every character has a default `Rest` action
-- `Rest` restores `floor(WIL / 2)` MP
-- `Rest` is the fallback action when no rule is satisfied
+- every character has a default `Basic Attack` action
+- `Basic Attack` is the fallback action when no rule is satisfied
+- `Basic Attack` restores `floor(WIL / 3)` MP after resolving
 
 ### Basic Attacks
 
-- attacks are expected to come primarily from active abilities rather than a universal fallback attack
+- `Basic Attack` should also be scriptable in the rule system as a normal action choice
 - when a character makes an attack, physical attacks use `MGT` against `ARM`
 - when a character makes an attack, magical attacks use `MAG` against `RES`
 

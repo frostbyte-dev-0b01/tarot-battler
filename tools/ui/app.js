@@ -6,6 +6,7 @@ const replayJsonInput = document.querySelector("#replay-json-input");
 const replayDemoButton = document.querySelector("#replay-demo-button");
 const replayValidationOutput = document.querySelector("#replay-validation-output");
 const latestReplayPath = "./sample-data/latest_replay.json";
+const basicAttackActionName = "Basic Attack";
 const archetypeCatalogPath = "../../battle_engine/src/data/archetypes.json";
 const passiveCatalogPath = "../../battle_engine/src/data/passives.json";
 const abilityCatalogPath = "../../battle_engine/src/data/abilities.json";
@@ -1593,7 +1594,7 @@ function renderCompactRules(character, characterIndex) {
       </div>
     </div>
     <div class="compact-rule-list">
-      ${rulesMarkup || '<div class="board-empty-state">Add a priority rule to script this character. If none match, the character rests.</div>'}
+      ${rulesMarkup || '<div class="board-empty-state">Add a priority rule to script this character. If none match, the character uses Basic Attack.</div>'}
     </div>
   `;
 }
@@ -1685,7 +1686,7 @@ function renderRuleEditor(characterIndex, rule, ruleIndex) {
   const equippedAbilityNames = normalizeActiveSelections(appState.teamConfig?.characters?.[characterIndex]?.actives)
     .filter((name) => name && name.trim() !== "");
   const abilityOptions = buildSelectOptions(
-    equippedAbilityNames,
+    [basicAttackActionName, ...equippedAbilityNames.filter((name) => name !== basicAttackActionName)],
     rule.ability ?? "",
     "No ability selected",
   );
@@ -2866,7 +2867,7 @@ function formatTimelineText(event) {
     case "rest":
       return `${formatCharacterLabel(event.actor_id, event.actor_name)} rests and restores ${event.mp_restored ?? "?"} MP.`;
     case "basic_attack":
-      return `${formatCharacterLabel(event.actor_id, event.actor_name)} attacks ${formatCharacterLabel(event.target_id, event.target_name)} with a ${event.damage_kind ?? "basic"} hit.`;
+      return `${formatCharacterLabel(event.actor_id, event.actor_name)} attacks ${formatCharacterLabel(event.target_id, event.target_name)} with a ${event.damage_kind ?? "basic"} hit and restores ${event.mp_restored ?? "?"} MP.`;
     case "ability_used":
       return `${formatCharacterLabel(event.actor_id, event.actor_name)} uses ${event.ability ?? "an ability"} for ${event.mp_cost ?? "?"} MP.`;
     case "damage":
@@ -2915,7 +2916,7 @@ function formatTimelineMarkup(event) {
     case "rest":
       return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} rests and restores ${escapeHtml(event.mp_restored ?? "?")} MP.`;
     case "basic_attack":
-      return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} attacks ${formatCharacterLabelMarkup(event.target_id, event.target_name)} with a ${escapeHtml(event.damage_kind ?? "basic")} hit.`;
+      return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} attacks ${formatCharacterLabelMarkup(event.target_id, event.target_name)} with a ${escapeHtml(event.damage_kind ?? "basic")} hit and restores ${escapeHtml(event.mp_restored ?? "?")} MP.`;
     case "ability_used":
       return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} uses ${escapeHtml(event.ability ?? "an ability")} for ${escapeHtml(event.mp_cost ?? "?")} MP.`;
     case "damage":

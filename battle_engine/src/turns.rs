@@ -9,6 +9,13 @@ use crate::rules::{WorldState, evaluate_rules};
 use crate::statuses::StatusMap;
 use crate::targeting::select_target;
 
+pub(crate) const BASIC_ATTACK_ACTION: &str = "Basic Attack";
+
+pub(crate) enum ChosenAction {
+    Ability(String, AbilityDef),
+    BasicAttack,
+}
+
 pub(crate) struct TurnRuntime<'a> {
     pub abilities: &'a AbilityMap,
     pub status_defs: &'a StatusMap,
@@ -89,13 +96,13 @@ pub(crate) fn resolve_target(
     }
 }
 
-pub(crate) fn choose_ability(
+pub(crate) fn choose_action(
     runtime: &TurnRuntime<'_>,
     actor_idx: usize,
     actor_team: &[CharacterState],
     enemy_team: &[CharacterState],
     target_id: u32,
-) -> Option<(String, AbilityDef)> {
+) -> Option<ChosenAction> {
     let target_idx = enemy_team.iter().position(|c| c.id() == target_id)?;
     let target_ref = &enemy_team[target_idx];
     let world = WorldState {
@@ -110,8 +117,11 @@ pub(crate) fn choose_ability(
         world,
         runtime.abilities,
     )?;
+    if ability_name == BASIC_ATTACK_ACTION {
+        return Some(ChosenAction::BasicAttack);
+    }
     let ability_def = runtime.abilities.get(&ability_name)?.clone();
-    Some((ability_name, ability_def))
+    Some(ChosenAction::Ability(ability_name, ability_def))
 }
 
 pub(crate) fn execute_ability_action(
@@ -146,16 +156,49 @@ pub(crate) fn execute_ability_action(
     (event_start, damage_dealt)
 }
 
-pub(crate) fn execute_rest_action(
+pub(crate) fn execute_basic_attack_action(
     runtime: &mut TurnRuntime<'_>,
     actor_idx: usize,
     actor_team: &mut [CharacterState],
-    enemy_team: &[CharacterState],
-) {
-    let restored = actor_team[actor_idx].get_base_stat(&Stat::WIL) / 2;
-    actor_team[actor_idx].restore_mp(restored);
-    runtime.log.push_rest(runtime.step, &actor_team[actor_idx], restored);
+    enemy_team: &mut [CharacterState],
+) -> Vec<DamageRecord> {
+    let target_id = match actor_team[actor_idx].target() {
+        Some(target_id) => target_id,
+        None => return Vec::new(),
+    };
+    let Some(target_idx) = enemy_team.iter().position(|c| c.id() == target_id && c.is_alive()) else {
+        return Vec::new();
+    };
+
+    let raw_damage = (actor_team[actor_idx].get_eff_stat(&Stat::MGT) as i32
+        - enemy_team[target_idx].get_eff_stat(&Stat::ARM) as i32)
+        .max(1) as u32;
+    let damage = enemy_team[target_idx].take_hit(raw_damage);
+    let mp_restored = actor_team[actor_idx].get_base_stat(&Stat::WIL) / 3;
+    actor_team[actor_idx].restore_mp(mp_restored);
+    let actor_id = actor_team[actor_idx].id();
+    let actor_name = actor_team[actor_idx].base_name().to_string();
+    let actor_mp_after = actor_team[actor_idx].current_mp();
+    let target_name = enemy_team[target_idx].base_name().to_string();
+    let target_hp_remaining = enemy_team[target_idx].current_hp();
+
+    runtime.log.push(crate::logger::BattleEvent::BasicAttack {
+        tick_count: runtime.step,
+        actor_id,
+        actor_name,
+        target_id,
+        target_name,
+        damage,
+        target_hp_remaining,
+        mp_restored,
+        actor_mp_after,
+    });
     capture_runtime_snapshot(runtime, actor_team, enemy_team);
+    vec![DamageRecord {
+        source_id: actor_id,
+        target_id,
+        damage,
+    }]
 }
 
 pub(crate) fn finish_turn(

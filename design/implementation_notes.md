@@ -86,7 +86,7 @@ The code and sample data now use this terminology. Remaining references should b
 
 These are real design questions but not yet settled enough to be part of the core spec:
 
-- exact `Rest` recovery rate
+- exact basic-attack MP recovery rate
 - final SPD curve and escalation tuning
 - exact stat point budgets and adjustment caps
 - exact team point budget size

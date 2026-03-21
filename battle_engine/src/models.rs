@@ -23,7 +23,7 @@ pub enum Stat {
     #[serde(rename = "spd")]
     SPD, // Determines how often to act
     #[serde(rename = "wil")]
-    WIL, // Will stat: max MP and Rest recovery
+    WIL, // Will stat: max MP and basic-attack MP recovery
 }
 
 /// Cell on the battle grid (rows 0-2, cols 0-2).

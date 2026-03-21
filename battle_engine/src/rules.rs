@@ -2,6 +2,7 @@
 
 use crate::abilities::AbilityMap;
 use crate::models::{CharacterState, Comparator, Condition, ConditionSubject, QueryValue};
+use crate::turns::BASIC_ATTACK_ACTION;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct WorldState {
@@ -12,7 +13,7 @@ pub struct WorldState {
 
 /// Evaluate the actor's rules in order. Returns the name of the first ability
 /// whose conditions are all met AND whose MP cost the actor can afford.
-/// Returns None if no rule matches (caller should fall back to Rest).
+/// Returns None if no rule matches (caller should fall back to Basic Attack).
 pub fn evaluate_rules(
     actor: &CharacterState,
     target: Option<&CharacterState>,
@@ -21,22 +22,25 @@ pub fn evaluate_rules(
     abilities: &AbilityMap,
 ) -> Option<String> {
     for rule in actor.rules() {
-        if !actor.has_active(&rule.ability) {
+        let is_basic_attack = rule.ability == BASIC_ATTACK_ACTION;
+        if !is_basic_attack && !actor.has_active(&rule.ability) {
             continue;
         }
 
-        let ability_def = match abilities.get(&rule.ability) {
-            Some(def) => def,
-            None => continue,
-        };
+        if !is_basic_attack {
+            let ability_def = match abilities.get(&rule.ability) {
+                Some(def) => def,
+                None => continue,
+            };
 
-        // Check MP cost (reduced by trait, minimum 1)
-        let effective_cost = ability_def
-            .mp_cost
-            .saturating_sub(actor.mp_cost_reduction())
-            .max(1);
-        if actor.current_mp() < effective_cost {
-            continue;
+            // Check MP cost (reduced by trait, minimum 1)
+            let effective_cost = ability_def
+                .mp_cost
+                .saturating_sub(actor.mp_cost_reduction())
+                .max(1);
+            if actor.current_mp() < effective_cost {
+                continue;
+            }
         }
 
         // Check all conditions (AND)
@@ -196,6 +200,25 @@ mod tests {
         let abilities = make_abilities();
         let result = evaluate_rules(&actor, None, &[], world(), &abilities);
         assert_eq!(result.as_deref(), Some("Crush"));
+    }
+
+    #[test]
+    fn basic_attack_rule_matches_without_being_an_active() {
+        let rules = vec![Rule {
+            ability: BASIC_ATTACK_ACTION.to_string(),
+            conditions: vec![Condition {
+                subject: ConditionSubject::Target,
+                value: QueryValue::Hp,
+                comparator: Comparator::Lte,
+                threshold: 5,
+            }],
+        }];
+        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let abilities = make_abilities();
+        let mut target = make_char(1, vec![(Stat::VIT, 10)]);
+        target.take_damage(26);
+        let result = evaluate_rules(&actor, Some(&target), &[], world(), &abilities);
+        assert_eq!(result.as_deref(), Some(BASIC_ATTACK_ACTION));
     }
 
     #[test]

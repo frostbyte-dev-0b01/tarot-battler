@@ -9,6 +9,7 @@ use crate::abilities::{
 };
 use crate::models::{CharacterConfig, ConditionKind, QueryValue, Stat};
 use crate::statuses::{StatusBehavior, StatusDef, StatusMap};
+use crate::turns::BASIC_ATTACK_ACTION;
 
 pub type ArchetypeMap = HashMap<String, ArchetypeTemplate>;
 pub type ItemMap = HashMap<String, ItemDef>;
@@ -329,7 +330,9 @@ fn validate_team(
         }
 
         for rule in &character.rules {
-            if !abilities.contains_key(&rule.ability) {
+            if rule.ability == BASIC_ATTACK_ACTION {
+                // Built-in scripted fallback action.
+            } else if !abilities.contains_key(&rule.ability) {
                 errors.push(format!(
                     "{} has rule for unknown ability '{}'",
                     character.base_name, rule.ability
