@@ -15,7 +15,7 @@
     ]
   },
   "Command": {
-    "description": "One companion immediately makes a 1.0x MGT physical attack against the user's focused enemy.",
+    "description": "One companion immediately makes a Strike physical attack against the user's focused enemy.",
     "mp_cost": 3,
     "primitives": [
       {
@@ -36,26 +36,24 @@
     ]
   },
   "Smite": {
-    "description": "Deal 1.5x MAG damage to the user's focused enemy.",
+    "description": "Deal a Strong magical hit to the user's focused enemy.",
     "mp_cost": 5,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "multiplier": 1.5
+        "power": "strong"
       }
     ]
   },
   "Consecrate": {
-    "description": "Deal 2 + 1.5x MAG damage to the user's focused enemy and 1 + 1.0x MAG damage to that enemy's companions.",
+    "description": "Deal a Strong magical hit to the user's focused enemy and a Strike magical hit to that enemy's companions.",
     "mp_cost": 8,
     "primitives": [
       {
         "kind": "deal_magical_damage_current_target_and_companions",
-        "primary_base_damage": 2,
-        "primary_multiplier": 1.5,
-        "companion_base_damage": 1,
-        "companion_multiplier": 1.0
+        "primary_power": "strong",
+        "companion_power": "strike"
       }
     ]
   },
@@ -78,13 +76,13 @@
     ]
   },
   "Charge": {
-    "description": "Deal 1.2x MGT damage to the user's focused enemy. Then move one row forward if the tile is empty and refocus.",
+    "description": "Deal a Strike physical hit to the user's focused enemy. Then move one row forward if the tile is empty and refocus.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.2,
+        "power": "strike",
         "double_empower_stat": null
       },
       {
@@ -98,13 +96,13 @@
     ]
   },
   "Withdraw": {
-    "description": "Deal 1.0x MGT damage to the user's focused enemy. Then move one row backward if the tile is empty and enemies focusing the user refocus.",
+    "description": "Deal a Strike physical hit to the user's focused enemy. Then move one row backward if the tile is empty and enemies focusing the user refocus.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.0,
+        "power": "strike",
         "double_empower_stat": null
       },
       {
@@ -120,26 +118,25 @@
     ]
   },
   "Breakthrough": {
-    "description": "Deal 1.5x MGT damage to the user's focused enemy. Empower MGT on the user counts double for this attack.",
+    "description": "Deal a Strong physical hit to the user's focused enemy. Empower MGT on the user counts double for this attack.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.5,
+        "power": "strong",
         "double_empower_stat": "mgt"
       }
     ]
   },
   "Hex": {
-    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. Apply Omen 2.",
+    "description": "Deal a Strike magical hit to the user's focused enemy. Apply Omen 2.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "base_damage": 2,
-        "multiplier": 1.0
+        "power": "strike"
       },
       {
         "kind": "apply_status",
@@ -150,14 +147,13 @@
     ]
   },
   "Eclipse": {
-    "description": "Deal 1.0x MAG damage to the user's focused enemy and that enemy's companions. Apply Omen 1 to each.",
+    "description": "Deal a Strike magical hit to the user's focused enemy and that enemy's companions. Apply Omen 1 to each.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target_and_companions",
-        "base_damage": 0,
-        "multiplier": 1.0
+        "power": "strike"
       },
       {
         "kind": "apply_status",
@@ -168,14 +164,13 @@
     ]
   },
   "Harvest Night": {
-    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. Then consume all Omen on that enemy and deal 2 true damage per stack consumed.",
+    "description": "Deal a Strike magical hit to the user's focused enemy. Then consume all Omen on that enemy and deal 2 true damage per stack consumed.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "base_damage": 2,
-        "multiplier": 1.0
+        "power": "strike"
       },
       {
         "kind": "deal_true_damage_consume_target_status",
@@ -225,13 +220,13 @@
     ]
   },
   "Transmute": {
-    "description": "Deal 1.0x MAG damage to the user's focused enemy. Transform that enemy's Empower MGT and Empower ARM into equal Weaken MGT and Weaken ARM.",
+    "description": "Deal a Strike magical hit to the user's focused enemy. Transform that enemy's Empower MGT and Empower ARM into equal Weaken MGT and Weaken ARM.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "multiplier": 1.0
+        "power": "strike"
       },
       {
         "kind": "transform_statuses",
@@ -243,7 +238,7 @@
     ]
   },
   "Condemn": {
-    "description": "Deal 1.5x MGT damage to the user's focused enemy. If that enemy has Omen, this attack instead uses 2.0x MGT.",
+    "description": "Deal a Strong physical hit to the user's focused enemy. If that enemy has Omen, it hits one tier harder (Heavy) instead.",
     "mp_cost": 6,
     "primitives": [
       {
@@ -254,7 +249,7 @@
           {
             "kind": "deal_physical_damage",
             "target": "current_target",
-            "multiplier": 1.5,
+            "power": "strong",
             "double_empower_stat": null
           }
         ]
@@ -267,7 +262,7 @@
           {
             "kind": "deal_physical_damage",
             "target": "current_target",
-            "multiplier": 2.0,
+            "power": "heavy",
             "double_empower_stat": null
           }
         ]
@@ -275,26 +270,25 @@
     ]
   },
   "Verdict": {
-    "description": "Deal 2.0x MGT damage to the user's focused enemy.",
+    "description": "Deal a Heavy physical hit to the user's focused enemy.",
     "mp_cost": 8,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 2.0,
+        "power": "heavy",
         "double_empower_stat": null
       }
     ]
   },
   "Rebuke": {
-    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. That enemy is disoriented.",
+    "description": "Deal a Strike magical hit to the user's focused enemy. That enemy is disoriented.",
     "mp_cost": 3,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "base_damage": 2,
-        "multiplier": 1.0
+        "power": "strike"
       },
       {
         "kind": "retarget",
@@ -320,13 +314,13 @@
     ]
   },
   "Sunder": {
-    "description": "Deal 1.0x MGT damage to the user's focused enemy. Apply Weaken ARM 2.",
+    "description": "Deal a Strike physical hit to the user's focused enemy. Apply Weaken ARM 2.",
     "mp_cost": 2,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.0,
+        "power": "strike",
         "double_empower_stat": null
       },
       {
@@ -339,14 +333,13 @@
     ]
   },
   "Seal": {
-    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. Apply Weaken MAG 4.",
+    "description": "Deal a Strike magical hit to the user's focused enemy. Apply Weaken MAG 4.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "base_damage": 2,
-        "multiplier": 1.0
+        "power": "strike"
       },
       {
         "kind": "apply_status",
@@ -358,13 +351,13 @@
     ]
   },
   "Sever": {
-    "description": "Deal 1.3x MGT damage to the user's focused enemy. Consume that enemy's Empower MGT and Empower ARM, then deal 1 true damage per consumed stack.",
+    "description": "Deal a Strong physical hit to the user's focused enemy. Consume that enemy's Empower MGT and Empower ARM, then deal 1 true damage per consumed stack.",
     "mp_cost": 6,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "multiplier": 1.3,
+        "power": "strong",
         "double_empower_stat": null
       },
       {
@@ -441,14 +434,13 @@
     ]
   },
   "Concuss": {
-    "description": "Deal 2 + 0.8x MGT damage to the user's focused enemy. Apply Stunned 1.",
+    "description": "Deal a Strike physical hit to the user's focused enemy. Apply Stunned 1.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "base_damage": 2,
-        "multiplier": 0.8,
+        "power": "strike",
         "double_empower_stat": null
       },
       {
@@ -475,14 +467,13 @@
     ]
   },
   "Detonate Mark": {
-    "description": "Deal 2 + 1.0x MAG damage to the user's focused enemy. If that enemy is Marked, consume it and deal 6 true damage.",
+    "description": "Deal a Strike magical hit to the user's focused enemy. If that enemy is Marked, consume it and deal 6 true damage.",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "base_damage": 2,
-        "multiplier": 1.0
+        "power": "strike"
       },
       {
         "kind": "if_target_has_condition",
@@ -505,7 +496,7 @@
     ]
   },
   "Pursue": {
-    "description": "Deal 2 + 1.5x MGT damage to a Marked enemy. Consume Marked and focus that enemy.",
+    "description": "Deal a Strong physical hit to a Marked enemy. Consume Marked and focus that enemy.",
     "mp_cost": 5,
     "primitives": [
       {
@@ -521,8 +512,7 @@
           {
             "kind": "deal_physical_damage",
             "target": "bound_enemy",
-            "base_damage": 2,
-            "multiplier": 1.5,
+            "power": "strong",
             "double_empower_stat": null
           },
           {
@@ -568,7 +558,7 @@
     ]
   },
   "Hunt the Weak": {
-    "description": "Deal 2 + 1.0x MGT damage to the lowest-HP enemy and focus that enemy.",
+    "description": "Deal a Strike physical hit to the lowest-HP enemy and focus that enemy.",
     "mp_cost": 4,
     "primitives": [
       {
@@ -581,8 +571,7 @@
           {
             "kind": "deal_physical_damage",
             "target": "bound_enemy",
-            "base_damage": 2,
-            "multiplier": 1.0,
+            "power": "strike",
             "double_empower_stat": null
           },
           {
@@ -610,7 +599,7 @@
     ]
   },
   "Last Rites": {
-    "description": "Deal 2 + 1.5x MAG damage to the lowest-HP enemy.",
+    "description": "Deal a Strong magical hit to the lowest-HP enemy.",
     "mp_cost": 5,
     "primitives": [
       {
@@ -619,8 +608,7 @@
           "category": "enemy",
           "selector": { "kind": "lowest_hp" }
         },
-        "base_damage": 2,
-        "multiplier": 1.5
+        "power": "strong"
       }
     ]
   },

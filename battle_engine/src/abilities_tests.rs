@@ -20,8 +20,7 @@ fn deal_physical_damage_with_multiplier() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            base_damage: 0,
-            multiplier: 1.5,
+            power: PowerTier::Strong,
             double_empower_stat: None,
         }],
     };
@@ -37,6 +36,7 @@ fn deal_physical_damage_with_multiplier() {
         1,
         &empty_statuses(),
     );
+    // Strong (1.5x) physical: round(10 * 1.5 * 12 / (12 + 4)) = round(11.25) = 11.
     assert_eq!(dealt.len(), 1);
     assert_eq!(dealt[0].target_id, 1);
     assert_eq!(dealt[0].damage, 11);
@@ -44,7 +44,7 @@ fn deal_physical_damage_with_multiplier() {
 }
 
 #[test]
-fn deal_magical_damage_with_base_damage_survives_defense() {
+fn deal_magical_damage_strike_survives_defense() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let mut actor_team = vec![make_char(
@@ -58,8 +58,7 @@ fn deal_magical_damage_with_base_damage_survives_defense() {
         mp_cost: 2,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            base_damage: 3,
-            multiplier: 0.8,
+            power: PowerTier::Strike,
         }],
     };
 
@@ -74,9 +73,11 @@ fn deal_magical_damage_with_base_damage_survives_defense() {
         1,
         &empty_statuses(),
     );
+    // A Strike (1.0x) still lands meaningful damage through high defense via ratio
+    // mitigation: round(8 * 1.0 * 12 / (12 + 8)) = round(4.8) = 5.
     assert_eq!(dealt.len(), 1);
-    assert_eq!(dealt[0].damage, 1);
-    assert_eq!(enemy_team[0].current_hp(), 59);
+    assert_eq!(dealt[0].damage, 5);
+    assert_eq!(enemy_team[0].current_hp(), 55);
 }
 
 #[test]
@@ -451,8 +452,7 @@ fn magical_consume_status_damage_scales_with_consumed_stacks() {
         mp_cost: 3,
         primitives: vec![Primitive::DealMagicalDamageConsumeStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
             status: "Omen".to_string(),
             stat: None,
             bonus_per_stack: 1,
@@ -471,7 +471,9 @@ fn magical_consume_status_damage_scales_with_consumed_stacks() {
         &statuses,
     );
 
-    assert_eq!(enemy_team[0].current_hp(), 21);
+    // Strike (1.0x) magical: round(8 * 12 / (12 + 3)) = round(6.4) = 6, plus
+    // 4 consumed Omen stacks * 1 bonus = 4, total 10. 30 - 10 = 20.
+    assert_eq!(enemy_team[0].current_hp(), 20);
     assert_eq!(enemy_team[0].status_stacks("Omen"), 0);
 }
 
@@ -489,8 +491,7 @@ fn magical_consume_status_damage_leaves_target_unchanged_without_status() {
         mp_cost: 3,
         primitives: vec![Primitive::DealMagicalDamageConsumeStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
             status: "Omen".to_string(),
             stat: None,
             bonus_per_stack: 1,
@@ -509,7 +510,9 @@ fn magical_consume_status_damage_leaves_target_unchanged_without_status() {
         &statuses,
     );
 
-    assert_eq!(enemy_team[0].current_hp(), 25);
+    // No Omen present, so no bonus: round(8 * 12 / (12 + 3)) = round(6.4) = 6.
+    // 30 - 6 = 24.
+    assert_eq!(enemy_team[0].current_hp(), 24);
     assert_eq!(enemy_team[0].status_stacks("Omen"), 0);
 }
 
@@ -530,8 +533,7 @@ fn physical_damage_bonus_vs_status_applies_only_when_present() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamageBonusVsStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
             status: "Omen".to_string(),
             stat: None,
             bonus_damage: 3,
@@ -550,7 +552,9 @@ fn physical_damage_bonus_vs_status_applies_only_when_present() {
         &statuses,
     );
 
-    assert_eq!(enemy_team[0].current_hp(), 22);
+    // Strike (1.0x) physical: round(8 * 12 / (12 + 3)) = round(6.4) = 6, plus
+    // bonus_damage 3 because Omen is present = 9. 30 - 9 = 21.
+    assert_eq!(enemy_team[0].current_hp(), 21);
     assert_eq!(enemy_team[0].status_stacks("Omen"), 1);
 }
 
@@ -568,8 +572,7 @@ fn physical_damage_bonus_vs_status_does_not_apply_without_status() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamageBonusVsStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
             status: "Omen".to_string(),
             stat: None,
             bonus_damage: 3,
@@ -588,7 +591,9 @@ fn physical_damage_bonus_vs_status_does_not_apply_without_status() {
         &statuses,
     );
 
-    assert_eq!(enemy_team[0].current_hp(), 25);
+    // No Omen present, so no bonus: round(8 * 12 / (12 + 3)) = round(6.4) = 6.
+    // 30 - 6 = 24.
+    assert_eq!(enemy_team[0].current_hp(), 24);
 }
 
 #[test]
@@ -609,8 +614,7 @@ fn conditional_primitives_execute_only_when_target_has_status() {
         primitives: vec![
             Primitive::DealMagicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
-                base_damage: 0,
-                multiplier: 1.0,
+                power: PowerTier::Strike,
             },
             Primitive::IfTargetHasStatus {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
@@ -655,8 +659,7 @@ fn conditional_primitives_do_not_execute_without_matching_status() {
         primitives: vec![
             Primitive::DealMagicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
-                base_damage: 0,
-                multiplier: 1.0,
+                power: PowerTier::Strike,
             },
             Primitive::IfTargetHasStatus {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
@@ -791,8 +794,7 @@ fn physical_consume_self_statuses_adds_bonus_damage_and_removes_statuses() {
         mp_cost: 3,
         primitives: vec![Primitive::DealPhysicalDamageConsumeSelfStatuses {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
             statuses: vec![
                 StatusRef {
                     status: "Empower".to_string(),
@@ -819,7 +821,9 @@ fn physical_consume_self_statuses_adds_bonus_damage_and_removes_statuses() {
         &statuses,
     );
 
-    assert_eq!(enemy_team[0].current_hp(), 20);
+    // Strike (1.0x) physical with eff MGT 10 (8 + 2 Empower) vs ARM 3:
+    // round(10 * 1.0 * 12 / (12 + 3)) = round(8.0) = 8, plus 3 consumed stacks * 1 = 11.
+    assert_eq!(enemy_team[0].current_hp(), 30 - 11);
     assert_eq!(
         actor_team[0].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
         0
@@ -849,8 +853,7 @@ fn all_enemies_target_resolves_to_all_living() {
         mp_cost: 1,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::AllEnemies.into(),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
             double_empower_stat: None,
         }],
     };
@@ -973,8 +976,7 @@ fn enemy_selector_can_target_backmost_with_row_bypass() {
                 position: Some(PositionalCondition::Backmost),
                 bypass_row_protection: true,
             }),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
             double_empower_stat: None,
         }],
     };
@@ -1019,8 +1021,7 @@ fn enemy_selector_can_target_same_column_enemy() {
                 position: Some(PositionalCondition::SameColumn),
                 bypass_row_protection: false,
             }),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
             double_empower_stat: None,
         }],
     };
@@ -1067,8 +1068,7 @@ fn current_target_and_companions_hits_target_and_living_companions() {
         mp_cost: 2,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
         }],
     };
 
@@ -1105,8 +1105,7 @@ fn current_target_and_companions_handles_missing_target() {
         mp_cost: 2,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
         }],
     };
 
@@ -1605,10 +1604,8 @@ fn split_magical_damage_uses_separate_primary_and_companion_values() {
     let ability = AbilityDef {
         mp_cost: 1,
         primitives: vec![Primitive::DealMagicalDamageCurrentTargetAndCompanions {
-            primary_base_damage: 0,
-            primary_multiplier: 1.0,
-            companion_base_damage: 0,
-            companion_multiplier: 0.5,
+            primary_power: PowerTier::Strong,
+            companion_power: PowerTier::Strike,
         }],
     };
 
@@ -1624,8 +1621,10 @@ fn split_magical_damage_uses_separate_primary_and_companion_values() {
         &empty_statuses(),
     );
 
-    assert_eq!(enemy_team[0].current_hp(), 24);
-    assert_eq!(enemy_team[1].current_hp(), 29);
+    // Primary Strong (1.5x) vs RES 4: round(10 * 1.5 * 12 / (12 + 4)) = round(11.25) = 11.
+    // Companion Strike (1.0x) vs RES 4: round(10 * 1.0 * 12 / (12 + 4)) = round(7.5) = 8.
+    assert_eq!(enemy_team[0].current_hp(), 30 - 11);
+    assert_eq!(enemy_team[1].current_hp(), 30 - 8);
 }
 
 #[test]
@@ -1986,7 +1985,9 @@ fn command_attack_uses_highest_str_living_companion() {
     assert_eq!(dealt.len(), 1);
     assert_eq!(dealt[0].source_id, 1);
     assert_eq!(dealt[0].target_id, 10);
-    assert_eq!(enemy_team[0].current_hp(), 25);
+    // Command attack is a Strike (1.0x) physical hit using commanding companion MGT 8 vs ARM 3:
+    // round(8 * 1.0 * 12 / (12 + 3)) = round(6.4) = 6.
+    assert_eq!(enemy_team[0].current_hp(), 30 - 6);
 }
 
 #[test]
@@ -2006,8 +2007,7 @@ fn ward_negates_physical_ability_damage() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            base_damage: 0,
-            multiplier: 1.5,
+            power: PowerTier::Strong,
             double_empower_stat: None,
         }],
     };
@@ -2046,8 +2046,7 @@ fn ward_negates_magical_ability_damage() {
         mp_cost: 2,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            base_damage: 0,
-            multiplier: 1.5,
+            power: PowerTier::Strong,
         }],
     };
 
@@ -2092,8 +2091,7 @@ fn doubled_empower_stat_increases_only_the_flagged_attack() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
             double_empower_stat: None,
         }],
     };
@@ -2101,8 +2099,7 @@ fn doubled_empower_stat_increases_only_the_flagged_attack() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
             double_empower_stat: Some(Stat::MGT),
         }],
     };
@@ -2131,8 +2128,12 @@ fn doubled_empower_stat_increases_only_the_flagged_attack() {
         &statuses,
     );
 
-    assert_eq!(normal_dealt[0].damage, 8);
-    assert_eq!(payoff_dealt[0].damage, 10);
+    // Normal Strike with eff MGT 12 (10 + 2 Empower) vs ARM 4:
+    // round(12 * 1.0 * 12 / (12 + 4)) = round(9.0) = 9.
+    // Payoff doubles the Empower contribution -> eff MGT 14:
+    // round(14 * 1.0 * 12 / (12 + 4)) = round(10.5) = 11.
+    assert_eq!(normal_dealt[0].damage, 9);
+    assert_eq!(payoff_dealt[0].damage, 11);
 }
 
 #[test]
@@ -2289,8 +2290,7 @@ fn current_target_and_companions_ignores_severed_companions() {
         mp_cost: 1,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
-            base_damage: 0,
-            multiplier: 1.0,
+            power: PowerTier::Strike,
         }],
     };
 

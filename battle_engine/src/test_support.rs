@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::abilities::{AbilityDef, AbilityMap, PassiveMap, Primitive, SimpleAbilityTarget};
+use crate::abilities::{AbilityDef, AbilityMap, PassiveMap, PowerTier, Primitive, SimpleAbilityTarget};
 use crate::engine::BattleState;
 use crate::models::{CharacterConfig, CharacterState, Condition, Position, Rule, Stat};
 use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusMap};
@@ -15,8 +15,7 @@ pub fn empty_abilities() -> AbilityMap {
             mp_cost: 1,
             primitives: vec![Primitive::DealPhysicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
-                base_damage: 0,
-                multiplier: 1.0,
+                power: PowerTier::Strike,
                 double_empower_stat: None,
             }],
         },

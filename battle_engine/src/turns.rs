@@ -171,9 +171,11 @@ pub(crate) fn execute_basic_attack_action(
         return Vec::new();
     };
 
-    let raw_damage = (actor_team[actor_idx].get_eff_stat(&Stat::MGT) as i32
-        - enemy_team[target_idx].get_eff_stat(&Stat::ARM) as i32)
-        .max(1) as u32;
+    // Basic attack is a Strike-tier physical hit using ratio mitigation.
+    let raw_damage = crate::abilities::apply_mitigation(
+        actor_team[actor_idx].get_eff_stat(&Stat::MGT) as f64,
+        enemy_team[target_idx].get_eff_stat(&Stat::ARM),
+    );
     let damage = enemy_team[target_idx].take_hit(raw_damage);
     let mp_restored = actor_team[actor_idx].get_base_stat(&Stat::WIL) / 3;
     actor_team[actor_idx].restore_mp(mp_restored);

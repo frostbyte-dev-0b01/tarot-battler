@@ -14,13 +14,13 @@
   "Empower": {
     "behavior": "stat_mod_per_stack",
     "magnitude": 1,
-    "stack_type": "tick_down",
+    "stack_type": "permanent",
     "opposes": "Weaken"
   },
   "Weaken": {
     "behavior": "stat_mod_per_stack",
     "magnitude": -1,
-    "stack_type": "tick_down",
+    "stack_type": "permanent",
     "opposes": "Empower"
   },
   "Ward": {

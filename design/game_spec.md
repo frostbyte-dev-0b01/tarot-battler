@@ -19,6 +19,7 @@ This file is the primary gameplay spec. It describes the intended game rules, ev
 - Team building matters more than APM or manual execution.
 - Formation, targeting, and rule scripting should create strategic depth.
 - Characters should support tactical archetypes rather than only raw stat efficiency.
+- Depth should come from synergies and trigger webs, not spreadsheet math. Power is expressed as a small set of named tiers rather than fine-grained multipliers, so players optimize interactions, timing, and counterplay instead of tuning decimals.
 - Tarot flavor should live in the roster, names, status vocabulary, and presentation, while the tactical systems remain clear and legible.
 
 ## Match Structure
@@ -381,51 +382,47 @@ This list can expand as the game's tactical needs become clearer.
 
 ## Damage and Defense
 
-Current intended formulas:
+### Damage Tiers
 
-- physical damage: `max(MGT * multiplier - ARM, 1)`
-- magical damage: `max(MAG * multiplier - RES, 1)`
-- omen damage: current stacks as true damage, with no mitigation
-- lethality: flat damage added after normal damage resolution, bypassing `ARM` and `RES`
+Attack power is expressed as one of four named tiers, never a free-form multiplier. Players see a tier (shown as pips), not a decimal:
 
-The current design direction is that many damaging abilities should eventually use:
+- `Strike` (●) — `×1.0`: default single-target, AOE, and utility hits where the rider is the point
+- `Strong` (●●) — `×1.5`: a committed single-target attack
+- `Heavy` (●●●) — `×2.0`: a high-MP power hit
+- `Execute` (●●●●) — `×2.5`: a premium or conditional finisher
 
-- flat base damage
-- plus a stat multiplier
+The underlying multipliers exist only in data; the design language is the tier. Conditions and setups should express their payoff as bumping an attack up a tier — for example, "if the target has `Omen`, `Condemn` hits one tier harder" — rather than swapping raw multipliers. This keeps power legible and pushes design toward interactions instead of decimal tuning.
 
-This helps low-multiplier attacks stay meaningful through defense and creates more room to differentiate reliable hits, splash attacks, and payoff abilities.
+### Damage Formula
 
-Current implementation note:
+Physical and magical hits use ratio-based mitigation:
 
-- the live engine now supports optional `flat base + multiplier` damage on physical and magical hit primitives
-- only part of the bundled roster uses that model so far; multiplier-only attacks remain fully supported
+- `raw = effective attack stat × tier multiplier` (`MGT` for physical, `MAG` for magical)
+- `damage = round(raw * K / (K + defense))`, with a minimum of `1`
+- `K` is a global constant, currently `12` (≈ the midrange stat), so a defense equal to the midrange roughly halves incoming damage
+
+Defense gives smooth diminishing returns: it always matters and never fully negates a hit, and there is no flat armor-subtraction cliff. Attacks carry **no flat base damage**; the `min(1)` floor is a safety net, not a balancing knob.
+
+- physical hits use `MGT` against `ARM`
+- magical hits use `MAG` against `RES`
+- `Omen` resolves separately at start of turn as true damage, bypassing mitigation
+- true damage bypasses mitigation entirely
+- `Lethality`, if it returns, adds flat damage after mitigation
+
+Offensive `Empower` / `Weaken` modify the attack stat before the tier multiplier, so they scale damage cleanly. Defensive `Empower` / `Weaken` on `ARM` / `RES` feed the mitigation term.
 
 ### Damage Resolution Order
 
 For a normal physical or magical hit:
 
-1. calculate effective `MGT` or `MAG`, including active Fortify or Weaken stacks
-2. multiply by the ability multiplier
-3. add any flat base damage on the ability
-4. subtract `ARM` or `RES`
-5. apply the `max(result, 1)` floor
-6. add any `Lethality` stacks flat
-7. apply the result to target HP
+1. calculate effective `MGT` or `MAG`, including active `Empower` or `Weaken` stacks
+2. multiply by the tier multiplier to get `raw`
+3. apply ratio mitigation: `raw * K / (K + effective ARM or RES)`
+4. round and apply the `max(result, 1)` floor
+5. add any `Lethality` stacks flat (bypassing mitigation)
+6. apply the result to target HP
 
 `Omen` resolves separately at start of turn before the character acts.
-
-### Common Ability Multipliers
-
-These are intended balancing anchors, not hard-coded categories:
-
-- sub-`1.0x`: reserved for special low-damage utility attacks such as stun
-- weak hit: around `1.0x`
-- medium hit: around `1.5x`
-- strong hit: around `2.0x`
-- AOE per target: usually around `1.0x`, with lower scaling reserved for rare utility attacks like `Concuss`
-- execute: around `2.0x` to `2.5x`, usually conditional
-
-Multipliers apply before defense subtraction. This means offensive Empower and Weaken effects on `MGT` or `MAG` naturally scale ability damage up or down.
 
 ## Status and Effect System
 
@@ -577,26 +574,15 @@ The intended effect model includes:
 
 ### Decay Model
 
-For timed stacked effects, decay is intentionally allowed to vary by status family.
+Decay varies by status family:
 
-Current live implementation:
-
-- start of turn: `Omen` deals damage, then halves
-- start of turn: `Restoration` heals, then halves
-- end of turn: `Empower` and `Weaken` halve
+- start of turn: `Omen` deals damage, then loses `1` stack (tick-down), so setup/payoff scripting is reliable
+- start of turn: `Restoration` heals, then halves — kept self-limiting on purpose, so sustain stacks are hard to snowball and it never becomes a payoff engine
+- `Empower` and `Weaken` are **permanent**: they do not decay and are removed only by dispel, cleanse, opposing-effect cancellation, or consume effects such as `Sever`, `Transmute`, and `Cleanse the Throne`
 - end of turn: current conditions lose `1` stack unless consumed or removed earlier
+- `Lethality`, if it returns to the live roster, uses halving decay as a short-lived burst window
 
-Future direction currently favored:
-
-- `Omen` should likely move back to tick-down-by-`1` so setup/payoff scripting is more reliable
-- `Restoration` should stay on halving decay so it is hard to stack and does not become a payoff mechanic
-- `Lethality` should also fit the halving-decay family as a short-lived burst window if it returns to the live roster
-- `Empower` and `Weaken` should likely become much stickier, potentially permanent until removed, and harder to apply
-
-Current implementation note:
-
-- the live engine currently uses halving decay for `Omen`, `Restoration`, `Empower`, and `Weaken`
-- the live status catalog has been trimmed to the first-pass set above
+`Empower` and `Weaken` stacks are **capped per stat** (currently `8`) so permanence rewards setup without becoming uncatchable. Because they are sticky, application amounts are a primary balance knob and should stay small.
 
 ## Compound Ability Resolution
 
