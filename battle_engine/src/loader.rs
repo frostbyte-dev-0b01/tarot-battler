@@ -14,6 +14,10 @@ use crate::turns::BASIC_ATTACK_ACTION;
 pub type ArchetypeMap = HashMap<String, ArchetypeTemplate>;
 pub type AspectMap = HashMap<String, AspectDef>;
 
+/// Team-building point budget. The sum of character archetype costs plus aspect
+/// costs must not exceed this. Coarse and intended as a primary tuning knob.
+pub const TEAM_BUDGET: u32 = 14;
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ArchetypeTemplate {
     pub display_name: String,
@@ -23,6 +27,9 @@ pub struct ArchetypeTemplate {
     pub active_pool: Vec<String>,
     #[serde(alias = "item_slots")]
     pub aspect_slots: u32,
+    /// Point cost for the team budget (coarse tier, 1–4).
+    #[serde(default)]
+    pub cost: u32,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -35,6 +42,9 @@ pub struct AspectDef {
     pub passive: Option<String>,
     #[serde(default)]
     pub active: Option<String>,
+    /// Point cost for the team budget (coarse tier, 0–2).
+    #[serde(default)]
+    pub cost: u32,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -188,6 +198,8 @@ pub fn validate_team_config(
         errors.push(format!("team '{}' must contain at least 1 character", team.name));
     }
 
+    let mut seen_templates = HashSet::new();
+    let mut total_cost: u32 = 0;
     for character in &team.characters {
         if !seen_ids.insert(character.id.as_str()) {
             errors.push(format!(
@@ -195,14 +207,33 @@ pub fn validate_team_config(
                 team.name, character.id
             ));
         }
-        if let Some(aspect) = &character.aspect
-            && !seen_aspects.insert(aspect.as_str())
-        {
+        if !seen_templates.insert(character.template_id.as_str()) {
             errors.push(format!(
-                "team '{}' repeats aspect '{}'",
-                team.name, aspect
+                "team '{}' repeats archetype '{}' (one copy of each archetype allowed)",
+                team.name, character.template_id
             ));
         }
+        if let Some(archetype) = archetypes.get(&character.template_id) {
+            total_cost += archetype.cost;
+        }
+        if let Some(aspect) = &character.aspect {
+            if !seen_aspects.insert(aspect.as_str()) {
+                errors.push(format!(
+                    "team '{}' repeats aspect '{}'",
+                    team.name, aspect
+                ));
+            }
+            if let Some(aspect_def) = aspects.get(aspect) {
+                total_cost += aspect_def.cost;
+            }
+        }
+    }
+
+    if total_cost > TEAM_BUDGET {
+        errors.push(format!(
+            "team '{}' costs {} points, over the {}-point budget",
+            team.name, total_cost, TEAM_BUDGET
+        ));
     }
 
     let mut characters = Vec::with_capacity(team.characters.len());
@@ -1044,6 +1075,44 @@ mod tests {
         )
             .unwrap_err();
         assert!(err.contains("duplicate character id 'dup'"));
+    }
+
+    #[test]
+    fn validate_team_config_rejects_over_budget() {
+        let data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data");
+        let archetypes = load_archetypes(&data_dir.join("archetypes.json")).unwrap();
+        let abilities = load_abilities(&data_dir.join("abilities.json")).unwrap();
+        let aspects = load_aspects(&data_dir.join("aspects.json")).unwrap();
+        let passives = load_passives(&data_dir.join("passives.json")).unwrap();
+        let statuses = load_statuses(&data_dir.join("statuses.json")).unwrap();
+
+        // emperor(3)+grace(2) + magician(3)+ruin(2) + chariot(2)+charm(1) + justice(2) = 15 > 14.
+        let make = |id: &str, template: &str, passive: &str, active: &str, aspect: Option<&str>, col: u8| {
+            TeamCharacterLoadout {
+                id: id.to_string(),
+                template_id: template.to_string(),
+                display_name: None,
+                position: crate::models::Position { row: 0, col },
+                passive: passive.to_string(),
+                actives: vec![active.to_string()],
+                aspect: aspect.map(|a| a.to_string()),
+                rules: vec![],
+            }
+        };
+        let team = TeamConfig {
+            version: 2,
+            name: "Spendy".to_string(),
+            characters: vec![
+                make("a", "the_emperor", "Imperial Formation", "Hold the Line", Some("aspect_of_grace"), 0),
+                make("b", "the_magician", "Catalyst", "Offer", Some("aspect_of_ruin"), 1),
+                make("c", "the_chariot", "Pursuit", "Charge", Some("vitality_charm"), 2),
+                make("d", "justice", "Sentence", "Rebuke", None, 3),
+            ],
+        };
+
+        let err = validate_team_config(&team, &archetypes, &aspects, &abilities, &passives, &statuses)
+            .unwrap_err();
+        assert!(err.contains("over the 14-point budget"), "got: {err}");
     }
 
     #[test]

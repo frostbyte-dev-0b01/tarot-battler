@@ -36,6 +36,8 @@ const TEAM_SLOT_POSITIONS = [
   { row: 1, col: 1 },
   { row: 2, col: 1 },
 ];
+// Team-building point budget. Must match TEAM_BUDGET in battle_engine/src/loader.rs.
+const TEAM_BUDGET = 14;
 const ruleSubjectOptions = [
   { value: "self", label: "Self" },
   { value: "target", label: "Target" },
@@ -1533,6 +1535,8 @@ function validateTeamConfig(candidate) {
 function validateTeamCharacters(characters, errors) {
   const seenIds = new Set();
   const seenPositions = new Set();
+  const seenTemplates = new Set();
+  const seenAspects = new Set();
 
   characters.forEach((character, index) => {
     const prefix = `characters[${index}]`;
@@ -1549,6 +1553,22 @@ function validateTeamCharacters(characters, errors) {
       }
     }
 
+    if (typeof character?.template_id === "string" && character.template_id.trim() !== "") {
+      if (seenTemplates.has(character.template_id)) {
+        errors.push(`${prefix}.template_id repeats an archetype; one copy of each archetype is allowed.`);
+      } else {
+        seenTemplates.add(character.template_id);
+      }
+    }
+
+    if (typeof character?.aspect === "string" && character.aspect.trim() !== "") {
+      if (seenAspects.has(character.aspect)) {
+        errors.push(`${prefix}.aspect repeats; one copy of each aspect is allowed.`);
+      } else {
+        seenAspects.add(character.aspect);
+      }
+    }
+
     const row = character?.position?.row;
     const col = character?.position?.col;
     if (Number.isInteger(row) && Number.isInteger(col)) {
@@ -1560,6 +1580,25 @@ function validateTeamCharacters(characters, errors) {
       }
     }
   });
+
+  const spend = computeTeamCost(characters);
+  if (spend > TEAM_BUDGET) {
+    errors.push(`Team costs ${spend} points, over the ${TEAM_BUDGET}-point budget.`);
+  }
+}
+
+// Sum of archetype costs plus aspect costs for a team's characters.
+function computeTeamCost(characters) {
+  if (!Array.isArray(characters)) {
+    return 0;
+  }
+  return characters.reduce((total, character) => {
+    const archetypeCost = Number(getArchetypeDefinition(character?.template_id)?.cost ?? 0);
+    const aspectCost = character?.aspect
+      ? Number(getAspectDefinition(character.aspect)?.cost ?? 0)
+      : 0;
+    return total + archetypeCost + aspectCost;
+  }, 0);
 }
 
 function validateCharacterConfig(candidate, prefix = "character") {
@@ -1830,6 +1869,7 @@ function renderTeamEditor() {
           <input type="text" data-team-field="name" value="${escapeHtml(team.name)}">
         </label>
         ${characterSlots}
+        ${renderBudgetMeter(team)}
         <div class="file-icon-actions" aria-label="Team file actions">
           <button type="button" class="icon-button" data-team-action="open-team-file" title="Open team JSON" aria-label="Open team JSON">📂</button>
           <button type="button" class="icon-button" data-team-action="save-team-file" title="Save team JSON" aria-label="Save team JSON">💾</button>
@@ -1838,6 +1878,16 @@ function renderTeamEditor() {
       ${selectedCharacter ? renderSelectedCharacterWorkspace(selectedCharacter, selectedIndex) : '<div class="board-empty-state">Add a character to begin editing.</div>'}
     </section>
   `;
+}
+
+function renderBudgetMeter(team) {
+  const spend = computeTeamCost(team.characters);
+  const over = spend > TEAM_BUDGET;
+  return `
+    <div class="budget-meter ${over ? "is-over" : ""}" title="Character + aspect point cost vs the team budget">
+      <span class="budget-meter-label">Budget</span>
+      <strong>${spend} / ${TEAM_BUDGET}</strong>
+    </div>`;
 }
 
 function renderCharacterSlots(team) {

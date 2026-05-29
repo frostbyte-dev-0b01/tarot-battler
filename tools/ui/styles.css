@@ -2664,3 +2664,32 @@ textarea:focus-visible {
   font-weight: 700;
   color: var(--ink);
 }
+
+/* Team-building budget meter */
+.budget-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(38, 70, 83, 0.1);
+  color: var(--accent-2);
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.budget-meter strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-meter-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.budget-meter.is-over {
+  background: rgba(162, 59, 42, 0.14);
+  color: var(--accent);
+}
