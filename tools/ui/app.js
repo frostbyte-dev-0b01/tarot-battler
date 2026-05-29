@@ -105,6 +105,8 @@ const appState = {
   timelineFilter: "all",
   teamConfig: null,
   characterLibrary: [],
+  teamRoster: [],
+  activeTeamName: null,
   selectedTeamCharacterIndex: 0,
   teamDetailTab: "design",
   teamDesignRightPane: "loadout",
@@ -812,6 +814,123 @@ renderCharacterLibrary();
 renderTeamValidation(validateTeamConfig(appState.teamConfig));
 void loadEditorCatalogs();
 void loadLatestReplay();
+
+// ===== localStorage persistence: team roster + character library =====
+const STORAGE_TEAMS = "tarot:teams";
+const STORAGE_CHARACTERS = "tarot:characters";
+
+function readStoredArray(key) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) ?? "null");
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStored(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // localStorage may be unavailable (e.g. private mode); state stays in memory.
+  }
+}
+
+function persistRoster() {
+  writeStored(STORAGE_TEAMS, appState.teamRoster);
+}
+
+function persistCharacterLibrary() {
+  writeStored(STORAGE_CHARACTERS, appState.characterLibrary);
+}
+
+function teamDisplayName(team) {
+  return (team?.name || "").trim() || "Untitled Team";
+}
+
+function characterLabel(character) {
+  return (character?.display_name || character?.id || "").trim() || "Character";
+}
+
+function upsertTeamInRoster(team) {
+  const snapshot = structuredClone(team);
+  const name = teamDisplayName(snapshot);
+  snapshot.name = name;
+  const index = appState.teamRoster.findIndex((entry) => teamDisplayName(entry) === name);
+  if (index >= 0) {
+    appState.teamRoster[index] = snapshot;
+  } else {
+    appState.teamRoster.push(snapshot);
+  }
+  appState.activeTeamName = name;
+  persistRoster();
+}
+
+function upsertCharacterInLibrary(character) {
+  const snapshot = structuredClone(character);
+  const label = characterLabel(snapshot);
+  const index = appState.characterLibrary.findIndex((entry) => characterLabel(entry) === label);
+  if (index >= 0) {
+    appState.characterLibrary[index] = snapshot;
+  } else {
+    appState.characterLibrary.push(snapshot);
+  }
+  persistCharacterLibrary();
+}
+
+async function fetchTeamJson(path) {
+  const response = await fetch(path, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`failed ${response.status}`);
+  }
+  return response.json();
+}
+
+async function seedRosterFromBundled() {
+  const teams = [];
+  const seen = new Set();
+  const add = (team) => {
+    if (!team) {
+      return;
+    }
+    const name = teamDisplayName(team);
+    if (seen.has(name)) {
+      return;
+    }
+    seen.add(name);
+    team.name = name;
+    teams.push(team);
+  };
+  add(structuredClone(demoTeam));
+  try {
+    const manifest = await fetchTeamJson(gauntletManifestPath);
+    for (const entry of manifest) {
+      try {
+        add(await fetchTeamJson(`${gauntletTeamsDir}${entry.file}`));
+      } catch {
+        // skip a missing bundled team
+      }
+    }
+  } catch {
+    // no manifest available; roster still has the demo team
+  }
+  return teams;
+}
+
+async function initPersistence() {
+  appState.characterLibrary = readStoredArray(STORAGE_CHARACTERS) ?? [];
+  const storedTeams = readStoredArray(STORAGE_TEAMS);
+  if (storedTeams && storedTeams.length > 0) {
+    appState.teamRoster = storedTeams;
+  } else {
+    appState.teamRoster = await seedRosterFromBundled();
+    persistRoster();
+  }
+  appState.activeTeamName = appState.teamConfig ? teamDisplayName(appState.teamConfig) : null;
+  renderTeamEditor();
+}
+
+void initPersistence();
 
 async function loadEditorCatalogs() {
   try {
@@ -1865,19 +1984,47 @@ function renderTeamEditor() {
   editor.innerHTML = `
     <section class="team-builder-workspace">
       <div class="team-builder-topbar">
-        <label class="field-group team-name-field team-name-field-compact">
-          <input type="text" data-team-field="name" value="${escapeHtml(team.name)}">
-        </label>
-        ${characterSlots}
-        ${renderBudgetMeter(team)}
-        <div class="file-icon-actions" aria-label="Team file actions">
-          <button type="button" class="icon-button" data-team-action="open-team-file" title="Open team JSON" aria-label="Open team JSON">📂</button>
-          <button type="button" class="icon-button" data-team-action="save-team-file" title="Save team JSON" aria-label="Save team JSON">💾</button>
+        <div class="team-manage-row">
+          <div class="roster-controls">
+            <select class="roster-select" data-team-action="roster-select" aria-label="Saved teams">
+              ${renderRosterOptions()}
+            </select>
+            <button type="button" class="button-quiet" data-team-action="save-team-roster" title="Save the current team to your roster">Save</button>
+            <button type="button" class="button-quiet" data-team-action="new-team" title="Start a new team">New</button>
+            <button type="button" class="button-quiet" data-team-action="delete-team-roster" title="Remove this team from your roster">Delete</button>
+          </div>
+          <label class="field-group team-name-field team-name-field-compact">
+            <input type="text" data-team-field="name" value="${escapeHtml(team.name)}">
+          </label>
+          <div class="file-icon-actions" aria-label="Team actions">
+            <button type="button" class="icon-button" data-team-action="open-character-library" title="Character library" aria-label="Character library">📚</button>
+            <button type="button" class="icon-button" data-team-action="open-team-file" title="Import team JSON" aria-label="Import team JSON">📂</button>
+            <button type="button" class="icon-button" data-team-action="save-team-file" title="Export team JSON" aria-label="Export team JSON">💾</button>
+          </div>
+        </div>
+        <div class="team-strip-row">
+          ${characterSlots}
+          ${renderBudgetMeter(team)}
         </div>
       </div>
       ${selectedCharacter ? renderSelectedCharacterWorkspace(selectedCharacter, selectedIndex) : '<div class="board-empty-state">Add a character to begin editing.</div>'}
     </section>
   `;
+}
+
+function renderRosterOptions() {
+  const currentName = appState.teamConfig ? teamDisplayName(appState.teamConfig) : "";
+  const inRoster = appState.teamRoster.some((entry) => teamDisplayName(entry) === currentName);
+  const unsaved = !inRoster && currentName
+    ? `<option value="" selected>${escapeHtml(currentName)} — unsaved</option>`
+    : "";
+  const options = appState.teamRoster
+    .map((entry) => {
+      const name = teamDisplayName(entry);
+      return `<option value="${escapeHtml(name)}" ${inRoster && name === currentName ? "selected" : ""}>${escapeHtml(name)}</option>`;
+    })
+    .join("");
+  return `${unsaved}${options}`;
 }
 
 function renderBudgetMeter(team) {
@@ -1933,8 +2080,8 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
           <button type="button" class="team-detail-tab ${!isDesignTab ? "is-active" : ""}" role="tab" aria-selected="${!isDesignTab ? "true" : "false"}" data-team-action="select-detail-tab" data-detail-tab="rules">Rules</button>
         </div>
         <div class="team-detail-tabbar-actions">
-          <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}" title="Download this character as JSON">Save Character</button>
-          <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}" title="Load a character JSON into this slot">Load Character</button>
+          <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}" title="Save this character build to your library">Save Character</button>
+          <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}" title="Load a saved character into this slot">Load Character</button>
           <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Delete</button>
         </div>
       </div>
@@ -2432,7 +2579,207 @@ async function handleTeamEditorChange(event) {
     return;
   }
 
+  if (target.dataset.teamAction === "roster-select") {
+    loadRosterTeam(target.value);
+    return;
+  }
+
   handleTeamEditorInput(event);
+}
+
+function loadRosterTeam(name) {
+  if (!name) {
+    return;
+  }
+  const entry = appState.teamRoster.find((team) => teamDisplayName(team) === name);
+  if (!entry) {
+    return;
+  }
+  appState.teamConfig = structuredClone(entry);
+  appState.activeTeamName = name;
+  appState.selectedTeamCharacterIndex = 0;
+  appState.expandedRuleIndex = null;
+  appState.teamDetailTab = "design";
+  syncTeamUI();
+}
+
+function createNewTeam() {
+  return {
+    version: 2,
+    name: "New Team",
+    characters: [createEmptyCharacter(0, TEAM_SLOT_POSITIONS[0].row, TEAM_SLOT_POSITIONS[0].col)],
+  };
+}
+
+// ===== Character library overlay =====
+const libraryOverlay = document.querySelector("#library-overlay");
+const libraryCloseButton = document.querySelector("#library-close-button");
+const libraryBody = document.querySelector("#library-body");
+
+libraryCloseButton?.addEventListener("click", () => closeCharacterLibrary());
+libraryOverlay?.addEventListener("click", (event) => {
+  if (event.target === libraryOverlay) {
+    closeCharacterLibrary();
+    return;
+  }
+  handleLibraryAction(event);
+});
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && libraryOverlay && !libraryOverlay.hidden) {
+    closeCharacterLibrary();
+  }
+});
+
+function openCharacterLibrary() {
+  if (!libraryOverlay) {
+    return;
+  }
+  renderCharacterLibraryOverlay();
+  libraryOverlay.hidden = false;
+}
+
+function closeCharacterLibrary() {
+  if (libraryOverlay) {
+    libraryOverlay.hidden = true;
+  }
+  appState.libraryTargetSlot = null;
+}
+
+function renderCharacterLibraryOverlay() {
+  if (!libraryBody) {
+    return;
+  }
+  const lib = appState.characterLibrary;
+  const target = appState.libraryTargetSlot;
+  const intro = typeof target === "number"
+    ? `<p class="library-intro">Choose a saved character to load into slot ${target + 1}.</p>`
+    : `<p class="library-intro">Your saved character builds. Add one to the current team, export it, or import one.</p>`;
+  const list = lib.length === 0
+    ? '<div class="board-empty-state">No saved characters yet. Use “Save Character” on a character to add a reusable build here.</div>'
+    : lib
+        .map((character, index) => {
+          const archetype = getArchetypeDefinition(character.template_id);
+          return `
+            <div class="library-entry">
+              <div class="library-entry-info">
+                <div class="library-entry-name">${escapeHtml(characterLabel(character))}</div>
+                <div class="library-entry-sub">${escapeHtml(archetype?.display_name ?? character.template_id ?? "")} · cost ${archetype?.cost ?? 0}</div>
+              </div>
+              <div class="library-entry-actions">
+                <button type="button" class="button-secondary" data-library-action="use" data-library-index="${index}">${typeof target === "number" ? "Load into slot" : "Add to team"}</button>
+                <button type="button" class="button-quiet" data-library-action="export" data-library-index="${index}">Export</button>
+                <button type="button" class="button-quiet" data-library-action="delete" data-library-index="${index}">Delete</button>
+              </div>
+            </div>`;
+        })
+        .join("");
+  libraryBody.innerHTML = `
+    ${intro}
+    <div class="library-actions">
+      <button type="button" class="button-secondary" data-library-action="import">Import JSON…</button>
+      <input class="visually-hidden" type="file" id="library-import-input" accept=".json,application/json">
+    </div>
+    <div class="library-list">${list}</div>
+  `;
+  const importInput = libraryBody.querySelector("#library-import-input");
+  importInput?.addEventListener("change", () => void importCharacterToLibrary(importInput));
+}
+
+function handleLibraryAction(event) {
+  const actionTarget = event.target.closest?.("[data-library-action]");
+  if (!actionTarget) {
+    return;
+  }
+  const action = actionTarget.dataset.libraryAction;
+  const index = Number(actionTarget.dataset.libraryIndex);
+
+  if (action === "import") {
+    libraryBody?.querySelector("#library-import-input")?.click();
+    return;
+  }
+  if (action === "use") {
+    if (placeLibraryCharacter(index)) {
+      closeCharacterLibrary();
+      syncTeamUI();
+    }
+    return;
+  }
+  if (action === "export") {
+    const character = appState.characterLibrary[index];
+    if (character) {
+      triggerJsonDownload(JSON.stringify(character, null, 2), buildCharacterFilename(character, `character_${index + 1}`));
+    }
+    return;
+  }
+  if (action === "delete") {
+    appState.characterLibrary.splice(index, 1);
+    persistCharacterLibrary();
+    renderCharacterLibraryOverlay();
+  }
+}
+
+async function importCharacterToLibrary(input) {
+  const [file] = input.files ?? [];
+  if (!file) {
+    return;
+  }
+  try {
+    const parsed = JSON.parse(await file.text());
+    const errors = validateCharacterConfig(parsed, "character");
+    if (errors.length > 0) {
+      renderTeamValidation({ ok: false, errors });
+    } else {
+      upsertCharacterInLibrary(parsed);
+      renderCharacterLibraryOverlay();
+    }
+  } catch (error) {
+    renderTeamValidation({ ok: false, errors: [`Could not import character JSON: ${error.message}`] });
+  } finally {
+    input.value = "";
+  }
+}
+
+function uniqueCharacterId(team, desiredId, excludeIndex = -1) {
+  const base = (desiredId || "character").trim() || "character";
+  const taken = new Set(team.characters.filter((_, i) => i !== excludeIndex).map((c) => c.id));
+  if (!taken.has(base)) {
+    return base;
+  }
+  let suffix = 2;
+  while (taken.has(`${base}_${suffix}`)) {
+    suffix += 1;
+  }
+  return `${base}_${suffix}`;
+}
+
+function placeLibraryCharacter(libIndex) {
+  const team = appState.teamConfig;
+  const source = appState.characterLibrary[libIndex];
+  if (!team || !source) {
+    return false;
+  }
+  const character = structuredClone(source);
+  const target = appState.libraryTargetSlot;
+  if (typeof target === "number" && team.characters[target]) {
+    const pos = team.characters[target].position ?? { row: 0, col: 0 };
+    character.position = { row: pos.row, col: pos.col };
+    character.id = uniqueCharacterId(team, character.id, target);
+    team.characters[target] = character;
+    appState.selectedTeamCharacterIndex = target;
+  } else {
+    const slotIndex = findFirstOpenSlotIndex(team);
+    if (slotIndex < 0) {
+      renderTeamValidation({ ok: false, errors: [`A team can have at most ${TEAM_SLOT_POSITIONS.length} characters.`] });
+      return false;
+    }
+    const pos = TEAM_SLOT_POSITIONS[slotIndex];
+    character.position = { row: pos.row, col: pos.col };
+    character.id = uniqueCharacterId(team, character.id);
+    team.characters.push(character);
+    appState.selectedTeamCharacterIndex = team.characters.length - 1;
+  }
+  appState.expandedRuleIndex = null;
+  return true;
 }
 
 function handleTeamEditorAction(event) {
@@ -2457,6 +2804,28 @@ function handleTeamEditorAction(event) {
       return;
     case "save-team-file":
       downloadTeamJson();
+      return;
+    case "save-team-roster":
+      upsertTeamInRoster(team);
+      setTeamValidationStatus("success", `Saved “${teamDisplayName(team)}” to roster`);
+      break;
+    case "new-team":
+      appState.teamConfig = createNewTeam();
+      appState.activeTeamName = null;
+      appState.selectedTeamCharacterIndex = 0;
+      appState.expandedRuleIndex = null;
+      break;
+    case "delete-team-roster": {
+      const name = teamDisplayName(team);
+      appState.teamRoster = appState.teamRoster.filter((entry) => teamDisplayName(entry) !== name);
+      appState.activeTeamName = null;
+      persistRoster();
+      setTeamValidationStatus("idle", `Removed “${name}” from roster`);
+      break;
+    }
+    case "open-character-library":
+      appState.libraryTargetSlot = null;
+      openCharacterLibrary();
       return;
     case "add-character":
       addCharacterAtFirstOpenPosition(team);
@@ -2504,13 +2873,17 @@ function handleTeamEditorAction(event) {
     case "download-team":
       downloadTeamJson();
       break;
-    case "save-character":
-      downloadCharacterJson(characterIndex);
+    case "save-character": {
+      const character = team.characters[characterIndex];
+      if (character) {
+        upsertCharacterInLibrary(character);
+        setTeamValidationStatus("success", `Saved “${characterLabel(character)}” to library`);
+      }
       return;
+    }
     case "load-character":
-      teamEditorConfig.editor
-        .querySelector(`[data-team-action="load-character-file"][data-character-index="${characterIndex}"]`)
-        ?.click();
+      appState.libraryTargetSlot = characterIndex;
+      openCharacterLibrary();
       return;
     case "remove-character":
       team.characters.splice(characterIndex, 1);
