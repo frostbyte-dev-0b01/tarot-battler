@@ -1961,6 +1961,7 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
                   </select>
                 </label>
                 <label class="field-group field-group-compact">
+                  <span>Name</span>
                   <input type="text" data-character-field="display_name" data-character-index="${characterIndex}" value="${escapeHtml(character.display_name ?? "")}">
                 </label>
                 <label class="field-group field-group-compact">
@@ -2069,8 +2070,8 @@ function renderCompactRules(character, characterIndex) {
             <div class="compact-rule-text">${escapeHtml(formatRulePreview(rule))}</div>
           </button>
           <div class="rule-action-row">
-            <button type="button" class="button-quiet rule-icon-button" title="Move rule up" aria-label="Move rule up" data-team-action="move-rule-up" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">&uarr;</button>
-            <button type="button" class="button-quiet rule-icon-button" title="Move rule down" aria-label="Move rule down" data-team-action="move-rule-down" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">&darr;</button>
+            <button type="button" class="button-quiet rule-icon-button" title="Move rule up" aria-label="Move rule up" data-team-action="move-rule-up" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" ${ruleIndex === 0 ? "disabled" : ""}>&uarr;</button>
+            <button type="button" class="button-quiet rule-icon-button" title="Move rule down" aria-label="Move rule down" data-team-action="move-rule-down" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" ${ruleIndex === ruleCount - 1 ? "disabled" : ""}>&darr;</button>
             <button type="button" class="button-quiet rule-icon-button" title="Delete rule" aria-label="Delete rule" data-team-action="remove-rule" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">&#128465;</button>
           </div>
         </div>

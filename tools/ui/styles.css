@@ -352,11 +352,15 @@ main {
 }
 
 .field-group-compact {
-  gap: 0;
+  gap: 4px;
 }
 
 .field-group-compact span {
-  display: none;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
 }
 
 .field-group input,
@@ -694,6 +698,7 @@ main {
   gap: 2px;
   justify-items: start;
   flex: 1 1 auto;
+  min-width: 0;
   padding: 0;
   border: 0;
   background: transparent;
@@ -731,6 +736,9 @@ main {
   color: var(--ink);
   line-height: 1.28;
   font-size: 0.92rem;
+  min-width: 0;
+  justify-self: stretch;
+  overflow-wrap: anywhere;
 }
 
 .selection-browser {
