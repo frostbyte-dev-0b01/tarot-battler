@@ -50,12 +50,10 @@
           ></textarea>
 
           <div class="replay-stage">
-            <aside class="replay-sidebar">
-              <section class="replay-side-panel replay-inspector-shell is-open" data-replay-panel="detail" aria-labelledby="inspector-heading">
+            <aside class="replay-inspector-col">
+              <section class="replay-side-panel replay-inspector-shell" aria-labelledby="inspector-heading">
                 <div class="replay-side-header">
-                  <button class="replay-side-toggle" type="button" data-replay-panel-toggle="detail" aria-expanded="true">
-                    <h3 id="inspector-heading">Character Detail</h3>
-                  </button>
+                  <h3 id="inspector-heading">Character Detail</h3>
                 </div>
                 <div id="inspector-panel" class="replay-side-body inspector-panel">
                   <div class="board-empty-state">
@@ -63,33 +61,23 @@
                   </div>
                 </div>
               </section>
-
-              <section class="replay-side-panel replay-log-shell is-collapsed" data-replay-panel="log" aria-labelledby="timeline-heading">
-                <div class="replay-side-header">
-                  <button class="replay-side-toggle" type="button" data-replay-panel-toggle="log" aria-expanded="false">
-                    <h3 id="timeline-heading">Battle Log</h3>
-                  </button>
-                </div>
-                <div class="replay-side-body timeline-panel-body">
-                  <div id="timeline-list" class="timeline-list">
-                    <div class="board-empty-state">
-                      Load a replay to view the timeline.
-                    </div>
-                  </div>
-                </div>
-              </section>
             </aside>
 
             <section class="replay-main">
               <div class="replay-board-head">
-                <div class="replay-turn-chip">
-                  <span id="current-event-tick">Turn 1</span>
-                  <span id="current-event-index">Step 0</span>
+                <div class="replay-time-chips">
+                  <span class="replay-chip" id="current-event-tick">Tick 0</span>
+                  <span class="replay-chip replay-chip-step" id="current-event-index">Step 0</span>
                 </div>
-                <p id="current-event-text" class="replay-current-text">
-                  Load a replay and move through events to see the current step here.
-                </p>
+                <div class="replay-legend" aria-hidden="true">
+                  <span class="legend-item legend-source">source</span>
+                  <span class="legend-item legend-target">target</span>
+                </div>
               </div>
+
+              <p id="current-event-text" class="replay-narration">
+                Load a replay and move through events to see the current step here.
+              </p>
 
               <section class="replay-arena" aria-labelledby="board-heading">
                 <h3 id="board-heading" class="visually-hidden">Battle Grid</h3>
@@ -104,27 +92,44 @@
 
               <section class="replay-controls-bar" aria-labelledby="playback-heading">
                 <h3 id="playback-heading" class="visually-hidden">Playback Controls</h3>
-                <button id="replay-previous-button" type="button" disabled>&larr; prev</button>
-                <button id="replay-play-button" type="button" disabled>&#9654; play</button>
-                <button id="replay-next-button" type="button" disabled>next &rarr;</button>
+                <div class="replay-control-buttons" role="group" aria-label="Playback">
+                  <button id="replay-restart-button" type="button" title="Restart" aria-label="Restart" disabled>&#8634;</button>
+                  <button id="replay-previous-button" type="button" disabled>&larr; prev</button>
+                  <button id="replay-play-button" type="button" disabled>&#9654; play</button>
+                  <button id="replay-next-button" type="button" disabled>next &rarr;</button>
+                </div>
+                <button id="replay-pause-button" class="visually-hidden" type="button" disabled>Pause</button>
                 <div class="speed-group" role="group" aria-label="Playback speed">
                   <button class="speed-button" type="button" data-speed="0.5">0.5x</button>
                   <button class="speed-button is-active" type="button" data-speed="1">1x</button>
                   <button class="speed-button" type="button" data-speed="2">2x</button>
                   <button class="speed-button" type="button" data-speed="4">4x</button>
                 </div>
+                <input id="replay-event-slider" class="replay-event-slider" type="range" min="0" max="0" value="0" aria-label="Event index" disabled>
                 <div class="replay-step-counter" id="replay-event-label">1 / 1</div>
-                <input id="replay-event-slider" class="visually-hidden" type="range" min="0" max="0" value="0" disabled>
-                <button id="replay-pause-button" class="visually-hidden" type="button" disabled>Pause</button>
-                <button id="replay-restart-button" class="visually-hidden" type="button" disabled>Restart</button>
-                <div class="visually-hidden">
-                  <span>Tick</span>
-                  <strong id="replay-tick-display">0</strong>
-                </div>
-                <input id="timeline-major-only" class="visually-hidden" type="checkbox">
-                <input id="timeline-selected-only" class="visually-hidden" type="checkbox">
+                <strong id="replay-tick-display" class="visually-hidden">0</strong>
               </section>
             </section>
+
+            <aside class="replay-timeline-col">
+              <section class="replay-side-panel replay-log-shell" aria-labelledby="timeline-heading">
+                <div class="replay-side-header replay-side-header-log">
+                  <h3 id="timeline-heading">Battle Log</h3>
+                  <div class="timeline-filters" role="group" aria-label="Timeline filter">
+                    <button type="button" class="filter-chip is-active" data-timeline-filter="all">All</button>
+                    <button type="button" class="filter-chip" data-timeline-filter="major">Major</button>
+                    <button type="button" class="filter-chip" data-timeline-filter="selected" disabled>Selected</button>
+                  </div>
+                </div>
+                <div class="replay-side-body timeline-panel-body">
+                  <div id="timeline-list" class="timeline-list">
+                    <div class="board-empty-state">
+                      Load a replay to view the timeline.
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </aside>
           </div>
         </section>
       </main>
