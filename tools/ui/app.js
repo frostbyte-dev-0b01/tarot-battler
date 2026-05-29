@@ -1925,9 +1925,6 @@ function renderCharacterSlots(team) {
 
 function renderSelectedCharacterWorkspace(character, characterIndex) {
   const isDesignTab = appState.teamDetailTab !== "rules";
-  const designRightPane = appState.teamDesignRightPane ?? "loadout";
-  const archetype = getArchetypeDefinition(character.template_id);
-  const derivedStats = getDerivedCharacterStats(character);
   return `
     <article class="builder-character-workspace">
       <div class="team-detail-tabbar" role="tablist" aria-label="Character editing tabs">
@@ -1936,8 +1933,8 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
           <button type="button" class="team-detail-tab ${!isDesignTab ? "is-active" : ""}" role="tab" aria-selected="${!isDesignTab ? "true" : "false"}" data-team-action="select-detail-tab" data-detail-tab="rules">Rules</button>
         </div>
         <div class="team-detail-tabbar-actions">
-          <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}">Save</button>
-          <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}">Load</button>
+          <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}" title="Download this character as JSON">Save Character</button>
+          <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}" title="Load a character JSON into this slot">Load Character</button>
           <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Delete</button>
         </div>
       </div>
@@ -1945,65 +1942,96 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
       ${
         isDesignTab
           ? `
-            <section class="builder-pane builder-pane-stats">
-              <div class="portrait-card">
-                <div class="portrait-placeholder">${escapeHtml(getCharacterInitials(character))}</div>
-                <div class="portrait-meta">
-                  <div>${escapeHtml(character.display_name || `Character ${characterIndex + 1}`)}</div>
-                  <div>${escapeHtml(formatGridPosition(character.position?.row, character.position?.col))}</div>
-                </div>
+            <div class="builder-design">
+              <div class="builder-design-top">
+                ${renderIdentityCard(character, characterIndex)}
+                <section class="builder-card builder-loadout-card">
+                  <h4 class="builder-card-title">Loadout</h4>
+                  <div class="loadout-list">${renderLoadoutPane(character, characterIndex)}</div>
+                </section>
               </div>
-              <div class="editor-grid">
-                <label class="field-group field-group-compact">
-                  <span>Archetype</span>
-                  <select data-character-field="template_id" data-character-index="${characterIndex}">
-                    ${buildArchetypeOptions(character.template_id ?? "")}
-                  </select>
-                </label>
-                <label class="field-group field-group-compact">
-                  <span>Name</span>
-                  <input type="text" data-character-field="display_name" data-character-index="${characterIndex}" value="${escapeHtml(character.display_name ?? "")}">
-                </label>
-                <label class="field-group field-group-compact">
-                  <span>Row</span>
-                  <select data-position-field="row" data-character-index="${characterIndex}">
-                    <option value="0" ${Number(character.position?.row ?? 0) === 0 ? "selected" : ""}>Front</option>
-                    <option value="1" ${Number(character.position?.row ?? 0) === 1 ? "selected" : ""}>Middle</option>
-                    <option value="2" ${Number(character.position?.row ?? 0) === 2 ? "selected" : ""}>Back</option>
-                  </select>
-                </label>
-                <label class="field-group field-group-compact">
-                  <span>Col</span>
-                  <select data-position-field="col" data-character-index="${characterIndex}">
-                    <option value="0" ${Number(character.position?.col ?? 0) === 0 ? "selected" : ""}>1</option>
-                    <option value="1" ${Number(character.position?.col ?? 0) === 1 ? "selected" : ""}>2</option>
-                    <option value="2" ${Number(character.position?.col ?? 0) === 2 ? "selected" : ""}>3</option>
-                  </select>
-                </label>
-              </div>
-              <div class="editor-inline-grid">
-                ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((statKey) => `
-                  <div class="field-group field-group-readonly">
-                    <span class="stat-label-with-icon">
-                      ${renderStatIcon(statKey)}
-                      <span>${statKey.toUpperCase()}</span>
-                    </span>
-                    <div class="derived-stat-value">${renderDerivedStatValue(
-                      Number(archetype?.stats?.[statKey] ?? 0),
-                      Number(derivedStats?.[statKey] ?? 0),
-                    )}</div>
-                  </div>
-                `).join("")}
-              </div>
-            </section>
-            <section class="builder-pane builder-pane-right ${designRightPane === "browser" ? "selection-browser" : "builder-pane-loadout"}">
-              ${designRightPane === "browser" ? renderSelectionBrowser(character) : renderLoadoutPane(character, characterIndex)}
-            </section>
+              <section class="builder-card builder-browser-card">
+                ${renderSelectionBrowser(character)}
+              </section>
+            </div>
           `
-          : renderRulesWorkspace(character, characterIndex)
+          : `<div class="builder-rules">${renderRulesWorkspace(character, characterIndex)}</div>`
       }
     </article>
   `;
+}
+
+function renderIdentityCard(character, characterIndex) {
+  const archetype = getArchetypeDefinition(character.template_id);
+  const derivedStats = getDerivedCharacterStats(character);
+  const subLine = `${archetype?.display_name ?? character.template_id ?? "Unknown"} · cost ${archetype?.cost ?? 0}`;
+  return `
+    <section class="builder-card builder-identity-card">
+      <div class="identity-head">
+        <div class="portrait-placeholder">${escapeHtml(getCharacterInitials(character))}</div>
+        <div>
+          <div class="identity-name">${escapeHtml(character.display_name || `Character ${characterIndex + 1}`)}</div>
+          <div class="identity-sub">${escapeHtml(subLine)}</div>
+        </div>
+      </div>
+      <div class="identity-fields">
+        <label class="field-group field-group-compact">
+          <span>Archetype</span>
+          <select data-character-field="template_id" data-character-index="${characterIndex}">
+            ${buildArchetypeOptions(character.template_id ?? "")}
+          </select>
+        </label>
+        <label class="field-group field-group-compact">
+          <span>Name</span>
+          <input type="text" data-character-field="display_name" data-character-index="${characterIndex}" value="${escapeHtml(character.display_name ?? "")}">
+        </label>
+      </div>
+      <h4 class="builder-card-title">Formation</h4>
+      ${renderFormationGrid(appState.teamConfig, characterIndex)}
+      <h4 class="builder-card-title">Stats</h4>
+      <div class="editor-inline-grid">
+        ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((statKey) => `
+          <div class="field-group field-group-readonly">
+            <span class="stat-label-with-icon">
+              ${renderStatIcon(statKey)}
+              <span>${statKey.toUpperCase()}</span>
+            </span>
+            <div class="derived-stat-value">${renderDerivedStatValue(
+              Number(archetype?.stats?.[statKey] ?? 0),
+              Number(derivedStats?.[statKey] ?? 0),
+            )}</div>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderFormationGrid(team, selectedIndex) {
+  const rowLabels = ["Front", "Middle", "Back"];
+  let cells = "";
+  for (let row = 0; row < 3; row += 1) {
+    cells += `<span class="formation-row-label">${rowLabels[row]}</span>`;
+    for (let col = 0; col < 3; col += 1) {
+      const occ = findCharacterIndexAtPosition(team, row, col);
+      const occupied = occ >= 0;
+      const isSelected = occ === selectedIndex;
+      const occupant = occupied ? team.characters[occ] : null;
+      const title = occupied
+        ? (occupant.display_name || occupant.id || "Character")
+        : `Move here · ${rowLabels[row].toLowerCase()} row, col ${col + 1}`;
+      cells += `
+        <button
+          type="button"
+          class="formation-cell ${occupied ? "is-filled" : ""} ${isSelected ? "is-selected" : ""}"
+          data-team-action="formation-cell"
+          data-row="${row}"
+          data-col="${col}"
+          title="${escapeHtml(title)}"
+        >${occupied ? escapeHtml(getCharacterInitials(occupant)) : ""}</button>`;
+    }
+  }
+  return `<div class="formation-grid">${cells}</div>`;
 }
 
 function renderLoadoutPane(character, characterIndex) {
@@ -2081,9 +2109,9 @@ function renderCompactRules(character, characterIndex) {
 
   return `
     <div class="builder-pane-header">
-      <div></div>
+      <h4 class="builder-card-title" style="margin:0">Priority Rules</h4>
       <div class="editor-card-actions">
-        <span class="rule-count-label">${ruleCount}/5</span>
+        <span class="rule-count-label">${ruleCount} / 5</span>
         <button type="button" class="button-secondary" data-team-action="add-rule" data-character-index="${characterIndex}" ${canAddRule ? "" : "disabled"}>Add Rule</button>
       </div>
     </div>
@@ -2097,10 +2125,11 @@ function renderRulesWorkspace(character, characterIndex) {
   const selectedRuleIndex = clampValue(appState.expandedRuleIndex ?? 0, 0, Math.max((character.rules?.length ?? 1) - 1, 0));
   const selectedRule = character.rules?.[selectedRuleIndex] ?? null;
   return `
-    <section class="builder-pane builder-pane-rules">
+    <section class="builder-card builder-rules-list">
       ${renderCompactRules(character, characterIndex)}
     </section>
-    <section class="builder-pane builder-pane-rule-editor">
+    <section class="builder-card builder-rules-editor">
+      <h4 class="builder-card-title">Rule Detail</h4>
       ${renderRuleEditor(characterIndex, selectedRule, selectedRuleIndex)}
     </section>
   `;
@@ -2437,23 +2466,30 @@ function handleTeamEditorAction(event) {
       break;
     case "select-detail-tab":
       appState.teamDetailTab = actionTarget.dataset.detailTab === "rules" ? "rules" : "design";
-      if (appState.teamDetailTab === "design") {
-        appState.teamDesignRightPane = "loadout";
-      }
       break;
     case "select-character":
       appState.selectedTeamCharacterIndex = characterIndex;
       appState.expandedRuleIndex = null;
       appState.teamDetailTab = "design";
-      appState.teamDesignRightPane = "loadout";
       break;
     case "focus-browser":
       appState.teamDetailTab = "design";
-      appState.teamDesignRightPane = "browser";
       appState.teamBrowserMode = actionTarget.dataset.browserMode ?? "active";
       appState.teamBrowserSlotIndex = Number(actionTarget.dataset.browserSlotIndex ?? 0);
       appState.selectedTeamCharacterIndex = characterIndex;
       break;
+    case "formation-cell": {
+      const cellRow = Number(actionTarget.dataset.row);
+      const cellCol = Number(actionTarget.dataset.col);
+      const occupant = findCharacterIndexAtPosition(team, cellRow, cellCol);
+      if (occupant >= 0 && occupant !== appState.selectedTeamCharacterIndex) {
+        appState.selectedTeamCharacterIndex = occupant;
+        appState.expandedRuleIndex = null;
+      } else if (occupant < 0) {
+        moveCharacterToPosition(team, appState.selectedTeamCharacterIndex, cellRow, cellCol);
+      }
+      break;
+    }
     case "select-rule":
       appState.teamDetailTab = "rules";
       appState.expandedRuleIndex = ruleIndex;

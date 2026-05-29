@@ -486,13 +486,13 @@ main {
 
 .builder-character-workspace {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
-  align-items: start;
+  min-height: 0;
+  height: 100%;
 }
 
 .team-detail-tabbar {
-  grid-column: 1 / -1;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -758,10 +758,10 @@ main {
 
 .selection-browser-list {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
   gap: 8px;
   min-height: 0;
-  height: 100%;
-  max-height: 100%;
+  align-content: start;
   overflow: auto;
   padding-right: 4px;
 }
@@ -2700,4 +2700,153 @@ textarea:focus-visible {
 .budget-meter.is-over {
   background: rgba(162, 59, 42, 0.14);
   color: var(--accent);
+}
+
+/* ===== Team Builder — M1 "Composer" layout ===== */
+/* Height chain so the workspace fills the panel instead of leaving a void. */
+.panel-team {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+.panel-team > .panel-body {
+  height: 100%;
+  min-height: 0;
+}
+.team-loader-body {
+  grid-template-rows: minmax(0, 1fr);
+}
+.team-editor-shell {
+  height: 100%;
+}
+.team-builder-workspace {
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  gap: 12px;
+}
+
+/* Design tab: identity+loadout on top, persistent browser filling below. */
+.builder-design {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+}
+.builder-design-top {
+  display: grid;
+  grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.builder-rules {
+  display: grid;
+  grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  height: 100%;
+}
+
+.builder-card {
+  border: 1px solid rgba(33, 25, 16, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(251, 247, 238, 0.9);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  min-height: 0;
+}
+.builder-card-title {
+  margin: 0 0 10px;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.builder-card-title:not(:first-child) {
+  margin-top: 14px;
+}
+
+/* The browser card and rules panes scroll internally and fill the void. */
+.builder-browser-card,
+.builder-rules-list,
+.builder-rules-editor {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+.builder-browser-card > .builder-pane-header {
+  margin-bottom: 10px;
+}
+.builder-rules-editor {
+  overflow: auto;
+  display: block;
+}
+
+.identity-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.identity-name {
+  font-weight: 700;
+  font-size: 0.98rem;
+}
+.identity-sub {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.identity-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.formation-grid {
+  display: grid;
+  grid-template-columns: auto repeat(3, 1fr);
+  gap: 6px;
+  align-items: center;
+}
+.formation-row-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding-right: 4px;
+}
+.formation-cell {
+  min-height: 42px;
+  border: 1px dashed rgba(33, 25, 16, 0.22);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.formation-cell.is-filled {
+  border-style: solid;
+  background: rgba(38, 70, 83, 0.08);
+  color: var(--ink);
+}
+.formation-cell.is-selected {
+  background: rgba(162, 59, 42, 0.14);
+  border-color: rgba(162, 59, 42, 0.42);
+  color: var(--accent);
+}
+.formation-cell:hover {
+  border-color: rgba(162, 59, 42, 0.4);
+}
+
+.loadout-list {
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 1080px) {
+  .builder-design-top,
+  .builder-rules {
+    grid-template-columns: 1fr;
+  }
 }
