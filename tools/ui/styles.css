@@ -2443,3 +2443,130 @@ textarea:focus-visible {
   font-size: 1.1rem;
   line-height: 1;
 }
+
+/* Training Arena */
+.arena-shell {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px;
+}
+
+.arena-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.arena-title {
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.arena-sub {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.arena-record-line {
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.arena-results {
+  border: 1px solid rgba(33, 25, 16, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(251, 247, 238, 0.88);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.arena-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.arena-table th {
+  text-align: left;
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid rgba(33, 25, 16, 0.1);
+}
+
+.arena-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(33, 25, 16, 0.06);
+  vertical-align: middle;
+}
+
+.arena-table tbody tr:last-child td,
+.arena-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.arena-opp-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.arena-opp-strategy {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.arena-detail {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.arena-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.arena-badge-win {
+  background: rgba(41, 122, 82, 0.16);
+  color: #1f8f57;
+}
+
+.arena-badge-loss {
+  background: rgba(177, 64, 44, 0.16);
+  color: var(--accent);
+}
+
+.arena-badge-draw {
+  background: rgba(33, 25, 16, 0.1);
+  color: var(--muted);
+}
+
+.arena-badge-error {
+  background: rgba(177, 64, 44, 0.1);
+  color: var(--accent);
+}
+
+.arena-view-button {
+  border: 1px solid rgba(33, 25, 16, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink);
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.arena-view-button:hover {
+  background: rgba(162, 59, 42, 0.1);
+  border-color: rgba(162, 59, 42, 0.28);
+}

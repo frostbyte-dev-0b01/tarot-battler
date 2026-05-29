@@ -13,6 +13,9 @@
           <button class="tab-button is-active" type="button" data-tab-target="team-builder">
             Team Builder
           </button>
+          <button class="tab-button" type="button" data-tab-target="arena">
+            Training Arena
+          </button>
           <button class="tab-button" type="button" data-tab-target="replay-viewer">
             Replay Viewer
           </button>
@@ -37,6 +40,22 @@
                 </div>
               </div>
             </section>
+          </div>
+        </section>
+
+        <section class="workspace" id="arena" aria-label="Training Arena">
+          <div class="arena-shell">
+            <div class="arena-head">
+              <div>
+                <h2 class="arena-title">Training Arena</h2>
+                <p class="arena-sub">Fight your current Team Builder team against a gauntlet of benchmark opponents, then review any battle.</p>
+              </div>
+              <button id="arena-fight-button" type="button" class="button-secondary">⚔ Fight Gauntlet</button>
+            </div>
+            <div id="arena-record" class="arena-record" aria-live="polite"></div>
+            <div id="arena-results" class="arena-results">
+              <div class="board-empty-state">Press “Fight Gauntlet” to run your team against every benchmark team.</div>
+            </div>
           </div>
         </section>
 
