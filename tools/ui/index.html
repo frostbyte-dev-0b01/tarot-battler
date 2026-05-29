@@ -184,6 +184,16 @@
       </div>
     </div>
 
+    <div id="team-library-overlay" class="stats-overlay" hidden>
+      <div class="stats-modal" role="dialog" aria-modal="true" aria-label="Load team">
+        <div class="stats-modal-head">
+          <h3>Load Team</h3>
+          <button id="team-library-close-button" type="button" class="icon-button" aria-label="Close">✕</button>
+        </div>
+        <div id="team-library-body" class="stats-body library-body"></div>
+      </div>
+    </div>
+
     <script type="module">
       // Load the WebAssembly battle engine and expose a ready promise + a
       // run helper that app.js can call to run a battle entirely in-browser.

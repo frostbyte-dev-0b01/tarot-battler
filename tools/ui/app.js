@@ -907,6 +907,60 @@ teamEditorConfig.editor.addEventListener("click", (event) => {
   handleTeamEditorAction(event);
 });
 
+// Pointer-based drag to reposition formation cells (also handles tap-to-select
+// and tap-empty-to-move-selected, so the formation grid needs no click action).
+let formationDrag = null;
+teamEditorConfig.editor.addEventListener("pointerdown", (event) => {
+  const cell = event.target.closest?.(".formation-cell");
+  if (!cell || !appState.teamConfig) {
+    return;
+  }
+  const row = Number(cell.dataset.row);
+  const col = Number(cell.dataset.col);
+  const index = findCharacterIndexAtPosition(appState.teamConfig, row, col);
+  formationDrag = { row, col, index, fromFilled: index >= 0, moved: false, startX: event.clientX, startY: event.clientY };
+  if (index >= 0) {
+    cell.classList.add("is-dragging");
+  }
+  event.preventDefault();
+});
+window.addEventListener("pointermove", (event) => {
+  if (formationDrag && (Math.abs(event.clientX - formationDrag.startX) > 5 || Math.abs(event.clientY - formationDrag.startY) > 5)) {
+    formationDrag.moved = true;
+  }
+});
+window.addEventListener("pointerup", (event) => {
+  if (!formationDrag) {
+    return;
+  }
+  const drag = formationDrag;
+  formationDrag = null;
+  for (const el of teamEditorConfig.editor.querySelectorAll(".formation-cell.is-dragging")) {
+    el.classList.remove("is-dragging");
+  }
+  const team = appState.teamConfig;
+  if (!team) {
+    return;
+  }
+  const targetCell = document.elementFromPoint(event.clientX, event.clientY)?.closest?.(".formation-cell");
+  const targetRow = targetCell ? Number(targetCell.dataset.row) : null;
+  const targetCol = targetCell ? Number(targetCell.dataset.col) : null;
+  const sameCell = targetRow === drag.row && targetCol === drag.col;
+
+  if (drag.fromFilled && targetCell && !sameCell) {
+    moveCharacterToPosition(team, drag.index, targetRow, targetCol); // handles swap
+    syncTeamUI();
+  } else if (drag.fromFilled && sameCell) {
+    appState.selectedTeamCharacterIndex = drag.index;
+    appState.expandedRuleIndex = null;
+    appState.teamDetailTab = "design";
+    syncTeamUI();
+  } else if (!drag.fromFilled && sameCell) {
+    moveCharacterToPosition(team, appState.selectedTeamCharacterIndex, drag.row, drag.col);
+    syncTeamUI();
+  }
+});
+
 resetMetadata();
 resetBoards();
 renderPlaybackControls();
@@ -2147,8 +2201,8 @@ function renderTeamEditor() {
             <input type="text" data-team-field="name" value="${escapeHtml(team.name)}">
           </label>
           <div class="file-icon-actions" aria-label="Team actions">
+            <button type="button" class="button-quiet" data-team-action="open-team-library" title="Load a team from your roster or import JSON">Load Team</button>
             <button type="button" class="icon-button" data-team-action="open-character-library" title="Character library" aria-label="Character library">📚</button>
-            <button type="button" class="icon-button" data-team-action="open-team-file" title="Import team JSON" aria-label="Import team JSON">📂</button>
             <button type="button" class="icon-button" data-team-action="save-team-file" title="Export team JSON" aria-label="Export team JSON">💾</button>
           </div>
         </div>
@@ -2240,7 +2294,7 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
         isDesignTab
           ? `
             <div class="builder-design">
-              <div class="builder-design-top">
+              <div class="builder-design-left">
                 ${renderIdentityCard(character, characterIndex)}
                 <section class="builder-card builder-loadout-card">
                   <h4 class="builder-card-title">Loadout</h4>
@@ -2305,30 +2359,40 @@ function renderIdentityCard(character, characterIndex) {
 }
 
 function renderFormationGrid(team, selectedIndex) {
-  const rowLabels = ["Front", "Middle", "Back"];
-  let cells = "";
-  for (let row = 0; row < 3; row += 1) {
-    cells += `<span class="formation-row-label">${rowLabels[row]}</span>`;
-    for (let col = 0; col < 3; col += 1) {
-      const occ = findCharacterIndexAtPosition(team, row, col);
+  // Facing orientation matching the replay viewer: depth (front/middle/back rows)
+  // runs horizontally with the team's front toward the enemy on the right;
+  // lanes (columns) stack vertically. Cells are repositioned by dragging.
+  const depthOrder = [2, 1, 0]; // back, middle, front (left -> right, facing enemy)
+  const depthLabels = { 0: "Front", 1: "Middle", 2: "Back" };
+  let markup = '<div class="formation-corner"></div>';
+  for (const depth of depthOrder) {
+    markup += `<div class="formation-depth-label">${depthLabels[depth]}</div>`;
+  }
+  for (let lane = 0; lane < 3; lane += 1) {
+    markup += `<div class="formation-lane-label">${lane + 1}</div>`;
+    for (const depth of depthOrder) {
+      const occ = findCharacterIndexAtPosition(team, depth, lane);
       const occupied = occ >= 0;
       const isSelected = occ === selectedIndex;
       const occupant = occupied ? team.characters[occ] : null;
       const title = occupied
-        ? (occupant.display_name || occupant.id || "Character")
-        : `Move here · ${rowLabels[row].toLowerCase()} row, col ${col + 1}`;
-      cells += `
+        ? `${occupant.display_name || occupant.id || "Character"} — drag to move`
+        : `${depthLabels[depth]} row, lane ${lane + 1}`;
+      markup += `
         <button
           type="button"
           class="formation-cell ${occupied ? "is-filled" : ""} ${isSelected ? "is-selected" : ""}"
-          data-team-action="formation-cell"
-          data-row="${row}"
-          data-col="${col}"
+          data-row="${depth}"
+          data-col="${lane}"
           title="${escapeHtml(title)}"
         >${occupied ? escapeHtml(getCharacterInitials(occupant)) : ""}</button>`;
     }
   }
-  return `<div class="formation-grid">${cells}</div>`;
+  return `
+    <div class="formation-wrap">
+      <div class="formation-grid">${markup}</div>
+      <div class="formation-facing" aria-hidden="true">enemy →</div>
+    </div>`;
 }
 
 function renderLoadoutPane(character, characterIndex) {
@@ -2753,6 +2817,136 @@ function loadRosterTeam(name) {
   syncTeamUI();
 }
 
+// ===== Load Team overlay (roster teams + import JSON) =====
+const teamLibraryOverlay = document.querySelector("#team-library-overlay");
+const teamLibraryBody = document.querySelector("#team-library-body");
+document.querySelector("#team-library-close-button")?.addEventListener("click", () => closeTeamLibrary());
+teamLibraryOverlay?.addEventListener("click", (event) => {
+  if (event.target === teamLibraryOverlay) {
+    closeTeamLibrary();
+    return;
+  }
+  handleTeamLibraryAction(event);
+});
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && teamLibraryOverlay && !teamLibraryOverlay.hidden) {
+    closeTeamLibrary();
+  }
+});
+
+function openTeamLibrary() {
+  if (!teamLibraryOverlay) {
+    return;
+  }
+  renderTeamLibrary();
+  teamLibraryOverlay.hidden = false;
+}
+
+function closeTeamLibrary() {
+  if (teamLibraryOverlay) {
+    teamLibraryOverlay.hidden = true;
+  }
+}
+
+function renderTeamLibrary() {
+  if (!teamLibraryBody) {
+    return;
+  }
+  const roster = appState.teamRoster ?? [];
+  const list = roster.length === 0
+    ? '<div class="board-empty-state">No saved teams yet. Build a team and press “Save” to add it to your roster.</div>'
+    : roster
+        .map((team, index) => {
+          const name = teamDisplayName(team);
+          const cost = computeTeamCost(team.characters);
+          const count = team.characters?.length ?? 0;
+          return `
+            <div class="library-entry">
+              <div class="library-entry-info">
+                <div class="library-entry-name">${escapeHtml(name)}</div>
+                <div class="library-entry-sub">${count} characters · ${cost} pts</div>
+              </div>
+              <div class="library-entry-actions">
+                <button type="button" class="button-secondary" data-team-library-action="load" data-team-index="${index}">Load</button>
+                <button type="button" class="button-quiet" data-team-library-action="export" data-team-index="${index}">Export</button>
+                <button type="button" class="button-quiet" data-team-library-action="delete" data-team-index="${index}">Delete</button>
+              </div>
+            </div>`;
+        })
+        .join("");
+  teamLibraryBody.innerHTML = `
+    <p class="library-intro">Load a team from your roster, or import one from JSON.</p>
+    <div class="library-actions">
+      <button type="button" class="button-secondary" data-team-library-action="import">Import JSON…</button>
+      <input class="visually-hidden" type="file" id="team-library-import-input" accept=".json,application/json">
+    </div>
+    <div class="library-list">${list}</div>
+  `;
+  const importInput = teamLibraryBody.querySelector("#team-library-import-input");
+  importInput?.addEventListener("change", () => void importTeamFromFile(importInput));
+}
+
+function handleTeamLibraryAction(event) {
+  const actionTarget = event.target.closest?.("[data-team-library-action]");
+  if (!actionTarget) {
+    return;
+  }
+  const action = actionTarget.dataset.teamLibraryAction;
+  const index = Number(actionTarget.dataset.teamIndex);
+
+  if (action === "import") {
+    teamLibraryBody?.querySelector("#team-library-import-input")?.click();
+    return;
+  }
+  const team = appState.teamRoster[index];
+  if (action === "load") {
+    if (team) {
+      loadRosterTeam(teamDisplayName(team));
+      closeTeamLibrary();
+    }
+    return;
+  }
+  if (action === "export") {
+    if (team) {
+      triggerJsonDownload(JSON.stringify(team, null, 2), `${slugifyFileStem(teamDisplayName(team)) || "team"}.json`);
+    }
+    return;
+  }
+  if (action === "delete") {
+    const name = team ? teamDisplayName(team) : null;
+    appState.teamRoster.splice(index, 1);
+    if (name && appState.activeTeamName === name) {
+      appState.activeTeamName = null;
+    }
+    persistRoster();
+    renderTeamLibrary();
+    renderTeamEditor();
+    renderArena();
+  }
+}
+
+async function importTeamFromFile(input) {
+  const [file] = input.files ?? [];
+  if (!file) {
+    return;
+  }
+  try {
+    const parsed = JSON.parse(await file.text());
+    const validation = validateTeamConfig(parsed);
+    if (!validation.ok) {
+      renderTeamValidation(validation);
+    } else {
+      upsertTeamInRoster(parsed);
+      loadRosterTeam(teamDisplayName(parsed));
+      closeTeamLibrary();
+    }
+  } catch (error) {
+    renderTeamValidation({ ok: false, errors: [`Could not import team JSON: ${error.message}`] });
+  } finally {
+    input.value = "";
+  }
+}
+
 function createNewTeam() {
   return {
     version: 2,
@@ -2949,8 +3143,8 @@ function handleTeamEditorAction(event) {
   }
 
   switch (action) {
-    case "open-team-file":
-      teamEditorConfig.fileInput.click();
+    case "open-team-library":
+      openTeamLibrary();
       return;
     case "save-team-file":
       downloadTeamJson();
@@ -2997,18 +3191,6 @@ function handleTeamEditorAction(event) {
       appState.teamBrowserSlotIndex = Number(actionTarget.dataset.browserSlotIndex ?? 0);
       appState.selectedTeamCharacterIndex = characterIndex;
       break;
-    case "formation-cell": {
-      const cellRow = Number(actionTarget.dataset.row);
-      const cellCol = Number(actionTarget.dataset.col);
-      const occupant = findCharacterIndexAtPosition(team, cellRow, cellCol);
-      if (occupant >= 0 && occupant !== appState.selectedTeamCharacterIndex) {
-        appState.selectedTeamCharacterIndex = occupant;
-        appState.expandedRuleIndex = null;
-      } else if (occupant < 0) {
-        moveCharacterToPosition(team, appState.selectedTeamCharacterIndex, cellRow, cellCol);
-      }
-      break;
-    }
     case "select-rule":
       appState.teamDetailTab = "rules";
       appState.expandedRuleIndex = ruleIndex;
