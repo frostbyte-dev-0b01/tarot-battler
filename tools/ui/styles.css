@@ -8,12 +8,30 @@
   --accent: #a23b2a;
   --accent-2: #264653;
   --accent-soft: rgba(162, 59, 42, 0.1);
-  --shadow: 0 18px 45px rgba(33, 25, 16, 0.12);
-  --radius-lg: 24px;
-  --radius-md: 16px;
-  --radius-sm: 10px;
+  --shadow: 0 8px 24px rgba(33, 25, 16, 0.10);
+  /* Radii — tighter than before for a denser, tool-like feel. */
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-sm: 6px;
+  /* Spacing scale (4px base) — use instead of ad-hoc px. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  /* Type scale (rem, relative to the denser root font-size below). */
+  --text-xs: 0.78rem;
+  --text-sm: 0.86rem;
+  --text-md: 1rem;
+  --text-lg: 1.15rem;
+  --text-xl: 1.4rem;
   --font-display: "Georgia", "Times New Roman", serif;
   --font-body: "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+html {
+  /* Denser base so more fits on laptop screens; fluid across widths. */
+  font-size: clamp(12.5px, 0.45vw + 9px, 14.5px);
 }
 
 * {
@@ -52,10 +70,11 @@ select {
 }
 
 .app-shell {
-  width: min(1500px, calc(100% - 32px));
+  width: min(1600px, calc(100% - var(--s-4)));
   margin: 0 auto;
-  padding: 12px 0 16px;
-  height: 100vh;
+  padding: var(--s-2) 0 var(--s-3);
+  height: 100dvh;
+  min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
 }
@@ -108,14 +127,14 @@ main {
 
 .tab-bar {
   display: inline-flex;
-  gap: 4px;
-  padding: 4px;
+  gap: var(--s-1);
+  padding: 3px;
   border: 1px solid rgba(33, 25, 16, 0.08);
   border-radius: 999px;
   background: rgba(251, 247, 238, 0.78);
   backdrop-filter: blur(12px);
   box-shadow: var(--shadow);
-  margin-bottom: 14px;
+  margin-bottom: 0;
 }
 
 .workspace-topline .tab-bar {
@@ -258,14 +277,14 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: end;
-  gap: 12px;
-  padding: 18px 20px 14px;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4) var(--s-2);
   border-bottom: 1px solid rgba(33, 25, 16, 0.08);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0));
 }
 
 .panel-body {
-  padding: 18px 20px 20px;
+  padding: var(--s-3) var(--s-4);
 }
 
 .collapsible-panel summary {
@@ -389,13 +408,14 @@ main {
 .derived-stat-value {
   display: flex;
   align-items: center;
-  min-height: 46px;
-  padding: 10px 12px;
+  min-height: 28px;
+  padding: var(--s-1) var(--s-2);
   border: 1px solid rgba(33, 25, 16, 0.12);
   border-radius: var(--radius-sm);
   background: rgba(255, 253, 249, 0.9);
   color: var(--ink);
   font-weight: 700;
+  font-size: var(--text-sm);
 }
 
 .button-row {
@@ -451,12 +471,12 @@ main {
 .character-slot-card,
 .character-slot-add {
   width: 100%;
-  min-height: 60px;
+  min-height: 38px;
   border: 1px solid rgba(33, 25, 16, 0.12);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.58);
   color: var(--ink);
-  padding: 8px 10px;
+  padding: var(--s-1) var(--s-2);
   text-align: left;
   cursor: pointer;
 }
@@ -571,13 +591,13 @@ main {
 .portrait-placeholder {
   display: grid;
   place-items: center;
-  width: 92px;
+  width: 44px;
   aspect-ratio: 1;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.7);
   border: 1px dashed var(--line);
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: var(--text-lg);
   font-weight: 700;
 }
 
@@ -591,9 +611,9 @@ main {
 .loadout-slot {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--s-2);
   width: 100%;
-  padding: 9px 10px;
+  padding: var(--s-2);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(33, 25, 16, 0.08);
   background: rgba(33, 25, 16, 0.03);
@@ -768,9 +788,9 @@ main {
 
 .selection-browser-entry {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   width: 100%;
-  padding: 9px 11px;
+  padding: var(--s-2);
   border: 1px solid rgba(33, 25, 16, 0.08);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.55);
@@ -1623,8 +1643,8 @@ textarea:focus-visible {
 
 .replay-stage {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 340px;
-  gap: 12px;
+  grid-template-columns: clamp(200px, 20vw, 280px) minmax(0, 1fr) clamp(240px, 24vw, 340px);
+  gap: var(--s-2);
   min-height: 0;
   height: 100%;
 }
@@ -1703,7 +1723,7 @@ textarea:focus-visible {
 }
 
 .replay-side-header {
-  padding: 10px 12px;
+  padding: var(--s-2) var(--s-3);
   border-bottom: 1px solid rgba(33, 25, 16, 0.08);
 }
 
@@ -1716,7 +1736,7 @@ textarea:focus-visible {
 }
 
 .replay-side-body {
-  padding: 10px;
+  padding: var(--s-2);
   min-height: 0;
   overflow: hidden;
 }
@@ -2777,18 +2797,18 @@ textarea:focus-visible {
   border-radius: var(--radius-md);
   background: rgba(251, 247, 238, 0.9);
   box-shadow: var(--shadow);
-  padding: 16px;
+  padding: var(--s-3);
   min-height: 0;
 }
 .builder-card-title {
-  margin: 0 0 10px;
-  font-size: 0.7rem;
+  margin: 0 0 var(--s-2);
+  font-size: var(--text-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
 }
 .builder-card-title:not(:first-child) {
-  margin-top: 14px;
+  margin-top: var(--s-3);
 }
 
 /* The browser card and rules panes scroll internally and fill the void. */
@@ -2810,21 +2830,21 @@ textarea:focus-visible {
 .identity-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
 }
 .identity-name {
   font-weight: 700;
-  font-size: 0.98rem;
+  font-size: var(--text-md);
 }
 .identity-sub {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 .identity-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: var(--s-2);
 }
 
 .formation-wrap {
@@ -2864,13 +2884,13 @@ textarea:focus-visible {
   text-align: right;
 }
 .formation-cell {
-  min-height: 42px;
+  min-height: 30px;
   border: 1px dashed rgba(33, 25, 16, 0.22);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--muted);
   font-weight: 700;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   cursor: pointer;
   touch-action: none;
 }
