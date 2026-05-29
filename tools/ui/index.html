@@ -49,9 +49,13 @@
             <div class="arena-head">
               <div>
                 <h2 class="arena-title">Training Arena</h2>
-                <p class="arena-sub">Simulate your current team against teams from your roster. Each matchup runs many battles across varied seeds and reports a win rate with a 95% confidence interval.</p>
+                <p class="arena-sub" id="arena-sub">Simulate a team from your roster against the others. Each matchup runs many battles across varied seeds and reports a win rate with a 95% confidence interval.</p>
               </div>
               <div class="arena-controls">
+                <div class="arena-mode" role="group" aria-label="Arena mode">
+                  <button type="button" class="arena-mode-btn is-active" data-arena-mode="test">Test a Team</button>
+                  <button type="button" class="arena-mode-btn" data-arena-mode="roundrobin">Round Robin</button>
+                </div>
                 <label class="arena-runs">Battles each
                   <input id="arena-run-count" type="number" min="1" max="2000" value="50">
                 </label>
