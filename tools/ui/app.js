@@ -1041,7 +1041,77 @@ async function initPersistence() {
 
 void initPersistence();
 
+// Wait for the WASM module loader (a deferred module script) to publish the
+// engine-ready promise, then resolve it.
+async function waitForEngineReady(timeoutMs = 8000) {
+  const start = Date.now();
+  while (typeof window.tarotEngineReady === "undefined") {
+    if (Date.now() - start > timeoutMs) {
+      return false;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return await window.tarotEngineReady;
+}
+
+function applyCatalogs(archetypes, passives, abilities, aspects, statuses) {
+  appState.catalogs.archetypes = archetypes;
+  appState.catalogs.archetypeIds = Object.keys(archetypes).sort();
+  appState.catalogs.passives = Object.keys(passives).sort();
+  appState.catalogs.abilities = Object.keys(abilities).sort();
+  appState.catalogs.aspects = Object.keys(aspects).sort();
+  appState.catalogs.statuses = buildRuleStatusOptions(statuses);
+  appState.catalogs.conditions = [...conditionCatalog];
+  appState.catalogs.passiveDescriptions = Object.fromEntries(
+    Object.entries(passives).map(([name, definition]) => [name, definition?.description ?? ""]),
+  );
+  appState.catalogs.abilityDefinitions = abilities;
+  appState.catalogs.abilityDescriptions = Object.fromEntries(
+    Object.entries(abilities).map(([name, definition]) => [name, definition?.description ?? ""]),
+  );
+  appState.catalogs.aspectDescriptions = Object.fromEntries(
+    Object.entries(aspects).map(([name, definition]) => [name, definition?.description ?? ""]),
+  );
+  appState.catalogs.aspectDefinitions = aspects;
+  renderTeamEditor();
+}
+
+function applyEmptyCatalogs() {
+  appState.catalogs.archetypes = {};
+  appState.catalogs.archetypeIds = [];
+  appState.catalogs.passives = [];
+  appState.catalogs.abilities = [];
+  appState.catalogs.aspects = [];
+  appState.catalogs.statuses = [...ruleStatusCatalog];
+  appState.catalogs.conditions = [...conditionCatalog];
+  appState.catalogs.passiveDescriptions = {};
+  appState.catalogs.abilityDefinitions = {};
+  appState.catalogs.abilityDescriptions = {};
+  appState.catalogs.aspectDescriptions = {};
+  appState.catalogs.aspectDefinitions = {};
+}
+
 async function loadEditorCatalogs() {
+  // Preferred: read the catalogs the engine embeds, so the static site needs no
+  // separate data fetch (works on GitHub Pages without publishing engine source).
+  try {
+    const ready = await waitForEngineReady();
+    if (ready && typeof window.tarotCatalog === "function") {
+      const get = (name) => {
+        try {
+          return JSON.parse(window.tarotCatalog(name) ?? "null") ?? {};
+        } catch {
+          return {};
+        }
+      };
+      applyCatalogs(get("archetypes"), get("passives"), get("abilities"), get("aspects"), get("statuses"));
+      return;
+    }
+  } catch {
+    // fall through to the fetch fallback
+  }
+
+  // Fallback: fetch the engine data files (works when served from the repo root).
   try {
     const [archetypeResponse, passiveResponse, abilityResponse, aspectResponse, statusResponse] = await Promise.all([
       fetch(archetypeCatalogPath, { cache: "no-store" }),
@@ -1065,38 +1135,9 @@ async function loadEditorCatalogs() {
       statusResponse?.ok ? statusResponse.json() : Promise.resolve({}),
     ]);
 
-    appState.catalogs.archetypes = archetypes;
-    appState.catalogs.archetypeIds = Object.keys(archetypes).sort();
-    appState.catalogs.passives = Object.keys(passives).sort();
-    appState.catalogs.abilities = Object.keys(abilities).sort();
-    appState.catalogs.aspects = Object.keys(aspects).sort();
-    appState.catalogs.statuses = buildRuleStatusOptions(statuses);
-    appState.catalogs.conditions = [...conditionCatalog];
-    appState.catalogs.passiveDescriptions = Object.fromEntries(
-      Object.entries(passives).map(([name, definition]) => [name, definition?.description ?? ""]),
-    );
-    appState.catalogs.abilityDefinitions = abilities;
-    appState.catalogs.abilityDescriptions = Object.fromEntries(
-      Object.entries(abilities).map(([name, definition]) => [name, definition?.description ?? ""]),
-    );
-    appState.catalogs.aspectDescriptions = Object.fromEntries(
-      Object.entries(aspects).map(([name, definition]) => [name, definition?.description ?? ""]),
-    );
-    appState.catalogs.aspectDefinitions = aspects;
-    renderTeamEditor();
-  } catch (_error) {
-    appState.catalogs.archetypes = {};
-    appState.catalogs.archetypeIds = [];
-    appState.catalogs.passives = [];
-    appState.catalogs.abilities = [];
-    appState.catalogs.aspects = [];
-    appState.catalogs.statuses = [...ruleStatusCatalog];
-    appState.catalogs.conditions = [...conditionCatalog];
-    appState.catalogs.passiveDescriptions = {};
-    appState.catalogs.abilityDefinitions = {};
-    appState.catalogs.abilityDescriptions = {};
-    appState.catalogs.aspectDescriptions = {};
-    appState.catalogs.aspectDefinitions = {};
+    applyCatalogs(archetypes, passives, abilities, aspects, statuses);
+  } catch {
+    applyEmptyCatalogs();
   }
 }
 
@@ -1288,7 +1329,7 @@ function renderCurrentReplay() {
     replayEventLabel.textContent = "0 / 0";
     currentEventTick.textContent = "Tick 0";
     currentEventIndex.textContent = "Step 0";
-    currentEventText.textContent = "Load a replay and move through events to see the current step here.";
+    currentEventText.textContent = "No replay loaded — run battles in the Training Arena or with “Run Battle”, or open a replay JSON.";
     renderTimeline();
     renderInspector(null);
     return;
@@ -1533,7 +1574,7 @@ function renderBattleBoard(container, replayState) {
   const currentEventTargetId = getEventTargetId(currentEvent);
 
   if (!replayState) {
-    container.innerHTML = '<div class="board-empty-state">Load a replay to view the battle grid.</div>';
+    container.innerHTML = '<div class="board-empty-state">No replay loaded. Run battles in the Training Arena, use “Run Battle”, or open a replay JSON.</div>';
     return;
   }
 

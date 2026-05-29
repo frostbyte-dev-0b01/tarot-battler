@@ -187,11 +187,14 @@
     <script type="module">
       // Load the WebAssembly battle engine and expose a ready promise + a
       // run helper that app.js can call to run a battle entirely in-browser.
-      import init, { run_battle } from "./engine/battle_engine.js";
+      import init, { run_battle, catalog_json } from "./engine/battle_engine.js";
       window.tarotEngineReady = init()
         .then(() => {
           window.runBattleWasm = (teamAJson, teamBJson, seed) =>
             run_battle(teamAJson, teamBJson, (seed >>> 0));
+          // Expose embedded content-data catalogs so the team builder needs no
+          // separate data fetch (keeps the static site self-contained).
+          window.tarotCatalog = (name) => catalog_json(name);
           return true;
         })
         .catch((error) => {
