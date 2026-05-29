@@ -2930,3 +2930,88 @@ textarea:focus-visible {
   gap: 6px;
   flex-shrink: 0;
 }
+
+/* ===== Arena meta sandbox ===== */
+.arena-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.arena-runs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.arena-runs input {
+  width: 72px;
+  border: 1px solid rgba(33, 25, 16, 0.15);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 253, 249, 0.9);
+  color: var(--ink);
+  padding: 7px 8px;
+}
+.arena-attacker {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+}
+.arena-attacker-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+.arena-attacker-sub {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.arena-foes {
+  border: 1px solid rgba(33, 25, 16, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(251, 247, 238, 0.7);
+  padding: 12px 14px;
+}
+.arena-foes-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+.arena-foes-tools {
+  display: inline-flex;
+  gap: 4px;
+}
+.arena-foe-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px 14px;
+}
+.arena-foe {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.arena-foe-self {
+  font-size: 0.68rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.arena-progress {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+.arena-ci {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

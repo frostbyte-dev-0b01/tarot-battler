@@ -232,6 +232,9 @@ for (const button of tabButtons) {
     if (targetId === "replay-viewer" && !appState.replay) {
       void loadLatestReplay();
     }
+    if (targetId === "arena") {
+      renderArena();
+    }
   });
 }
 
@@ -418,69 +421,172 @@ async function ensureBattleEngineReady() {
 }
 
 arenaFightButton?.addEventListener("click", () => {
-  void fightGauntlet();
+  void runArenaSimulation();
 });
 
-async function fightGauntlet() {
+const arenaFoesEl = document.querySelector("#arena-foes");
+arenaFoesEl?.addEventListener("change", (event) => {
+  const checkbox = event.target.closest?.("[data-arena-foe]");
+  if (!checkbox) {
+    return;
+  }
+  appState.arenaSelectedFoes = appState.arenaSelectedFoes ?? new Set();
+  if (checkbox.checked) {
+    appState.arenaSelectedFoes.add(checkbox.dataset.arenaFoe);
+  } else {
+    appState.arenaSelectedFoes.delete(checkbox.dataset.arenaFoe);
+  }
+});
+arenaFoesEl?.addEventListener("click", (event) => {
+  const toggle = event.target.closest?.("[data-arena-foe-all]");
+  if (!toggle) {
+    return;
+  }
+  const attackerName = appState.teamConfig ? teamDisplayName(appState.teamConfig) : null;
+  appState.arenaSelectedFoes = new Set(
+    toggle.dataset.arenaFoeAll === "1"
+      ? appState.teamRoster.map(teamDisplayName).filter((name) => name !== attackerName)
+      : [],
+  );
+  renderArenaFoes();
+});
+
+function renderArena() {
+  renderArenaAttacker();
+  renderArenaFoes();
+}
+
+function renderArenaAttacker() {
+  const el = document.querySelector("#arena-attacker");
+  if (!el) {
+    return;
+  }
+  const team = appState.teamConfig;
+  el.innerHTML = team
+    ? `<span class="arena-attacker-label">Your team</span><strong>${escapeHtml(teamDisplayName(team))}</strong><span class="arena-attacker-sub">${team.characters?.length ?? 0} characters</span>`
+    : '<span class="arena-attacker-label">Your team</span><span class="arena-attacker-sub">Build or load a team in the Team Builder first.</span>';
+}
+
+function renderArenaFoes() {
+  const el = document.querySelector("#arena-foes");
+  if (!el) {
+    return;
+  }
+  const attackerName = appState.teamConfig ? teamDisplayName(appState.teamConfig) : null;
+  const foes = appState.teamRoster ?? [];
+  if (foes.length === 0) {
+    el.innerHTML = '<div class="board-empty-state">Your roster is empty. Save teams in the Team Builder to fight them here.</div>';
+    return;
+  }
+  if (!appState.arenaSelectedFoes) {
+    appState.arenaSelectedFoes = new Set(foes.map(teamDisplayName).filter((name) => name !== attackerName));
+  }
+  const items = foes
+    .map((team) => {
+      const name = teamDisplayName(team);
+      const checked = appState.arenaSelectedFoes.has(name) ? "checked" : "";
+      const isAttacker = name === attackerName ? '<span class="arena-foe-self">your team</span>' : "";
+      return `<label class="arena-foe"><input type="checkbox" data-arena-foe="${escapeHtml(name)}" ${checked}><span>${escapeHtml(name)}</span>${isAttacker}</label>`;
+    })
+    .join("");
+  el.innerHTML = `
+    <div class="arena-foes-head">
+      <span>Opponents (from your roster)</span>
+      <span class="arena-foes-tools">
+        <button type="button" class="button-quiet" data-arena-foe-all="1">All</button>
+        <button type="button" class="button-quiet" data-arena-foe-all="0">None</button>
+      </span>
+    </div>
+    <div class="arena-foe-list">${items}</div>`;
+}
+
+function wilsonInterval(wins, n) {
+  if (n <= 0) {
+    return [0, 0];
+  }
+  const z = 1.96;
+  const z2 = z * z;
+  const p = wins / n;
+  const denom = 1 + z2 / n;
+  const center = (p + z2 / (2 * n)) / denom;
+  const margin = (z * Math.sqrt((p * (1 - p) + z2 / (4 * n)) / n)) / denom;
+  return [Math.max(0, center - margin), Math.min(1, center + margin)];
+}
+
+async function runArenaSimulation() {
   if (!(await ensureBattleEngineReady())) {
     renderArenaMessage("Battle engine failed to load. Rebuild it with tools/ui/build-engine.sh and reload.");
     return;
   }
   if (!appState.teamConfig) {
-    renderArenaMessage("Load or build a valid team in the Team Builder before entering the arena.");
+    renderArenaMessage("Build or load a team in the Team Builder before simulating.");
     return;
   }
 
-  let gauntlet;
-  try {
-    const response = await fetch(gauntletManifestPath, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`request failed with ${response.status}`);
-    }
-    gauntlet = await response.json();
-  } catch (error) {
-    renderArenaMessage(`Could not load the gauntlet manifest: ${error.message}`);
+  const attackerName = teamDisplayName(appState.teamConfig);
+  const teamAJson = JSON.stringify(appState.teamConfig);
+  const selected = appState.teamRoster.filter(
+    (team) => appState.arenaSelectedFoes?.has(teamDisplayName(team)) && teamDisplayName(team) !== attackerName,
+  );
+  if (selected.length === 0) {
+    renderArenaMessage("Select at least one opponent from your roster (you can't fight your own team).");
     return;
   }
 
+  const runs = clampValue(Math.round(Number(document.querySelector("#arena-run-count")?.value) || 1), 1, 2000);
+  const progress = document.querySelector("#arena-progress");
   arenaFightButton.disabled = true;
   arenaRecord.textContent = "";
-  arenaResults.innerHTML = '<div class="board-empty-state">Running battles…</div>';
+  arenaResults.innerHTML = "";
   arenaReplayStore.clear();
+  if (progress) {
+    progress.hidden = false;
+  }
 
-  const teamAJson = JSON.stringify(appState.teamConfig);
   const rows = [];
-  for (const entry of gauntlet) {
-    const row = {
-      name: entry.name ?? entry.file,
-      strategy: entry.strategy ?? "",
-      result: "error",
-      detail: "",
-    };
-    try {
-      const oppResponse = await fetch(`${gauntletTeamsDir}${entry.file}`, { cache: "no-store" });
-      if (!oppResponse.ok) {
-        throw new Error(`opponent request failed with ${oppResponse.status}`);
+  const total = selected.length * runs;
+  let done = 0;
+  for (const foe of selected) {
+    const foeName = teamDisplayName(foe);
+    const teamBJson = JSON.stringify(foe);
+    const row = { name: foeName, wins: 0, losses: 0, draws: 0, errors: 0, runs };
+    for (let seed = 0; seed < runs; seed += 1) {
+      try {
+        const resultJson = window.runBattleWasm(teamAJson, teamBJson, seed);
+        const parsed = JSON.parse(resultJson);
+        if (parsed && typeof parsed.error === "string") {
+          row.errors += 1;
+        } else {
+          if (parsed.winner === "team_a") {
+            row.wins += 1;
+          } else if (parsed.winner === "team_b") {
+            row.losses += 1;
+          } else {
+            row.draws += 1;
+          }
+          if (seed === 0) {
+            arenaReplayStore.set(foeName, resultJson);
+          }
+        }
+      } catch {
+        row.errors += 1;
       }
-      const oppJson = await oppResponse.text();
-      const resultJson = window.runBattleWasm(teamAJson, oppJson, 42);
-      const parsed = JSON.parse(resultJson);
-      if (parsed && typeof parsed.error === "string") {
-        row.detail = parsed.error;
-      } else {
-        row.result = parsed.winner === "team_a" ? "win" : parsed.winner === "team_b" ? "loss" : "draw";
-        row.detail = `${parsed.tick_count ?? "?"} ticks`;
-        row.file = entry.file;
-        arenaReplayStore.set(entry.file, resultJson);
+      done += 1;
+      if (done % 20 === 0) {
+        if (progress) {
+          progress.textContent = `Simulating… ${done} / ${total} battles`;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
-    } catch (error) {
-      row.detail = error.message;
     }
     rows.push(row);
   }
 
+  if (progress) {
+    progress.hidden = true;
+  }
   arenaFightButton.disabled = false;
-  renderArenaResults(rows);
+  renderArenaResults(rows, runs);
 }
 
 function renderArenaMessage(message) {
@@ -488,34 +594,36 @@ function renderArenaMessage(message) {
   arenaResults.innerHTML = `<div class="board-empty-state">${escapeHtml(message)}</div>`;
 }
 
-function renderArenaResults(rows) {
-  const wins = rows.filter((row) => row.result === "win").length;
-  const losses = rows.filter((row) => row.result === "loss").length;
-  const draws = rows.filter((row) => row.result === "draw").length;
-  arenaRecord.innerHTML = `<span class="arena-record-line"><strong>${wins}W</strong> – <strong>${losses}L</strong>${draws ? ` – ${draws}D` : ""} vs the gauntlet</span>`;
+function formatPct(value) {
+  return `${Math.round(value * 100)}%`;
+}
+
+function renderArenaResults(rows, runs) {
+  const totalWins = rows.reduce((sum, row) => sum + row.wins, 0);
+  const totalLosses = rows.reduce((sum, row) => sum + row.losses, 0);
+  const totalDraws = rows.reduce((sum, row) => sum + row.draws, 0);
+  const decisive = totalWins + totalLosses;
+  const [lo, hi] = wilsonInterval(totalWins, Math.max(decisive, 1));
+  const overall = decisive ? totalWins / decisive : 0;
+  arenaRecord.innerHTML = `<span class="arena-record-line">Overall <strong>${totalWins}W – ${totalLosses}L${totalDraws ? ` – ${totalDraws}D` : ""}</strong> · win rate <strong>${formatPct(overall)}</strong> <span class="arena-ci">[${formatPct(lo)}–${formatPct(hi)}]</span> over ${runs} battles each</span>`;
 
   const body = rows
     .map((row) => {
-      const badge =
-        row.result === "win"
-          ? '<span class="arena-badge arena-badge-win">Win</span>'
-          : row.result === "loss"
-            ? '<span class="arena-badge arena-badge-loss">Loss</span>'
-            : row.result === "draw"
-              ? '<span class="arena-badge arena-badge-draw">Draw</span>'
-              : '<span class="arena-badge arena-badge-error">Error</span>';
-      const action =
-        row.file && arenaReplayStore.has(row.file)
-          ? `<button type="button" class="arena-view-button" data-arena-replay="${escapeHtml(row.file)}">View replay</button>`
-          : "";
+      const rowDecisive = row.wins + row.losses;
+      const [rlo, rhi] = wilsonInterval(row.wins, Math.max(rowDecisive, 1));
+      const pct = rowDecisive ? row.wins / rowDecisive : 0;
+      const cls = pct >= 0.55 ? "arena-badge-win" : pct <= 0.45 ? "arena-badge-loss" : "arena-badge-draw";
+      const ciText = rowDecisive ? `[${formatPct(rlo)}–${formatPct(rhi)}]` : "—";
+      const wld = `${row.wins}–${row.losses}${row.draws ? `–${row.draws}D` : ""}${row.errors ? ` · ${row.errors} err` : ""}`;
+      const action = arenaReplayStore.has(row.name)
+        ? `<button type="button" class="arena-view-button" data-arena-replay="${escapeHtml(row.name)}">View replay</button>`
+        : "";
       return `
         <tr>
-          <td>
-            <div class="arena-opp-name">${escapeHtml(row.name)}</div>
-            <div class="arena-opp-strategy">${escapeHtml(row.strategy)}</div>
-          </td>
-          <td>${badge}</td>
-          <td class="arena-detail">${escapeHtml(row.detail)}</td>
+          <td class="arena-opp-name">${escapeHtml(row.name)}</td>
+          <td><span class="arena-badge ${cls}">${formatPct(pct)}</span></td>
+          <td class="arena-detail arena-ci">${escapeHtml(ciText)}</td>
+          <td class="arena-detail">${escapeHtml(wld)}</td>
           <td>${action}</td>
         </tr>`;
     })
@@ -524,7 +632,7 @@ function renderArenaResults(rows) {
   arenaResults.innerHTML = `
     <table class="arena-table">
       <thead>
-        <tr><th>Opponent</th><th>Result</th><th>Length</th><th></th></tr>
+        <tr><th>Opponent</th><th>Win %</th><th>95% CI</th><th>W–L</th><th></th></tr>
       </thead>
       <tbody>${body}</tbody>
     </table>`;
@@ -928,6 +1036,7 @@ async function initPersistence() {
   }
   appState.activeTeamName = appState.teamConfig ? teamDisplayName(appState.teamConfig) : null;
   renderTeamEditor();
+  renderArena();
 }
 
 void initPersistence();
