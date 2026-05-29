@@ -2294,15 +2294,13 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
         isDesignTab
           ? `
             <div class="builder-design">
-              <div class="builder-design-left">
-                ${renderIdentityCard(character, characterIndex)}
-                <section class="builder-card builder-loadout-card">
-                  <h4 class="builder-card-title">Loadout</h4>
-                  <div class="loadout-list">${renderLoadoutPane(character, characterIndex)}</div>
-                </section>
-              </div>
+              ${renderIdentityCard(character, characterIndex)}
               <section class="builder-card builder-browser-card">
                 ${renderSelectionBrowser(character)}
+              </section>
+              <section class="builder-card builder-loadout-card">
+                <h4 class="builder-card-title">Loadout</h4>
+                <div class="loadout-list">${renderLoadoutPane(character, characterIndex)}</div>
               </section>
             </div>
           `
@@ -2525,20 +2523,19 @@ function renderSelectionBrowser(character) {
       </div>
       <div class="editor-card-actions">
         <span class="browser-current-label">${escapeHtml(currentLabel || "Nothing selected")}</span>
+        <button
+          type="button"
+          class="button-quiet browser-clear-button"
+          data-team-action="select-browser-entry"
+          data-browser-mode="${mode}"
+          data-browser-slot-index="${slotIndex}"
+          data-entry-value=""
+          ${currentValue === "" || currentValue == null ? "disabled" : ""}
+          title="Remove the current ${mode === "active" ? `Active ${slotIndex + 1}` : mode}"
+        >Clear</button>
       </div>
     </div>
     <div class="selection-browser-list">
-      <button
-        type="button"
-        class="selection-browser-entry ${currentValue === "" || currentValue == null ? "is-selected" : ""}"
-        data-team-action="select-browser-entry"
-        data-browser-mode="${mode}"
-        data-browser-slot-index="${slotIndex}"
-        data-entry-value=""
-      >
-        <strong>Clear Selection</strong>
-        <span>Remove the current ${mode === "active" ? `Active ${slotIndex + 1}` : mode}.</span>
-      </button>
       ${
         entries.length === 0
           ? `<div class="board-empty-state">${mode === "aspect" ? "Aspects are not in the catalog yet." : "No entries are available for this browser."}</div>`
