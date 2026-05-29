@@ -107,6 +107,10 @@ const appState = {
   characterLibrary: [],
   teamRoster: [],
   activeTeamName: null,
+  arenaMode: "test",
+  arenaAttackerName: null,
+  arenaResultView: "winrate",
+  lastRoundRobin: null,
   selectedTeamCharacterIndex: 0,
   teamDetailTab: "design",
   teamDesignRightPane: "loadout",
@@ -421,7 +425,48 @@ async function ensureBattleEngineReady() {
 }
 
 arenaFightButton?.addEventListener("click", () => {
-  void runArenaSimulation();
+  if (appState.arenaMode === "roundrobin") {
+    void runRoundRobin();
+  } else {
+    void runArenaSimulation();
+  }
+});
+
+for (const modeBtn of document.querySelectorAll("[data-arena-mode]")) {
+  modeBtn.addEventListener("click", () => {
+    appState.arenaMode = modeBtn.dataset.arenaMode === "roundrobin" ? "roundrobin" : "test";
+    for (const btn of document.querySelectorAll("[data-arena-mode]")) {
+      btn.classList.toggle("is-active", btn.dataset.arenaMode === appState.arenaMode);
+    }
+    const sub = document.querySelector("#arena-sub");
+    if (sub) {
+      sub.textContent = appState.arenaMode === "roundrobin"
+        ? "Tick the teams to include; every selected team fights every other across many seeded battles. Results show a head-to-head matrix and ranked standings."
+        : "Simulate a team from your roster against the others. Each matchup runs many battles across varied seeds and reports a win rate with a 95% confidence interval.";
+    }
+    arenaRecord.textContent = "";
+    arenaResults.innerHTML = '<div class="board-empty-state">Pick teams and press Simulate.</div>';
+    renderArena();
+  });
+}
+
+document.querySelector("#arena-attacker")?.addEventListener("change", (event) => {
+  const select = event.target.closest?.("#arena-attacker-select");
+  if (select) {
+    appState.arenaAttackerName = select.value;
+    renderArenaFoes();
+  }
+});
+
+document.querySelector("#arena")?.addEventListener("click", (event) => {
+  const toggle = event.target.closest?.("[data-arena-view]");
+  if (!toggle) {
+    return;
+  }
+  appState.arenaResultView = toggle.dataset.arenaView === "wl" ? "wl" : "winrate";
+  if (appState.lastRoundRobin) {
+    renderRoundRobinResults(appState.lastRoundRobin.names, appState.lastRoundRobin.matrix, appState.lastRoundRobin.runs);
+  }
 });
 
 const arenaFoesEl = document.querySelector("#arena-foes");
@@ -442,11 +487,8 @@ arenaFoesEl?.addEventListener("click", (event) => {
   if (!toggle) {
     return;
   }
-  const attackerName = appState.teamConfig ? teamDisplayName(appState.teamConfig) : null;
   appState.arenaSelectedFoes = new Set(
-    toggle.dataset.arenaFoeAll === "1"
-      ? appState.teamRoster.map(teamDisplayName).filter((name) => name !== attackerName)
-      : [],
+    toggle.dataset.arenaFoeAll === "1" ? appState.teamRoster.map(teamDisplayName) : [],
   );
   renderArenaFoes();
 });
@@ -456,15 +498,45 @@ function renderArena() {
   renderArenaFoes();
 }
 
+function arenaAttackerTeam() {
+  const roster = appState.teamRoster ?? [];
+  return roster.find((team) => teamDisplayName(team) === appState.arenaAttackerName) ?? null;
+}
+
 function renderArenaAttacker() {
   const el = document.querySelector("#arena-attacker");
   if (!el) {
     return;
   }
-  const team = appState.teamConfig;
-  el.innerHTML = team
-    ? `<span class="arena-attacker-label">Your team</span><strong>${escapeHtml(teamDisplayName(team))}</strong><span class="arena-attacker-sub">${team.characters?.length ?? 0} characters</span>`
-    : '<span class="arena-attacker-label">Your team</span><span class="arena-attacker-sub">Build or load a team in the Team Builder first.</span>';
+  if (appState.arenaMode === "roundrobin") {
+    el.hidden = true;
+    el.innerHTML = "";
+    return;
+  }
+  el.hidden = false;
+  const roster = appState.teamRoster ?? [];
+  if (roster.length === 0) {
+    el.innerHTML = '<span class="arena-attacker-label">Team under test</span><span class="arena-attacker-sub">Save a team in the Team Builder first.</span>';
+    return;
+  }
+  // Default the team under test to the active/edited team, else the first roster team.
+  if (!appState.arenaAttackerName || !roster.some((team) => teamDisplayName(team) === appState.arenaAttackerName)) {
+    appState.arenaAttackerName =
+      appState.activeTeamName && roster.some((team) => teamDisplayName(team) === appState.activeTeamName)
+        ? appState.activeTeamName
+        : teamDisplayName(roster[0]);
+  }
+  const options = roster
+    .map((team) => {
+      const name = teamDisplayName(team);
+      return `<option value="${escapeHtml(name)}" ${name === appState.arenaAttackerName ? "selected" : ""}>${escapeHtml(name)}</option>`;
+    })
+    .join("");
+  el.innerHTML = `
+    <label class="arena-attacker-pick">
+      <span class="arena-attacker-label">Team under test</span>
+      <select id="arena-attacker-select">${options}</select>
+    </label>`;
 }
 
 function renderArenaFoes() {
@@ -472,7 +544,8 @@ function renderArenaFoes() {
   if (!el) {
     return;
   }
-  const attackerName = appState.teamConfig ? teamDisplayName(appState.teamConfig) : null;
+  const roundRobin = appState.arenaMode === "roundrobin";
+  const attackerName = roundRobin ? null : appState.arenaAttackerName;
   const foes = appState.teamRoster ?? [];
   if (foes.length === 0) {
     el.innerHTML = '<div class="board-empty-state">Your roster is empty. Save teams in the Team Builder to fight them here.</div>';
@@ -485,13 +558,13 @@ function renderArenaFoes() {
     .map((team) => {
       const name = teamDisplayName(team);
       const checked = appState.arenaSelectedFoes.has(name) ? "checked" : "";
-      const isAttacker = name === attackerName ? '<span class="arena-foe-self">your team</span>' : "";
-      return `<label class="arena-foe"><input type="checkbox" data-arena-foe="${escapeHtml(name)}" ${checked}><span>${escapeHtml(name)}</span>${isAttacker}</label>`;
+      const marker = !roundRobin && name === attackerName ? '<span class="arena-foe-self">team under test</span>' : "";
+      return `<label class="arena-foe"><input type="checkbox" data-arena-foe="${escapeHtml(name)}" ${checked}><span>${escapeHtml(name)}</span>${marker}</label>`;
     })
     .join("");
   el.innerHTML = `
     <div class="arena-foes-head">
-      <span>Opponents (from your roster)</span>
+      <span>${roundRobin ? "Teams to include" : "Opponents (from your roster)"}</span>
       <span class="arena-foes-tools">
         <button type="button" class="button-quiet" data-arena-foe-all="1">All</button>
         <button type="button" class="button-quiet" data-arena-foe-all="0">None</button>
@@ -518,13 +591,14 @@ async function runArenaSimulation() {
     renderArenaMessage("Battle engine failed to load. Rebuild it with tools/ui/build-engine.sh and reload.");
     return;
   }
-  if (!appState.teamConfig) {
-    renderArenaMessage("Build or load a team in the Team Builder before simulating.");
+  const attacker = arenaAttackerTeam();
+  if (!attacker) {
+    renderArenaMessage("Choose a team to test (save one in the Team Builder first).");
     return;
   }
 
-  const attackerName = teamDisplayName(appState.teamConfig);
-  const teamAJson = JSON.stringify(appState.teamConfig);
+  const attackerName = teamDisplayName(attacker);
+  const teamAJson = JSON.stringify(attacker);
   const selected = appState.teamRoster.filter(
     (team) => appState.arenaSelectedFoes?.has(teamDisplayName(team)) && teamDisplayName(team) !== attackerName,
   );
@@ -648,6 +722,186 @@ function renderArenaResults(rows, runs) {
       loadReplayFromText(replay.trim());
     });
   }
+}
+
+async function runRoundRobin() {
+  if (!(await ensureBattleEngineReady())) {
+    renderArenaMessage("Battle engine failed to load. Rebuild it with tools/ui/build-engine.sh and reload.");
+    return;
+  }
+  const teams = (appState.teamRoster ?? []).filter((team) => appState.arenaSelectedFoes?.has(teamDisplayName(team)));
+  if (teams.length < 2) {
+    renderArenaMessage("Tick at least two teams to run a round robin.");
+    return;
+  }
+
+  const runs = clampValue(Math.round(Number(document.querySelector("#arena-run-count")?.value) || 1), 1, 2000);
+  const names = teams.map(teamDisplayName);
+  const json = teams.map((team) => JSON.stringify(team));
+  const n = teams.length;
+  const matrix = Array.from({ length: n }, () =>
+    Array.from({ length: n }, () => ({ wins: 0, losses: 0, draws: 0 })),
+  );
+
+  const progress = document.querySelector("#arena-progress");
+  arenaFightButton.disabled = true;
+  arenaRecord.textContent = "";
+  arenaResults.innerHTML = "";
+  if (progress) {
+    progress.hidden = false;
+  }
+
+  const total = ((n * (n - 1)) / 2) * runs;
+  let done = 0;
+  for (let i = 0; i < n; i += 1) {
+    for (let j = i + 1; j < n; j += 1) {
+      for (let seed = 0; seed < runs; seed += 1) {
+        // Alternate which side is team A across seeds to neutralize first-mover bias.
+        const iHome = seed % 2 === 0;
+        const teamA = iHome ? json[i] : json[j];
+        const teamB = iHome ? json[j] : json[i];
+        try {
+          const parsed = JSON.parse(window.runBattleWasm(teamA, teamB, seed));
+          if (!parsed || typeof parsed.error === "string") {
+            matrix[i][j].draws += 1;
+            matrix[j][i].draws += 1;
+          } else {
+            const iWon = (parsed.winner === "team_a") === iHome && parsed.winner !== "draw";
+            const jWon = (parsed.winner === "team_b") === iHome && parsed.winner !== "draw";
+            if (parsed.winner === "draw") {
+              matrix[i][j].draws += 1;
+              matrix[j][i].draws += 1;
+            } else if (iWon) {
+              matrix[i][j].wins += 1;
+              matrix[j][i].losses += 1;
+            } else if (jWon) {
+              matrix[i][j].losses += 1;
+              matrix[j][i].wins += 1;
+            }
+          }
+        } catch {
+          matrix[i][j].draws += 1;
+          matrix[j][i].draws += 1;
+        }
+        done += 1;
+        if (done % 20 === 0) {
+          if (progress) {
+            progress.textContent = `Simulating… ${done} / ${total} battles`;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      }
+    }
+  }
+
+  if (progress) {
+    progress.hidden = true;
+  }
+  arenaFightButton.disabled = false;
+  appState.lastRoundRobin = { names, matrix, runs };
+  renderRoundRobinResults(names, matrix, runs);
+}
+
+function recordWinRate(rec) {
+  const decisive = rec.wins + rec.losses;
+  return decisive ? rec.wins / decisive : 0;
+}
+
+function formatRecordCell(rec, view) {
+  if (rec.wins + rec.losses + rec.draws === 0) {
+    return "—";
+  }
+  if (view === "wl") {
+    return `${rec.wins}–${rec.losses}${rec.draws ? `–${rec.draws}d` : ""}`;
+  }
+  return formatPct(recordWinRate(rec));
+}
+
+function renderRoundRobinResults(names, matrix, runs) {
+  const view = appState.arenaResultView === "wl" ? "wl" : "winrate";
+  const n = names.length;
+
+  // Standings: aggregate each team's record across all its matchups.
+  const standings = names.map((name, i) => {
+    const total = { wins: 0, losses: 0, draws: 0 };
+    for (let j = 0; j < n; j += 1) {
+      if (j === i) {
+        continue;
+      }
+      total.wins += matrix[i][j].wins;
+      total.losses += matrix[i][j].losses;
+      total.draws += matrix[i][j].draws;
+    }
+    return { name, total, rate: recordWinRate(total) };
+  });
+  standings.sort((a, b) => b.rate - a.rate || b.total.wins - a.total.wins);
+
+  const viewToggle = `
+    <div class="arena-view-toggle" role="group" aria-label="Result format">
+      <button type="button" class="arena-view-btn ${view === "winrate" ? "is-active" : ""}" data-arena-view="winrate">Win %</button>
+      <button type="button" class="arena-view-btn ${view === "wl" ? "is-active" : ""}" data-arena-view="wl">W–L</button>
+    </div>`;
+  arenaRecord.innerHTML = `<span class="arena-record-line">Round robin · ${n} teams · ${runs} battles per pairing</span>${viewToggle}`;
+
+  const standingsRows = standings
+    .map((entry, rank) => {
+      const value = view === "wl"
+        ? `${entry.total.wins}–${entry.total.losses}${entry.total.draws ? `–${entry.total.draws}d` : ""}`
+        : formatPct(entry.rate);
+      return `
+        <tr>
+          <td class="arena-rank">${rank + 1}</td>
+          <td class="arena-opp-name">${escapeHtml(entry.name)}</td>
+          <td>${escapeHtml(value)}</td>
+        </tr>`;
+    })
+    .join("");
+
+  const headerCells = names.map((name) => `<th class="arena-matrix-col" title="${escapeHtml(name)}">${escapeHtml(abbreviateName(name))}</th>`).join("");
+  const matrixRows = names
+    .map((rowName, i) => {
+      const cells = names
+        .map((_, j) => {
+          if (i === j) {
+            return '<td class="arena-matrix-self">—</td>';
+          }
+          const rec = matrix[i][j];
+          const rate = recordWinRate(rec);
+          const cls = (rec.wins + rec.losses) === 0 ? "" : rate >= 0.55 ? "arena-cell-win" : rate <= 0.45 ? "arena-cell-loss" : "";
+          return `<td class="arena-matrix-cell ${cls}">${escapeHtml(formatRecordCell(rec, view))}</td>`;
+        })
+        .join("");
+      return `<tr><th class="arena-matrix-row" title="${escapeHtml(rowName)}">${escapeHtml(abbreviateName(rowName))}</th>${cells}</tr>`;
+    })
+    .join("");
+
+  arenaResults.innerHTML = `
+    <div class="arena-rr">
+      <section class="arena-rr-block">
+        <h4 class="arena-rr-title">Standings</h4>
+        <table class="arena-table">
+          <thead><tr><th>#</th><th>Team</th><th>${view === "wl" ? "Record" : "Win %"}</th></tr></thead>
+          <tbody>${standingsRows}</tbody>
+        </table>
+      </section>
+      <section class="arena-rr-block">
+        <h4 class="arena-rr-title">Head-to-head (row vs column)</h4>
+        <div class="arena-matrix-scroll">
+          <table class="arena-matrix">
+            <thead><tr><th></th>${headerCells}</tr></thead>
+            <tbody>${matrixRows}</tbody>
+          </table>
+        </div>
+      </section>
+    </div>`;
+}
+
+function abbreviateName(name) {
+  return name
+    .split(/\s+/)
+    .map((word) => word[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 4) || name.slice(0, 4);
 }
 
 replayStatsButton?.addEventListener("click", () => {
