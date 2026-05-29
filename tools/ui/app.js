@@ -78,20 +78,17 @@ const replayInlineActions = document.querySelector("#replay-inline-actions");
 const currentEventTick = document.querySelector("#current-event-tick");
 const currentEventIndex = document.querySelector("#current-event-index");
 const currentEventText = document.querySelector("#current-event-text");
-const timelineMajorOnlyInput = document.querySelector("#timeline-major-only");
-const timelineSelectedOnlyInput = document.querySelector("#timeline-selected-only");
-const timelineSelectedOnlyLabel = timelineSelectedOnlyInput.closest(".toggle-pill");
+const timelineFilterButtons = document.querySelectorAll("[data-timeline-filter]");
 const timelineList = document.querySelector("#timeline-list");
 const inspectorPanel = document.querySelector("#inspector-panel");
 const battleBoard = document.querySelector("#battle-board");
-const replaySidebarPanels = document.querySelectorAll("[data-replay-panel]");
-const replaySidebarToggles = document.querySelectorAll("[data-replay-panel-toggle]");
 const appState = {
   replay: null,
   selectedEventIndex: -1,
   selectedCharacterId: null,
   playbackTimerId: null,
   playbackSpeed: 1,
+  timelineFilter: "all",
   teamConfig: null,
   characterLibrary: [],
   selectedTeamCharacterIndex: 0,
@@ -236,29 +233,27 @@ function setActiveWorkspace(targetId) {
   replayInlineActions?.classList.toggle("is-visible", targetId === "replay-viewer");
 }
 
-function setActiveReplaySidebarPanel(panelName) {
-  for (const panel of replaySidebarPanels) {
-    const isActive = panel.dataset.replayPanel === panelName;
-    panel.classList.toggle("is-open", isActive);
-    panel.classList.toggle("is-collapsed", !isActive);
-  }
-
-  for (const toggle of replaySidebarToggles) {
-    const isActive = toggle.dataset.replayPanelToggle === panelName;
-    toggle.setAttribute("aria-expanded", isActive ? "true" : "false");
-  }
-
-  if (panelName === "log") {
-    window.requestAnimationFrame(() => {
-      const selectedEvent = timelineList?.querySelector(".timeline-event.is-selected");
-      selectedEvent?.scrollIntoView({ block: "center" });
-    });
-  }
+function scrollSelectedTimelineEventIntoView() {
+  window.requestAnimationFrame(() => {
+    const selectedEvent = timelineList?.querySelector(".timeline-event.is-selected");
+    selectedEvent?.scrollIntoView({ block: "nearest" });
+  });
 }
 
-for (const toggle of replaySidebarToggles) {
-  toggle.addEventListener("click", () => {
-    setActiveReplaySidebarPanel(toggle.dataset.replayPanelToggle);
+function setTimelineFilter(filter) {
+  appState.timelineFilter = filter;
+  for (const button of timelineFilterButtons) {
+    button.classList.toggle("is-active", button.dataset.timelineFilter === filter);
+  }
+  renderTimeline();
+}
+
+for (const button of timelineFilterButtons) {
+  button.addEventListener("click", () => {
+    if (button.disabled) {
+      return;
+    }
+    setTimelineFilter(button.dataset.timelineFilter);
   });
 }
 
@@ -396,13 +391,6 @@ replayEventSlider?.addEventListener("input", (event) => {
   setSelectedEventIndex(sliderValue - 1);
 });
 
-timelineMajorOnlyInput?.addEventListener("change", () => {
-  renderTimeline();
-});
-
-timelineSelectedOnlyInput?.addEventListener("change", () => {
-  renderTimeline();
-});
 
 window.addEventListener("keydown", (event) => {
   if (shouldIgnoreGlobalKeydown(event)) {
@@ -770,10 +758,15 @@ function renderPlaybackControls() {
   replayEventSlider.max = String(sliderMax);
   replayEventSlider.value = String(sliderValue);
   replayFileButton.disabled = false;
-  timelineSelectedOnlyInput.disabled = !appState.selectedCharacterId;
-  timelineSelectedOnlyLabel?.classList.toggle("is-disabled", !appState.selectedCharacterId);
-  if (!appState.selectedCharacterId) {
-    timelineSelectedOnlyInput.checked = false;
+
+  const selectedFilterButton = Array.from(timelineFilterButtons).find(
+    (button) => button.dataset.timelineFilter === "selected",
+  );
+  if (selectedFilterButton) {
+    selectedFilterButton.disabled = !appState.selectedCharacterId;
+    if (!appState.selectedCharacterId && appState.timelineFilter === "selected") {
+      setTimelineFilter("all");
+    }
   }
 
   for (const speedButton of replaySpeedButtons) {
@@ -819,6 +812,7 @@ function renderTimeline() {
 
   timelineList.innerHTML = markup;
   bindTimelineEvents();
+  scrollSelectedTimelineEventIntoView();
 }
 
 function bindTimelineEvents() {
@@ -844,9 +838,6 @@ function setSelectedEventIndex(nextEventIndex) {
 
 function setSelectedCharacterId(characterId) {
   appState.selectedCharacterId = characterId ?? null;
-  if (characterId) {
-    setActiveReplaySidebarPanel("detail");
-  }
   renderCurrentReplay();
   renderPlaybackControls();
 }
@@ -1021,19 +1012,44 @@ function renderUnitCard(character) {
   const hpValue = Number(character.current_hp) || 0;
   const mpValue = Number(character.current_mp) || 0;
   const portraitGlyph = getCharacterInitials(character);
+  const defeatedMarker = character.alive === false
+    ? '<span class="unit-card-defeated-marker" aria-hidden="true">✕</span>'
+    : "";
 
   return `
     <button class="grid-cell-button" type="button" data-character-id="${escapeHtml(character.id)}">
       <article class="unit-card unit-card-compact">
-        <div class="unit-card-portrait">${escapeHtml(portraitGlyph)}</div>
-        <h5 class="unit-card-name">${escapeHtml(character.display_name || character.id || "Unknown")}</h5>
+        <div class="unit-card-top">
+          <div class="unit-card-portrait">${escapeHtml(portraitGlyph)}</div>
+          <h5 class="unit-card-name">${escapeHtml(character.display_name || character.id || "Unknown")}</h5>
+          ${defeatedMarker}
+        </div>
         <div class="unit-card-bars unit-card-bars-compact">
           ${renderCompactBar("HP", hpValue, character.max_hp, "hp")}
           ${renderCompactBar("MP", mpValue, character.max_mp, "mp")}
         </div>
+        ${renderUnitCardChips(character)}
       </article>
     </button>
   `;
+}
+
+function renderUnitCardChips(character) {
+  const entries = [
+    ...normalizeStatusEntries(character.statuses),
+    ...normalizeConditionEntries(character.conditions),
+  ];
+  if (entries.length === 0) {
+    return "";
+  }
+
+  const chips = entries
+    .map(({ name, stacks }) => {
+      const label = `${name} x${stacks}`;
+      return `<span class="unit-card-chip" title="${escapeHtml(label)}">${escapeHtml(name)}<span class="unit-card-chip-stacks">${escapeHtml(stacks)}</span></span>`;
+    })
+    .join("");
+  return `<div class="unit-card-chips">${chips}</div>`;
 }
 
 function renderCompactBar(label, currentValue, maxValue, type) {
@@ -1045,6 +1061,7 @@ function renderCompactBar(label, currentValue, maxValue, type) {
       <div class="compact-bar-track">
         <span class="compact-bar-fill compact-bar-fill-${type}" style="width: ${percent}%;"></span>
       </div>
+      <span class="compact-bar-value">${escapeHtml(currentValue)}/${escapeHtml(Math.max(maxValue, 0))}</span>
     </div>
   `;
 }
@@ -2917,16 +2934,17 @@ function applyStatusModifier(stats, rawStatKey, delta) {
 }
 
 function shouldRenderTimelineEvent(event) {
-  if (timelineMajorOnlyInput.checked && !isMajorEvent(event.type)) {
+  if (appState.timelineFilter === "major" && !isMajorEvent(event.type)) {
     return false;
   }
 
-  if (timelineSelectedOnlyInput.checked && appState.selectedCharacterId) {
+  if (appState.timelineFilter === "selected" && appState.selectedCharacterId) {
     const eventCharacters = [
       event.actor_id,
       event.source_id,
       event.target_id,
       event.new_target_id,
+      event.character_id,
     ].filter(Boolean);
 
     return eventCharacters.includes(appState.selectedCharacterId);
@@ -2941,7 +2959,9 @@ function isMajorEvent(type) {
     "rest",
     "basic_attack",
     "damage",
+    "heal",
     "healing",
+    "mp_restore",
     "status_applied",
     "condition_applied",
     "status_removed",
@@ -3030,53 +3050,28 @@ function formatWinnerLabel(winner) {
   return team?.name || winner;
 }
 
-function formatTimelineText(event) {
-  switch (event.type) {
-    case "battle_start":
-      return "Battle starts.";
-    case "turn_start":
-      return `${formatCharacterLabel(event.actor_id, event.actor_name)} begins a turn at ${event.current_hp ?? "?"} HP and ${event.current_mp ?? "?"} MP.`;
-    case "rest":
-      return `${formatCharacterLabel(event.actor_id, event.actor_name)} rests and restores ${event.mp_restored ?? "?"} MP.`;
-    case "basic_attack":
-      return `${formatCharacterLabel(event.actor_id, event.actor_name)} attacks ${formatCharacterLabel(event.target_id, event.target_name)} with a ${event.damage_kind ?? "basic"} hit and restores ${event.mp_restored ?? "?"} MP.`;
-    case "ability_used":
-      return `${formatCharacterLabel(event.actor_id, event.actor_name)} uses ${event.ability ?? "an ability"} for ${event.mp_cost ?? "?"} MP.`;
-    case "damage":
-      return `${formatCharacterLabel(event.source_id, event.source_name)} deals ${event.amount ?? "?"} ${event.damage_kind ?? ""} damage to ${formatCharacterLabel(event.target_id, event.target_name)}.`;
-    case "healing":
-      return `${formatCharacterLabel(event.source_id, event.source_name)} restores ${event.amount ?? "?"} HP to ${formatCharacterLabel(event.target_id, event.target_name)}.`;
-    case "mp_restore":
-      return `${formatCharacterLabel(event.source_id, event.source_name)} restores ${event.amount ?? "?"} MP to ${formatCharacterLabel(event.target_id, event.target_name)}.`;
-    case "status_applied":
-      return `${formatCharacterLabel(event.target_id, event.target_name)} gains ${event.status ?? "a status"} (${event.stacks_after ?? "?"} stacks).`;
-    case "condition_applied":
-      return `${formatCharacterLabel(event.target_id, event.target_name)} gains ${event.condition ?? "a condition"} (${event.stacks_after ?? "?"} stacks).`;
-    case "status_removed":
-      return `${formatCharacterLabel(event.target_id, event.target_name)} loses ${event.status ?? "a status"} (${event.stacks_after ?? 0} stacks remain).`;
-    case "status_tick":
-      return `${formatCharacterLabel(event.target_id, event.target_name)} resolves ${event.status ?? "a status"} for ${event.amount ?? "?"} ${event.kind ?? "effect"}.`;
-    case "passive_triggered":
-      return `${formatCharacterLabel(event.actor_id, event.actor_name)} triggers ${event.passive ?? "a passive"} on ${event.trigger ?? "an event"}.`;
-    case "turn_skipped":
-      return `${formatCharacterLabel(event.actor_id, event.actor_name)} skips a turn because of ${event.reason ?? "an effect"}.`;
-    case "resource_changed":
-      return `${formatCharacterLabel(event.actor_id, event.actor_name)} ${event.delta >= 0 ? "gains" : "spends"} ${Math.abs(event.delta ?? 0)} ${event.resource ?? "resource"}.`;
-    case "retargeted":
-      return `${formatCharacterLabel(event.actor_id ?? event.character_id, event.actor_name ?? event.character_name)} retargets to ${
-        event.new_target_id || event.new_target_name
-          ? formatCharacterLabel(event.new_target_id, event.new_target_name)
-          : "no target"
-      } (${event.mode ?? "retarget"}).`;
-    case "moved":
-      return `${formatCharacterLabel(event.actor_id ?? event.character_id, event.actor_name ?? event.character_name)} moves to row ${event.to_row ?? "?"}, col ${event.to_col ?? "?"}.`;
-    case "defeat":
-      return `${formatCharacterLabel(event.actor_id, event.actor_name)} is defeated.`;
-    case "battle_end":
-      return `Battle ends with ${formatWinnerLabel(event.winner)} winning.`;
-    default:
-      return JSON.stringify(event);
-  }
+function damageMarkup(amount) {
+  return `<span class="event-amount event-amount-damage">${escapeHtml(amount ?? "?")}</span>`;
+}
+
+function healMarkup(amount) {
+  return `<span class="event-amount event-amount-heal">${escapeHtml(amount ?? "?")}</span>`;
+}
+
+function statusNameMarkup(name) {
+  return `<span class="event-status">${escapeHtml(name ?? "a status")}</span>`;
+}
+
+function damageKindWord(event) {
+  return event.damage_kind === "physical" || event.damage_kind === "magical"
+    ? `${escapeHtml(event.damage_kind)} `
+    : "";
+}
+
+function damageSourceSuffix(event) {
+  return event.source_name && event.source_kind === "ability"
+    ? ` with ${escapeHtml(event.source_name)}`
+    : "";
 }
 
 function formatTimelineMarkup(event) {
@@ -3086,25 +3081,28 @@ function formatTimelineMarkup(event) {
     case "turn_start":
       return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} begins a turn at ${escapeHtml(event.current_hp ?? "?")} HP and ${escapeHtml(event.current_mp ?? "?")} MP.`;
     case "rest":
-      return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} rests and restores ${escapeHtml(event.mp_restored ?? "?")} MP.`;
+      return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} rests and restores ${healMarkup(event.mp_restored)} MP.`;
     case "basic_attack":
-      return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} attacks ${formatCharacterLabelMarkup(event.target_id, event.target_name)} with a ${escapeHtml(event.damage_kind ?? "basic")} hit and restores ${escapeHtml(event.mp_restored ?? "?")} MP.`;
+      return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} attacks ${formatCharacterLabelMarkup(event.target_id, event.target_name)} with a basic hit and gains ${healMarkup(event.mp_restored)} MP.`;
     case "ability_used":
       return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} uses ${escapeHtml(event.ability ?? "an ability")} for ${escapeHtml(event.mp_cost ?? "?")} MP.`;
     case "damage":
-      return `${formatCharacterLabelMarkup(event.source_id, event.source_name)} deals ${escapeHtml(event.amount ?? "?")} ${escapeHtml(event.damage_kind ?? "")} damage to ${formatCharacterLabelMarkup(event.target_id, event.target_name)}.`;
+      return `${formatCharacterLabelMarkup(event.source_id)} deals ${damageMarkup(event.amount)} ${damageKindWord(event)}damage to ${formatCharacterLabelMarkup(event.target_id, event.target_name)}${damageSourceSuffix(event)}.`;
+    case "heal":
     case "healing":
-      return `${formatCharacterLabelMarkup(event.source_id, event.source_name)} restores ${escapeHtml(event.amount ?? "?")} HP to ${formatCharacterLabelMarkup(event.target_id, event.target_name)}.`;
+      return `${formatCharacterLabelMarkup(event.source_id)} restores ${healMarkup(event.amount)} HP to ${formatCharacterLabelMarkup(event.target_id, event.target_name)}${damageSourceSuffix(event)}.`;
     case "mp_restore":
-      return `${formatCharacterLabelMarkup(event.source_id, event.source_name)} restores ${escapeHtml(event.amount ?? "?")} MP to ${formatCharacterLabelMarkup(event.target_id, event.target_name)}.`;
+      return `${formatCharacterLabelMarkup(event.source_id)} restores ${healMarkup(event.amount)} MP to ${formatCharacterLabelMarkup(event.target_id, event.target_name)}${damageSourceSuffix(event)}.`;
     case "status_applied":
-      return `${formatCharacterLabelMarkup(event.target_id, event.target_name)} gains ${escapeHtml(event.status ?? "a status")} (${escapeHtml(event.stacks_after ?? "?")} stacks).`;
+      return `${formatCharacterLabelMarkup(event.target_id, event.target_name)} gains ${statusNameMarkup(event.status)} (${escapeHtml(event.stacks_after ?? "?")} stacks).`;
     case "condition_applied":
-      return `${formatCharacterLabelMarkup(event.target_id, event.target_name)} gains ${escapeHtml(event.condition ?? "a condition")} (${escapeHtml(event.stacks_after ?? "?")} stacks).`;
+      return `${formatCharacterLabelMarkup(event.target_id, event.target_name)} gains ${statusNameMarkup(event.condition ?? "a condition")} (${escapeHtml(event.stacks_after ?? "?")} stacks).`;
     case "status_removed":
-      return `${formatCharacterLabelMarkup(event.target_id, event.target_name)} loses ${escapeHtml(event.status ?? "a status")} (${escapeHtml(event.stacks_after ?? 0)} stacks remain).`;
-    case "status_tick":
-      return `${formatCharacterLabelMarkup(event.target_id, event.target_name)} resolves ${escapeHtml(event.status ?? "a status")} for ${escapeHtml(event.amount ?? "?")} ${escapeHtml(event.kind ?? "effect")}.`;
+      return `${formatCharacterLabelMarkup(event.target_id, event.target_name)} loses ${statusNameMarkup(event.status)} (${escapeHtml(event.stacks_after ?? 0)} stacks remain).`;
+    case "status_tick": {
+      const tickAmount = event.kind === "heal" ? healMarkup(event.amount) : damageMarkup(event.amount);
+      return `${formatCharacterLabelMarkup(event.target_id, event.target_name)} resolves ${statusNameMarkup(event.status)} for ${tickAmount} ${escapeHtml(event.kind ?? "effect")}.`;
+    }
     case "passive_triggered":
       return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} triggers ${escapeHtml(event.passive ?? "a passive")} on ${escapeHtml(event.trigger ?? "an event")}.`;
     case "turn_skipped":
