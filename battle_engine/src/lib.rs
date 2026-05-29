@@ -91,3 +91,19 @@ pub fn run_battle(team_a_json: &str, team_b_json: &str, seed: u32) -> String {
         }
     }
 }
+
+/// Return an embedded content-data catalog by name so the UI can populate the
+/// team builder without fetching files (keeps the static site self-contained).
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn catalog_json(name: &str) -> String {
+    match name {
+        "archetypes" => ARCHETYPES_JSON,
+        "abilities" => ABILITIES_JSON,
+        "passives" => PASSIVES_JSON,
+        "statuses" => STATUSES_JSON,
+        "aspects" => ASPECTS_JSON,
+        _ => "null",
+    }
+    .to_string()
+}

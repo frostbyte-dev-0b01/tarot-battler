@@ -1,4 +1,25 @@
 /**
+ * Return an embedded content-data catalog by name so the UI can populate the
+ * team builder without fetching files (keeps the static site self-contained).
+ * @param {string} name
+ * @returns {string}
+ */
+export function catalog_json(name) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.catalog_json(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * WebAssembly entry point. Returns replay-schema JSON on success, or a
  * `{"error": "..."}` JSON object the UI can detect, so failures never throw.
  * @param {string} team_a_json
