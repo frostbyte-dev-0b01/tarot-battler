@@ -92,7 +92,8 @@ Conceptually, the likely direction is that each character has a fixed base sprea
 - `HP` is expected to scale as a multiple of `VIT`
 - the current prototype uses `HP = 3 * VIT` as a working model
 - `MP` = spendable battle resource used to cast abilities
-- characters begin battle with `MP = WIL`
+- `WIL` sets the maximum MP pool
+- characters begin battle with `0` MP and charge it up by attacking, so abilities are an earned, occasional spend rather than a turn-one option; basic attacks are the default rhythm and abilities are rarer and more impactful
 - characters do not passively regain MP between turns
 - every character has a default `Basic Attack` action
 - `Basic Attack` restores `floor(WIL / 3)` MP after resolving

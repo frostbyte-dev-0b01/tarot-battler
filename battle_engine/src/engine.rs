@@ -1810,8 +1810,11 @@ mod tests {
             empty_statuses(),
             42,
         );
-        battle.team_a[0].spend_mp(3);
-        battle.team_a[1].spend_mp(4);
+        // Characters start at 0 MP; set up the state this test needs: the actor can
+        // afford Withdraw (1 MP) and the companion sits at 1 MP so the companion-MP
+        // rule fires.
+        battle.team_a[0].restore_mp(1);
+        battle.team_a[1].restore_mp(1);
 
         battle.step_once();
 
@@ -1935,9 +1938,11 @@ mod tests {
 
     #[test]
     fn emperor_basic_attacks_when_mp_exhausted() {
-        // Emperor with only 2 max MP from WIL — can Crush once, then fall back to Basic Attack
+        // Characters start at 0 MP and regain floor(WIL/3) per basic attack, so the
+        // Emperor basic-attacks to build MP and Crushes the enemy once it is low and
+        // affordable — exercising both the basic-attack rhythm and ability use.
         let mut emperor = emperor_config();
-        emperor.stats.insert(Stat::WIL, 2);
+        emperor.stats.insert(Stat::WIL, 3);
 
         let enemy = make_config(
             "Enemy",

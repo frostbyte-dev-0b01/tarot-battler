@@ -127,7 +127,15 @@ pub fn make_config_at(name: &str, row: u8, col: u8, stats: Vec<(Stat, u32)>) -> 
 }
 
 pub fn make_char(id: u32, stats: Vec<(Stat, u32)>) -> CharacterState {
-    CharacterState::from_config(id, &make_config_at(&format!("Char{}", id), 0, 0, stats))
+    with_full_mp(CharacterState::from_config(id, &make_config_at(&format!("Char{}", id), 0, 0, stats)))
+}
+
+/// Characters now start a battle at 0 MP; most unit tests assume MP is available
+/// for the behavior under test, so test helpers top characters up to full MP.
+fn with_full_mp(mut character: CharacterState) -> CharacterState {
+    let wil = character.get_base_stat(&Stat::WIL);
+    character.restore_mp(wil);
+    character
 }
 
 pub fn build_battle(
@@ -146,7 +154,7 @@ pub fn make_adjacent_char(
     col: u8,
     stats: Vec<(Stat, u32)>,
 ) -> CharacterState {
-    CharacterState::from_config(id, &make_config_at(&format!("Char{}", id), row, col, stats))
+    with_full_mp(CharacterState::from_config(id, &make_config_at(&format!("Char{}", id), row, col, stats)))
 }
 
 pub fn warrior() -> CharacterConfig {
