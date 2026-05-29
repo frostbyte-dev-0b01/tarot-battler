@@ -189,6 +189,7 @@ The engine loads archetypes from:
 - `passive_pool: string[]`
 - `active_pool: string[]`
 - `aspect_slots: number`
+- `cost: number`
 
 ### Notes
 
@@ -197,6 +198,7 @@ The engine loads archetypes from:
 - `default_passive` supports builder defaults
 - `passive_pool` and `active_pool` define legal loadout choices
 - `aspect_slots` should currently be `1`
+- `cost` is the archetype's coarse point cost for the team budget (currently `1`–`3`); aspect definitions carry an analogous `cost` (`0`–`2`). A team's total archetype + aspect cost must not exceed the team budget (currently `14`), and each archetype and aspect may appear at most once per team.
 
 ## Aspect Catalog
 

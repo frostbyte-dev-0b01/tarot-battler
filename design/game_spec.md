@@ -49,6 +49,18 @@ Each character loadout consists of:
 - one aspect slot
 - a formation position on a 3-column by 3-row grid
 
+### Team Budget
+
+Teams are built under a point budget so composition is a real value decision rather than "take the strongest of everything." Consistent with the synergy-over-spreadsheet pillar, costs are coarse tiers, not fine-grained prices:
+
+- Only **characters and aspects** cost points. Abilities and passives are free within a character's pool.
+- Character cost is a coarse tier (currently `1`–`3`); aspect cost is `0`–`2`.
+- A team's total cost (sum of archetype costs plus aspect costs) must not exceed the **team budget** (currently `14`; a primary tuning knob).
+- **Singletons:** one copy of each archetype and one copy of each aspect per team.
+- Team size is variable up to the slot maximum, so the budget lets a team trade quantity for quality.
+
+The budget is enforced in both the engine (`validate_team_config`) and the team builder, which shows a live budget meter. Seasonal/dynamic repricing is a later layer on top of these static costs.
+
 The intended near-term direction is that players do **not** allocate raw base stats directly.
 
 Instead:
