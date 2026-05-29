@@ -4,6 +4,8 @@ const replayFileInput = document.querySelector("#replay-file-input");
 const replayFileButton = document.querySelector("#replay-file-button");
 const replayJsonInput = document.querySelector("#replay-json-input");
 const replayDemoButton = document.querySelector("#replay-demo-button");
+const replayRunButton = document.querySelector("#replay-run-button");
+const sampleOpponentTeamPath = "./sample-data/teams/omen_engine.json";
 const replayValidationOutput = document.querySelector("#replay-validation-output");
 const latestReplayPaths = [
   "./sample-data/latest_replay.json",
@@ -311,6 +313,87 @@ replayDemoButton.addEventListener("click", () => {
   setActiveWorkspace("replay-viewer");
   void loadLatestReplay();
 });
+
+replayRunButton?.addEventListener("click", () => {
+  setActiveWorkspace("replay-viewer");
+  void runBattleInBrowser();
+});
+
+async function runBattleInBrowser() {
+  if (typeof window.tarotEngineReady === "undefined") {
+    renderReplayValidation({
+      ok: false,
+      errors: ["Battle engine module is not present. Rebuild it with tools/ui/build-engine.sh."],
+    });
+    return;
+  }
+
+  const ready = await window.tarotEngineReady;
+  if (!ready || typeof window.runBattleWasm !== "function") {
+    renderReplayValidation({
+      ok: false,
+      errors: ["Battle engine failed to load. Rebuild it with tools/ui/build-engine.sh and reload."],
+    });
+    return;
+  }
+
+  if (!appState.teamConfig) {
+    renderReplayValidation({
+      ok: false,
+      errors: ["Load or build a valid team before running a battle."],
+    });
+    return;
+  }
+
+  let opponentJson;
+  try {
+    const response = await fetch(sampleOpponentTeamPath, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`request failed with ${response.status}`);
+    }
+    opponentJson = await response.text();
+  } catch (error) {
+    renderReplayValidation({
+      ok: false,
+      errors: [`Could not load the sample opponent team: ${error.message}`],
+    });
+    return;
+  }
+
+  let resultJson;
+  try {
+    const teamAJson = JSON.stringify(appState.teamConfig);
+    resultJson = window.runBattleWasm(teamAJson, opponentJson, 42);
+  } catch (error) {
+    renderReplayValidation({
+      ok: false,
+      errors: [`Battle engine error: ${error.message}`],
+    });
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(resultJson);
+  } catch (error) {
+    renderReplayValidation({
+      ok: false,
+      errors: [`Battle engine returned invalid JSON: ${error.message}`],
+    });
+    return;
+  }
+
+  if (parsed && typeof parsed.error === "string") {
+    renderReplayValidation({
+      ok: false,
+      errors: [`Battle could not run: ${parsed.error}`],
+    });
+    return;
+  }
+
+  replayJsonInput.value = resultJson;
+  loadReplayFromText(resultJson.trim());
+}
 
 replayFileButton?.addEventListener("click", () => {
   replayFileInput?.click();

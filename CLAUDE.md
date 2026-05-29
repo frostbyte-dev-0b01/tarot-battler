@@ -27,6 +27,8 @@ cargo test <name>  # run a single test by name
 
 All cargo commands should be run from `battle_engine/`.
 
+To rebuild the in-browser WebAssembly engine used by the UI dev tool, run `tools/ui/build-engine.sh` (one-time prerequisites: `rustup target add wasm32-unknown-unknown` and `cargo install wasm-bindgen-cli`). It outputs `tools/ui/engine/`, which is committed so the static site needs no build step.
+
 ## Architecture
 
 **Current state:** Rust battle engine with a lightweight static UI dev tool in `tools/ui/`. No API or database layers yet.
@@ -35,11 +37,14 @@ All cargo commands should be run from `battle_engine/`.
 
 - `index.html` — static shell for Team Builder and Replay Viewer tabs
 - `styles.css` — responsive layout and placeholder styling for the dev tool
-- `app.js` — lightweight UI bootstrapping, currently tab switching plus replay loading, team loading, validation, structured team editing, import/export helpers, metadata rendering, snapshot board rendering, replay state application, playback controls, timeline rendering, and inspector state
+- `app.js` — lightweight UI bootstrapping, currently tab switching plus replay loading, team loading, validation, structured team editing, import/export helpers, metadata rendering, snapshot board rendering, replay state application, playback controls, timeline rendering, inspector state, and a "Run Battle" path that runs the current team vs a sample opponent through the in-browser WASM engine
+- `engine/` — generated WebAssembly build of the battle engine (`battle_engine.js` + `battle_engine_bg.wasm`), produced by `build-engine.sh`; `index.html` loads it to run battles in-browser with no backend
+- `build-engine.sh` — rebuilds the WASM engine into `engine/`
 - `sample-data/` — placeholder location for replay and team JSON fixtures
 
 ### Battle Engine (`battle_engine/`)
 
+- `src/lib.rs` — Library crate root: declares the engine modules and exposes `run_battle_json(team_a_json, team_b_json, seed)` (runs a battle from two team-config JSON strings using embedded content data, returns replay JSON) plus a `wasm-bindgen` `run_battle` entry for the browser. `main.rs` is a thin CLI on top of the same lib.
 - `src/models.rs` — Core data types: `Stat`, `Position`, `CharacterConfig`, `CharacterState`, `StatusTick`, `TraitEffect`, rule/condition types (`Rule`, `Condition`, `ConditionSubject`, `QueryValue`, `Comparator`).
 - `src/statuses.rs` — Named status effect system: `StackType` (TickDown, NoStack, Permanent), `StatusBehavior` (DamagePerStack, HealPerStack, StatModPerStack, SkipTurn), `StatusDef`, `StatusInstance`, `StatusMap`. Helper functions `status_key()` and `opposite_key()` for key construction.
 - `src/engine.rs` — `BattleState` drives the simulation loop: speed ticking, turn execution, on-turn-start passive hooks, start-of-turn status ticks, rule evaluation → ability or Rest fallback, stunned-turn skips, win conditions, and death-side effect handling. Re-entrancy guard (`in_passive_phase`) prevents passive cascading.

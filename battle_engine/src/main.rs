@@ -1,16 +1,4 @@
-mod abilities;
-mod abilities_targeting;
-mod engine;
-mod loader;
-mod logger;
-mod models;
-mod passive_system;
-mod rules;
-mod statuses;
-#[cfg(test)]
-mod test_support;
-mod targeting;
-mod turns;
+use battle_engine::{engine, loader};
 
 use std::path::{Path, PathBuf};
 
