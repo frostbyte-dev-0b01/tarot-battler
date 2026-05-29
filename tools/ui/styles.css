@@ -2850,3 +2850,83 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== Team roster controls + character library ===== */
+.team-builder-topbar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.team-manage-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.team-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.team-strip-row .character-slot-strip {
+  flex: 1 1 auto;
+}
+.team-manage-row .team-name-field {
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+.team-manage-row .file-icon-actions {
+  margin-left: auto;
+}
+.roster-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.roster-select {
+  min-width: 160px;
+  max-width: 240px;
+  border: 1px solid rgba(33, 25, 16, 0.15);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 253, 249, 0.9);
+  color: var(--ink);
+  padding: 9px 10px;
+}
+
+.library-body {
+  display: block;
+}
+.library-intro {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+.library-actions {
+  margin-bottom: 12px;
+}
+.library-list {
+  display: grid;
+  gap: 8px;
+}
+.library-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(33, 25, 16, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+}
+.library-entry-name {
+  font-weight: 700;
+}
+.library-entry-sub {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+.library-entry-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
