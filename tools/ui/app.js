@@ -6,6 +6,12 @@ const replayJsonInput = document.querySelector("#replay-json-input");
 const replayDemoButton = document.querySelector("#replay-demo-button");
 const replayRunButton = document.querySelector("#replay-run-button");
 const sampleOpponentTeamPath = "./sample-data/teams/omen_engine.json";
+const arenaFightButton = document.querySelector("#arena-fight-button");
+const arenaResults = document.querySelector("#arena-results");
+const arenaRecord = document.querySelector("#arena-record");
+const gauntletManifestPath = "./sample-data/gauntlet.json";
+const gauntletTeamsDir = "./sample-data/teams/";
+const arenaReplayStore = new Map();
 const replayValidationOutput = document.querySelector("#replay-validation-output");
 const latestReplayPaths = [
   "./sample-data/latest_replay.json",
@@ -393,6 +399,139 @@ async function runBattleInBrowser() {
 
   replayJsonInput.value = resultJson;
   loadReplayFromText(resultJson.trim());
+}
+
+async function ensureBattleEngineReady() {
+  if (typeof window.tarotEngineReady === "undefined") {
+    return false;
+  }
+  const ready = await window.tarotEngineReady;
+  return ready && typeof window.runBattleWasm === "function";
+}
+
+arenaFightButton?.addEventListener("click", () => {
+  void fightGauntlet();
+});
+
+async function fightGauntlet() {
+  if (!(await ensureBattleEngineReady())) {
+    renderArenaMessage("Battle engine failed to load. Rebuild it with tools/ui/build-engine.sh and reload.");
+    return;
+  }
+  if (!appState.teamConfig) {
+    renderArenaMessage("Load or build a valid team in the Team Builder before entering the arena.");
+    return;
+  }
+
+  let gauntlet;
+  try {
+    const response = await fetch(gauntletManifestPath, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`request failed with ${response.status}`);
+    }
+    gauntlet = await response.json();
+  } catch (error) {
+    renderArenaMessage(`Could not load the gauntlet manifest: ${error.message}`);
+    return;
+  }
+
+  arenaFightButton.disabled = true;
+  arenaRecord.textContent = "";
+  arenaResults.innerHTML = '<div class="board-empty-state">Running battles…</div>';
+  arenaReplayStore.clear();
+
+  const teamAJson = JSON.stringify(appState.teamConfig);
+  const rows = [];
+  for (const entry of gauntlet) {
+    const row = {
+      name: entry.name ?? entry.file,
+      strategy: entry.strategy ?? "",
+      result: "error",
+      detail: "",
+    };
+    try {
+      const oppResponse = await fetch(`${gauntletTeamsDir}${entry.file}`, { cache: "no-store" });
+      if (!oppResponse.ok) {
+        throw new Error(`opponent request failed with ${oppResponse.status}`);
+      }
+      const oppJson = await oppResponse.text();
+      const resultJson = window.runBattleWasm(teamAJson, oppJson, 42);
+      const parsed = JSON.parse(resultJson);
+      if (parsed && typeof parsed.error === "string") {
+        row.detail = parsed.error;
+      } else {
+        row.result = parsed.winner === "team_a" ? "win" : parsed.winner === "team_b" ? "loss" : "draw";
+        row.detail = `${parsed.tick_count ?? "?"} ticks`;
+        row.file = entry.file;
+        arenaReplayStore.set(entry.file, resultJson);
+      }
+    } catch (error) {
+      row.detail = error.message;
+    }
+    rows.push(row);
+  }
+
+  arenaFightButton.disabled = false;
+  renderArenaResults(rows);
+}
+
+function renderArenaMessage(message) {
+  arenaRecord.textContent = "";
+  arenaResults.innerHTML = `<div class="board-empty-state">${escapeHtml(message)}</div>`;
+}
+
+function renderArenaResults(rows) {
+  const wins = rows.filter((row) => row.result === "win").length;
+  const losses = rows.filter((row) => row.result === "loss").length;
+  const draws = rows.filter((row) => row.result === "draw").length;
+  arenaRecord.innerHTML = `<span class="arena-record-line"><strong>${wins}W</strong> – <strong>${losses}L</strong>${draws ? ` – ${draws}D` : ""} vs the gauntlet</span>`;
+
+  const body = rows
+    .map((row) => {
+      const badge =
+        row.result === "win"
+          ? '<span class="arena-badge arena-badge-win">Win</span>'
+          : row.result === "loss"
+            ? '<span class="arena-badge arena-badge-loss">Loss</span>'
+            : row.result === "draw"
+              ? '<span class="arena-badge arena-badge-draw">Draw</span>'
+              : '<span class="arena-badge arena-badge-error">Error</span>';
+      const action =
+        row.file && arenaReplayStore.has(row.file)
+          ? `<button type="button" class="arena-view-button" data-arena-replay="${escapeHtml(row.file)}">View replay</button>`
+          : "";
+      return `
+        <tr>
+          <td>
+            <div class="arena-opp-name">${escapeHtml(row.name)}</div>
+            <div class="arena-opp-strategy">${escapeHtml(row.strategy)}</div>
+          </td>
+          <td>${badge}</td>
+          <td class="arena-detail">${escapeHtml(row.detail)}</td>
+          <td>${action}</td>
+        </tr>`;
+    })
+    .join("");
+
+  arenaResults.innerHTML = `
+    <table class="arena-table">
+      <thead>
+        <tr><th>Opponent</th><th>Result</th><th>Length</th><th></th></tr>
+      </thead>
+      <tbody>${body}</tbody>
+    </table>`;
+
+  for (const button of arenaResults.querySelectorAll("[data-arena-replay]")) {
+    button.addEventListener("click", () => {
+      const replay = arenaReplayStore.get(button.dataset.arenaReplay);
+      if (!replay) {
+        return;
+      }
+      replayJsonInput.value = replay;
+      setActiveWorkspace("replay-viewer");
+      loadReplayFromText(replay.trim());
+    });
+  }
 }
 
 replayFileButton?.addEventListener("click", () => {
