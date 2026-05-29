@@ -6,6 +6,10 @@ use crate::statuses::{
     StackType, StatusBehavior, StatusDef, StatusGroup, StatusInstance, opposite_key, status_key,
 };
 
+/// Maximum stacks of a stat-mod status (Empower/Weaken) per stat. Permanence
+/// rewards setup without letting a single stat run away.
+pub const MAX_STAT_MOD_STACKS: u32 = 8;
+
 /// The current character attributes.
 #[derive(Hash, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[allow(clippy::upper_case_acronyms)]
@@ -785,6 +789,14 @@ impl CharacterState {
                 }
             }
         }
+
+        // Cap stat-mod (Empower/Weaken) stacks so permanence rewards setup
+        // without becoming uncatchable.
+        if matches!(&def.behavior, StatusBehavior::StatModPerStack { .. })
+            && let Some(inst) = self.statuses.get_mut(key)
+        {
+            inst.stacks = inst.stacks.min(MAX_STAT_MOD_STACKS);
+        }
         true
     }
 
@@ -1025,12 +1037,16 @@ fn effect_polarity(inst: &StatusInstance) -> Option<EffectPolarity> {
 }
 
 fn status_decay_rule(key: &str, inst: &StatusInstance) -> Option<(StatusDecayTiming, StatusDecayMode)> {
-    if key == "Omen" || key == "Restoration" {
+    // Restoration stays on halving decay so sustain is self-limiting.
+    if key == "Restoration" {
         return Some((StatusDecayTiming::StartOfTurn, StatusDecayMode::Halve));
     }
-    if key == "Lethality" || key.starts_with("Empower:") || key.starts_with("Weaken:") {
+    // Lethality (dormant) keeps the halving burst-window family if it returns.
+    if key == "Lethality" {
         return Some((StatusDecayTiming::EndOfTurn, StatusDecayMode::Halve));
     }
+    // Omen ticks down by 1 (handled by the TickDown stack_type below).
+    // Empower/Weaken are permanent (Permanent stack_type below -> no decay).
 
     match (&inst.stack_type, &inst.behavior) {
         (StackType::TickDown, _) => Some((StatusDecayTiming::StartOfTurn, StatusDecayMode::TickDown)),
@@ -1099,7 +1115,7 @@ mod tests {
     fn empower_def() -> StatusDef {
         StatusDef {
             behavior: StatusBehavior::StatModPerStack { magnitude: 1 },
-            stack_type: StackType::TickDown,
+            stack_type: StackType::Permanent,
             group: None,
             opposes: Some("Weaken".to_string()),
         }
@@ -1108,7 +1124,7 @@ mod tests {
     fn weaken_def() -> StatusDef {
         StatusDef {
             behavior: StatusBehavior::StatModPerStack { magnitude: -1 },
-            stack_type: StackType::TickDown,
+            stack_type: StackType::Permanent,
             group: None,
             opposes: Some("Empower".to_string()),
         }
@@ -1372,7 +1388,8 @@ mod tests {
             StatusTick::DamageDealt { name, damage } if name == "Omen" && *damage == 4
         ));
         assert_eq!(state.current_hp(), 56);
-        assert_eq!(state.status_stacks("Omen"), 2);
+        // Omen now ticks down by 1 each start of turn (was halving): 4 -> 3.
+        assert_eq!(state.status_stacks("Omen"), 3);
     }
 
     #[test]
@@ -1385,7 +1402,8 @@ mod tests {
 
         assert_eq!(state.current_hp(), 0);
         assert!(!state.is_alive());
-        assert_eq!(state.status_stacks("Omen"), 2);
+        // Omen now ticks down by 1 each start of turn (was halving): 4 -> 3.
+        assert_eq!(state.status_stacks("Omen"), 3);
     }
 
     #[test]
@@ -1521,21 +1539,36 @@ mod tests {
     }
 
     #[test]
-    fn empower_halves_at_end_of_turn() {
+    fn empower_persists_and_does_not_decay() {
         let config = make_config(vec![(Stat::MGT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
         let key = status_key("Empower", Some(&Stat::MGT));
         state.add_status(&key, 3, 99, &empower_def(), Some(Stat::MGT));
 
+        // Empower is now Permanent: neither start-of-turn nor end-of-turn decay
+        // touches it.
         assert_eq!(state.get_eff_stat(&Stat::MGT), 13);
         state.tick_statuses();
         assert_eq!(state.get_eff_stat(&Stat::MGT), 13);
-        state.decay_statuses_end_of_turn(); // 3→1
-        assert_eq!(state.get_eff_stat(&Stat::MGT), 11);
+        state.decay_statuses_end_of_turn();
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 13);
         state.tick_statuses();
-        assert_eq!(state.get_eff_stat(&Stat::MGT), 11);
-        state.decay_statuses_end_of_turn(); // 1→0, removed
-        assert_eq!(state.get_eff_stat(&Stat::MGT), 10);
+        state.decay_statuses_end_of_turn();
+        assert_eq!(state.status_stacks(&key), 3);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 13);
+    }
+
+    #[test]
+    fn empower_caps_at_eight_stacks() {
+        let config = make_config(vec![(Stat::MGT, 10)]);
+        let mut state = CharacterState::from_config(0, &config);
+        let key = status_key("Empower", Some(&Stat::MGT));
+
+        // Applying past the cap clamps stacks to MAX_STAT_MOD_STACKS (8).
+        state.add_status(&key, 5, 99, &empower_def(), Some(Stat::MGT));
+        state.add_status(&key, 5, 99, &empower_def(), Some(Stat::MGT));
+        assert_eq!(state.status_stacks(&key), MAX_STAT_MOD_STACKS);
+        assert_eq!(state.get_eff_stat(&Stat::MGT), 10 + MAX_STAT_MOD_STACKS);
     }
 
     #[test]
@@ -1650,17 +1683,29 @@ mod tests {
 
     #[test]
     fn cleanse_respects_status_group_filter() {
-        let config = make_config(vec![(Stat::MGT, 10), (Stat::MAG, 10), (Stat::VIT, 10)]);
+        // Weaken is now Permanent (cleanse only reduces TickDown effects), so this
+        // exercises the group filter with two TickDown debuffs in distinct groups.
+        let body_debuff = StatusDef {
+            behavior: StatusBehavior::DamagePerStack { value: 1 },
+            stack_type: StackType::TickDown,
+            group: Some(StatusGroup::Body),
+            opposes: None,
+        };
+        let mind_debuff = StatusDef {
+            behavior: StatusBehavior::DamagePerStack { value: 1 },
+            stack_type: StackType::TickDown,
+            group: Some(StatusGroup::Mind),
+            opposes: None,
+        };
+        let config = make_config(vec![(Stat::VIT, 10)]);
         let mut state = CharacterState::from_config(0, &config);
-        let weaken_mgt = status_key("Weaken", Some(&Stat::MGT));
-        let weaken_mag = status_key("Weaken", Some(&Stat::MAG));
 
-        state.add_status(&weaken_mgt, 2, 99, &weaken_def(), Some(Stat::MGT));
-        state.add_status(&weaken_mag, 2, 99, &weaken_def(), Some(Stat::MAG));
+        state.add_status("BodyDebuff", 2, 99, &body_debuff, None);
+        state.add_status("MindDebuff", 2, 99, &mind_debuff, None);
 
         assert!(state.cleanse(1, Some(StatusGroup::Body)));
-        assert_eq!(state.status_stacks(&weaken_mgt), 1);
-        assert_eq!(state.status_stacks(&weaken_mag), 2);
+        assert_eq!(state.status_stacks("BodyDebuff"), 1);
+        assert_eq!(state.status_stacks("MindDebuff"), 2);
     }
 
     #[test]

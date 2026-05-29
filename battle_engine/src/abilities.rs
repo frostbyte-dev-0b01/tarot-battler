@@ -147,6 +147,39 @@ impl From<SimpleAbilityTarget> for AbilityTarget {
     }
 }
 
+/// Named attack-power tiers. Power is expressed as one of four tiers rather than
+/// a free-form multiplier, so the player-facing language is pips/names instead of
+/// decimals. The multipliers live only in data and tuning.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PowerTier {
+    Strike,
+    Strong,
+    Heavy,
+    Execute,
+}
+
+impl PowerTier {
+    pub fn multiplier(self) -> f64 {
+        match self {
+            PowerTier::Strike => 1.0,
+            PowerTier::Strong => 1.5,
+            PowerTier::Heavy => 2.0,
+            PowerTier::Execute => 2.5,
+        }
+    }
+
+    /// Number of pips, for UI / replay presentation.
+    pub fn pips(self) -> u8 {
+        match self {
+            PowerTier::Strike => 1,
+            PowerTier::Strong => 2,
+            PowerTier::Heavy => 3,
+            PowerTier::Execute => 4,
+        }
+    }
+}
+
 /// A single primitive effect composing an ability.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -157,17 +190,13 @@ pub enum Primitive {
     },
     DealPhysicalDamage {
         target: AbilityTarget,
-        #[serde(default)]
-        base_damage: u32,
-        multiplier: f64,
+        power: PowerTier,
         #[serde(default)]
         double_empower_stat: Option<Stat>,
     },
     DealPhysicalDamageBonusVsStatus {
         target: AbilityTarget,
-        #[serde(default)]
-        base_damage: u32,
-        multiplier: f64,
+        power: PowerTier,
         status: String,
         #[serde(default)]
         stat: Option<Stat>,
@@ -175,17 +204,11 @@ pub enum Primitive {
     },
     DealMagicalDamage {
         target: AbilityTarget,
-        #[serde(default)]
-        base_damage: u32,
-        multiplier: f64,
+        power: PowerTier,
     },
     DealMagicalDamageCurrentTargetAndCompanions {
-        #[serde(default)]
-        primary_base_damage: u32,
-        primary_multiplier: f64,
-        #[serde(default)]
-        companion_base_damage: u32,
-        companion_multiplier: f64,
+        primary_power: PowerTier,
+        companion_power: PowerTier,
     },
     DealTrueDamage {
         target: AbilityTarget,
@@ -200,9 +223,7 @@ pub enum Primitive {
     },
     DealMagicalDamageConsumeStatus {
         target: AbilityTarget,
-        #[serde(default)]
-        base_damage: u32,
-        multiplier: f64,
+        power: PowerTier,
         status: String,
         #[serde(default)]
         stat: Option<Stat>,
@@ -210,9 +231,7 @@ pub enum Primitive {
     },
     DealPhysicalDamageConsumeSelfStatuses {
         target: AbilityTarget,
-        #[serde(default)]
-        base_damage: u32,
-        multiplier: f64,
+        power: PowerTier,
         statuses: Vec<StatusRef>,
         bonus_per_stack: u32,
     },
@@ -649,8 +668,7 @@ pub fn execute_primitives_with_context(
             }
             Primitive::DealPhysicalDamage {
                 target,
-                base_damage,
-                multiplier,
+                power,
                 double_empower_stat,
             } => {
                 let actor_str = match double_empower_stat {
@@ -661,7 +679,7 @@ pub fn execute_primitives_with_context(
                 for tidx in target_indices {
                     let defender_for = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
                     let raw_damage =
-                        scaled_damage_with_defense(actor_str, *base_damage, *multiplier, defender_for);
+                        scaled_damage_with_defense(actor_str, power.multiplier(), defender_for);
                     let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
                     let tid = ctx.enemy_team[tidx].id();
                     let tname = ctx.enemy_team[tidx].base_name().to_string();
@@ -684,8 +702,7 @@ pub fn execute_primitives_with_context(
             }
             Primitive::DealPhysicalDamageBonusVsStatus {
                 target,
-                base_damage,
-                multiplier,
+                power,
                 status,
                 stat,
                 bonus_damage,
@@ -697,8 +714,7 @@ pub fn execute_primitives_with_context(
                     let defender_arm = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
                     let mut raw_damage = scaled_damage_with_defense(
                         actor_mgt,
-                        *base_damage,
-                        *multiplier,
+                        power.multiplier(),
                         defender_arm,
                     );
                     if ctx.enemy_team[tidx].has_status(&key) {
@@ -724,16 +740,12 @@ pub fn execute_primitives_with_context(
                     });
                 }
             }
-            Primitive::DealMagicalDamage {
-                target,
-                base_damage,
-                multiplier,
-            } => {
+            Primitive::DealMagicalDamage { target, power } => {
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_wis = ctx.enemy_team[tidx].get_eff_stat(&Stat::RES);
                     let raw_damage =
-                        scaled_damage_with_defense(actor_int, *base_damage, *multiplier, defender_wis);
+                        scaled_damage_with_defense(actor_int, power.multiplier(), defender_wis);
                     let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
                     let tid = ctx.enemy_team[tidx].id();
                     let tname = ctx.enemy_team[tidx].base_name().to_string();
@@ -755,10 +767,8 @@ pub fn execute_primitives_with_context(
                 }
             }
             Primitive::DealMagicalDamageCurrentTargetAndCompanions {
-                primary_base_damage,
-                primary_multiplier,
-                companion_base_damage,
-                companion_multiplier,
+                primary_power,
+                companion_power,
             } => {
                 let Some(target_id) = ctx.actor_team[actor_idx].target() else {
                     continue;
@@ -781,14 +791,14 @@ pub fn execute_primitives_with_context(
                     .collect();
 
                 for tidx in target_and_companions {
-                    let (base_damage, multiplier) = if tidx == target_idx {
-                        (*primary_base_damage, *primary_multiplier)
+                    let multiplier = if tidx == target_idx {
+                        primary_power.multiplier()
                     } else {
-                        (*companion_base_damage, *companion_multiplier)
+                        companion_power.multiplier()
                     };
                     let defender_res = ctx.enemy_team[tidx].get_eff_stat(&Stat::RES);
                     let raw_damage =
-                        scaled_damage_with_defense(actor_int, base_damage, multiplier, defender_res);
+                        scaled_damage_with_defense(actor_int, multiplier, defender_res);
                     let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
                     log_ability_damage(ctx, actor_id, tidx, damage, true);
                     damage_dealt.push(DamageRecord {
@@ -851,8 +861,7 @@ pub fn execute_primitives_with_context(
             }
             Primitive::DealMagicalDamageConsumeStatus {
                 target,
-                base_damage,
-                multiplier,
+                power,
                 status,
                 stat,
                 bonus_per_stack,
@@ -864,8 +873,7 @@ pub fn execute_primitives_with_context(
                     let consumed_stacks = ctx.enemy_team[tidx].status_stacks(&key);
                     let raw_damage = scaled_damage_with_defense(
                         actor_int,
-                        *base_damage,
-                        *multiplier,
+                        power.multiplier(),
                         defender_res,
                     )
                         + consumed_stacks.saturating_mul(*bonus_per_stack);
@@ -924,8 +932,7 @@ pub fn execute_primitives_with_context(
             }
             Primitive::DealPhysicalDamageConsumeSelfStatuses {
                 target,
-                base_damage,
-                multiplier,
+                power,
                 statuses,
                 bonus_per_stack,
             } => {
@@ -946,8 +953,7 @@ pub fn execute_primitives_with_context(
                     let defender_arm = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
                     let raw_damage = scaled_damage_with_defense(
                         actor_mgt,
-                        *base_damage,
-                        *multiplier,
+                        power.multiplier(),
                         defender_arm,
                     )
                         + consumed_stacks.saturating_mul(*bonus_per_stack);
@@ -1419,7 +1425,9 @@ pub fn execute_primitives_with_context(
 
                 let attacker_str = ctx.actor_team[companion_idx].get_eff_stat(&Stat::MGT);
                 let defender_for = ctx.enemy_team[target_idx].get_eff_stat(&Stat::ARM);
-                let raw_damage = (attacker_str as i32 - defender_for as i32).max(1) as u32;
+                // Commanded attack is a Strike-tier physical hit.
+                let raw_damage =
+                    scaled_damage_with_defense(attacker_str, PowerTier::Strike.multiplier(), defender_for);
                 let damage = ctx.enemy_team[target_idx].take_hit(raw_damage);
                 let source_id = ctx.actor_team[companion_idx].id();
                 let source_name = ctx.actor_team[companion_idx].base_name().to_string();
@@ -1958,15 +1966,20 @@ fn capture_context_snapshot(ctx: &mut ExecutionContext<'_>) {
     }
 }
 
-fn scaled_damage_with_defense(
-    attack_stat: u32,
-    base_damage: u32,
-    multiplier: f64,
-    defense_stat: u32,
-) -> u32 {
-    let scaled = (attack_stat as f64 * multiplier) as i32;
-    let raw = base_damage as i32 + scaled - defense_stat as i32;
-    raw.max(1) as u32
+/// Ratio-mitigation constant. A defense equal to K roughly halves incoming
+/// damage; a defense ≈ the midrange stat gives ~50% mitigation.
+pub(crate) const MITIGATION_K: f64 = 12.0;
+
+/// Apply ratio mitigation to a raw damage amount: `raw * K / (K + defense)`,
+/// rounded, with a minimum of 1. Defense gives smooth diminishing returns and
+/// never fully negates a hit.
+pub(crate) fn apply_mitigation(raw: f64, defense_stat: u32) -> u32 {
+    let mitigated = raw * MITIGATION_K / (MITIGATION_K + defense_stat as f64);
+    (mitigated.round().max(1.0)) as u32
+}
+
+fn scaled_damage_with_defense(attack_stat: u32, multiplier: f64, defense_stat: u32) -> u32 {
+    apply_mitigation(attack_stat as f64 * multiplier, defense_stat)
 }
 
 fn default_true() -> bool {

@@ -23,14 +23,14 @@ The live status catalog is now trimmed to the intended first-pass set:
 
 `Stunned` is no longer a status concern at all. It is a condition.
 
-The live engine currently uses halving decay for `Omen`, `Restoration`, `Empower`, and `Weaken`.
+Decay is now locked per family (see `game_spec.md`):
 
-Current likely future direction:
+- `Omen` ticks down by `1` so setup/payoff scripting is reliable
+- `Restoration` stays on halving decay so sustain stacks are self-limiting
+- `Empower` / `Weaken` are permanent (no decay), capped at `8` stacks per stat, removed only by dispel/cleanse/opposing-cancellation/consume
+- `Lethality` stays in the halving-decay family as a short-lived burst effect if it returns
 
-- move `Omen` back toward tick-down-by-`1` so setup/payoff scripting is more reliable
-- keep `Restoration` on halving decay so sustain stacks are self-limiting
-- keep `Lethality` in the halving-decay family as a short-lived burst effect if it returns
-- make `Empower` / `Weaken` much stickier, potentially permanent until removed, while also making them harder to apply
+Damage uses ratio mitigation — `round(eff_attack × tier_mult × K / (K + defense))`, `K = 12`, min `1` — with no flat base damage. Attack power is a four-tier enum (`strike` / `strong` / `heavy` / `execute` = `×1.0 / 1.5 / 2.0 / 2.5`) stored in ability data as `power`, so the player-facing language is tiers/pips rather than decimals.
 
 Legacy placeholder effects such as `Bleed`, `Poison`, `Regen`, `Fortify`, `Enfeeble`, and the older `Stun` status have been removed from the live status catalog. The engine still supports generic status behaviors internally for testing and future experimentation, but those names should not be treated as live gameplay content.
 
