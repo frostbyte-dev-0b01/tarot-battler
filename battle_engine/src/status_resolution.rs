@@ -54,14 +54,14 @@ impl BattleState {
         };
         for tick in ticks {
             match tick {
-                StatusTick::DamageDealt { name, damage } => {
+                StatusTick::DamageDealt { name, damage, source_id } => {
                     let actor = if is_team_a { &self.team_a[idx] } else { &self.team_b[idx] };
-                    self.log.push_status_damage(step, actor, &name, damage);
+                    self.log.push_status_damage(step, actor, &name, source_id, damage);
                     self.capture_latest_replay_snapshot();
                 }
-                StatusTick::HealApplied { name, amount } => {
+                StatusTick::HealApplied { name, amount, source_id } => {
                     let actor = if is_team_a { &self.team_a[idx] } else { &self.team_b[idx] };
-                    self.log.push_status_heal(step, actor, &name, amount);
+                    self.log.push_status_heal(step, actor, &name, source_id, amount);
                     self.capture_latest_replay_snapshot();
                 }
             }

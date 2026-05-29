@@ -25,6 +25,7 @@
           <input id="replay-file-input" class="visually-hidden" type="file" accept=".json,application/json">
           <button id="replay-file-button" type="button" class="icon-button replay-open-button button-quiet" title="Open replay JSON" aria-label="Open replay JSON">📂</button>
           <button id="replay-run-button" type="button" class="button-secondary" title="Run the current team vs a sample opponent in the browser engine">⚔ Run Battle</button>
+          <button id="replay-stats-button" type="button" class="button-secondary" title="Post-battle stats for the loaded replay">📊 Stats</button>
           <button id="replay-demo-button" type="button" class="button-secondary">Load Latest Replay</button>
         </div>
       </div>
@@ -153,6 +154,16 @@
           </div>
         </section>
       </main>
+    </div>
+
+    <div id="stats-overlay" class="stats-overlay" hidden>
+      <div class="stats-modal" role="dialog" aria-modal="true" aria-label="Post-battle statistics">
+        <div class="stats-modal-head">
+          <h3>Post-Battle Stats</h3>
+          <button id="stats-close-button" type="button" class="icon-button" aria-label="Close stats">✕</button>
+        </div>
+        <div id="stats-body" class="stats-body"></div>
+      </div>
     </div>
 
     <script type="module">

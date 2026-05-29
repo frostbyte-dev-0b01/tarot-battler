@@ -146,8 +146,8 @@ pub enum TraitEffect {
 /// What happened when statuses ticked.
 #[derive(Debug, Clone)]
 pub enum StatusTick {
-    DamageDealt { name: String, damage: u32 },
-    HealApplied { name: String, amount: u32 },
+    DamageDealt { name: String, damage: u32, source_id: u32 },
+    HealApplied { name: String, amount: u32, source_id: u32 },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -946,6 +946,7 @@ impl CharacterState {
                     ticks.push(StatusTick::DamageDealt {
                         name: key.clone(),
                         damage: dmg,
+                        source_id: inst.source_id,
                     });
                 }
                 StatusBehavior::HealPerStack { value } => {
@@ -954,6 +955,7 @@ impl CharacterState {
                     ticks.push(StatusTick::HealApplied {
                         name: key.clone(),
                         amount: heal,
+                        source_id: inst.source_id,
                     });
                 }
                 // StatModPerStack, SkipTurn, and Ward don't produce tick events
@@ -1385,7 +1387,7 @@ mod tests {
         assert_eq!(ticks.len(), 1);
         assert!(matches!(
             &ticks[0],
-            StatusTick::DamageDealt { name, damage } if name == "Omen" && *damage == 4
+            StatusTick::DamageDealt { name, damage, .. } if name == "Omen" && *damage == 4
         ));
         assert_eq!(state.current_hp(), 56);
         // Omen now ticks down by 1 each start of turn (was halving): 4 -> 3.
@@ -1583,7 +1585,7 @@ mod tests {
         assert_eq!(ticks.len(), 1);
         assert!(matches!(
             &ticks[0],
-            StatusTick::HealApplied { name, amount } if name == "Restoration" && *amount == 5
+            StatusTick::HealApplied { name, amount, .. } if name == "Restoration" && *amount == 5
         ));
         assert_eq!(state.current_hp(), 20);
         assert_eq!(state.status_stacks("Restoration"), 2);

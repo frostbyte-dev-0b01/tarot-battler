@@ -95,6 +95,7 @@ pub enum BattleEvent {
         character_id: u32,
         character_name: String,
         status_name: String,
+        source_id: u32,
         damage: u32,
         hp_remaining: u32,
     },
@@ -103,6 +104,7 @@ pub enum BattleEvent {
         character_id: u32,
         character_name: String,
         status_name: String,
+        source_id: u32,
         amount: u32,
         hp_remaining: u32,
     },
@@ -253,6 +255,7 @@ impl BattleLog {
         tick_count: u32,
         actor: &CharacterState,
         status_name: &str,
+        source_id: u32,
         damage: u32,
     ) {
         self.push(BattleEvent::StatusDamage {
@@ -260,6 +263,7 @@ impl BattleLog {
             character_id: actor.id(),
             character_name: actor.base_name().to_string(),
             status_name: status_name.to_string(),
+            source_id,
             damage,
             hp_remaining: actor.current_hp(),
         });
@@ -270,6 +274,7 @@ impl BattleLog {
         tick_count: u32,
         actor: &CharacterState,
         status_name: &str,
+        source_id: u32,
         amount: u32,
     ) {
         self.push(BattleEvent::StatusHeal {
@@ -277,6 +282,7 @@ impl BattleLog {
             character_id: actor.id(),
             character_name: actor.base_name().to_string(),
             status_name: status_name.to_string(),
+            source_id,
             amount,
             hp_remaining: actor.current_hp(),
         });
@@ -529,6 +535,7 @@ impl BattleLog {
                     tick_count,
                     character_id,
                     status_name,
+                    source_id,
                     damage,
                     hp_remaining,
                     ..
@@ -536,6 +543,7 @@ impl BattleLog {
                     "tick": tick_count,
                     "type": "status_tick",
                     "target_id": stable_id(*character_id, &id_map),
+                    "source_id": stable_id(*source_id, &id_map),
                     "status": status_name,
                     "amount": damage,
                     "kind": "damage",
@@ -545,6 +553,7 @@ impl BattleLog {
                     tick_count,
                     character_id,
                     status_name,
+                    source_id,
                     amount,
                     hp_remaining,
                     ..
@@ -552,6 +561,7 @@ impl BattleLog {
                     "tick": tick_count,
                     "type": "status_tick",
                     "target_id": stable_id(*character_id, &id_map),
+                    "source_id": stable_id(*source_id, &id_map),
                     "status": status_name,
                     "amount": amount,
                     "kind": "heal",

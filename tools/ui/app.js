@@ -12,6 +12,10 @@ const arenaRecord = document.querySelector("#arena-record");
 const gauntletManifestPath = "./sample-data/gauntlet.json";
 const gauntletTeamsDir = "./sample-data/teams/";
 const arenaReplayStore = new Map();
+const replayStatsButton = document.querySelector("#replay-stats-button");
+const statsOverlay = document.querySelector("#stats-overlay");
+const statsCloseButton = document.querySelector("#stats-close-button");
+const statsBody = document.querySelector("#stats-body");
 const replayValidationOutput = document.querySelector("#replay-validation-output");
 const latestReplayPaths = [
   "./sample-data/latest_replay.json",
@@ -532,6 +536,124 @@ function renderArenaResults(rows) {
       loadReplayFromText(replay.trim());
     });
   }
+}
+
+replayStatsButton?.addEventListener("click", () => {
+  openBattleStats();
+});
+
+statsCloseButton?.addEventListener("click", () => {
+  closeBattleStats();
+});
+
+statsOverlay?.addEventListener("click", (event) => {
+  if (event.target === statsOverlay) {
+    closeBattleStats();
+  }
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && statsOverlay && !statsOverlay.hidden) {
+    closeBattleStats();
+  }
+});
+
+function openBattleStats() {
+  if (!statsOverlay || !statsBody) {
+    return;
+  }
+  if (!appState.replay) {
+    statsBody.innerHTML = '<div class="board-empty-state">Load or run a battle first, then open stats.</div>';
+  } else {
+    statsBody.innerHTML = renderBattleStats(appState.replay);
+  }
+  statsOverlay.hidden = false;
+}
+
+function closeBattleStats() {
+  if (statsOverlay) {
+    statsOverlay.hidden = true;
+  }
+}
+
+// Aggregate per-character battle stats from the replay event stream.
+function computeBattleStats(replay) {
+  const stats = new Map();
+  const ensure = (id) => {
+    if (!id) {
+      return null;
+    }
+    if (!stats.has(id)) {
+      stats.set(id, { dealt: 0, taken: 0, healed: 0, kills: 0, mp: 0 });
+    }
+    return stats.get(id);
+  };
+
+  for (const event of replay.events ?? []) {
+    const amount = Number(event.amount) || 0;
+    if (event.type === "damage" || (event.type === "status_tick" && event.kind === "damage")) {
+      const source = ensure(event.source_id);
+      const target = ensure(event.target_id);
+      if (source) source.dealt += amount;
+      if (target) target.taken += amount;
+      if (source && event.target_hp_after === 0) {
+        source.kills += 1;
+      }
+    } else if (event.type === "heal" || (event.type === "status_tick" && event.kind === "heal")) {
+      const source = ensure(event.source_id);
+      if (source) source.healed += amount;
+    } else if (event.type === "ability_used") {
+      const actor = ensure(event.actor_id);
+      if (actor) actor.mp += Number(event.mp_cost) || 0;
+    }
+  }
+
+  return stats;
+}
+
+function renderBattleStats(replay) {
+  const stats = computeBattleStats(replay);
+  const teamA = renderStatsTable(replay.teams?.team_a, stats);
+  const teamB = renderStatsTable(replay.teams?.team_b, stats);
+  return `
+    <div class="stats-grid">
+      <section class="stats-team">
+        <h4 class="stats-team-name stats-team-a">${escapeHtml(replay.teams?.team_a?.name ?? "Team A")}</h4>
+        ${teamA}
+      </section>
+      <section class="stats-team">
+        <h4 class="stats-team-name stats-team-b">${escapeHtml(replay.teams?.team_b?.name ?? "Team B")}</h4>
+        ${teamB}
+      </section>
+    </div>`;
+}
+
+function renderStatsTable(team, stats) {
+  const characters = Array.isArray(team?.characters) ? team.characters : [];
+  if (characters.length === 0) {
+    return '<div class="board-empty-state">No characters.</div>';
+  }
+  const rows = characters
+    .map((character) => {
+      const s = stats.get(character.id) ?? { dealt: 0, taken: 0, healed: 0, kills: 0, mp: 0 };
+      return `
+        <tr>
+          <td class="stats-name">${escapeHtml(character.display_name || character.id)}</td>
+          <td>${s.dealt}</td>
+          <td>${s.taken}</td>
+          <td>${s.healed}</td>
+          <td>${s.kills}</td>
+          <td>${s.mp}</td>
+        </tr>`;
+    })
+    .join("");
+  return `
+    <table class="stats-table">
+      <thead>
+        <tr><th>Character</th><th title="Damage dealt">Dealt</th><th title="Damage taken">Taken</th><th title="HP healed">Healed</th><th>Kills</th><th title="MP spent on abilities">MP</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
 }
 
 replayFileButton?.addEventListener("click", () => {

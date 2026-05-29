@@ -2570,3 +2570,97 @@ textarea:focus-visible {
   background: rgba(162, 59, 42, 0.1);
   border-color: rgba(162, 59, 42, 0.28);
 }
+
+/* Post-battle stats overlay */
+.stats-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(33, 25, 16, 0.45);
+  padding: 24px;
+}
+
+.stats-overlay[hidden] {
+  display: none;
+}
+
+.stats-modal {
+  width: min(760px, 100%);
+  max-height: 86vh;
+  overflow: auto;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(33, 25, 16, 0.1);
+}
+
+.stats-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(33, 25, 16, 0.1);
+}
+
+.stats-modal-head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.stats-body {
+  padding: 18px 20px 22px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.stats-team-name {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.stats-team-a {
+  color: rgba(38, 70, 83, 0.96);
+}
+
+.stats-team-b {
+  color: rgba(162, 59, 42, 0.96);
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-table th {
+  text-align: right;
+  padding: 6px 8px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(33, 25, 16, 0.12);
+}
+
+.stats-table th:first-child,
+.stats-table .stats-name {
+  text-align: left;
+}
+
+.stats-table td {
+  padding: 6px 8px;
+  text-align: right;
+  border-bottom: 1px solid rgba(33, 25, 16, 0.06);
+}
+
+.stats-name {
+  font-weight: 700;
+  color: var(--ink);
+}
