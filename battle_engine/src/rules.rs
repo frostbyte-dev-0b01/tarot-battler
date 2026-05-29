@@ -161,7 +161,12 @@ mod tests {
             stats: stats.into_iter().collect(),
             rules,
         };
-        CharacterState::from_config(id, &config)
+        // Characters now start at 0 MP; top up for rule-evaluation tests that
+        // assume MP is available (cost gating is exercised explicitly below).
+        let mut character = CharacterState::from_config(id, &config);
+        let wil = character.get_base_stat(&Stat::WIL);
+        character.restore_mp(wil);
+        character
     }
 
     fn make_char(id: u32, stats: Vec<(Stat, u32)>) -> CharacterState {

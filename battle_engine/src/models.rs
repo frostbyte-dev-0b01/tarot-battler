@@ -256,7 +256,8 @@ impl CharacterState {
         config: &CharacterConfig,
     ) -> Self {
         let hp = config.stats.get(&Stat::VIT).copied().unwrap_or(0) * 3;
-        let mp = config.stats.get(&Stat::WIL).copied().unwrap_or(0);
+        // Characters start at 0 MP and charge it up via basic attacks, so abilities
+        // are an earned, occasional spend rather than spammed from turn one.
         let dex = config.stats.get(&Stat::SPD).copied().unwrap_or(0) as i32;
         let max_ticks = 15 - dex;
         Self {
@@ -271,7 +272,7 @@ impl CharacterState {
             base_stats: config.stats.clone(),
             position: config.position.clone(),
             curr_hp: hp,
-            curr_mp: mp,
+            curr_mp: 0,
             ticks_until_turn: max_ticks.max(1) as u32,
             max_ticks,
             pending_haste: 0,
@@ -1208,6 +1209,7 @@ mod tests {
     fn spend_mp_fails_when_insufficient() {
         let config = make_config(vec![(Stat::WIL, 5)]);
         let mut state = CharacterState::from_config(0, &config);
+        state.restore_mp(5); // characters now start at 0 MP
         assert!(state.spend_mp(3));
         assert_eq!(state.current_mp(), 2);
         assert!(!state.spend_mp(3));
