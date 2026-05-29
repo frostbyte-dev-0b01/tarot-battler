@@ -49,13 +49,21 @@
             <div class="arena-head">
               <div>
                 <h2 class="arena-title">Training Arena</h2>
-                <p class="arena-sub">Fight your current Team Builder team against a gauntlet of benchmark opponents, then review any battle.</p>
+                <p class="arena-sub">Simulate your current team against teams from your roster. Each matchup runs many battles across varied seeds and reports a win rate with a 95% confidence interval.</p>
               </div>
-              <button id="arena-fight-button" type="button" class="button-secondary">⚔ Fight Gauntlet</button>
+              <div class="arena-controls">
+                <label class="arena-runs">Battles each
+                  <input id="arena-run-count" type="number" min="1" max="2000" value="50">
+                </label>
+                <button id="arena-fight-button" type="button" class="button-secondary">Simulate</button>
+              </div>
             </div>
+            <div id="arena-attacker" class="arena-attacker"></div>
+            <div id="arena-foes" class="arena-foes"></div>
+            <div id="arena-progress" class="arena-progress" hidden></div>
             <div id="arena-record" class="arena-record" aria-live="polite"></div>
             <div id="arena-results" class="arena-results">
-              <div class="board-empty-state">Press “Fight Gauntlet” to run your team against every benchmark team.</div>
+              <div class="board-empty-state">Pick opponents from your roster and press Simulate.</div>
             </div>
           </div>
         </section>
