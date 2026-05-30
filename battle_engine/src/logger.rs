@@ -75,6 +75,16 @@ pub enum BattleEvent {
         stacks_added: u32,
         stacks_after: u32,
     },
+    StatusRemoved {
+        tick_count: u32,
+        actor_id: u32,
+        actor_name: String,
+        target_id: u32,
+        target_name: String,
+        status_name: String,
+        stacks_removed: u32,
+        stacks_after: u32,
+    },
     ConditionApplied {
         tick_count: u32,
         actor_id: u32,
@@ -505,6 +515,23 @@ impl BattleLog {
                     "stacks_added": stacks_added,
                     "stacks_after": stacks_after,
                 })),
+                BattleEvent::StatusRemoved {
+                    tick_count,
+                    actor_id,
+                    target_id,
+                    status_name,
+                    stacks_removed,
+                    stacks_after,
+                    ..
+                } => replay_events.push(json!({
+                    "tick": tick_count,
+                    "type": "status_removed",
+                    "source_id": stable_id(*actor_id, &id_map),
+                    "target_id": stable_id(*target_id, &id_map),
+                    "status": status_name,
+                    "stacks_removed": stacks_removed,
+                    "stacks_after": stacks_after,
+                })),
                 BattleEvent::ConditionApplied {
                     tick_count,
                     actor_id,
@@ -802,6 +829,19 @@ impl BattleLog {
                         "  {actor_name} applies {status_name} to {target_name} (+{stacks_added}, {stacks_after} total)"
                     );
                 }
+                BattleEvent::StatusRemoved {
+                    actor_name,
+                    target_name,
+                    status_name,
+                    stacks_removed,
+                    stacks_after,
+                    ..
+                } => {
+                    let _ = writeln!(
+                        out,
+                        "  {actor_name} removes {status_name} from {target_name} (-{stacks_removed}, {stacks_after} left)"
+                    );
+                }
                 BattleEvent::ConditionApplied {
                     actor_name,
                     target_name,
@@ -933,6 +973,7 @@ impl BattleEvent {
             | BattleEvent::AbilityHeal { tick_count, .. }
             | BattleEvent::AbilityMpRestore { tick_count, .. }
             | BattleEvent::StatusApplied { tick_count, .. }
+            | BattleEvent::StatusRemoved { tick_count, .. }
             | BattleEvent::ConditionApplied { tick_count, .. }
             | BattleEvent::Defeat { tick_count, .. }
             | BattleEvent::StatusDamage { tick_count, .. }

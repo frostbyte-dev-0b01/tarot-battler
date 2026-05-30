@@ -1165,15 +1165,26 @@ pub fn execute_primitives_with_context(
                 stacks,
             } => {
                 let key = status_key(status, stat.as_ref());
+                let actor_id = ctx.actor_team[actor_idx].id();
                 if target_is_enemy_side(target) {
                     let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
+                        let before = ctx.enemy_team[tidx].status_stacks(&key);
                         ctx.enemy_team[tidx].remove_status(&key, *stacks);
+                        let after = ctx.enemy_team[tidx].status_stacks(&key);
+                        if before > after {
+                            log_status_removed(ctx, actor_id, actor_idx, tidx, &key, before - after, after, true);
+                        }
                     }
                 } else {
                     let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
+                        let before = ctx.actor_team[tidx].status_stacks(&key);
                         ctx.actor_team[tidx].remove_status(&key, *stacks);
+                        let after = ctx.actor_team[tidx].status_stacks(&key);
+                        if before > after {
+                            log_status_removed(ctx, actor_id, actor_idx, tidx, &key, before - after, after, false);
+                        }
                     }
                 }
             }
@@ -1881,6 +1892,42 @@ fn log_status_applied(
         target_name,
         status_name: key.to_string(),
         stacks_added,
+        stacks_after,
+    });
+    capture_context_snapshot(ctx);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn log_status_removed(
+    ctx: &mut ExecutionContext<'_>,
+    actor_id: u32,
+    actor_idx: usize,
+    target_idx: usize,
+    key: &str,
+    stacks_removed: u32,
+    stacks_after: u32,
+    enemy_side: bool,
+) {
+    let (target_id, target_name) = if enemy_side {
+        (
+            ctx.enemy_team[target_idx].id(),
+            ctx.enemy_team[target_idx].base_name().to_string(),
+        )
+    } else {
+        (
+            ctx.actor_team[target_idx].id(),
+            ctx.actor_team[target_idx].base_name().to_string(),
+        )
+    };
+
+    ctx.log.push(BattleEvent::StatusRemoved {
+        tick_count: ctx.step,
+        actor_id,
+        actor_name: ctx.actor_team[actor_idx].base_name().to_string(),
+        target_id,
+        target_name,
+        status_name: key.to_string(),
+        stacks_removed,
         stacks_after,
     });
     capture_context_snapshot(ctx);
