@@ -203,14 +203,6 @@ main {
   margin-bottom: 14px;
 }
 
-.workspace-topline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
-}
-
 .eyebrow,
 .panel-kicker {
   margin: 0 0 6px;
@@ -237,57 +229,6 @@ main {
 .tick-placeholder span {
   margin: 0;
   color: var(--muted);
-}
-
-.tab-bar {
-  display: inline-flex;
-  gap: var(--s-1);
-  padding: 3px;
-  border: 1px solid rgba(33, 25, 16, 0.08);
-  border-radius: 999px;
-  background: rgba(251, 247, 238, 0.78);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--shadow);
-  margin-bottom: 0;
-}
-
-.workspace-topline .tab-bar {
-  margin-bottom: 0;
-}
-
-.replay-inline-actions {
-  display: none;
-  align-items: center;
-  gap: 6px;
-}
-
-.replay-inline-actions.is-visible {
-  display: inline-flex;
-}
-
-.replay-inline-actions button {
-  padding: 6px 10px;
-  font-size: 0.88rem;
-}
-
-.tab-button {
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  padding: 6px 12px;
-  cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
-  font-size: 0.88rem;
-}
-
-.tab-button:hover {
-  transform: translateY(-1px);
-}
-
-.tab-button.is-active {
-  background: var(--ink);
-  color: #fff9f0;
 }
 
 .workspace {
@@ -365,20 +306,6 @@ main {
 
 .panel-replay-loader-compact .panel-body {
   padding-bottom: 16px;
-}
-
-.replay-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
-  margin-bottom: 18px;
-}
-
-.replay-detail-layout {
-  display: grid;
-  grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
-  gap: 18px;
-  margin-bottom: 18px;
 }
 
 .panel {
@@ -551,18 +478,6 @@ main {
 .condition-editor-list {
   display: grid;
   gap: 14px;
-}
-
-.team-builder-workspace {
-  display: grid;
-  gap: 18px;
-}
-
-.team-builder-topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
 }
 
 .team-name-field {
@@ -1136,7 +1051,6 @@ main {
 .button-row button:focus-visible,
 .panel-controls button:focus-visible,
 .timeline-event:focus-visible,
-.tab-button:focus-visible,
 select:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
@@ -1737,78 +1651,8 @@ textarea:focus-visible {
   overflow: hidden;
 }
 
-.replay-topbar {
-  display: none;
-}
-
-.replay-topbar-actions {
-  display: none;
-}
-
-.replay-data-toggle {
-  display: none;
-}
-
-.replay-data-toggle summary {
-  display: none;
-}
-
-.replay-data-drawer {
-  display: none;
-}
-
-.replay-stage {
-  display: grid;
-  grid-template-columns: clamp(200px, 20vw, 280px) minmax(0, 1fr) clamp(240px, 24vw, 340px);
-  gap: var(--s-2);
-  min-height: 0;
-  height: 100%;
-}
-
-.replay-inspector-col,
-.replay-timeline-col,
 .replay-main {
   min-height: 0;
-}
-
-.replay-inspector-col,
-.replay-timeline-col {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.replay-side-panel {
-  border: 1px solid rgba(33, 25, 16, 0.08);
-  border-radius: 16px;
-  background: rgba(251, 247, 238, 0.88);
-  color: var(--ink);
-  overflow: hidden;
-  box-shadow: 0 12px 28px rgba(33, 25, 16, 0.12);
-}
-
-.replay-inspector-col .replay-side-panel,
-.replay-timeline-col .replay-side-panel {
-  flex: 1 1 0;
-  min-height: 0;
-}
-
-.replay-inspector-shell {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.replay-log-shell {
-  min-height: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.replay-side-header-log {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
 }
 
 .timeline-filters {
@@ -1836,25 +1680,6 @@ textarea:focus-visible {
 .filter-chip:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-}
-
-.replay-side-header {
-  padding: var(--s-2) var(--s-3);
-  border-bottom: 1px solid rgba(33, 25, 16, 0.08);
-}
-
-.replay-side-header h3 {
-  margin: 0;
-  font-size: 0.88rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.replay-side-body {
-  padding: var(--s-2);
-  min-height: 0;
-  overflow: hidden;
 }
 
 .replay-main {
@@ -2433,81 +2258,30 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @media (max-width: 1180px) {
-  .replay-detail-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .replay-stage {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-
-  .replay-inspector-col .replay-side-panel,
-  .replay-timeline-col .replay-side-panel {
-    flex: 0 0 auto;
-  }
-
-  .replay-timeline-col .timeline-panel-body {
-    max-height: 360px;
-  }
-
   .status-panels {
     grid-template-columns: 1fr;
-  }
-
-  .builder-character-workspace {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .workspace-summary {
-    text-align: left;
   }
 }
 
 @media (max-width: 900px) {
-  .workspace-topline {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .team-builder-layout,
   .board-placeholder {
     grid-template-columns: 1fr;
   }
 
-  .replay-topbar,
   .replay-board-head,
   .replay-controls-bar {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .replay-topbar-actions,
   .speed-group {
     flex-wrap: wrap;
   }
 
   .replay-step-counter {
     margin-left: 0;
-  }
-
-  .team-loader-topline,
-  .team-builder-topbar {
-    grid-template-columns: 1fr;
-    display: grid;
   }
 
   .import-export-topline {
@@ -2551,15 +2325,6 @@ textarea:focus-visible {
   .app-shell {
     width: min(100% - 20px, 1500px);
     padding-top: 20px;
-  }
-
-  .tab-bar {
-    width: 100%;
-    justify-content: stretch;
-  }
-
-  .tab-button {
-    flex: 1 1 0;
   }
 
   .grid-board {
@@ -2855,12 +2620,6 @@ textarea:focus-visible {
 .team-editor-shell {
   height: 100%;
 }
-.team-builder-workspace {
-  grid-template-rows: auto minmax(0, 1fr);
-  height: 100%;
-  min-height: 0;
-  gap: 12px;
-}
 
 /* Design tab: identity+loadout on top, persistent browser filling below. */
 .builder-design {
@@ -3052,24 +2811,11 @@ textarea:focus-visible {
 }
 
 /* ===== Team roster controls + character library ===== */
-.team-builder-topbar {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-}
 .team-manage-row {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-}
-.team-strip-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.team-strip-row .character-slot-strip {
-  flex: 1 1 auto;
 }
 .team-manage-row .team-name-field {
   flex: 1 1 160px;
@@ -3824,4 +3570,10 @@ textarea:focus-visible {
     flex: 0 0 auto;
     max-height: 40vh;
   }
+}
+
+/* Character design: stats wrap to two rows (4 + 3) so they fit the
+   narrow identity column instead of cramming into one 7-wide row. */
+.builder-identity-card .editor-inline-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }

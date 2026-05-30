@@ -117,7 +117,6 @@ const replayEventSlider = document.querySelector("#replay-event-slider");
 const replayEventLabel = document.querySelector("#replay-event-label");
 const replayTickDisplay = document.querySelector("#replay-tick-display");
 const replaySpeedButtons = document.querySelectorAll(".speed-button");
-const replayInlineActions = document.querySelector("#replay-inline-actions");
 const currentEventTick = document.querySelector("#current-event-tick");
 const currentEventIndex = document.querySelector("#current-event-index");
 const currentEventText = document.querySelector("#current-event-text");
@@ -2844,10 +2843,6 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
       : mode === "aspect"
         ? getAspectSummary(value)
         : getAbilityDescription(value);
-  const descriptionMarkup =
-    mode === "aspect"
-      ? renderAspectSummaryMarkup(value)
-      : escapeHtml(description || "No description yet.");
   const mpCost = mode === "active" ? getAbilityMpCost(value) : null;
   const typeKey = mode === "passive" ? "passive" : mode === "aspect" ? "aspect" : "active";
   const isEmpty = !displayValue;
