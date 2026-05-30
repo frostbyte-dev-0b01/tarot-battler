@@ -200,6 +200,7 @@ const appState = {
   playbackSpeed: 1,
   logMode: "story",
   logFocus: false,
+  replayLoading: false,
   beats: [],
   beatsReplay: null,
   replaySidebarTab: "detail",
@@ -362,7 +363,11 @@ function setActiveWorkspace(targetId) {
   }
 
   if (targetId === "replay-viewer" && !appState.replay) {
-    void loadLatestReplay();
+    // Switch to the page instantly: paint a loading state now, then defer the
+    // fetch/parse to the next frame so the workspace renders without a stall.
+    appState.replayLoading = true;
+    resetBoards();
+    window.requestAnimationFrame(() => void loadLatestReplay());
   }
   if (targetId === "arena") {
     renderArena();
@@ -1622,6 +1627,7 @@ async function loadEditorCatalogs() {
 }
 
 async function loadLatestReplay() {
+  appState.replayLoading = true;
   let lastError = null;
   try {
     for (const replayPath of latestReplayPaths) {
@@ -1633,6 +1639,7 @@ async function loadLatestReplay() {
 
         const content = await response.text();
         replayJsonInput.value = content;
+        appState.replayLoading = false;
         loadReplayFromText(content.trim());
         return;
       } catch (error) {
@@ -1644,6 +1651,7 @@ async function loadLatestReplay() {
   }
 
   {
+    appState.replayLoading = false;
     renderReplayValidation({
       ok: false,
       errors: [
@@ -2162,7 +2170,9 @@ function renderBattleBoard(container, replayState, eventIndex = appState.selecte
   const currentTone = effectTone(currentEvent);
 
   if (!replayState) {
-    container.innerHTML = '<div class="board-empty-state">No replay loaded. Run battles in the Training Arena, use “Run Battle”, or open a replay JSON.</div>';
+    container.innerHTML = appState.replayLoading
+      ? '<div class="board-empty-state board-loading">Loading battle…</div>'
+      : '<div class="board-empty-state">No replay loaded. Run battles in the Training Arena, use “Run Battle”, or open a replay JSON.</div>';
     clearBoardFx();
     return;
   }
@@ -3206,7 +3216,7 @@ function renderIdentityCard(character, characterIndex) {
       </div>
       <h4 class="builder-card-title">Stats</h4>
       <div class="editor-inline-grid">
-        ${["vit", "mgt", "mag", "arm", "res", "spd"].map((statKey) => `
+        ${["vit", "arm", "res", "spd", "mgt", "mag"].map((statKey) => `
           <div class="field-group field-group-readonly">
             <span class="stat-label-with-icon">
               ${renderStatIcon(statKey)}
@@ -5301,7 +5311,62 @@ function narrateBeat(beat) {
   if (beat.kind === "loose") {
     return formatTimelineMarkup(beat.events[0]);
   }
-  return renderBeatHead(beat);
+  return narrateBeatActive(beat);
+}
+
+// Explicit top-bar narration: "Justice uses Sentence → Emperor [−5] · Moon [−3]".
+// Lists each target (damage can differ); wraps if long.
+function narrateBeatActive(beat) {
+  const actor = formatCharacterLabelMarkup(beat.actorId);
+  const action = beat.action;
+  const effects = beat.segments?.[0]?.events ?? [];
+  if (!action) {
+    const fx = narrateTargets(effects);
+    return `${actor} ${fx || '<span class="beat-muted">waits</span>'}`;
+  }
+  if (action.type === "turn_skipped") {
+    return `${actor} <span class="fx-chip fx-control">⊘ ${escapeHtml(action.reason ?? "skipped")}</span>`;
+  }
+  const verb = action.type === "basic_attack"
+    ? '<span class="beat-verb beat-verb-attack">attacks</span>'
+    : `uses <span class="beat-ability">✦${escapeHtml(action.ability ?? "Ability")}</span>`;
+  const targets = narrateTargets(effects);
+  return `${actor} ${verb}${targets ? ` <span class="fx-arrow">→</span> ${targets}` : ""}`;
+}
+
+function narrateTargets(events) {
+  const order = [];
+  const byTarget = new Map();
+  for (const event of events) {
+    if (event.type === "defeat" || event.type === "retargeted" || event.type === "moved") {
+      continue;
+    }
+    const targetId = event.target_id ?? event.new_target_id ?? null;
+    const key = targetId ?? "_";
+    if (!byTarget.has(key)) {
+      byTarget.set(key, { targetId, parts: [] });
+      order.push(key);
+    }
+    const parts = byTarget.get(key).parts;
+    if (event.type === "damage" || (event.type === "status_tick" && event.kind !== "heal")) {
+      const tone = event.type === "damage" ? damageTone(event.damage_kind) : "debuff";
+      const lethal = event.target_hp_after === 0 ? " ✕" : "";
+      parts.push(`<span class="nar-amt nar-amt-${tone}">[−${escapeHtml(event.amount)}]${lethal}</span>`);
+    } else if (event.type === "heal" || event.type === "healing" || (event.type === "status_tick" && event.kind === "heal")) {
+      parts.push(`<span class="nar-amt nar-amt-heal">[+${escapeHtml(event.amount)}]</span>`);
+    } else {
+      const chip = effectChip(event);
+      if (chip) parts.push(chip);
+    }
+  }
+  return order
+    .map((key) => {
+      const group = byTarget.get(key);
+      const token = group.targetId ? formatCharacterLabelMarkup(group.targetId) : "";
+      return `${token} ${group.parts.join(" ")}`.trim();
+    })
+    .filter(Boolean)
+    .join(' <span class="nar-sep">·</span> ');
 }
 
 function formatTimelineMarkup(event) {

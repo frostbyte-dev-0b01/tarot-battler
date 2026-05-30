@@ -3581,10 +3581,10 @@ textarea:focus-visible {
   }
 }
 
-/* Character design: stats wrap to two rows (4 + 3) so they fit the
-   narrow identity column instead of cramming into one 7-wide row. */
+/* Character design: stats in two rows of three — VIT/ARM/RES (survivability)
+   over SPD/MGT/MAG (action/offense). */
 .builder-identity-card .editor-inline-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 /* =====================================================================
@@ -3920,3 +3920,12 @@ textarea:focus-visible {
 .loadout-slot .atk-chip {
   flex: 0 0 auto;
 }
+
+/* Top-bar narration: bracketed per-target amounts, colored by tone. */
+.nar-amt { font-weight: 800; font-variant-numeric: tabular-nums; }
+.nar-amt-phys { color: var(--phys); }
+.nar-amt-mag, .nar-amt-debuff { color: var(--arcane); }
+.nar-amt-true { color: #8a6f2e; }
+.nar-amt-heal { color: var(--heal); }
+.nar-sep { color: var(--muted); margin: 0 3px; }
+.board-loading { text-align: center; font-style: italic; }
