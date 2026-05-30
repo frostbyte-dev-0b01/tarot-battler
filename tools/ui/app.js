@@ -1203,15 +1203,25 @@ replayFileInput.addEventListener("change", async (event) => {
 });
 
 replayPreviousButton.addEventListener("click", () => {
-  setSelectedEventIndex(appState.selectedEventIndex - 1);
+  setSelectedEventIndex(appState.selectedEventIndex - 1, { impact: true });
 });
 
 replayNextButton.addEventListener("click", () => {
-  setSelectedEventIndex(appState.selectedEventIndex + 1);
+  setSelectedEventIndex(appState.selectedEventIndex + 1, { impact: true });
 });
 
 replayRestartButton.addEventListener("click", () => {
   setSelectedEventIndex(-1);
+});
+
+const replaySoundToggle = document.querySelector("#replay-sound-toggle");
+replaySoundToggle?.addEventListener("click", () => {
+  const muted = !replayAudio.isMuted();
+  replayAudio.setMuted(muted);
+  replaySoundToggle.setAttribute("aria-pressed", String(muted));
+  replaySoundToggle.title = muted ? "Unmute sound" : "Mute sound";
+  replaySoundToggle.querySelector(".sound-on").hidden = muted;
+  replaySoundToggle.querySelector(".sound-off").hidden = !muted;
 });
 
 replayPlayButton.addEventListener("click", () => {
@@ -1259,10 +1269,10 @@ window.addEventListener("keydown", (event) => {
 
   if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") {
     event.preventDefault();
-    setSelectedEventIndex(appState.selectedEventIndex - 1);
+    setSelectedEventIndex(appState.selectedEventIndex - 1, { impact: true });
   } else if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") {
     event.preventDefault();
-    setSelectedEventIndex(appState.selectedEventIndex + 1);
+    setSelectedEventIndex(appState.selectedEventIndex + 1, { impact: true });
   }
 });
 
@@ -2001,7 +2011,7 @@ function beatAtEventIndex(eventIndex) {
   return match;
 }
 
-function setSelectedEventIndex(nextEventIndex) {
+function setSelectedEventIndex(nextEventIndex, { impact = false } = {}) {
   if (!appState.replay) {
     return;
   }
@@ -2010,6 +2020,13 @@ function setSelectedEventIndex(nextEventIndex) {
   appState.selectedEventIndex = clampedIndex;
   renderCurrentReplay();
   renderPlaybackControls();
+  // Sound + shake fire only when advancing via play/step — never on scrub,
+  // timeline jumps, or hover-preview.
+  if (impact && clampedIndex >= 0) {
+    const event = appState.replay.events[clampedIndex];
+    triggerBoardImpact(event);
+    replayAudio.play(event);
+  }
 }
 
 function setSelectedCharacterId(characterId) {
@@ -2126,7 +2143,7 @@ function startPlayback() {
       return;
     }
 
-    setSelectedEventIndex(appState.selectedEventIndex + 1);
+    setSelectedEventIndex(appState.selectedEventIndex + 1, { impact: true });
   }, intervalMs);
 
   renderPlaybackControls();
@@ -2142,6 +2159,7 @@ function renderBattleBoard(container, replayState, eventIndex = appState.selecte
     : null;
   const currentEventActorId = getEventActorId(currentEvent);
   const currentEventTargetId = getEventTargetId(currentEvent);
+  const currentTone = effectTone(currentEvent);
 
   if (!replayState) {
     container.innerHTML = '<div class="board-empty-state">No replay loaded. Run battles in the Training Arena, use “Run Battle”, or open a replay JSON.</div>';
@@ -2168,12 +2186,14 @@ function renderBattleBoard(container, replayState, eventIndex = appState.selecte
       const isSelected = character && character.id === appState.selectedCharacterId;
       const isSource = character && currentEventActorId === character.id;
       const isTarget = character && currentEventTargetId === character.id;
+      // Active unit = neutral glow; target ring = the effect's tone color.
+      const targetClass = isTarget ? `arena-cell-target arena-cell-target-${currentTone ?? "phys"}` : "";
       return `
         <div class="arena-cell ${isGap ? "arena-cell-gap" : ""} ${character ? "arena-cell-occupied" : ""} ${
           character ? `arena-cell-${character.team_key}` : ""
         } ${character && !character.alive ? "arena-cell-defeated" : ""} ${isSelected ? "arena-cell-selected" : ""} ${
-          isSource ? "arena-cell-source" : ""
-        } ${isTarget ? "arena-cell-target" : ""}">
+          isSource ? "arena-cell-active" : ""
+        } ${targetClass}">
           ${character ? renderUnitCard(character) : ""}
         </div>
       `;
@@ -2190,22 +2210,33 @@ function clearBoardFx() {
   if (boardPopups) boardPopups.innerHTML = "";
 }
 
-function boardEffectKind(event) {
+const BIG_HIT = 10; // damage at/above this gets prominence (bigger number, shake, deeper sound)
+
+function damageTone(damageKind) {
+  return damageKind === "magical" ? "mag" : damageKind === "true" ? "true" : "phys";
+}
+
+// The palette tone an event paints with: phys/mag/true (harm), heal, buff,
+// debuff, control. Drives arrow, target ring, number, and sound.
+function effectTone(event) {
   if (!event) return null;
   switch (event.type) {
     case "damage":
+      return damageTone(event.damage_kind);
     case "basic_attack":
-      return "harm";
+      return "phys";
     case "heal":
     case "healing":
     case "mp_restore":
-      return "help";
-    case "status_applied":
-    case "condition_applied":
-    case "status_removed":
-      return "status";
+      return "heal";
     case "status_tick":
-      return event.kind === "heal" ? "help" : "harm";
+      return event.kind === "heal" ? "heal" : "debuff";
+    case "status_applied":
+      return statusMeta(event.status).valence === "buff" ? "buff" : statusMeta(event.status).valence === "control" ? "control" : "debuff";
+    case "condition_applied":
+      return statusMeta(event.condition).valence === "buff" ? "buff" : statusMeta(event.condition).valence === "control" ? "control" : "debuff";
+    case "status_removed":
+      return "control";
     case "retargeted":
       return "control";
     default:
@@ -2213,14 +2244,19 @@ function boardEffectKind(event) {
   }
 }
 
+function isHealTone(tone) {
+  return tone === "heal" || tone === "buff";
+}
+
 // Draws the action vector (source → target) and a floating ±N popup so the
-// board narrates the current step on its own.
+// board narrates the current step on its own. Visual only — sound and shake
+// fire from the navigation path (play/step), not on scrub/hover.
 function renderBoardFx(container, event, actorId, targetId) {
   clearBoardFx();
   if (!boardFx || !boardPopups || !event) {
     return;
   }
-  const kind = boardEffectKind(event);
+  const tone = effectTone(event);
   const sourceId = event.type === "retargeted" ? event.actor_id : actorId;
   const destId = event.type === "retargeted" ? event.new_target_id : targetId;
 
@@ -2244,27 +2280,108 @@ function renderBoardFx(container, event, actorId, targetId) {
 
   const sourceCell = cellOf(sourceId);
   const destCell = cellOf(destId);
-  if (kind && sourceCell && destCell && sourceCell !== destCell) {
+  if (tone && sourceCell && destCell && sourceCell !== destCell) {
     const a = centerOf(sourceCell);
     const b = centerOf(destCell);
     const dashed = event.type === "retargeted" ? "fx-line-dashed" : "";
     boardFx.innerHTML = `
-      <line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="fx-line fx-line-${kind} ${dashed}" />
-      <circle cx="${b.x}" cy="${b.y}" r="4.5" class="fx-dot fx-dot-${kind}" />`;
+      <line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="fx-line fx-line-${tone} ${dashed}" />
+      <circle cx="${b.x}" cy="${b.y}" r="4.5" class="fx-dot fx-dot-${tone}" />`;
   }
 
   const hasAmount = ["damage", "heal", "healing", "status_tick"].includes(event.type);
   if (hasAmount && destCell && event.amount != null) {
     const b = centerOf(destCell);
-    const help = kind === "help";
+    const heal = isHealTone(tone);
+    const big = Number(event.amount) >= BIG_HIT;
     const popup = document.createElement("div");
-    popup.className = `board-popup board-popup-${help ? "help" : "harm"}`;
+    popup.className = `board-popup board-popup-${tone} ${big ? "is-big" : ""}`;
     popup.style.left = `${b.x}px`;
     popup.style.top = `${b.y}px`;
-    popup.textContent = `${help ? "+" : "−"}${event.amount}`;
+    popup.textContent = `${heal ? "+" : "−"}${event.amount}`;
     boardPopups.appendChild(popup);
   }
 }
+
+// Impact feedback (board shake) — fired only when advancing via play/step.
+function triggerBoardImpact(event) {
+  if (!event || event.type !== "damage") {
+    return;
+  }
+  const amount = Number(event.amount) || 0;
+  const arena = battleBoard?.closest(".replay-arena");
+  if (!arena || amount < BIG_HIT) {
+    return;
+  }
+  arena.classList.remove("is-shaking");
+  void arena.offsetWidth; // restart the animation
+  arena.classList.add("is-shaking");
+  window.setTimeout(() => arena.classList.remove("is-shaking"), 320);
+}
+
+// Synthesized replay SFX (Web Audio, no assets). Default ON; the AudioContext
+// is created lazily on the first play/step so browser autoplay gating is met.
+const replayAudio = (() => {
+  let ctx = null;
+  let muted = false;
+  const ensure = () => {
+    if (!ctx) {
+      try {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch {
+        ctx = null;
+      }
+    }
+    if (ctx && ctx.state === "suspended") {
+      ctx.resume();
+    }
+    return ctx;
+  };
+  const blip = ({ type = "sine", freq = 200, slideTo = null, dur = 0.12, gain = 0.16, delay = 0 }) => {
+    const ac = ensure();
+    if (!ac) return;
+    const t0 = ac.currentTime + delay;
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    if (slideTo) {
+      osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+    }
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g).connect(ac.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.03);
+  };
+  return {
+    isMuted: () => muted,
+    setMuted(value) {
+      muted = Boolean(value);
+    },
+    play(event) {
+      if (muted || !event) {
+        return;
+      }
+      const amount = Number(event.amount) || 0;
+      const big = amount >= BIG_HIT;
+      if (event.type === "damage") {
+        if (damageTone(event.damage_kind) === "mag") {
+          blip({ type: "triangle", freq: big ? 320 : 440, slideTo: big ? 760 : 920, dur: 0.16, gain: 0.15 });
+        } else {
+          blip({ type: "square", freq: big ? 90 : 150, dur: big ? 0.16 : 0.1, gain: big ? 0.22 : 0.15 });
+          if (big) blip({ type: "sine", freq: 64, dur: 0.2, gain: 0.18, delay: 0.01 });
+        }
+      } else if (event.type === "heal" || event.type === "healing" || (event.type === "status_tick" && event.kind === "heal")) {
+        blip({ type: "sine", freq: 540, dur: 0.12, gain: 0.12 });
+        blip({ type: "sine", freq: 760, dur: 0.14, gain: 0.12, delay: 0.08 });
+      } else if (event.type === "defeat") {
+        blip({ type: "sine", freq: 130, slideTo: 60, dur: 0.32, gain: 0.2 });
+      }
+    },
+  };
+})();
 
 function isReplayPosition(position) {
   return isPlainObject(position)

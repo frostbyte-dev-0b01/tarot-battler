@@ -48,6 +48,7 @@ pub enum BattleEvent {
         target_name: String,
         damage: u32,
         target_hp_remaining: u32,
+        damage_kind: String,
     },
     AbilityHeal {
         tick_count: u32,
@@ -443,6 +444,7 @@ impl BattleLog {
                     target_id,
                     damage,
                     target_hp_remaining,
+                    damage_kind,
                     ..
                 } => replay_events.push(json!({
                     "tick": tick_count,
@@ -450,7 +452,7 @@ impl BattleLog {
                     "source_id": stable_id(*actor_id, &id_map),
                     "target_id": stable_id(*target_id, &id_map),
                     "amount": damage,
-                    "damage_kind": "ability",
+                    "damage_kind": damage_kind,
                     "source_kind": "ability",
                     "source_name": last_ability_by_actor
                         .get(actor_id)

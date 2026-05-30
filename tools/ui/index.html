@@ -131,8 +131,9 @@
                     <span class="replay-chip replay-chip-step" id="current-event-index">Step 0</span>
                   </div>
                   <div class="replay-legend" aria-hidden="true">
-                    <span class="legend-item legend-source">source</span>
-                    <span class="legend-item legend-target">target</span>
+                    <span class="legend-item legend-phys">physical</span>
+                    <span class="legend-item legend-mag">magical</span>
+                    <span class="legend-item legend-heal">heal/buff</span>
                   </div>
                   <div class="replay-inline-actions" id="replay-inline-actions" aria-label="Replay loading actions">
                     <input id="replay-file-input" class="visually-hidden" type="file" accept=".json,application/json">
@@ -185,6 +186,10 @@
                   </div>
                   <input id="replay-event-slider" class="replay-event-slider" type="range" min="0" max="0" value="0" aria-label="Event index" disabled>
                   <div class="replay-step-counter" id="replay-event-label">1 / 1</div>
+                  <button id="replay-sound-toggle" type="button" class="icon-button icon-button-sm" title="Mute sound" aria-label="Mute sound" aria-pressed="false">
+                    <svg class="sound-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3l4-3.5v12l-4-3.5H4z" fill="currentColor" stroke="none"/><path d="M15.5 8.5a4 4 0 0 1 0 7M17.8 6a7 7 0 0 1 0 12"/></svg>
+                    <svg class="sound-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M4 9.5h3l4-3.5v12l-4-3.5H4z" fill="currentColor" stroke="none"/><path d="m15.5 9.5 5 5M20.5 9.5l-5 5"/></svg>
+                  </button>
                   <strong id="replay-tick-display" class="visually-hidden">0</strong>
                 </section>
               </section>

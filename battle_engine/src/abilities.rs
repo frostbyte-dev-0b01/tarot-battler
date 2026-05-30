@@ -691,6 +691,7 @@ pub fn execute_primitives_with_context(
                         target_name: tname,
                         damage,
                         target_hp_remaining: hp,
+                        damage_kind: "physical".to_string(),
                     });
                     capture_context_snapshot(ctx);
                     damage_dealt.push(DamageRecord {
@@ -731,6 +732,7 @@ pub fn execute_primitives_with_context(
                         target_name: tname,
                         damage,
                         target_hp_remaining: hp,
+                        damage_kind: "physical".to_string(),
                     });
                     capture_context_snapshot(ctx);
                     damage_dealt.push(DamageRecord {
@@ -757,6 +759,7 @@ pub fn execute_primitives_with_context(
                         target_name: tname,
                         damage,
                         target_hp_remaining: hp,
+                        damage_kind: "magical".to_string(),
                     });
                     capture_context_snapshot(ctx);
                     damage_dealt.push(DamageRecord {
@@ -800,7 +803,7 @@ pub fn execute_primitives_with_context(
                     let raw_damage =
                         scaled_damage_with_defense(actor_int, multiplier, defender_res);
                     let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
-                    log_ability_damage(ctx, actor_id, tidx, damage, true);
+                    log_ability_damage(ctx, actor_id, tidx, damage, true, "magical");
                     damage_dealt.push(DamageRecord {
                         source_id: actor_id,
                         target_id: ctx.enemy_team[tidx].id(),
@@ -814,7 +817,7 @@ pub fn execute_primitives_with_context(
                     for tidx in target_indices {
                         let damage = ctx.enemy_team[tidx].current_hp().min(*amount);
                         ctx.enemy_team[tidx].take_damage(*amount);
-                        log_ability_damage(ctx, actor_id, tidx, damage, true);
+                        log_ability_damage(ctx, actor_id, tidx, damage, true, "true");
                         damage_dealt.push(DamageRecord {
                             source_id: actor_id,
                             target_id: ctx.enemy_team[tidx].id(),
@@ -826,7 +829,7 @@ pub fn execute_primitives_with_context(
                     for tidx in target_indices {
                         let damage = ctx.actor_team[tidx].current_hp().min(*amount);
                         ctx.actor_team[tidx].take_damage(*amount);
-                        log_ability_damage(ctx, actor_id, tidx, damage, false);
+                        log_ability_damage(ctx, actor_id, tidx, damage, false, "true");
                         damage_dealt.push(DamageRecord {
                             source_id: actor_id,
                             target_id: ctx.actor_team[tidx].id(),
@@ -851,7 +854,7 @@ pub fn execute_primitives_with_context(
                     let raw_damage = consumed_stacks.saturating_mul(*damage_per_stack);
                     let damage = ctx.enemy_team[tidx].current_hp().min(raw_damage);
                     ctx.enemy_team[tidx].take_damage(raw_damage);
-                    log_ability_damage(ctx, actor_id, tidx, damage, true);
+                    log_ability_damage(ctx, actor_id, tidx, damage, true, "true");
                     damage_dealt.push(DamageRecord {
                         source_id: actor_id,
                         target_id: ctx.enemy_team[tidx].id(),
@@ -891,6 +894,7 @@ pub fn execute_primitives_with_context(
                         target_name: tname,
                         damage,
                         target_hp_remaining: hp,
+                        damage_kind: "magical".to_string(),
                     });
                     capture_context_snapshot(ctx);
                     damage_dealt.push(DamageRecord {
@@ -922,7 +926,7 @@ pub fn execute_primitives_with_context(
                 for tidx in target_indices {
                     let damage = ctx.enemy_team[tidx].current_hp().min(raw_damage);
                     ctx.enemy_team[tidx].take_damage(raw_damage);
-                    log_ability_damage(ctx, actor_id, tidx, damage, true);
+                    log_ability_damage(ctx, actor_id, tidx, damage, true, "true");
                     damage_dealt.push(DamageRecord {
                         source_id: actor_id,
                         target_id: ctx.enemy_team[tidx].id(),
@@ -968,6 +972,7 @@ pub fn execute_primitives_with_context(
                         target_name: tname,
                         damage,
                         target_hp_remaining: hp,
+                        damage_kind: "physical".to_string(),
                     });
                     capture_context_snapshot(ctx);
                     damage_dealt.push(DamageRecord {
@@ -983,7 +988,7 @@ pub fn execute_primitives_with_context(
                 if amount > 0 {
                     let damage = ctx.actor_team[actor_idx].current_hp().min(amount);
                     ctx.actor_team[actor_idx].take_damage(amount);
-                    log_ability_damage(ctx, actor_id, actor_idx, damage, false);
+                    log_ability_damage(ctx, actor_id, actor_idx, damage, false, "true");
                     damage_dealt.push(DamageRecord {
                         source_id: actor_id,
                         target_id: ctx.actor_team[actor_idx].id(),
@@ -1745,6 +1750,7 @@ pub fn execute_primitives_with_context(
                                 target_name: ctx.enemy_team[tidx].base_name().to_string(),
                                 damage,
                                 target_hp_remaining: ctx.enemy_team[tidx].current_hp(),
+                                damage_kind: "true".to_string(),
                             });
                             capture_context_snapshot(ctx);
                             damage_dealt.push(DamageRecord {
@@ -1816,6 +1822,7 @@ fn log_ability_damage(
     target_idx: usize,
     damage: u32,
     enemy_side: bool,
+    damage_kind: &str,
 ) {
     let (target_id, target_name, target_hp_remaining) = if enemy_side {
         (
@@ -1838,6 +1845,7 @@ fn log_ability_damage(
         target_name,
         damage,
         target_hp_remaining,
+        damage_kind: damage_kind.to_string(),
     });
     capture_context_snapshot(ctx);
 }
