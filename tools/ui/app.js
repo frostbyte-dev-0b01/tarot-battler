@@ -1825,10 +1825,32 @@ function renderTimeline() {
 
 function bindTimelineEvents() {
   for (const button of timelineList.querySelectorAll("[data-jump-index]")) {
-    button.addEventListener("click", () => {
-      setSelectedEventIndex(Number(button.dataset.jumpIndex));
-    });
+    const index = Number(button.dataset.jumpIndex);
+    button.addEventListener("click", () => setSelectedEventIndex(index));
+    // Hover-to-scrub: preview the board/narration at this beat without
+    // committing the selection; restore on leave.
+    button.addEventListener("mouseenter", () => previewEventIndex(index));
+    button.addEventListener("mouseleave", clearEventPreview);
   }
+}
+
+function previewEventIndex(index) {
+  if (!appState.replay) {
+    return;
+  }
+  const replayState = getReplaySnapshot(appState.replay, index);
+  renderBattleBoard(battleBoard, replayState, index);
+  const beat = beatAtEventIndex(index);
+  currentEventText.innerHTML = beat ? narrateBeat(beat) : "";
+}
+
+function clearEventPreview() {
+  if (!appState.replay) {
+    return;
+  }
+  const replayState = getReplaySnapshot(appState.replay, appState.selectedEventIndex);
+  renderBattleBoard(battleBoard, replayState, appState.selectedEventIndex);
+  renderCurrentEventSummary();
 }
 
 // ===== Beat model: fold the raw event stream into one entry per turn =====
@@ -2045,13 +2067,13 @@ function startPlayback() {
   renderPlaybackControls();
 }
 
-function renderBattleBoard(container, replayState) {
+function renderBattleBoard(container, replayState, eventIndex = appState.selectedEventIndex) {
   if (!container) {
     return;
   }
 
-  const currentEvent = appState.replay && appState.selectedEventIndex >= 0
-    ? appState.replay.events[appState.selectedEventIndex]
+  const currentEvent = appState.replay && eventIndex >= 0
+    ? appState.replay.events[eventIndex]
     : null;
   const currentEventActorId = getEventActorId(currentEvent);
   const currentEventTargetId = getEventTargetId(currentEvent);
@@ -2215,24 +2237,29 @@ function renderUnitCard(character) {
   `;
 }
 
+function statusCardChip(name, stacks, polarity) {
+  const arrow = polarity === "buff" ? "▲" : polarity === "debuff" ? "▼" : "•";
+  const label = `${name} x${stacks}`;
+  return `<span class="unit-card-chip unit-card-chip-${polarity}" title="${escapeHtml(label)}"><span class="unit-card-chip-arrow">${arrow}</span>${escapeHtml(name)}<span class="unit-card-chip-stacks">${escapeHtml(stacks)}</span></span>`;
+}
+
+// Two dedicated rows: beneficial statuses on top, debuffs + conditions below.
 function renderUnitCardChips(character) {
-  const entries = [
-    ...normalizeStatusEntries(character.statuses).map((entry) => ({ ...entry, isStatus: true })),
-    ...normalizeConditionEntries(character.conditions).map((entry) => ({ ...entry, isStatus: false })),
-  ];
-  if (entries.length === 0) {
+  const buffs = [];
+  const debuffs = [];
+  for (const { name, stacks } of normalizeStatusEntries(character.statuses)) {
+    const polarity = statusPolarity(name);
+    (polarity === "buff" ? buffs : debuffs).push(statusCardChip(name, stacks, polarity === "buff" ? "buff" : "debuff"));
+  }
+  for (const { name, stacks } of normalizeConditionEntries(character.conditions)) {
+    debuffs.push(statusCardChip(name, stacks, "neutral"));
+  }
+  if (buffs.length === 0 && debuffs.length === 0) {
     return "";
   }
-
-  const chips = entries
-    .map(({ name, stacks, isStatus }) => {
-      const polarity = isStatus ? statusPolarity(name) : "neutral";
-      const arrow = polarity === "buff" ? "▲" : polarity === "debuff" ? "▼" : "•";
-      const label = `${name} x${stacks}`;
-      return `<span class="unit-card-chip unit-card-chip-${polarity}" title="${escapeHtml(label)}"><span class="unit-card-chip-arrow">${arrow}</span>${escapeHtml(name)}<span class="unit-card-chip-stacks">${escapeHtml(stacks)}</span></span>`;
-    })
-    .join("");
-  return `<div class="unit-card-chips">${chips}</div>`;
+  const buffRow = buffs.length ? `<div class="unit-card-chip-row unit-card-chip-row-buff">${buffs.join("")}</div>` : "";
+  const debuffRow = debuffs.length ? `<div class="unit-card-chip-row unit-card-chip-row-debuff">${debuffs.join("")}</div>` : "";
+  return `<div class="unit-card-chips">${buffRow}${debuffRow}</div>`;
 }
 
 function renderCompactBar(label, currentValue, maxValue, type) {
@@ -4547,8 +4574,7 @@ function renderInspector(character) {
   const characterConfig = getReplayCharacterConfig(character.id);
   const baseStats = normalizeStatBlock(characterConfig?.stats ?? character.stats);
   const effectiveStats = normalizeStatBlock(calculateEffectiveStats(character));
-  const statusMarkup = renderStatusList(character.statuses);
-  const conditionMarkup = renderConditionList(character.conditions);
+  const effectsMarkup = renderInspectorEffects(character);
   const passiveName = characterConfig?.passive ?? character.passive;
   const focusLabel = character.current_target_id
     ? formatCharacterLabel(character.current_target_id, getReplayCharacterName(character.current_target_id))
@@ -4581,7 +4607,7 @@ function renderInspector(character) {
     </section>
     <section class="inspector-section">
       <h5>Status / Conditions</h5>
-      <div class="status-list">${statusMarkup}${conditionMarkup}</div>
+      ${effectsMarkup}
     </section>
     <section class="inspector-section">
       <h5>Rules</h5>
@@ -4607,22 +4633,24 @@ function renderEffectiveStats(baseStats, effectiveStats) {
   }).join("");
 }
 
-function renderStatusList(statuses) {
-  const entries = normalizeStatusEntries(statuses);
-  if (entries.length === 0) {
-    return "";
+// Grouped buff / debuff / condition rows for the inspector, in the shared
+// hybrid language (▲ buff / ▼ debuff, single status hue; conditions neutral).
+function renderInspectorEffects(character) {
+  const buffs = [];
+  const debuffs = [];
+  for (const { name, stacks } of normalizeStatusEntries(character.statuses)) {
+    const polarity = statusPolarity(name);
+    (polarity === "buff" ? buffs : debuffs).push(statusCardChip(name, stacks, polarity === "buff" ? "buff" : "debuff"));
   }
-
-  return entries.map(({ name, stacks }) => `<span>${escapeHtml(name)} x${stacks}</span>`).join("");
-}
-
-function renderConditionList(conditions) {
-  const entries = normalizeConditionEntries(conditions);
-  if (entries.length === 0) {
-    return "";
+  const conditions = normalizeConditionEntries(character.conditions).map(({ name, stacks }) =>
+    statusCardChip(name, stacks, "neutral"),
+  );
+  if (buffs.length === 0 && debuffs.length === 0 && conditions.length === 0) {
+    return '<div class="inspector-effects-empty">None</div>';
   }
-
-  return entries.map(({ name, stacks }) => `<span>${escapeHtml(name)} x${stacks}</span>`).join("");
+  const row = (label, chips) =>
+    chips.length ? `<div class="inspector-effect-row"><span class="inspector-effect-label">${label}</span><div class="inspector-effect-chips">${chips.join("")}</div></div>` : "";
+  return `<div class="inspector-effects">${row("Buffs", buffs)}${row("Debuffs", debuffs)}${row("Conditions", conditions)}</div>`;
 }
 
 function calculateEffectiveStats(character) {

@@ -1933,9 +1933,14 @@ textarea:focus-visible {
 
 .unit-card-chips {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+}
+.unit-card-chip-row {
+  display: flex;
   flex-wrap: wrap;
   gap: 3px;
-  margin-top: 2px;
 }
 
 .unit-card-chip {
@@ -3764,4 +3769,33 @@ textarea:focus-visible {
 .unit-card-chip-neutral {
   background: rgba(33, 25, 16, 0.08);
   color: var(--muted);
+}
+
+/* Inspector effects grouped into buff / debuff / condition rows. */
+.inspector-effects {
+  display: grid;
+  gap: 5px;
+}
+.inspector-effect-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+}
+.inspector-effect-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 2px;
+}
+.inspector-effect-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.inspector-effects-empty {
+  color: var(--muted);
+  font-size: 0.78rem;
 }
