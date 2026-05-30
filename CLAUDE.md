@@ -13,8 +13,8 @@ Primary design references:
 - `design/character_design.md` — tactical archetypes, role types, and pivot unit guidance
 - `design/implementation_notes.md` — prototype alignment notes, future ideas, and open design items
 - `design/team_builder_schema.md` — interim JSON contract for team builder and replay tooling
-- `design/replay_schema.md` — proposed replay JSON contract for battle viewer tooling
-- `design/ui_spec.md` — lightweight dev-tool UI structure for team editing and replay viewing
+- `design/replay_schema.md` — replay JSON contract for the battle viewer
+- `design/ability_roster.md` — ability/passive design catalog and balance notes
 
 ## Build Commands
 

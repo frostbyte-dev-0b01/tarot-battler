@@ -104,17 +104,22 @@ variation, if introduced, should come from passives/traits rather than a stat.
 
 ## Formation
 
-Battles are played on a 3-column by 3-row formation grid:
+Battles are played on a 3×3 formation grid. The board is drawn with each team's
+depth running toward the enemy, so the three depth positions read as **columns**:
 
-- row 0: front
-- row 1: middle
-- row 2: back
+- front column (closest to the enemy)
+- middle column
+- back column
 
-### Row Protection
+The three lateral positions are **lanes**. (For historical reasons the engine/JSON
+stores the depth axis as the `row` field and the lateral axis as `col`; the UI and
+ability text present depth as "column".)
 
-- enemies in the front row must be fully defeated before the middle row can be targeted
-- enemies in the middle row must be fully defeated before the back row can be targeted
-- abilities only bypass row protection if their targeting explicitly says so
+### Column Protection
+
+- enemies in the front column must be fully defeated before the middle column can be targeted
+- enemies in the middle column must be fully defeated before the back column can be targeted
+- abilities only bypass column protection if their targeting explicitly says so
 
 ### Position Terminology
 
@@ -703,12 +708,12 @@ First aspect direction:
 - `Aspect of Ruin`
   - stats: `MGT +2`, `MAG +2`, `SPD +1`, `VIT -2`, `ARM -1`
   - passive: `Ruinous`
-    - The first time each tick the user damages an enemy with a condition, deal `2` true damage.
+    - When the user damages an enemy that has a condition, deal `2` true damage.
 
 - `Aspect of Grace`
   - stats: `VIT +2`, `RES +2`, `SPD +1`, `MGT -1`, `MAG -1`
   - passive: `Grace`
-    - The first time each tick the user affects an ally with an ability, that ally restores `2 HP`.
+    - When the user affects an ally with an ability, that ally restores `2 HP`.
 
 Aspects should usually stay around a modest `+/-5` total stat swing, not a massive raw-stat package.
 

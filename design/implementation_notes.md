@@ -30,7 +30,7 @@ Decay is now locked per family (see `game_spec.md`):
 - `Empower` / `Weaken` are permanent (no decay), capped at `8` stacks per stat, removed only by dispel/cleanse/opposing-cancellation/consume
 - `Lethality` stays in the halving-decay family as a short-lived burst effect if it returns
 
-Damage uses ratio mitigation — `round(eff_attack × tier_mult × K / (K + defense))`, `K = 12`, min `1` — with no flat base damage. Attack power is a four-tier enum (`strike` / `strong` / `heavy` / `execute` = `×1.0 / 1.5 / 2.0 / 2.5`) stored in ability data as `power`, so the player-facing language is tiers/pips rather than decimals.
+Damage uses ratio mitigation — `round(eff_attack × tier_mult × K / (K + defense))`, `K = 12`, min `1` — with no flat base damage. Attack power is a four-tier enum (`light` / `medium` / `heavy` / `ultimate` = `×1.0 / 1.5 / 2.0 / 2.5`) stored in ability data as `power`, so the player-facing language is tiers/symbols (clustered swords for physical, sparks for magical) rather than decimals.
 
 Legacy placeholder effects such as `Bleed`, `Poison`, `Regen`, `Fortify`, `Enfeeble`, and the older `Stun` status have been removed from the live status catalog. The engine still supports generic status behaviors internally for testing and future experimentation, but those names should not be treated as live gameplay content.
 
@@ -66,18 +66,18 @@ The current v1 stat set is:
 - `ARM`
 - `RES`
 - `SPD`
-- `WIL`
 
-These names are now the intended design direction. Numeric tuning and exact formulas may still evolve.
+There is no mana stat. Numeric tuning and exact formulas may still evolve.
 
 ### MP Terminology
 
-The design now distinguishes:
+Mana is a universal "pip" resource, not a stat:
 
-- `WIL` as the base will stat
-- `MP` as the spendable runtime resource
+- every character starts a battle at `0` MP and caps at `MAX_MP` (5)
+- a basic attack restores `1` pip (no per-character regen stat)
+- abilities cost `1`–`4`
 
-The code and sample data now use this terminology. Remaining references should be treated as cleanup bugs.
+The code and sample data use this model.
 
 ## Open Balance and Tuning Questions
 
@@ -198,11 +198,10 @@ The older direct-stat team format has been retired.
 
 The intended design is now split across:
 
-- [game_spec.md](/home/frostbyte/Work/tarot-battler/design/game_spec.md)
-- [character_design.md](/home/frostbyte/Work/tarot-battler/design/character_design.md)
-- [implementation_notes.md](/home/frostbyte/Work/tarot-battler/design/implementation_notes.md)
-- [team_builder_schema.md](/home/frostbyte/Work/tarot-battler/design/team_builder_schema.md)
-- [replay_schema.md](/home/frostbyte/Work/tarot-battler/design/replay_schema.md)
-- [ui_spec.md](/home/frostbyte/Work/tarot-battler/design/ui_spec.md)
+- [game_spec.md](./game_spec.md)
+- [character_design.md](./character_design.md)
+- [team_builder_schema.md](./team_builder_schema.md)
+- [replay_schema.md](./replay_schema.md)
+- [ability_roster.md](./ability_roster.md)
 
 Older brainstorming has been consolidated into this file and the current design docs.

@@ -60,8 +60,8 @@ Design note:
 
 - `Hold the Line`
   `MP 5`
-  Apply `Ward 1` to allies in the user's row.
-  Balance notes: row-wide protection, usually 2-3 total Ward in 3v3, so it should cost more than a one-for-one substitution ability
+  Apply `Ward 1` to allies in the user's column.
+  Balance notes: column-wide protection, usually 2-3 total Ward in 3v3, so it should cost more than a one-for-one substitution ability
 
 - `Command`
   `MP 3`
@@ -100,12 +100,12 @@ Design note:
 
 - `Charge`
   `MP 4`
-  Deal `1.2x MGT` damage to the user's focused enemy. Then, if the tile one row forward in the same column is empty, move there. If the move succeeds, the user refocuses.
+  Deal `1.2x MGT` damage to the user's focused enemy. Then, if the tile one column forward in the same lane is empty, move there. If the move succeeds, the user refocuses.
   Balance notes: engage tool that should update pressure as part of movement, not just advance position
 
 - `Withdraw`
   `MP 4`
-  Deal `1.0x MGT` damage to the user's focused enemy. Then, if the tile one row backward in the same column is empty, move there. If the move succeeds, enemies focusing the user refocus.
+  Deal `1.0x MGT` damage to the user's focused enemy. Then, if the tile one column backward in the same lane is empty, move there. If the move succeeds, enemies focusing the user refocus.
   Balance notes: this is intended to be a real disengage tool, not just backward movement
 
 - `Breakthrough`
@@ -203,7 +203,7 @@ Design note:
 
 - `Rescue`
   `MP 4`
-  Restore `6 HP` to one companion. If the tile one row backward in the same column is empty, move that companion there. Enemies focusing that companion refocus.
+  Restore `6 HP` to one companion. If the tile one column backward in the same lane is empty, move that companion there. Enemies focusing that companion refocus.
   Balance notes: support healing should often reposition or reset pressure, not only add HP
 
   Team concept note:
@@ -233,7 +233,7 @@ These ideas still look promising, but are lower priority than the near-term prom
   mark a target, then use focus tools and coordinated rules to collapse on that enemy.
 
 - `Covenant`
-  Until the user's next turn, allies in the user's row cannot be reduced below `1 HP` by direct damage.
+  Until the user's next turn, allies in the user's column cannot be reduced below `1 HP` by direct damage.
 
 - `Blood Rite`
   Deal `5` true damage to each companion. Then deal `1.0x MAG` damage to the user's focused enemy, plus `1` true damage for each damage dealt this way.

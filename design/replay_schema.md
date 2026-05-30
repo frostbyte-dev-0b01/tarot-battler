@@ -88,8 +88,7 @@ cargo run -- --json-out path/to/replay.json
         "mag": 3,
         "arm": 7,
         "res": 3,
-        "spd": 4,
-        "wil": 4
+        "spd": 4
       },
       "passive": "Imperial Formation",
       "actives": ["Hold the Line", "Command", "Taunt"]
@@ -175,8 +174,7 @@ That means:
     "mag": 8,
     "arm": 7,
     "res": 5,
-    "spd": 8,
-    "wil": 12
+    "spd": 8
   },
   "effective_stats": {
     "vit": 12,
@@ -184,8 +182,7 @@ That means:
     "mag": 8,
     "arm": 7,
     "res": 5,
-    "spd": 8,
-    "wil": 12
+    "spd": 8
   },
   "passive": "Imperial Formation",
   "actives": ["Hold the Line", "Command", "Taunt"],
@@ -282,18 +279,6 @@ Example:
   "actor_id": "the_emperor",
   "target_id": "the_fool",
   "damage_kind": "physical"
-}
-```
-
-### `rest`
-
-```json
-{
-  "tick": 4,
-  "type": "rest",
-  "actor_id": "the_emperor",
-  "mp_restored": 2,
-  "mp_after": 4
 }
 ```
 

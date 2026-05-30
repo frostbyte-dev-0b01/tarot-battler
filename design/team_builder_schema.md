@@ -131,7 +131,7 @@ They are evaluated in array order:
 
 - `subject: "self" | "target" | "companion" | "world"`
 - `value: QueryValue`
-- `op: "gte" | "lte"`
+- `op: "gte" | "lte" | "eq"`
 - `threshold: number`
 
 ## QueryValue
@@ -148,7 +148,7 @@ Allowed values:
 - `"tick_count"`
 - `"ally_count"`
 - `"enemy_count"`
-- `{ "stat": "vit" | "mgt" | "mag" | "arm" | "res" | "spd" | "wil" }`
+- `{ "stat": "vit" | "mgt" | "mag" | "arm" | "res" | "spd" }`
 - `{ "has_status": "Ward" }`
 - `{ "status_stacks": "Empower:MGT" }`
 
@@ -170,13 +170,11 @@ The engine loads archetypes from:
       "mag": 8,
       "arm": 7,
       "res": 5,
-      "spd": 8,
-      "wil": 12
+      "spd": 8
     },
     "default_passive": "Imperial Formation",
     "passive_pool": ["Imperial Formation"],
-    "active_pool": ["Hold the Line", "Command", "Taunt", "Interpose", "Sunder"],
-    "aspect_slots": 1
+    "active_pool": ["Hold the Line", "Command", "Taunt", "Interpose", "Sunder"]
   }
 }
 ```
@@ -188,7 +186,6 @@ The engine loads archetypes from:
 - `default_passive: string`
 - `passive_pool: string[]`
 - `active_pool: string[]`
-- `aspect_slots: number`
 - `cost: number`
 
 ### Notes
@@ -197,7 +194,7 @@ The engine loads archetypes from:
 - the engine treats these as authoritative
 - `default_passive` supports builder defaults
 - `passive_pool` and `active_pool` define legal loadout choices
-- `aspect_slots` should currently be `1`
+- every character has exactly one aspect slot (no per-archetype slot count)
 - `cost` is the archetype's coarse point cost for the team budget (currently `1`–`3`); aspect definitions carry an analogous `cost` (`0`–`2`). A team's total archetype + aspect cost must not exceed the team budget (currently `14`), and each archetype and aspect may appear at most once per team.
 
 ## Aspect Catalog
@@ -216,7 +213,6 @@ The engine loads aspects from:
     "stat_bonuses": {
       "mgt": 2,
       "mag": 2,
-      "wil": 1,
       "vit": -2,
       "arm": -1
     },
@@ -243,14 +239,14 @@ The engine loads aspects from:
 ### First Aspects
 
 - `Aspect of Ruin`
-  - stats: `MGT +2`, `MAG +2`, `WIL +1`, `VIT -2`, `ARM -1`
+  - stats: `MGT +2`, `MAG +2`, `VIT -2`, `ARM -1`
   - passive: `Ruinous`
-    - The first time each tick the user damages an enemy with a condition, deal `2` true damage.
+    - When the user damages an enemy that has a condition, deal `2` true damage.
 
 - `Aspect of Grace`
-  - stats: `VIT +2`, `RES +2`, `WIL +1`, `MGT -1`, `MAG -1`
+  - stats: `VIT +2`, `RES +2`, `MGT -1`, `MAG -1`
   - passive: `Grace`
-    - The first time each tick the user affects an ally with an ability, that ally restores `2 HP`.
+    - When the user affects an ally with an ability, that ally restores `2 HP`.
 
 ## Resolution Model
 
