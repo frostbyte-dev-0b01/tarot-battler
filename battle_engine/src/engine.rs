@@ -1811,7 +1811,7 @@ mod tests {
             mp_cost: 2,
             primitives: vec![Primitive::DealPhysicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
-                power: PowerTier::Strong,
+                power: PowerTier::Medium,
                 double_empower_stat: None,
             }],
         }
@@ -2810,7 +2810,7 @@ mod tests {
                 once_per_battle: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
-                    power: PowerTier::Strike,
+                    power: PowerTier::Light,
                     double_empower_stat: None,
                 }],
             },
@@ -3202,7 +3202,7 @@ mod tests {
                 mp_cost: 1,
                 primitives: vec![Primitive::DealMagicalDamage {
                     target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
-                    power: PowerTier::Strike,
+                    power: PowerTier::Light,
                 }],
             },
         );
@@ -3429,7 +3429,7 @@ mod tests {
                 once_per_battle: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
-                    power: PowerTier::Strike,
+                    power: PowerTier::Light,
                     double_empower_stat: None,
                 }],
             },
@@ -3500,7 +3500,7 @@ mod tests {
                 once_per_battle: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
-                    power: PowerTier::Strike,
+                    power: PowerTier::Light,
                     double_empower_stat: None,
                 }],
             },
@@ -3591,7 +3591,7 @@ mod tests {
                 once_per_battle: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
-                    power: PowerTier::Strike,
+                    power: PowerTier::Light,
                     double_empower_stat: None,
                 }],
             },
@@ -3650,7 +3650,7 @@ mod tests {
                 mp_cost: 2,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::CurrentTarget.into(),
-                    power: PowerTier::Strike,
+                    power: PowerTier::Light,
                     double_empower_stat: None,
                 }],
             },
@@ -3732,7 +3732,7 @@ mod tests {
                 once_per_battle: false,
                 primitives: vec![Primitive::DealPhysicalDamage {
                     target: SimpleAbilityTarget::AllEnemies.into(),
-                    power: PowerTier::Strike,
+                    power: PowerTier::Light,
                     double_empower_stat: None,
                 }],
             },

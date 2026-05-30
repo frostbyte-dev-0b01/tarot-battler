@@ -20,7 +20,7 @@ fn deal_physical_damage_with_multiplier() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            power: PowerTier::Strong,
+            power: PowerTier::Medium,
             double_empower_stat: None,
         }],
     };
@@ -58,7 +58,7 @@ fn deal_magical_damage_strike_survives_defense() {
         mp_cost: 2,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
         }],
     };
 
@@ -499,7 +499,7 @@ fn magical_consume_status_damage_scales_with_consumed_stacks() {
         mp_cost: 3,
         primitives: vec![Primitive::DealMagicalDamageConsumeStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
             status: "Omen".to_string(),
             stat: None,
             bonus_per_stack: 1,
@@ -538,7 +538,7 @@ fn magical_consume_status_damage_leaves_target_unchanged_without_status() {
         mp_cost: 3,
         primitives: vec![Primitive::DealMagicalDamageConsumeStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
             status: "Omen".to_string(),
             stat: None,
             bonus_per_stack: 1,
@@ -580,7 +580,7 @@ fn physical_damage_bonus_vs_status_applies_only_when_present() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamageBonusVsStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
             status: "Omen".to_string(),
             stat: None,
             bonus_damage: 3,
@@ -619,7 +619,7 @@ fn physical_damage_bonus_vs_status_does_not_apply_without_status() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamageBonusVsStatus {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
             status: "Omen".to_string(),
             stat: None,
             bonus_damage: 3,
@@ -661,7 +661,7 @@ fn conditional_primitives_execute_only_when_target_has_status() {
         primitives: vec![
             Primitive::DealMagicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
-                power: PowerTier::Strike,
+                power: PowerTier::Light,
             },
             Primitive::IfTargetHasStatus {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
@@ -706,7 +706,7 @@ fn conditional_primitives_do_not_execute_without_matching_status() {
         primitives: vec![
             Primitive::DealMagicalDamage {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
-                power: PowerTier::Strike,
+                power: PowerTier::Light,
             },
             Primitive::IfTargetHasStatus {
                 target: SimpleAbilityTarget::CurrentTarget.into(),
@@ -841,7 +841,7 @@ fn physical_consume_self_statuses_adds_bonus_damage_and_removes_statuses() {
         mp_cost: 3,
         primitives: vec![Primitive::DealPhysicalDamageConsumeSelfStatuses {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
             statuses: vec![
                 StatusRef {
                     status: "Empower".to_string(),
@@ -900,7 +900,7 @@ fn all_enemies_target_resolves_to_all_living() {
         mp_cost: 1,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::AllEnemies.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
             double_empower_stat: None,
         }],
     };
@@ -1026,7 +1026,7 @@ fn enemy_selector_can_target_backmost_with_row_bypass() {
                 position: Some(PositionalCondition::Backmost),
                 bypass_row_protection: true,
             }),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
             double_empower_stat: None,
         }],
     };
@@ -1071,7 +1071,7 @@ fn enemy_selector_can_target_same_column_enemy() {
                 position: Some(PositionalCondition::SameColumn),
                 bypass_row_protection: false,
             }),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
             double_empower_stat: None,
         }],
     };
@@ -1118,7 +1118,7 @@ fn current_target_and_companions_hits_target_and_living_companions() {
         mp_cost: 2,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
         }],
     };
 
@@ -1155,7 +1155,7 @@ fn current_target_and_companions_handles_missing_target() {
         mp_cost: 2,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
         }],
     };
 
@@ -1658,8 +1658,8 @@ fn split_magical_damage_uses_separate_primary_and_companion_values() {
     let ability = AbilityDef {
         mp_cost: 1,
         primitives: vec![Primitive::DealMagicalDamageCurrentTargetAndCompanions {
-            primary_power: PowerTier::Strong,
-            companion_power: PowerTier::Strike,
+            primary_power: PowerTier::Medium,
+            companion_power: PowerTier::Light,
         }],
     };
 
@@ -2061,7 +2061,7 @@ fn ward_negates_physical_ability_damage() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            power: PowerTier::Strong,
+            power: PowerTier::Medium,
             double_empower_stat: None,
         }],
     };
@@ -2100,7 +2100,7 @@ fn ward_negates_magical_ability_damage() {
         mp_cost: 2,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            power: PowerTier::Strong,
+            power: PowerTier::Medium,
         }],
     };
 
@@ -2145,7 +2145,7 @@ fn doubled_empower_stat_increases_only_the_flagged_attack() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
             double_empower_stat: None,
         }],
     };
@@ -2153,7 +2153,7 @@ fn doubled_empower_stat_increases_only_the_flagged_attack() {
         mp_cost: 2,
         primitives: vec![Primitive::DealPhysicalDamage {
             target: SimpleAbilityTarget::CurrentTarget.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
             double_empower_stat: Some(Stat::MGT),
         }],
     };
@@ -2344,7 +2344,7 @@ fn current_target_and_companions_ignores_severed_companions() {
         mp_cost: 1,
         primitives: vec![Primitive::DealMagicalDamage {
             target: SimpleAbilityTarget::CurrentTargetAndCompanions.into(),
-            power: PowerTier::Strike,
+            power: PowerTier::Light,
         }],
     };
 

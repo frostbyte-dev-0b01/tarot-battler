@@ -14,6 +14,71 @@ function icon(name) {
   return `<span class="ui-icon" aria-hidden="true">${UI_ICONS[name] ?? ""}</span>`;
 }
 
+// Damage symbols: physical = sword (red), magical = spark/burst (blue). A hit's
+// tier is shown as that many clustered glyphs (Light 1 … Ultimate 4).
+const ATK_GLYPHS = {
+  phys: '<svg viewBox="0 0 24 24" class="atk-glyph" aria-hidden="true"><path d="M19 4.5 18 9l-6.2 6.2-1.6 1.6-2-2 1.6-1.6L16 7l3-2.5Z" fill="currentColor"/><path d="m8.6 14.4 1 1L5.2 19.8l-1.4.2.2-1.4 4.6-4.2Z" fill="currentColor"/><path d="m6.4 17.6 1.4 1.4" stroke="currentColor" stroke-width="1.4" fill="none"/></svg>',
+  mag: '<svg viewBox="0 0 24 24" class="atk-glyph" aria-hidden="true"><path d="M12 2.5 13.4 9 19 7.6 14.8 12 19 16.4 13.4 15 12 21.5 10.6 15 5 16.4 9.2 12 5 7.6 10.6 9 12 2.5Z" fill="currentColor"/></svg>',
+};
+const TIER_PIPS = { light: 1, medium: 2, heavy: 3, ultimate: 4 };
+const TIER_NAMES = { 1: "Light", 2: "Medium", 3: "Heavy", 4: "Ultimate" };
+
+function renderAtkChip(kind, tier) {
+  const count = Math.max(1, Math.min(Number(tier) || 1, 4));
+  const glyphs = ATK_GLYPHS[kind] ?? ATK_GLYPHS.phys;
+  const cluster = glyphs.repeat(count);
+  const label = `${TIER_NAMES[count] ?? "Light"} ${kind === "mag" ? "magical" : "physical"}`;
+  return `<span class="atk-chip atk-${kind === "mag" ? "mag" : "phys"}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${cluster}</span>`;
+}
+
+// Derive an ability's primary damage (kind + tier) from its primitives, so the
+// symbols can never drift from the actual numbers. Returns null for abilities
+// that deal no tiered damage.
+function abilityPrimaryDamage(abilityName) {
+  const def = appState.catalogs.abilityDefinitions?.[abilityName];
+  if (!def || !Array.isArray(def.primitives)) {
+    return null;
+  }
+  const hits = [];
+  const visit = (list, depth) => {
+    for (const prim of list) {
+      if (!isPlainObject(prim)) continue;
+      const kind = prim.kind;
+      if (kind === "deal_physical_damage" || kind === "deal_physical_damage_current_target_and_companions") {
+        hits.push({ kind: "phys", tier: TIER_PIPS[prim.power ?? prim.primary_power] ?? 1, depth });
+      } else if (kind === "deal_magical_damage" || kind === "deal_magical_damage_current_target_and_companions") {
+        hits.push({ kind: "mag", tier: TIER_PIPS[prim.power ?? prim.primary_power] ?? 1, depth });
+      } else if (kind === "command_attack") {
+        hits.push({ kind: "phys", tier: 1, depth });
+      }
+      for (const value of Object.values(prim)) {
+        if (Array.isArray(value)) visit(value, depth + 1);
+      }
+    }
+  };
+  visit(def.primitives, 0);
+  if (hits.length === 0) {
+    return null;
+  }
+  // Prefer an unconditional (top-level) hit; otherwise the lowest tier is the
+  // base (e.g. Condemn: Medium normally, Heavy only vs Omen).
+  const topLevel = hits.filter((hit) => hit.depth === 0);
+  const pool = topLevel.length ? topLevel : hits;
+  return pool.reduce((best, hit) => (hit.tier < best.tier ? hit : best), pool[0]);
+}
+
+function renderAbilityDamageChip(abilityName) {
+  const damage = abilityPrimaryDamage(abilityName);
+  return damage ? renderAtkChip(damage.kind, damage.tier) : "";
+}
+
+// Render an ability description, turning {p:N}/{m:N} tokens into damage chips.
+function formatAbilityDescriptionMarkup(description) {
+  return escapeHtml(description ?? "").replace(/\{([pm]):(\d)\}/g, (_match, kindCode, tier) =>
+    renderAtkChip(kindCode === "m" ? "mag" : "phys", Number(tier)),
+  );
+}
+
 function loadoutTypeIcon(mode) {
   const key = mode === "passive" ? "passive" : mode === "aspect" ? "aspect" : "active";
   return `<span class="loadout-chip-icon loadout-chip-icon-${key}" aria-hidden="true">${UI_ICONS[key]}</span>`;
@@ -3070,6 +3135,7 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
     >
       ${loadoutTypeIcon(mode)}
       <span class="loadout-slot-name">${escapeHtml(displayValue || "Empty")}</span>
+      ${mode === "active" && displayValue ? renderAbilityDamageChip(value) : ""}
       ${mpCost == null ? "" : `<span class="loadout-slot-cost">${escapeHtml(`${mpCost}`)}<span class="loadout-slot-cost-unit">MP</span></span>`}
     </button>
   `;
@@ -3174,10 +3240,18 @@ function renderSelectionBrowser(character) {
 }
 
 function renderBrowserEntry(entry, mode, slotIndex, currentValue) {
-  const mpCost = mode === "active" ? getAbilityMpCost(entry.name) : null;
+  const isAbility = mode === "active";
+  const mpCost = isAbility ? getAbilityMpCost(entry.name) : null;
   const entryLabel = mode === "aspect" ? getAspectDisplayName(entry.name) : entry.name;
-  const entryDescription = mode === "aspect" ? getAspectSummary(entry.name) : (entry.description || "No description yet.");
-  const entryDescriptionMarkup = mode === "aspect" ? renderAspectSummaryMarkup(entry.name) : escapeHtml(entryDescription);
+  const damageChip = isAbility ? renderAbilityDamageChip(entry.name) : "";
+  const descriptionMarkup = mode === "aspect"
+    ? renderAspectSummaryMarkup(entry.name)
+    : isAbility
+      ? formatAbilityDescriptionMarkup(entry.description)
+      : escapeHtml(entry.description || "No description yet.");
+  const descriptionBlock = descriptionMarkup.trim() === ""
+    ? ""
+    : `<span class="selection-browser-entry-desc">${descriptionMarkup}</span>`;
   return `
     <button
       type="button"
@@ -3188,10 +3262,13 @@ function renderBrowserEntry(entry, mode, slotIndex, currentValue) {
       data-entry-value="${escapeHtml(entry.name)}"
     >
       <span class="selection-browser-entry-header">
-        <strong>${escapeHtml(entryLabel)}</strong>
+        <span class="selection-browser-entry-title">
+          <strong>${escapeHtml(entryLabel)}</strong>
+          ${damageChip}
+        </span>
         ${mpCost == null ? "" : `<span class="selection-browser-entry-cost">${escapeHtml(`${mpCost} MP`)}</span>`}
       </span>
-      <span>${entryDescriptionMarkup}</span>
+      ${descriptionBlock}
     </button>
   `;
 }

@@ -401,10 +401,14 @@ This list can expand as the game's tactical needs become clearer.
 
 Attack power is expressed as one of four named tiers, never a free-form multiplier. Players see a tier (shown as pips), not a decimal:
 
-- `Strike` (●) — `×1.0`: default single-target, AOE, and utility hits where the rider is the point
-- `Strong` (●●) — `×1.5`: a committed single-target attack
-- `Heavy` (●●●) — `×2.0`: a high-MP power hit
-- `Execute` (●●●●) — `×2.5`: a premium or conditional finisher
+- `Light` (⚔) — `×1.0`: default single-target, AOE, and utility hits where the rider is the point
+- `Medium` (⚔⚔) — `×1.5`: a committed single-target attack
+- `Heavy` (⚔⚔⚔) — `×2.0`: a high-MP power hit
+- `Ultimate` (⚔⚔⚔⚔) — `×2.5`: a premium or conditional finisher
+
+In the UI these tiers render as clustered damage symbols — swords for physical,
+sparks for magical — derived from the ability's primitives (so the symbol count
+always matches the real tier). Ability descriptions carry only the rider text.
 
 The underlying multipliers exist only in data; the design language is the tier. Conditions and setups should express their payoff as bumping an attack up a tier — for example, "if the target has `Omen`, `Condemn` hits one tier harder" — rather than swapping raw multipliers. This keeps power legible and pushes design toward interactions instead of decimal tuning.
 

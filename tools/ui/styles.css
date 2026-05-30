@@ -3830,3 +3830,37 @@ textarea:focus-visible {
   width: 9px;
   height: 9px;
 }
+
+/* Ability damage symbols: clustered swords (physical, red) / sparks (magical,
+   blue). Tier = glyph count. Used in the browser, loadout chips, and inline
+   {p:N}/{m:N} description tokens. */
+.atk-chip {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: -2px;
+}
+.atk-glyph {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+.atk-chip .atk-glyph + .atk-glyph {
+  margin-left: -4px;
+}
+.atk-phys { color: var(--fx-harm); }
+.atk-mag { color: #3f6fb0; }
+
+.selection-browser-entry-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.selection-browser-entry-desc {
+  color: var(--muted);
+  line-height: 1.25;
+  font-size: 0.86rem;
+}
+.loadout-slot .atk-chip {
+  flex: 0 0 auto;
+}

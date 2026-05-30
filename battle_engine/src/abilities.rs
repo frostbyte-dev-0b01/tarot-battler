@@ -153,29 +153,29 @@ impl From<SimpleAbilityTarget> for AbilityTarget {
 #[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PowerTier {
-    Strike,
-    Strong,
+    Light,
+    Medium,
     Heavy,
-    Execute,
+    Ultimate,
 }
 
 impl PowerTier {
     pub fn multiplier(self) -> f64 {
         match self {
-            PowerTier::Strike => 1.0,
-            PowerTier::Strong => 1.5,
+            PowerTier::Light => 1.0,
+            PowerTier::Medium => 1.5,
             PowerTier::Heavy => 2.0,
-            PowerTier::Execute => 2.5,
+            PowerTier::Ultimate => 2.5,
         }
     }
 
     /// Number of pips, for UI / replay presentation.
     pub fn pips(self) -> u8 {
         match self {
-            PowerTier::Strike => 1,
-            PowerTier::Strong => 2,
+            PowerTier::Light => 1,
+            PowerTier::Medium => 2,
             PowerTier::Heavy => 3,
-            PowerTier::Execute => 4,
+            PowerTier::Ultimate => 4,
         }
     }
 }
@@ -1436,9 +1436,9 @@ pub fn execute_primitives_with_context(
 
                 let attacker_str = ctx.actor_team[companion_idx].get_eff_stat(&Stat::MGT);
                 let defender_for = ctx.enemy_team[target_idx].get_eff_stat(&Stat::ARM);
-                // Commanded attack is a Strike-tier physical hit.
+                // Commanded attack is a Light-tier physical hit.
                 let raw_damage =
-                    scaled_damage_with_defense(attacker_str, PowerTier::Strike.multiplier(), defender_for);
+                    scaled_damage_with_defense(attacker_str, PowerTier::Light.multiplier(), defender_for);
                 let damage = ctx.enemy_team[target_idx].take_hit(raw_damage);
                 let source_id = ctx.actor_team[companion_idx].id();
                 let source_name = ctx.actor_team[companion_idx].base_name().to_string();

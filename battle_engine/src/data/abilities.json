@@ -1,6 +1,6 @@
 {
   "Hold the Line": {
-    "description": "Apply Ward 1 to allies in the user's row.",
+    "description": "▲Ward 1 to your row",
     "mp_cost": 4,
     "primitives": [
       {
@@ -15,7 +15,7 @@
     ]
   },
   "Command": {
-    "description": "One companion immediately makes a Strike physical attack against the user's focused enemy.",
+    "description": "a companion makes a {p:1} attack on your focus",
     "mp_cost": 2,
     "primitives": [
       {
@@ -24,7 +24,7 @@
     ]
   },
   "Taunt": {
-    "description": "Enemies with higher MGT than MAG focus the user.",
+    "description": "enemies with MGT > MAG switch to you",
     "mp_cost": 3,
     "primitives": [
       {
@@ -36,29 +36,29 @@
     ]
   },
   "Smite": {
-    "description": "Deal a Strong magical hit to the user's focused enemy.",
+    "description": "",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "power": "strong"
+        "power": "medium"
       }
     ]
   },
   "Consecrate": {
-    "description": "Deal a Strong magical hit to the user's focused enemy and a Strike magical hit to that enemy's companions.",
+    "description": "also {m:1} to the target's companions",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage_current_target_and_companions",
-        "primary_power": "strong",
-        "companion_power": "strike"
+        "primary_power": "medium",
+        "companion_power": "light"
       }
     ]
   },
   "Blessing": {
-    "description": "Apply Restoration 3 to the user and the user's companions.",
+    "description": "▲Restoration 3 to self + companions",
     "mp_cost": 3,
     "primitives": [
       {
@@ -76,13 +76,13 @@
     ]
   },
   "Charge": {
-    "description": "Deal a Strike physical hit to the user's focused enemy. Then move one row forward if the tile is empty and refocus.",
+    "description": "advance 1 row if empty, then refocus",
     "mp_cost": 3,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "power": "strike",
+        "power": "light",
         "double_empower_stat": null
       },
       {
@@ -96,13 +96,13 @@
     ]
   },
   "Withdraw": {
-    "description": "Deal a Strike physical hit to the user's focused enemy. Then move one row backward if the tile is empty and enemies focusing the user refocus.",
+    "description": "retreat 1 row if empty; drop enemies on you",
     "mp_cost": 3,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "power": "strike",
+        "power": "light",
         "double_empower_stat": null
       },
       {
@@ -118,25 +118,25 @@
     ]
   },
   "Breakthrough": {
-    "description": "Deal a Strong physical hit to the user's focused enemy. Empower MGT on the user counts double for this attack.",
+    "description": "your ▲MGT counts double for this hit",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "power": "strong",
+        "power": "medium",
         "double_empower_stat": "mgt"
       }
     ]
   },
   "Hex": {
-    "description": "Deal a Strike magical hit to the user's focused enemy. Apply Omen 2.",
+    "description": "▼Omen 2",
     "mp_cost": 3,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "power": "strike"
+        "power": "light"
       },
       {
         "kind": "apply_status",
@@ -147,13 +147,13 @@
     ]
   },
   "Eclipse": {
-    "description": "Deal a Strike magical hit to the user's focused enemy and that enemy's companions. Apply Omen 1 to each.",
+    "description": "also hits the target's companions; ▼Omen 1 to each",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target_and_companions",
-        "power": "strike"
+        "power": "light"
       },
       {
         "kind": "apply_status",
@@ -164,13 +164,13 @@
     ]
   },
   "Harvest Night": {
-    "description": "Deal a Strike magical hit to the user's focused enemy. Then consume all Omen on that enemy and deal 2 true damage per stack consumed.",
+    "description": "consume all Omen for 2 true per stack",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "power": "strike"
+        "power": "light"
       },
       {
         "kind": "deal_true_damage_consume_target_status",
@@ -181,7 +181,7 @@
     ]
   },
   "Offer": {
-    "description": "Lose 20% current HP. Gain MP 4 and Empower MAG 4.",
+    "description": "lose 20% HP; gain +4 MP and ▲MAG 4",
     "mp_cost": 1,
     "primitives": [
       {
@@ -203,7 +203,7 @@
     ]
   },
   "Distill": {
-    "description": "Dispel 1 from the user's focused enemy. Apply Omen 2.",
+    "description": "dispel 1, then ▼Omen 2",
     "mp_cost": 3,
     "primitives": [
       {
@@ -220,13 +220,13 @@
     ]
   },
   "Transmute": {
-    "description": "Deal a Strike magical hit to the user's focused enemy. Transform that enemy's Empower MGT and Empower ARM into equal Weaken MGT and Weaken ARM.",
+    "description": "flip the target's ▲MGT and ▲ARM into ▼MGT and ▼ARM",
     "mp_cost": 3,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "power": "strike"
+        "power": "light"
       },
       {
         "kind": "transform_statuses",
@@ -241,7 +241,7 @@
     ]
   },
   "Condemn": {
-    "description": "Deal a Strong physical hit to the user's focused enemy. If that enemy has Omen, it hits one tier harder (Heavy) instead.",
+    "description": "+{p:1} if the target has Omen",
     "mp_cost": 4,
     "primitives": [
       {
@@ -252,7 +252,7 @@
           {
             "kind": "deal_physical_damage",
             "target": "current_target",
-            "power": "strong",
+            "power": "medium",
             "double_empower_stat": null
           }
         ]
@@ -273,7 +273,7 @@
     ]
   },
   "Verdict": {
-    "description": "Deal a Heavy physical hit to the user's focused enemy.",
+    "description": "",
     "mp_cost": 4,
     "primitives": [
       {
@@ -285,13 +285,13 @@
     ]
   },
   "Rebuke": {
-    "description": "Deal a Strike magical hit to the user's focused enemy. That enemy is disoriented.",
+    "description": "disorient the target",
     "mp_cost": 2,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "power": "strike"
+        "power": "light"
       },
       {
         "kind": "retarget",
@@ -301,7 +301,7 @@
     ]
   },
   "Sanctify": {
-    "description": "Cleanse allies in the user's column. Allies cleansed this way gain Ward 1.",
+    "description": "cleanse your column; those cleansed gain ▲Ward 1",
     "mp_cost": 3,
     "primitives": [
       {
@@ -317,13 +317,13 @@
     ]
   },
   "Sunder": {
-    "description": "Deal a Strike physical hit to the user's focused enemy. Apply Weaken ARM 2.",
+    "description": "▼ARM 2",
     "mp_cost": 1,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "power": "strike",
+        "power": "light",
         "double_empower_stat": null
       },
       {
@@ -336,13 +336,13 @@
     ]
   },
   "Seal": {
-    "description": "Deal a Strike magical hit to the user's focused enemy. Apply Weaken MAG 4.",
+    "description": "▼MAG 4",
     "mp_cost": 3,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "power": "strike"
+        "power": "light"
       },
       {
         "kind": "apply_status",
@@ -354,13 +354,13 @@
     ]
   },
   "Sever": {
-    "description": "Deal a Strong physical hit to the user's focused enemy. Consume that enemy's Empower MGT and Empower ARM, then deal 1 true damage per consumed stack.",
+    "description": "consume the target's ▲MGT and ▲ARM for 1 true per stack",
     "mp_cost": 4,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "power": "strong",
+        "power": "medium",
         "double_empower_stat": null
       },
       {
@@ -380,7 +380,7 @@
     ]
   },
   "Rescue": {
-    "description": "Restore 6 HP to one companion. If the tile one row backward in the same column is empty, move that companion there. Enemies focusing that companion refocus.",
+    "description": "+6 HP to a companion; pull it back a row and drop enemies on it",
     "mp_cost": 3,
     "primitives": [
       {
@@ -413,7 +413,7 @@
     ]
   },
   "Interpose": {
-    "description": "Enemies focusing any of the user's companions focus the user instead.",
+    "description": "enemies on your companions switch to you",
     "mp_cost": 1,
     "primitives": [
       {
@@ -425,7 +425,7 @@
     ]
   },
   "Decoy": {
-    "description": "Enemies focusing the user focus one of the user's companions instead.",
+    "description": "enemies on you switch to a companion",
     "mp_cost": 1,
     "primitives": [
       {
@@ -437,13 +437,13 @@
     ]
   },
   "Concuss": {
-    "description": "Deal a Strike physical hit to the user's focused enemy. Apply Stunned 1.",
+    "description": "Stunned 1",
     "mp_cost": 3,
     "primitives": [
       {
         "kind": "deal_physical_damage",
         "target": "current_target",
-        "power": "strike",
+        "power": "light",
         "double_empower_stat": null
       },
       {
@@ -455,7 +455,7 @@
     ]
   },
   "Death Mark": {
-    "description": "Apply Marked 1 to the furthest back enemy.",
+    "description": "Marked 1 to the backmost enemy",
     "mp_cost": 2,
     "primitives": [
       {
@@ -470,13 +470,13 @@
     ]
   },
   "Detonate Mark": {
-    "description": "Deal a Strike magical hit to the user's focused enemy. If that enemy is Marked, consume it and deal 6 true damage.",
+    "description": "if Marked, consume it for 6 true",
     "mp_cost": 3,
     "primitives": [
       {
         "kind": "deal_magical_damage",
         "target": "current_target",
-        "power": "strike"
+        "power": "light"
       },
       {
         "kind": "if_target_has_condition",
@@ -499,7 +499,7 @@
     ]
   },
   "Pursue": {
-    "description": "Deal a Strong physical hit to a Marked enemy. Consume Marked and focus that enemy.",
+    "description": "strikes a Marked enemy, consuming Marked and refocusing it",
     "mp_cost": 4,
     "primitives": [
       {
@@ -515,7 +515,7 @@
           {
             "kind": "deal_physical_damage",
             "target": "bound_enemy",
-            "power": "strong",
+            "power": "medium",
             "double_empower_stat": null
           },
           {
@@ -533,7 +533,7 @@
     ]
   },
   "Sever Thread": {
-    "description": "Apply Severed 3 to the user's focused enemy.",
+    "description": "Severed 3 to your focus",
     "mp_cost": 4,
     "primitives": [
       {
@@ -545,7 +545,7 @@
     ]
   },
   "Shatter Faith": {
-    "description": "Remove all Ward and Restoration from the enemy team. Deal 2 true damage to the user's focused enemy for each stack removed.",
+    "description": "strip all Ward and Restoration from the enemy team; 2 true to your focus per stack removed",
     "mp_cost": 4,
     "primitives": [
       {
@@ -565,7 +565,7 @@
     ]
   },
   "Hunt the Weak": {
-    "description": "Deal a Strike physical hit to the lowest-HP enemy and focus that enemy.",
+    "description": "strikes the lowest-HP enemy, then refocuses it",
     "mp_cost": 3,
     "primitives": [
       {
@@ -580,7 +580,7 @@
           {
             "kind": "deal_physical_damage",
             "target": "bound_enemy",
-            "power": "strike",
+            "power": "light",
             "double_empower_stat": null
           },
           {
@@ -592,7 +592,7 @@
     ]
   },
   "Inheritance": {
-    "description": "Copy one companion's passive for the rest of battle.",
+    "description": "copy a companion's passive for the battle",
     "mp_cost": 4,
     "primitives": [
       {
@@ -608,7 +608,7 @@
     ]
   },
   "Last Rites": {
-    "description": "Deal a Strong magical hit to the lowest-HP enemy.",
+    "description": "strikes the lowest-HP enemy",
     "mp_cost": 4,
     "primitives": [
       {
@@ -619,12 +619,12 @@
             "kind": "lowest_hp"
           }
         },
-        "power": "strong"
+        "power": "medium"
       }
     ]
   },
   "Cleanse the Throne": {
-    "description": "Remove all buffs from the enemy with the most buffs. That enemy is disoriented.",
+    "description": "strip all buffs from the most-buffed enemy and disorient it",
     "mp_cost": 4,
     "primitives": [
       {
