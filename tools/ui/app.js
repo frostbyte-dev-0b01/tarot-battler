@@ -133,7 +133,7 @@ const ruleSubjectOptions = [
 const ruleValueTypeOptions = [
   { value: "hp", label: "HP" },
   { value: "mp", label: "MP" },
-  { value: "self_row", label: "Row" },
+  { value: "self_row", label: "Column" },
   { value: "self_companion_count", label: "Companion Count" },
   { value: "target_companion_count", label: "Companion Count" },
   { value: "use_count", label: "Use Count" },
@@ -152,8 +152,15 @@ const ruleValueOptionsBySubject = {
   world: ["use_count", "turns_since_use", "tick_count", "ally_count", "enemy_count"],
 };
 const ruleOperatorOptions = [
-  { value: "gte", label: ">=" },
-  { value: "lte", label: "<=" },
+  { value: "gte", label: "≥" },
+  { value: "lte", label: "≤" },
+  { value: "eq", label: "=" },
+];
+// Front/Middle/Back maps to the engine's depth index (position.row).
+const columnOptions = [
+  { value: 0, label: "Front" },
+  { value: 1, label: "Middle" },
+  { value: 2, label: "Back" },
 ];
 const statFieldOptions = ["vit", "mgt", "mag", "arm", "res", "spd"];
 const teamEditorConfig = {
@@ -786,16 +793,17 @@ async function runArenaSimulation() {
         if (parsed && typeof parsed.error === "string") {
           row.errors += 1;
         } else {
+          const store = arenaReplayStore.get(foeName) ?? {};
           if (parsed.winner === "team_a") {
             row.wins += 1;
+            if (!store.win) store.win = resultJson;
           } else if (parsed.winner === "team_b") {
             row.losses += 1;
+            if (!store.loss) store.loss = resultJson;
           } else {
             row.draws += 1;
           }
-          if (seed === 0) {
-            arenaReplayStore.set(foeName, resultJson);
-          }
+          arenaReplayStore.set(foeName, store);
         }
       } catch {
         row.errors += 1;
@@ -844,15 +852,18 @@ function renderArenaResults(rows, runs) {
       const cls = pct >= 0.55 ? "arena-badge-win" : pct <= 0.45 ? "arena-badge-loss" : "arena-badge-draw";
       const ciText = rowDecisive ? `[${formatPct(rlo)}–${formatPct(rhi)}]` : "—";
       const wld = `${row.wins}–${row.losses}${row.draws ? `–${row.draws}D` : ""}${row.errors ? ` · ${row.errors} err` : ""}`;
-      const action = arenaReplayStore.has(row.name)
-        ? `<button type="button" class="arena-view-button" data-arena-replay="${escapeHtml(row.name)}">View replay</button>`
-        : "";
+      const store = arenaReplayStore.get(row.name) ?? {};
+      const watchBtn = (outcome, label) =>
+        store[outcome]
+          ? `<button type="button" class="arena-view-button" data-arena-replay="${escapeHtml(row.name)}" data-arena-outcome="${outcome}">${label}</button>`
+          : `<button type="button" class="arena-view-button" disabled title="No ${outcome} occurred in these battles">${label}</button>`;
+      const action = `<div class="arena-watch-buttons">${watchBtn("win", "Watch Victory")}${watchBtn("loss", "Watch Defeat")}</div>`;
       return `
         <tr>
           <td class="arena-opp-name">${escapeHtml(row.name)}</td>
+          <td class="arena-detail">${escapeHtml(wld)}</td>
           <td><span class="arena-badge ${cls}">${formatPct(pct)}</span></td>
           <td class="arena-detail arena-ci">${escapeHtml(ciText)}</td>
-          <td class="arena-detail">${escapeHtml(wld)}</td>
           <td>${action}</td>
         </tr>`;
     })
@@ -861,14 +872,15 @@ function renderArenaResults(rows, runs) {
   arenaResults.innerHTML = `
     <table class="arena-table">
       <thead>
-        <tr><th>Opponent</th><th>Win %</th><th>95% CI</th><th>W–L</th><th></th></tr>
+        <tr><th>Opponent</th><th>W–L</th><th>Win %</th><th>95% CI</th><th></th></tr>
       </thead>
       <tbody>${body}</tbody>
     </table>`;
 
   for (const button of arenaResults.querySelectorAll("[data-arena-replay]")) {
     button.addEventListener("click", () => {
-      const replay = arenaReplayStore.get(button.dataset.arenaReplay);
+      const store = arenaReplayStore.get(button.dataset.arenaReplay) ?? {};
+      const replay = store[button.dataset.arenaOutcome];
       if (!replay) {
         return;
       }
@@ -2388,6 +2400,13 @@ const replayAudio = (() => {
         blip({ type: "sine", freq: 760, dur: 0.14, gain: 0.12, delay: 0.08 });
       } else if (event.type === "defeat") {
         blip({ type: "sine", freq: 130, slideTo: 60, dur: 0.32, gain: 0.2 });
+      } else if (event.type === "status_applied" || event.type === "condition_applied") {
+        const valence = statusMeta(event.status ?? event.condition ?? "").valence;
+        if (valence === "buff") {
+          blip({ type: "sine", freq: 460, slideTo: 690, dur: 0.13, gain: 0.08 });
+        } else {
+          blip({ type: "triangle", freq: 340, slideTo: 220, dur: 0.13, gain: 0.08 });
+        }
       }
     },
   };
@@ -2982,6 +3001,20 @@ function renderTeamEditor() {
   renderCharacterTab();
 }
 
+function renderTeamValidityBanner(team) {
+  const validation = validateTeamConfig(team);
+  if (validation.ok) {
+    return `<div class="team-validity is-valid"><span class="team-validity-icon">✓</span> Team is valid</div>`;
+  }
+  const count = validation.errors.length;
+  const items = validation.errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("");
+  return `
+    <details class="team-validity is-invalid">
+      <summary><span class="team-validity-icon">!</span> ${count} issue${count === 1 ? "" : "s"} — not battle-ready</summary>
+      <ul class="team-validity-list">${items}</ul>
+    </details>`;
+}
+
 function renderTeamTab() {
   const editor = teamEditorConfig.editor;
   if (!editor) {
@@ -3013,6 +3046,7 @@ function renderTeamTab() {
           <button type="button" class="icon-button" data-team-action="save-team-file" title="Export team JSON" aria-label="Export team JSON">${icon("export")}</button>
         </div>
       </div>
+      ${renderTeamValidityBanner(team)}
       <div class="team-tab-body">
         <section class="builder-card team-formation-card">
           <h4 class="builder-card-title">Formation</h4>
@@ -3460,11 +3494,14 @@ function renderRuleEditor(characterIndex, rule, ruleIndex) {
 
   const equippedAbilityNames = normalizeActiveSelections(appState.teamConfig?.characters?.[characterIndex]?.actives)
     .filter((name) => name && name.trim() !== "");
-  const abilityOptions = buildSelectOptions(
-    [basicAttackActionName, ...equippedAbilityNames.filter((name) => name !== basicAttackActionName)],
-    rule.ability ?? "",
-    "No ability selected",
-  );
+  const abilityChoices = [basicAttackActionName, ...equippedAbilityNames.filter((name) => name !== basicAttackActionName)];
+  if (rule.ability && !abilityChoices.includes(rule.ability)) {
+    abilityChoices.unshift(rule.ability);
+  }
+  const currentAbility = rule.ability || abilityChoices[0];
+  const abilityOptions = abilityChoices
+    .map((name) => `<option value="${escapeHtml(name)}" ${name === currentAbility ? "selected" : ""}>${escapeHtml(name)}</option>`)
+    .join("");
   const condition = rule.when?.[0] ?? null;
 
   return `
@@ -3555,8 +3592,12 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
           </select>
         </label>
         <label class="field-group">
-          <span>Threshold</span>
-          <input type="number" data-condition-field="threshold" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}" value="${condition.threshold ?? 0}">
+          <span>${valueType === "self_row" ? "Column" : "Threshold"}</span>
+          ${valueType === "self_row"
+            ? `<select data-condition-field="threshold" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
+                ${columnOptions.map((option) => `<option value="${option.value}" ${Number(condition.threshold ?? 0) === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
+              </select>`
+            : `<input type="number" data-condition-field="threshold" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}" value="${condition.threshold ?? 0}">`}
         </label>
       </div>
     </div>
@@ -3646,6 +3687,10 @@ function handleTeamEditorInput(event) {
         condition.value = { condition_stacks: "Stunned" };
       } else {
         condition.value = target.value;
+      }
+      // Column thresholds are a discrete 0–2 index; reset a stale numeric value.
+      if (target.value === "self_row" && Number(condition.threshold) > 2) {
+        condition.threshold = 0;
       }
     } else if (target.dataset.conditionField === "value_stat") {
       condition.value = { stat: target.value };
@@ -4031,10 +4076,15 @@ function handleTeamEditorAction(event) {
     case "save-team-file":
       downloadTeamJson();
       return;
-    case "save-team-roster":
+    case "save-team-roster": {
+      const validation = validateTeamConfig(team);
+      if (!validation.ok && !window.confirm(`This team has ${validation.errors.length} issue${validation.errors.length === 1 ? "" : "s"} and isn't battle-ready. Save it anyway?`)) {
+        return;
+      }
       upsertTeamInRoster(team);
       setTeamValidationStatus("success", `Saved “${teamDisplayName(team)}” to roster`);
       break;
+    }
     case "new-team":
       appState.teamConfig = createNewTeam();
       appState.activeTeamName = null;
@@ -4461,18 +4511,16 @@ function buildArchetypeOptions(currentValue) {
     options.unshift(currentValue);
   }
 
-  return ["", ...options].map((templateId, index) => {
+  return options.map((templateId) => {
     const definition = getArchetypeDefinition(templateId);
-    const label = templateId ? (definition?.display_name ?? templateId) : "No archetype selected";
-    const isSelected =
-      templateId === (currentValue ?? "") || (!currentValue && templateId === "" && index === 0);
-    return `<option value="${escapeHtml(templateId)}" ${isSelected ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    const label = definition?.display_name ?? templateId;
+    return `<option value="${escapeHtml(templateId)}" ${templateId === currentValue ? "selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
 }
 
 function createEmptyRule() {
   return {
-    ability: "",
+    ability: basicAttackActionName,
     when: [],
   };
 }
@@ -4570,6 +4618,11 @@ function formatConditionPreview(condition) {
     return `${prefix}${condition.value?.condition_stacks ?? "Stunned"} ${operatorLabel} ${threshold}`;
   }
 
+  if (valueType === "self_row") {
+    const columnLabel = columnOptions.find((option) => option.value === Number(threshold))?.label ?? threshold;
+    return `${prefix}Column ${operatorLabel} ${columnLabel}`;
+  }
+
   const contextualLabel = getContextualRuleValueLabel(subject, valueType);
   return `${prefix}${contextualLabel} ${operatorLabel} ${threshold}`;
 }
@@ -4586,7 +4639,7 @@ function formatRulePreview(rule) {
 
 function getContextualRuleValueLabel(subject, valueType) {
   if (valueType === "self_row") {
-    return "Row";
+    return "Column";
   }
   if (valueType === "self_companion_count" || valueType === "target_companion_count") {
     return "Companion Count";
@@ -4819,7 +4872,7 @@ function getCharacterInitials(character) {
 function renderStatIcon(statKey) {
   const icons = {
     vit: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13s-4.5-2.7-4.5-6.1A2.4 2.4 0 0 1 8 5a2.4 2.4 0 0 1 4.5 1.9C12.5 10.3 8 13 8 13Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
-    mgt: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m9.9 2.1 4 4-1.4 1.4-.9-.9-2.2 2.2-1.4-1.4 2.2-2.2-.9-.9 1.4-1.4ZM6.8 8.5l.7.7-4.2 4.2H2.6v-.7l4.2-4.2Z" fill="currentColor"/><path d="m8.4 3.6 4 4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>',
+    mgt: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.8 13.4v-2.1C2.8 9.4 4.3 7.9 6.2 7.9c1 0 1.8-.8 1.8-1.8V4.2c0-.7.6-1.3 1.3-1.3h1.4c.7 0 1.3.6 1.3 1.3v2.2c0 3.9-3.1 7-7 7H2.8Z" fill="currentColor"/></svg>',
     mag: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="m8 2 1.2 3.1L12.5 6 9.9 8.1l.8 3.4L8 9.7l-2.7 1.8.8-3.4L3.5 6l3.3-.9L8 2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
     arm: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 12 3.7v3.1c0 2.5-1.5 4.7-4 6-2.5-1.3-4-3.5-4-6V3.7L8 2.2Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
     res: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 12.8 5v6L8 13.8 3.2 11V5L8 2.2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
