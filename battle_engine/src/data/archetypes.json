@@ -7,8 +7,7 @@
       "mag": 9,
       "arm": 15,
       "res": 12,
-      "spd": 10,
-      "wil": 11
+      "spd": 10
     },
     "default_passive": "Imperial Formation",
     "passive_pool": [
@@ -32,8 +31,7 @@
       "mag": 12,
       "arm": 9,
       "res": 14,
-      "spd": 8,
-      "wil": 13
+      "spd": 8
     },
     "default_passive": "Sanctuary",
     "passive_pool": [
@@ -57,8 +55,7 @@
       "mag": 9,
       "arm": 8,
       "res": 7,
-      "spd": 14,
-      "wil": 10
+      "spd": 14
     },
     "default_passive": "Pursuit",
     "passive_pool": [
@@ -82,8 +79,7 @@
       "mag": 12,
       "arm": 13,
       "res": 13,
-      "spd": 10,
-      "wil": 10
+      "spd": 10
     },
     "default_passive": "Sentence",
     "passive_pool": [
@@ -107,8 +103,7 @@
       "mag": 13,
       "arm": 7,
       "res": 8,
-      "spd": 12,
-      "wil": 13
+      "spd": 12
     },
     "default_passive": "Foreboding",
     "passive_pool": [
@@ -132,8 +127,7 @@
       "mag": 15,
       "arm": 6,
       "res": 7,
-      "spd": 9,
-      "wil": 14
+      "spd": 9
     },
     "default_passive": "Catalyst",
     "passive_pool": [
@@ -157,8 +151,7 @@
       "mag": 12,
       "arm": 8,
       "res": 11,
-      "spd": 9,
-      "wil": 15
+      "spd": 9
     },
     "default_passive": "Lonely Road",
     "passive_pool": [
@@ -182,8 +175,7 @@
       "mag": 11,
       "arm": 9,
       "res": 9,
-      "spd": 13,
-      "wil": 10
+      "spd": 13
     },
     "default_passive": "Chance Opening",
     "passive_pool": [

@@ -488,7 +488,6 @@ fn parse_status_query_stat(value: &str) -> Option<Stat> {
         "ARM" => Some(Stat::ARM),
         "RES" => Some(Stat::RES),
         "SPD" => Some(Stat::SPD),
-        "WIL" => Some(Stat::WIL),
         _ => None,
     }
 }
@@ -1189,7 +1188,6 @@ mod tests {
                 (Stat::ARM, 9),
                 (Stat::RES, 6),
                 (Stat::SPD, 7),
-                (Stat::WIL, 11),
             ]),
             position: crate::models::Position { row: 0, col: 0 },
             passive: "Imperial Formation".to_string(),
@@ -1550,7 +1548,7 @@ mod tests {
             aspect_passive: None,
             aspect: None,
             position: crate::models::Position { row: 0, col: 0 },
-            stats: [(Stat::VIT, 10), (Stat::WIL, 5)].into_iter().collect(),
+            stats: [(Stat::VIT, 10)].into_iter().collect(),
             rules: vec![crate::models::Rule {
                 ability: "Crush".to_string(),
                 conditions: vec![crate::models::Condition {
@@ -1587,7 +1585,7 @@ mod tests {
             aspect_passive: None,
             aspect: None,
             position: crate::models::Position { row: 0, col: 0 },
-            stats: [(Stat::VIT, 10), (Stat::WIL, 5)].into_iter().collect(),
+            stats: [(Stat::VIT, 10)].into_iter().collect(),
             rules: vec![
                 crate::models::Rule {
                     ability: "Crush".to_string(),

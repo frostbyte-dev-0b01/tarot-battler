@@ -133,8 +133,7 @@ pub fn make_char(id: u32, stats: Vec<(Stat, u32)>) -> CharacterState {
 /// Characters now start a battle at 0 MP; most unit tests assume MP is available
 /// for the behavior under test, so test helpers top characters up to full MP.
 fn with_full_mp(mut character: CharacterState) -> CharacterState {
-    let wil = character.get_base_stat(&Stat::WIL);
-    character.restore_mp(wil);
+    character.restore_mp(crate::models::MAX_MP);
     character
 }
 
@@ -168,7 +167,6 @@ pub fn warrior() -> CharacterConfig {
             (Stat::ARM, 10),
             (Stat::RES, 5),
             (Stat::SPD, 8),
-            (Stat::WIL, 6),
         ],
     )
 }
@@ -184,7 +182,6 @@ pub fn mage() -> CharacterConfig {
             (Stat::ARM, 5),
             (Stat::RES, 12),
             (Stat::SPD, 10),
-            (Stat::WIL, 10),
         ],
     )
 }

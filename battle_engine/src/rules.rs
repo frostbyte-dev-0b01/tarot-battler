@@ -164,8 +164,7 @@ mod tests {
         // Characters now start at 0 MP; top up for rule-evaluation tests that
         // assume MP is available (cost gating is exercised explicitly below).
         let mut character = CharacterState::from_config(id, &config);
-        let wil = character.get_base_stat(&Stat::WIL);
-        character.restore_mp(wil);
+        character.restore_mp(crate::models::MAX_MP);
         character
     }
 
@@ -202,7 +201,7 @@ mod tests {
             ability: "Crush".to_string(),
             conditions: Vec::new(),
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let actor = make_char_with_rules(0, vec![], rules);
         let abilities = make_abilities();
         let result = evaluate_rules(&actor, None, &[], world(), &abilities);
         assert_eq!(result.as_deref(), Some("Crush"));
@@ -219,7 +218,7 @@ mod tests {
                 threshold: 5,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let actor = make_char_with_rules(0, vec![], rules);
         let abilities = make_abilities();
         let mut target = make_char(1, vec![(Stat::VIT, 10)]);
         target.take_damage(26);
@@ -233,7 +232,7 @@ mod tests {
             ability: "Embolden".to_string(), // costs 3
             conditions: Vec::new(),
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![], rules);
         actor.spend_mp(3); // only 2 left, need 3
         let abilities = make_abilities();
         let result = evaluate_rules(&actor, None, &[], world(), &abilities);
@@ -251,7 +250,7 @@ mod tests {
                 threshold: 5,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let actor = make_char_with_rules(0, vec![], rules);
         let abilities = make_abilities();
 
         // Target HP=30 → doesn't match
@@ -278,16 +277,16 @@ mod tests {
                 threshold: 1,
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![], rules);
         actor.set_companions(vec![1]);
         let abilities = make_abilities();
 
         // Companion has plenty of WIL
-        let companion_full = make_char(1, vec![(Stat::VIT, 5), (Stat::WIL, 5)]);
+        let companion_full = make_char(1, vec![(Stat::VIT, 5)]);
         assert!(evaluate_rules(&actor, None, &[companion_full], world(), &abilities).is_none());
 
         // Companion has low WIL
-        let mut companion_low = make_char(1, vec![(Stat::VIT, 5), (Stat::WIL, 5)]);
+        let mut companion_low = make_char(1, vec![(Stat::VIT, 5)]);
         companion_low.spend_mp(4); // MP=1
         assert_eq!(
             evaluate_rules(&actor, None, &[companion_low], world(), &abilities).as_deref(),
@@ -306,14 +305,14 @@ mod tests {
                 threshold: 10,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5), (Stat::MGT, 12)], rules.clone());
+        let actor = make_char_with_rules(0, vec![(Stat::MGT, 12)], rules.clone());
         let abilities = make_abilities();
         assert_eq!(
             evaluate_rules(&actor, None, &[], world(), &abilities).as_deref(),
             Some("Crush")
         );
 
-        let actor_weak = make_char_with_rules(0, vec![(Stat::WIL, 5), (Stat::MGT, 8)], rules);
+        let actor_weak = make_char_with_rules(0, vec![(Stat::MGT, 8)], rules);
         assert!(evaluate_rules(&actor_weak, None, &[], world(), &abilities).is_none());
     }
 
@@ -334,7 +333,7 @@ mod tests {
                 conditions: Vec::new(), // always matches
             },
         ];
-        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let actor = make_char_with_rules(0, vec![], rules);
         let abilities = make_abilities();
 
         // Target HP high → first rule fails, Embolden matches
@@ -366,7 +365,7 @@ mod tests {
                 aspect_passive: None,
                 aspect: None,
                 position: Position { row: 0, col: 0 },
-                stats: vec![(Stat::WIL, 5)].into_iter().collect(),
+                stats: vec![].into_iter().collect(),
                 rules: vec![Rule {
                     ability: "Crush".to_string(),
                     conditions: Vec::new(),
@@ -389,7 +388,7 @@ mod tests {
                 threshold: 100,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let actor = make_char_with_rules(0, vec![], rules);
         let abilities = make_abilities();
         assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
     }
@@ -405,7 +404,7 @@ mod tests {
                 threshold: 1,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5), (Stat::VIT, 10)], rules);
+        let actor = make_char_with_rules(0, vec![(Stat::VIT, 10)], rules);
         let abilities = make_abilities();
 
         assert_eq!(
@@ -445,7 +444,7 @@ mod tests {
                 },
             ],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let actor = make_char_with_rules(0, vec![], rules);
         let abilities = make_abilities();
 
         assert!(evaluate_rules(&actor, None, &[], world(), &abilities).is_none());
@@ -477,7 +476,7 @@ mod tests {
                 threshold: 2,
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![], rules);
         actor.set_position(Position { row: 2, col: 1 });
 
         let abilities = make_abilities();
@@ -496,7 +495,7 @@ mod tests {
                 threshold: 2,
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![], rules);
         actor.set_companions(vec![1, 2, 3]);
 
         let ally_one = make_char(1, vec![(Stat::VIT, 5)]);
@@ -526,7 +525,7 @@ mod tests {
                 threshold: 1,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let actor = make_char_with_rules(0, vec![], rules);
         let mut target = make_char(10, vec![(Stat::VIT, 5)]);
         target.set_companions(vec![11, 12]);
 
@@ -556,7 +555,7 @@ mod tests {
                 threshold: 2, // use at most 2 times
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 10)], rules);
+        let mut actor = make_char_with_rules(0, vec![], rules);
         let abilities = make_abilities();
 
         // Never used → count=0, 0 <= 2 → matches
@@ -589,7 +588,7 @@ mod tests {
                 threshold: 3, // only use if >= 3 turns since last use
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 10)], rules);
+        let mut actor = make_char_with_rules(0, vec![], rules);
         let abilities = make_abilities();
 
         // Never used → turns_since = MAX → matches
@@ -626,7 +625,7 @@ mod tests {
             ability: "Embolden".to_string(), // costs 3
             conditions: Vec::new(),
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![], rules);
         actor.spend_mp(3); // only 2 left, need 3
         let abilities = make_abilities();
 
@@ -649,7 +648,7 @@ mod tests {
             ability: "Crush".to_string(), // costs 2
             conditions: Vec::new(),
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![], rules);
         actor.add_trait(TraitEffect::MpCostReduction { amount: 100 });
         actor.spend_mp(5); // 0 MP left
 
@@ -669,7 +668,7 @@ mod tests {
                 threshold: 2,
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 10)], rules);
+        let mut actor = make_char_with_rules(0, vec![], rules);
         let abilities = make_abilities();
 
         // Turn 1: use it
@@ -704,7 +703,7 @@ mod tests {
                 threshold: 1,
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5), (Stat::VIT, 10)], rules);
+        let mut actor = make_char_with_rules(0, vec![(Stat::VIT, 10)], rules);
         actor.add_status(
             "Ward",
             1,
@@ -736,7 +735,7 @@ mod tests {
                 threshold: 2,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let actor = make_char_with_rules(0, vec![], rules);
         let mut target = make_char(1, vec![(Stat::VIT, 10)]);
         target.add_status(
             "Bleed",
@@ -769,7 +768,7 @@ mod tests {
                 threshold: 2,
             }],
         }];
-        let mut actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let mut actor = make_char_with_rules(0, vec![], rules);
         actor.set_companions(vec![1]);
         let mut companion = make_char(1, vec![(Stat::VIT, 5), (Stat::MGT, 5)]);
         companion.add_status(
@@ -803,7 +802,7 @@ mod tests {
                 threshold: 1,
             }],
         }];
-        let actor = make_char_with_rules(0, vec![(Stat::WIL, 5)], rules);
+        let actor = make_char_with_rules(0, vec![], rules);
         let mut target = make_char(1, vec![(Stat::VIT, 10)]);
         target.add_condition(crate::models::ConditionKind::Marked, 2, 99);
         let abilities = make_abilities();

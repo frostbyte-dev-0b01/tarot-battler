@@ -79,9 +79,9 @@ The current intended base stat set is:
 - `ARM` — physical defense
 - `RES` — magical defense
 - `SPD` — speed
-- `WIL` — will; determines MP pool size and basic-attack MP recovery
 
-These are the intended v1 stat names and roles.
+These are the intended v1 stat names and roles. There is no mana stat: mana is a
+universal "pip" resource (see Derived Resources), not a per-character attribute.
 
 Provisional starting stat ranges are still being tuned, but the current design expectation is that all core stats should live in a similar midrange band. This keeps each stat comparably valuable and reduces integer breakpoint weirdness.
 
@@ -91,14 +91,16 @@ Conceptually, the likely direction is that each character has a fixed base sprea
 
 - `HP` is expected to scale as a multiple of `VIT`
 - the current prototype uses `HP = 3 * VIT` as a working model
-- `MP` = spendable battle resource used to cast abilities
-- `WIL` sets the maximum MP pool
-- characters begin battle with `0` MP and charge it up by attacking, so abilities are an earned, occasional spend rather than a turn-one option; basic attacks are the default rhythm and abilities are rarer and more impactful
+- `MP` = mana, a spendable battle resource used to cast abilities, tracked as discrete "pips"
+- mana is universal: every character starts a battle at `0` MP and caps at `MAX_MP = 5`
+- characters charge mana up by attacking, so abilities are an earned, occasional spend rather than a turn-one option; basic attacks are the default rhythm and abilities are rarer and more impactful
 - characters do not passively regain MP between turns
 - every character has a default `Basic Attack` action
-- `Basic Attack` restores `floor(WIL / 3)` MP after resolving
+- `Basic Attack` restores `1` mana pip after resolving (capped at `MAX_MP`)
+- abilities generally cost `1`–`4` mana
 
-`WIL` is the base stat. `MP` is the runtime resource.
+`MP` is a universal runtime resource (no backing stat). Per-character mana
+variation, if introduced, should come from passives/traits rather than a stat.
 
 ## Formation
 
@@ -345,7 +347,7 @@ Rules do not observe half-resolved action states.
 
 - every character has a default `Basic Attack` action
 - `Basic Attack` is the fallback action when no rule is satisfied
-- `Basic Attack` restores `floor(WIL / 3)` MP after resolving
+- `Basic Attack` restores `1` mana pip after resolving (capped at `MAX_MP`)
 
 ### Basic Attacks
 
@@ -695,12 +697,12 @@ Each team should be restricted to one copy of each aspect.
 First aspect direction:
 
 - `Aspect of Ruin`
-  - stats: `MGT +2`, `MAG +2`, `WIL +1`, `VIT -2`, `ARM -1`
+  - stats: `MGT +2`, `MAG +2`, `SPD +1`, `VIT -2`, `ARM -1`
   - passive: `Ruinous`
     - The first time each tick the user damages an enemy with a condition, deal `2` true damage.
 
 - `Aspect of Grace`
-  - stats: `VIT +2`, `RES +2`, `WIL +1`, `MGT -1`, `MAG -1`
+  - stats: `VIT +2`, `RES +2`, `SPD +1`, `MGT -1`, `MAG -1`
   - passive: `Grace`
     - The first time each tick the user affects an ally with an ability, that ally restores `2 HP`.
 

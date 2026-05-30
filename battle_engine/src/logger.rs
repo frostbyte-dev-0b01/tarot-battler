@@ -1012,7 +1012,7 @@ fn build_team_snapshot(
         "name": name,
         "characters": configs.iter().enumerate().map(|(idx, config)| {
             let max_hp = config.stats.get(&Stat::VIT).copied().unwrap_or(0) * 3;
-            let max_mp = config.stats.get(&Stat::WIL).copied().unwrap_or(0);
+            let max_mp = crate::models::MAX_MP;
             json!({
                 "id": replay_character_id(config, team_key, idx),
                 "display_name": replay_display_name(config),
@@ -1041,7 +1041,7 @@ fn build_runtime_team_snapshot(
             current_hp: character.current_hp(),
             max_hp: character.get_base_stat(&Stat::VIT) * 3,
             current_mp: character.current_mp(),
-            max_mp: character.get_base_stat(&Stat::WIL),
+            max_mp: crate::models::MAX_MP,
             stats: build_stat_block_json(character, false),
             effective_stats: build_stat_block_json(character, true),
             passive: if character.passive().is_empty() {
@@ -1100,7 +1100,6 @@ fn build_stat_block_json(character: &CharacterState, effective: bool) -> serde_j
         "arm": read(Stat::ARM),
         "res": read(Stat::RES),
         "spd": read(Stat::SPD),
-        "wil": read(Stat::WIL),
     })
 }
 

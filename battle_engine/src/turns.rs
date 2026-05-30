@@ -177,7 +177,7 @@ pub(crate) fn execute_basic_attack_action(
         enemy_team[target_idx].get_eff_stat(&Stat::ARM),
     );
     let damage = enemy_team[target_idx].take_hit(raw_damage);
-    let mp_restored = actor_team[actor_idx].get_base_stat(&Stat::WIL) / 3;
+    let mp_restored = crate::models::MP_PER_ATTACK;
     actor_team[actor_idx].restore_mp(mp_restored);
     let actor_id = actor_team[actor_idx].id();
     let actor_name = actor_team[actor_idx].base_name().to_string();

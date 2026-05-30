@@ -3799,3 +3799,34 @@ textarea:focus-visible {
   color: var(--muted);
   font-size: 0.78rem;
 }
+
+/* Mana pips: discrete dots (cap MAX_MP). Replaces the MP bar everywhere. */
+.mana-pips {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.mana-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+}
+.mana-pip.is-filled {
+  background: #5b87b2;
+  border-color: #4a749c;
+}
+.compact-mana-row {
+  grid-template-columns: 18px auto;
+  align-items: center;
+}
+.compact-mana-row .mana-pip {
+  width: 6px;
+  height: 6px;
+}
+.inspector-bars .mana-row .mana-pip {
+  width: 9px;
+  height: 9px;
+}

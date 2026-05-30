@@ -90,7 +90,7 @@ const ruleOperatorOptions = [
   { value: "gte", label: ">=" },
   { value: "lte", label: "<=" },
 ];
-const statFieldOptions = ["vit", "mgt", "mag", "arm", "res", "spd", "wil"];
+const statFieldOptions = ["vit", "mgt", "mag", "arm", "res", "spd"];
 const teamEditorConfig = {
   fileInput: document.querySelector("#team-file-input"),
   jsonInput: document.querySelector("#team-json-input"),
@@ -224,7 +224,7 @@ const demoTeam = {
           {
             ability: "Consecrate",
             when: [
-              { subject: "self", value: "mp", op: "gte", threshold: 6 },
+              { subject: "self", value: "mp", op: "gte", threshold: 5 },
               { subject: "target", value: "target_companion_count", op: "gte", threshold: 1 },
             ],
           },
@@ -1903,7 +1903,7 @@ function buildBeats(events) {
     for (const id of eventParticipants(event)) {
       current.participants.add(id);
     }
-    if (!current.action && (type === "basic_attack" || type === "ability_used" || type === "rest" || type === "turn_skipped")) {
+    if (!current.action && (type === "basic_attack" || type === "ability_used" || type === "turn_skipped")) {
       current.action = event;
     } else if (type === "status_tick" && !current.action) {
       current.preTicks.push(event);
@@ -2229,7 +2229,10 @@ function renderUnitCard(character) {
         </div>
         <div class="unit-card-bars unit-card-bars-compact">
           ${renderCompactBar("HP", hpValue, character.max_hp, "hp")}
-          ${renderCompactBar("MP", mpValue, character.max_mp, "mp")}
+          <div class="compact-bar-row compact-mana-row">
+            <span class="compact-bar-label">MP</span>
+            ${renderManaPips(mpValue, character.max_mp)}
+          </div>
         </div>
         ${renderUnitCardChips(character)}
       </article>
@@ -2274,6 +2277,16 @@ function renderCompactBar(label, currentValue, maxValue, type) {
       <span class="compact-bar-value">${escapeHtml(currentValue)}/${escapeHtml(Math.max(maxValue, 0))}</span>
     </div>
   `;
+}
+
+// Mana is rendered as discrete pips (●●●○○), not a bar — it caps at MAX_MP (5).
+function renderManaPips(current, max) {
+  const total = Math.max(0, Number(max) || 0);
+  const filled = Math.max(0, Math.min(Number(current) || 0, total));
+  const pips = Array.from({ length: total }, (_, index) =>
+    `<span class="mana-pip ${index < filled ? "is-filled" : ""}"></span>`,
+  ).join("");
+  return `<div class="mana-pips" title="${filled} / ${total} MP" aria-label="${filled} of ${total} mana">${pips}</div>`;
 }
 
 function renderBar(label, currentValue, maxValue, type) {
@@ -2784,7 +2797,7 @@ function renderRosterTable(team) {
       const cost = (Number(archetype?.cost ?? 0))
         + (character.aspect ? Number(getAspectDefinition(character.aspect)?.cost ?? 0) : 0);
       const isSelected = index === appState.selectedTeamCharacterIndex;
-      const statBits = ["vit", "mgt", "mag", "arm", "res", "spd", "wil"]
+      const statBits = ["vit", "mgt", "mag", "arm", "res", "spd"]
         .map((key) => `<span class="roster-stat"><span class="roster-stat-key">${key.toUpperCase()}</span>${Number(stats?.[key] ?? 0)}</span>`)
         .join("");
       return `
@@ -2960,7 +2973,7 @@ function renderIdentityCard(character, characterIndex) {
       </div>
       <h4 class="builder-card-title">Stats</h4>
       <div class="editor-inline-grid">
-        ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((statKey) => `
+        ${["vit", "mgt", "mag", "arm", "res", "spd"].map((statKey) => `
           <div class="field-group field-group-readonly">
             <span class="stat-label-with-icon">
               ${renderStatIcon(statKey)}
@@ -4593,7 +4606,10 @@ function renderInspector(character) {
     </div>
     <div class="unit-card-bars inspector-bars">
       ${renderBar("HP", character.current_hp, character.max_hp, "hp")}
-      ${renderBar("MP", character.current_mp, character.max_mp, "mp")}
+      <div class="bar-row mana-row">
+        <div class="bar-label"><span>MP</span><strong>${character.current_mp}/${character.max_mp}</strong></div>
+        ${renderManaPips(character.current_mp, character.max_mp)}
+      </div>
     </div>
     <section class="inspector-section">
       <div class="inspector-inline-detail"><strong>Passive:</strong> <span${renderTitleAttribute(getPassiveDescription(passiveName))}>${escapeHtml(passiveName || "No passive")}</span></div>
@@ -4617,7 +4633,7 @@ function renderInspector(character) {
 }
 
 function renderEffectiveStats(baseStats, effectiveStats) {
-  const statOrder = ["vit", "mgt", "mag", "arm", "res", "spd", "wil"];
+  const statOrder = ["vit", "mgt", "mag", "arm", "res", "spd"];
   return statOrder.map((statKey) => {
     const baseValue = Number(baseStats?.[statKey] ?? 0);
     const effectiveValue = Number(effectiveStats?.[statKey] ?? baseValue);
@@ -4929,8 +4945,6 @@ function renderBeatHead(beat) {
       const fx = targetEffectsMarkup(actionEffects);
       return `${actor} ${ability}${fx ? ` ${fx}` : ""}`;
     }
-    case "rest":
-      return `${actor} <span class="beat-muted">rests</span>`;
     case "turn_skipped":
       return `${actor} <span class="fx-chip fx-control">⊘ ${escapeHtml(action.reason ?? "skipped")}</span>`;
     default:
@@ -5052,8 +5066,6 @@ function formatTimelineMarkup(event) {
       return "Battle starts.";
     case "turn_start":
       return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} begins a turn at ${escapeHtml(event.current_hp ?? "?")} HP and ${escapeHtml(event.current_mp ?? "?")} MP.`;
-    case "rest":
-      return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} rests and restores ${healMarkup(event.mp_restored)} MP.`;
     case "basic_attack":
       return `${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} attacks ${formatCharacterLabelMarkup(event.target_id, event.target_name)} with a basic hit and gains ${healMarkup(event.mp_restored)} MP.`;
     case "ability_used":

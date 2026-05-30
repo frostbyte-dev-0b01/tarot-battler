@@ -11,7 +11,7 @@ fn deal_physical_damage_with_multiplier() {
     let mut log = BattleLog::new();
     let mut actor_team = vec![make_char(
         0,
-        vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+        vec![(Stat::MGT, 10), (Stat::VIT, 10)],
     )];
     let mut enemy_team = vec![make_char(1, vec![(Stat::ARM, 4), (Stat::VIT, 20)])];
     actor_team[0].set_target(1);
@@ -49,7 +49,7 @@ fn deal_magical_damage_strike_survives_defense() {
     let mut log = BattleLog::new();
     let mut actor_team = vec![make_char(
         0,
-        vec![(Stat::MAG, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
+        vec![(Stat::MAG, 8), (Stat::VIT, 10)],
     )];
     let mut enemy_team = vec![make_char(1, vec![(Stat::RES, 8), (Stat::VIT, 20)])];
     actor_team[0].set_target(1);
@@ -85,7 +85,7 @@ fn restore_mp_to_companions() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
 
-    let stats = vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 5)];
+    let stats = vec![(Stat::VIT, 10), (Stat::MGT, 5)];
     let mut actor_team = vec![
         make_adjacent_char(0, 0, 0, stats.clone()),
         make_adjacent_char(1, 0, 1, stats.clone()),
@@ -124,7 +124,7 @@ fn apply_status_bleed_on_enemy() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let statuses = test_statuses();
-    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
     actor_team[0].set_target(1);
 
@@ -159,7 +159,7 @@ fn apply_status_empower_on_ally() {
     let statuses = test_statuses();
     let mut actor_team = vec![make_char(
         0,
-        vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 8)],
+        vec![(Stat::VIT, 10), (Stat::MGT, 8)],
     )];
     let mut enemy_team = vec![make_char(10, vec![(Stat::VIT, 5)])];
 
@@ -192,7 +192,7 @@ fn apply_status_weaken_on_enemy() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let statuses = test_statuses();
-    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::MGT, 10)])];
     actor_team[0].set_target(1);
 
@@ -225,7 +225,7 @@ fn remove_status_clears_self_status() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let statuses = test_statuses();
-    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
 
     let bleed = statuses.get("Bleed").unwrap();
@@ -260,7 +260,7 @@ fn remove_status_emits_status_removed_event() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let statuses = test_statuses();
-    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
     actor_team[0].set_target(1);
 
@@ -307,7 +307,7 @@ fn remove_status_clears_current_target_status() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let statuses = test_statuses();
-    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
     actor_team[0].set_target(1);
 
@@ -343,7 +343,7 @@ fn remove_status_clears_all_enemy_statuses() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let statuses = test_statuses();
-    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10)])];
     let mut enemy_team = vec![
         make_char(1, vec![(Stat::VIT, 10)]),
         make_char(2, vec![(Stat::VIT, 10)]),
@@ -384,8 +384,8 @@ fn cleanse_reduces_all_timed_debuffs_on_allies() {
     let mut log = BattleLog::new();
     let statuses = test_statuses();
     let mut actor_team = vec![
-        make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
-        make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 10)]),
+        make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10), (Stat::MGT, 10)]),
     ];
     actor_team[0].set_companions(vec![1]);
     actor_team[1].add_status("Bleed", 3, 99, statuses.get("Bleed").unwrap(), None);
@@ -439,7 +439,7 @@ fn dispel_reduces_all_timed_buffs_on_enemies() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let statuses = test_statuses();
-    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::MGT, 10)])];
     actor_team[0].set_target(1);
 
@@ -488,7 +488,7 @@ fn magical_consume_status_damage_scales_with_consumed_stacks() {
     let mut log = BattleLog::new();
     let statuses = test_statuses();
     let mut actor_team =
-        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MAG, 8)])];
+        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::MAG, 8)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::RES, 3)])];
     actor_team[0].set_target(1);
 
@@ -530,7 +530,7 @@ fn magical_consume_status_damage_leaves_target_unchanged_without_status() {
     let mut log = BattleLog::new();
     let statuses = test_statuses();
     let mut actor_team =
-        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MAG, 8)])];
+        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::MAG, 8)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::RES, 3)])];
     actor_team[0].set_target(1);
 
@@ -569,7 +569,7 @@ fn physical_damage_bonus_vs_status_applies_only_when_present() {
     let mut log = BattleLog::new();
     let statuses = test_statuses();
     let mut actor_team =
-        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 8)])];
+        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::MGT, 8)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::ARM, 3)])];
     actor_team[0].set_target(1);
 
@@ -611,7 +611,7 @@ fn physical_damage_bonus_vs_status_does_not_apply_without_status() {
     let mut log = BattleLog::new();
     let statuses = test_statuses();
     let mut actor_team =
-        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 8)])];
+        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::MGT, 8)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::ARM, 3)])];
     actor_team[0].set_target(1);
 
@@ -649,7 +649,7 @@ fn conditional_primitives_execute_only_when_target_has_status() {
     let mut log = BattleLog::new();
     let statuses = test_statuses();
     let mut actor_team =
-        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MAG, 8)])];
+        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::MAG, 8)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::RES, 3)])];
     actor_team[0].set_target(1);
 
@@ -697,7 +697,7 @@ fn conditional_primitives_do_not_execute_without_matching_status() {
     let mut log = BattleLog::new();
     let statuses = test_statuses();
     let mut actor_team =
-        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MAG, 8)])];
+        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::MAG, 8)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::RES, 3)])];
     actor_team[0].set_target(1);
 
@@ -741,7 +741,7 @@ fn remove_one_buff_removes_highest_stack_buff() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let statuses = test_statuses();
-    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::ARM, 3)])];
     actor_team[0].set_target(1);
 
@@ -779,7 +779,7 @@ fn if_target_lacks_status_executes_nested_primitives() {
     let mut log = BattleLog::new();
     let statuses = test_statuses();
     let mut actor_team =
-        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MAG, 8)])];
+        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::MAG, 8)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::RES, 3)])];
     actor_team[0].set_target(1);
 
@@ -819,7 +819,7 @@ fn physical_consume_self_statuses_adds_bonus_damage_and_removes_statuses() {
     let mut log = BattleLog::new();
     let statuses = test_statuses();
     let mut actor_team =
-        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 8), (Stat::ARM, 5)])];
+        vec![make_char(0, vec![(Stat::VIT, 10), (Stat::MGT, 8), (Stat::ARM, 5)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10), (Stat::ARM, 3)])];
     actor_team[0].set_target(1);
     actor_team[0].add_status(
@@ -887,7 +887,7 @@ fn all_enemies_target_resolves_to_all_living() {
     let mut log = BattleLog::new();
     let mut actor_team = vec![make_char(
         0,
-        vec![(Stat::VIT, 10), (Stat::WIL, 5), (Stat::MGT, 10)],
+        vec![(Stat::VIT, 10), (Stat::MGT, 10)],
     )];
     let mut enemy_team = vec![
         make_char(1, vec![(Stat::VIT, 10), (Stat::ARM, 3)]),
@@ -926,10 +926,11 @@ fn all_allies_target_excludes_self() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let mut actor_team = vec![
-        make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
-        make_char(1, vec![(Stat::VIT, 10), (Stat::WIL, 3)]),
-        make_char(2, vec![(Stat::VIT, 10), (Stat::WIL, 3)]),
+        make_char(0, vec![(Stat::VIT, 10)]),
+        make_char(1, vec![(Stat::VIT, 10)]),
+        make_char(2, vec![(Stat::VIT, 10)]),
     ];
+    actor_team[0].spend_mp(3);
     actor_team[1].spend_mp(2);
     actor_team[2].spend_mp(2);
     let mut enemy_team = vec![make_char(10, vec![(Stat::VIT, 5)])];
@@ -953,9 +954,11 @@ fn all_allies_target_excludes_self() {
         1,
         &empty_statuses(),
     );
-    assert_eq!(actor_team[0].current_mp(), 5);
-    assert_eq!(actor_team[1].current_mp(), 3);
-    assert_eq!(actor_team[2].current_mp(), 3);
+    // AllAllies excludes self: [0] is untouched while companions are restored
+    // to the universal cap of 5.
+    assert_eq!(actor_team[0].current_mp(), 2);
+    assert_eq!(actor_team[1].current_mp(), 5);
+    assert_eq!(actor_team[2].current_mp(), 5);
 }
 
 #[test]
@@ -963,7 +966,7 @@ fn ally_selector_targets_lowest_hp_ally() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let mut actor_team = vec![
-        make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
+        make_char(0, vec![(Stat::VIT, 10)]),
         make_char(1, vec![(Stat::VIT, 10)]),
         make_char(2, vec![(Stat::VIT, 10)]),
     ];
@@ -1007,7 +1010,7 @@ fn enemy_selector_can_target_backmost_with_row_bypass() {
         0,
         0,
         0,
-        vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+        vec![(Stat::MGT, 10), (Stat::VIT, 10)],
     )];
     let mut enemy_team = vec![
         make_adjacent_char(1, 0, 0, vec![(Stat::ARM, 3), (Stat::VIT, 10)]),
@@ -1052,7 +1055,7 @@ fn enemy_selector_can_target_same_column_enemy() {
         0,
         0,
         1,
-        vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+        vec![(Stat::MGT, 10), (Stat::VIT, 10)],
     )];
     let mut enemy_team = vec![
         make_adjacent_char(1, 0, 0, vec![(Stat::ARM, 3), (Stat::VIT, 10)]),
@@ -1097,7 +1100,7 @@ fn current_target_and_companions_hits_target_and_living_companions() {
         0,
         0,
         0,
-        vec![(Stat::MAG, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+        vec![(Stat::MAG, 10), (Stat::VIT, 10)],
     )];
     let mut enemy_team = vec![
         make_adjacent_char(1, 0, 1, vec![(Stat::RES, 3), (Stat::VIT, 10)]),
@@ -1144,7 +1147,7 @@ fn current_target_and_companions_handles_missing_target() {
     let mut log = BattleLog::new();
     let mut actor_team = vec![make_char(
         0,
-        vec![(Stat::MAG, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+        vec![(Stat::MAG, 10), (Stat::VIT, 10)],
     )];
     let mut enemy_team = vec![make_char(1, vec![(Stat::RES, 3), (Stat::VIT, 10)])];
 
@@ -1176,9 +1179,9 @@ fn ally_selector_can_target_same_row_ally() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let mut actor_team = vec![
-        make_adjacent_char(0, 1, 1, vec![(Stat::VIT, 10), (Stat::WIL, 6)]),
-        make_adjacent_char(1, 1, 2, vec![(Stat::VIT, 10), (Stat::WIL, 4)]),
-        make_adjacent_char(2, 2, 1, vec![(Stat::VIT, 10), (Stat::WIL, 2)]),
+        make_adjacent_char(0, 1, 1, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(1, 1, 2, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(2, 2, 1, vec![(Stat::VIT, 10)]),
     ];
     actor_team[1].spend_mp(3);
     actor_team[2].spend_mp(2);
@@ -1209,8 +1212,10 @@ fn ally_selector_can_target_same_row_ally() {
         &empty_statuses(),
     );
 
-    assert_eq!(actor_team[1].current_mp(), 3);
-    assert_eq!(actor_team[2].current_mp(), 0);
+    // Only the same-row ally [1] is restored (+2); the off-row ally [2] is
+    // untouched (still 3 after its spend), proving the SameRow selector.
+    assert_eq!(actor_team[1].current_mp(), 4);
+    assert_eq!(actor_team[2].current_mp(), 3);
 }
 
 #[test]
@@ -1218,10 +1223,10 @@ fn ally_detailed_target_without_selector_hits_all_matching_allies() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let mut actor_team = vec![
-        make_adjacent_char(0, 1, 1, vec![(Stat::VIT, 10), (Stat::WIL, 6)]),
-        make_adjacent_char(1, 1, 2, vec![(Stat::VIT, 10), (Stat::WIL, 4)]),
-        make_adjacent_char(2, 1, 0, vec![(Stat::VIT, 10), (Stat::WIL, 2)]),
-        make_adjacent_char(3, 2, 1, vec![(Stat::VIT, 10), (Stat::WIL, 1)]),
+        make_adjacent_char(0, 1, 1, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(1, 1, 2, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(2, 1, 0, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(3, 2, 1, vec![(Stat::VIT, 10)]),
     ];
     actor_team[1].spend_mp(3);
     actor_team[2].spend_mp(1);
@@ -1253,9 +1258,11 @@ fn ally_detailed_target_without_selector_hits_all_matching_allies() {
         &empty_statuses(),
     );
 
-    assert_eq!(actor_team[1].current_mp(), 3);
-    assert_eq!(actor_team[2].current_mp(), 2);
-    assert_eq!(actor_team[3].current_mp(), 0);
+    // Both same-row allies [1] and [2] are restored (+2, capped at 5); the
+    // off-row ally [3] is untouched (still 4 after its spend).
+    assert_eq!(actor_team[1].current_mp(), 4);
+    assert_eq!(actor_team[2].current_mp(), 5);
+    assert_eq!(actor_team[3].current_mp(), 4);
 }
 
 #[test]
@@ -1572,7 +1579,7 @@ fn deal_true_damage_bypasses_ward() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let statuses = test_statuses();
-    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
     enemy_team[0].add_status("Ward", 1, 99, statuses.get("Ward").unwrap(), None);
     actor_team[0].set_target(1);
@@ -1605,7 +1612,7 @@ fn deal_true_damage_bypasses_ward() {
 fn lose_current_hp_percent_costs_current_hp() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
-    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
     actor_team[0].take_damage(10);
 
@@ -1637,7 +1644,7 @@ fn split_magical_damage_uses_separate_primary_and_companion_values() {
         0,
         0,
         0,
-        vec![(Stat::MAG, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+        vec![(Stat::MAG, 10), (Stat::VIT, 10)],
     )];
     actor_team[0].set_target(10);
 
@@ -2044,7 +2051,7 @@ fn ward_negates_physical_ability_damage() {
     let statuses = test_statuses();
     let mut actor_team = vec![make_char(
         0,
-        vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+        vec![(Stat::MGT, 10), (Stat::VIT, 10)],
     )];
     let mut enemy_team = vec![make_char(1, vec![(Stat::ARM, 4), (Stat::VIT, 20)])];
     enemy_team[0].add_status("Ward", 1, 99, statuses.get("Ward").unwrap(), None);
@@ -2083,7 +2090,7 @@ fn ward_negates_magical_ability_damage() {
     let statuses = test_statuses();
     let mut actor_team = vec![make_char(
         0,
-        vec![(Stat::MAG, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+        vec![(Stat::MAG, 10), (Stat::VIT, 10)],
     )];
     let mut enemy_team = vec![make_char(1, vec![(Stat::RES, 4), (Stat::VIT, 20)])];
     enemy_team[0].add_status("Ward", 1, 99, statuses.get("Ward").unwrap(), None);
@@ -2121,7 +2128,7 @@ fn doubled_empower_stat_increases_only_the_flagged_attack() {
     let statuses = test_statuses();
     let mut actor_team = vec![make_char(
         0,
-        vec![(Stat::MGT, 10), (Stat::MAG, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
+        vec![(Stat::MGT, 10), (Stat::MAG, 8), (Stat::VIT, 10)],
     )];
     let mut enemy_team =
         vec![make_char(1, vec![(Stat::ARM, 4), (Stat::RES, 4), (Stat::VIT, 20)])];
@@ -2280,7 +2287,7 @@ fn move_backward_requires_empty_destination_when_flagged() {
 fn apply_condition_applies_marked_and_logs_event() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
-    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10)])];
     let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
     actor_team[0].set_target(1);
 
@@ -2322,7 +2329,7 @@ fn current_target_and_companions_ignores_severed_companions() {
     let mut log = BattleLog::new();
     let mut actor_team = vec![make_char(
         0,
-        vec![(Stat::MAG, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+        vec![(Stat::MAG, 10), (Stat::VIT, 10)],
     )];
     let mut enemy_team = vec![
         make_adjacent_char(1, 0, 0, vec![(Stat::RES, 1), (Stat::VIT, 10)]),
@@ -2363,9 +2370,9 @@ fn bind_targets_keeps_same_ally_across_nested_primitives() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();
     let mut actor_team = vec![
-        make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
-        make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
-        make_adjacent_char(2, 0, 2, vec![(Stat::VIT, 10), (Stat::WIL, 5)]),
+        make_adjacent_char(0, 0, 0, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(1, 0, 1, vec![(Stat::VIT, 10)]),
+        make_adjacent_char(2, 0, 2, vec![(Stat::VIT, 10)]),
     ];
     actor_team[0].set_companions(vec![1, 2]);
     actor_team[1].take_damage(12); // 18 HP

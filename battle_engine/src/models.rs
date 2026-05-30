@@ -10,6 +10,12 @@ use crate::statuses::{
 /// rewards setup without letting a single stat run away.
 pub const MAX_STAT_MOD_STACKS: u32 = 8;
 
+/// Universal mana cap. Mana is "pips": every character starts at 0, caps at
+/// MAX_MP, and gains MP_PER_ATTACK per basic attack. There is no mana stat.
+pub const MAX_MP: u32 = 5;
+/// Mana pips gained from a single basic attack.
+pub const MP_PER_ATTACK: u32 = 1;
+
 /// The current character attributes.
 #[derive(Hash, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[allow(clippy::upper_case_acronyms)]
@@ -26,8 +32,6 @@ pub enum Stat {
     RES, // Magical resistance
     #[serde(rename = "spd")]
     SPD, // Determines how often to act
-    #[serde(rename = "wil")]
-    WIL, // Will stat: max MP and basic-attack MP recovery
 }
 
 /// Cell on the battle grid (rows 0-2, cols 0-2).
@@ -482,10 +486,9 @@ impl CharacterState {
         }
     }
 
-    /// Restores up to base WIL, which determines max MP.
+    /// Restores mana pips up to the universal MAX_MP cap.
     pub fn restore_mp(&mut self, amount: u32) {
-        let max_mp = self.get_base_stat(&Stat::WIL);
-        self.curr_mp = (self.curr_mp + amount).min(max_mp);
+        self.curr_mp = (self.curr_mp + amount).min(MAX_MP);
     }
 
     /// Decrements speed counter. Returns true when the character is ready to act.
@@ -727,7 +730,7 @@ impl CharacterState {
         // Reject stat mods on pool stats
         if matches!(&def.behavior, StatusBehavior::StatModPerStack { .. })
             && let Some(ref s) = stat
-            && matches!(s, Stat::VIT | Stat::SPD | Stat::WIL)
+            && matches!(s, Stat::VIT | Stat::SPD)
         {
             return false;
         }
@@ -1171,7 +1174,7 @@ mod tests {
 
     #[test]
     fn from_config_sets_hp_to_triple_vit() {
-        let config = make_config(vec![(Stat::VIT, 10), (Stat::SPD, 5), (Stat::WIL, 3)]);
+        let config = make_config(vec![(Stat::VIT, 10), (Stat::SPD, 5)]);
         let state = CharacterState::from_config(0, &config);
         assert_eq!(state.current_hp(), 30);
     }
@@ -1207,7 +1210,7 @@ mod tests {
 
     #[test]
     fn spend_mp_fails_when_insufficient() {
-        let config = make_config(vec![(Stat::WIL, 5)]);
+        let config = make_config(vec![]);
         let mut state = CharacterState::from_config(0, &config);
         state.restore_mp(5); // characters now start at 0 MP
         assert!(state.spend_mp(3));
@@ -1217,12 +1220,11 @@ mod tests {
     }
 
     #[test]
-    fn restore_mp_caps_at_base() {
-        let config = make_config(vec![(Stat::WIL, 10)]);
+    fn restore_mp_caps_at_max() {
+        let config = make_config(vec![]);
         let mut state = CharacterState::from_config(0, &config);
-        state.spend_mp(8);
         state.restore_mp(100);
-        assert_eq!(state.current_mp(), 10);
+        assert_eq!(state.current_mp(), MAX_MP);
     }
 
     #[test]
@@ -1332,10 +1334,10 @@ mod tests {
 
     #[test]
     fn add_status_rejects_pool_stat_mods() {
-        let config = make_config(vec![(Stat::VIT, 10), (Stat::SPD, 5), (Stat::WIL, 5)]);
+        let config = make_config(vec![(Stat::VIT, 10), (Stat::SPD, 5)]);
         let mut state = CharacterState::from_config(0, &config);
 
-        for stat in [Stat::VIT, Stat::SPD, Stat::WIL] {
+        for stat in [Stat::VIT, Stat::SPD] {
             let key = status_key("Empower", Some(&stat));
             let result = state.add_status(&key, 3, 99, &empower_def(), Some(stat));
             assert!(!result);
@@ -1737,7 +1739,7 @@ mod tests {
 
     #[test]
     fn mp_cost_reduction_sums_amounts() {
-        let config = make_config(vec![(Stat::WIL, 5)]);
+        let config = make_config(vec![]);
         let mut state = CharacterState::from_config(0, &config);
         assert_eq!(state.mp_cost_reduction(), 0);
 

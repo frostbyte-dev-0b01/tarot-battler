@@ -876,13 +876,13 @@ mod tests {
             "Striker",
             0,
             0,
-            vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+            vec![(Stat::MGT, 10), (Stat::VIT, 10)],
         );
         let mut chariot = make_config_at(
             "Chariot",
             0,
             1,
-            vec![(Stat::MGT, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
+            vec![(Stat::MGT, 8), (Stat::VIT, 10)],
         );
         chariot.passive = "Pursuit".to_string();
         let enemy = make_config_at("Target", 0, 0, vec![(Stat::ARM, 3), (Stat::VIT, 10)]);
@@ -946,14 +946,14 @@ mod tests {
             "Chariot",
             0,
             1,
-            vec![(Stat::MGT, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
+            vec![(Stat::MGT, 8), (Stat::VIT, 10)],
         );
         chariot.passive = "Pursuit".to_string();
         let ally = make_config_at(
             "Ally",
             0,
             0,
-            vec![(Stat::MGT, 10), (Stat::VIT, 10), (Stat::WIL, 5)],
+            vec![(Stat::MGT, 10), (Stat::VIT, 10)],
         );
         let enemy_a = make_config_at("EnemyA", 0, 0, vec![(Stat::ARM, 3), (Stat::VIT, 10)]);
         let enemy_b = make_config_at("EnemyB", 0, 1, vec![(Stat::ARM, 3), (Stat::VIT, 10)]);
@@ -1029,14 +1029,14 @@ mod tests {
             "Moon",
             0,
             0,
-            vec![(Stat::MAG, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
+            vec![(Stat::MAG, 8), (Stat::VIT, 10)],
         );
         moon.actives = vec!["Hex".to_string()];
         let mut magician = make_config_at(
             "Magician",
             0,
             1,
-            vec![(Stat::MAG, 6), (Stat::VIT, 10), (Stat::WIL, 5)],
+            vec![(Stat::MAG, 6), (Stat::VIT, 10)],
         );
         magician.passive = "Catalyst".to_string();
         let enemy = make_config_at("Target", 0, 0, vec![(Stat::RES, 3), (Stat::VIT, 10)]);
@@ -1109,14 +1109,14 @@ mod tests {
             "Moon",
             0,
             0,
-            vec![(Stat::MAG, 8), (Stat::VIT, 10), (Stat::WIL, 5)],
+            vec![(Stat::MAG, 8), (Stat::VIT, 10)],
         );
         moon.actives = vec!["DoubleHex".to_string()];
         let mut magician = make_config_at(
             "Magician",
             0,
             1,
-            vec![(Stat::MAG, 6), (Stat::VIT, 10), (Stat::WIL, 5)],
+            vec![(Stat::MAG, 6), (Stat::VIT, 10)],
         );
         magician.passive = "Catalyst".to_string();
         let enemy = make_config_at("Target", 0, 0, vec![(Stat::RES, 3), (Stat::VIT, 10)]);
@@ -1300,7 +1300,6 @@ mod tests {
                 (Stat::ARM, 10),
                 (Stat::RES, 10),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         let glass = make_config(
@@ -1313,7 +1312,6 @@ mod tests {
                 (Stat::ARM, 2),
                 (Stat::RES, 2),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         let log = BattleState::new(
@@ -1345,7 +1343,6 @@ mod tests {
                 (Stat::ARM, 50),
                 (Stat::RES, 50),
                 (Stat::SPD, 30),
-                (Stat::WIL, 5),
             ],
         );
         let log = BattleState::new(
@@ -1377,7 +1374,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         let front2 = make_config(
@@ -1390,7 +1386,6 @@ mod tests {
                 (Stat::ARM, 4),
                 (Stat::RES, 4),
                 (Stat::SPD, 6),
-                (Stat::WIL, 5),
             ],
         );
         let back = make_config(
@@ -1403,7 +1398,6 @@ mod tests {
                 (Stat::ARM, 2),
                 (Stat::RES, 8),
                 (Stat::SPD, 4),
-                (Stat::WIL, 7),
             ],
         );
         let log = BattleState::new(
@@ -1443,7 +1437,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         let squishy_back = make_config(
@@ -1456,7 +1449,6 @@ mod tests {
                 (Stat::ARM, 1),
                 (Stat::RES, 8),
                 (Stat::SPD, 4),
-                (Stat::WIL, 7),
             ],
         );
         let attacker = make_config(
@@ -1469,7 +1461,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 6),
-                (Stat::WIL, 4),
             ],
         );
         let log = BattleState::new(
@@ -1517,7 +1508,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         let lone = make_config(
@@ -1530,7 +1520,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         let log = BattleState::new(
@@ -1560,7 +1549,6 @@ mod tests {
                 (Stat::ARM, 8),
                 (Stat::RES, 5),
                 (Stat::SPD, 4),
-                (Stat::WIL, 4),
             ],
         );
         let dps = make_config(
@@ -1573,7 +1561,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 2),
                 (Stat::SPD, 6),
-                (Stat::WIL, 4),
             ],
         );
         let log = BattleState::new(
@@ -1620,7 +1607,6 @@ mod tests {
                 (Stat::ARM, 4),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         let back = make_config(
@@ -1633,7 +1619,6 @@ mod tests {
                 (Stat::ARM, 2),
                 (Stat::RES, 6),
                 (Stat::SPD, 5),
-                (Stat::WIL, 6),
             ],
         );
         let log = BattleState::new(
@@ -1672,7 +1657,6 @@ mod tests {
             (Stat::ARM, 4),
             (Stat::RES, 3),
             (Stat::SPD, 5),
-            (Stat::WIL, 5),
         ]
     }
 
@@ -1760,7 +1744,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 14),
-                (Stat::WIL, 4),
             ],
         );
         actor.actives = vec!["Withdraw".to_string()];
@@ -1785,7 +1768,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 1),
-                (Stat::WIL, 5),
             ],
         );
         let enemy = make_config_at("Enemy", 0, 0, simple_stats());
@@ -1864,7 +1846,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 2),
                 (Stat::SPD, 4),
-                (Stat::WIL, 5),
             ],
         );
         config.actives = vec!["Crush".to_string(), "Embolden".to_string()];
@@ -1909,7 +1890,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 4),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -1938,11 +1918,10 @@ mod tests {
 
     #[test]
     fn emperor_basic_attacks_when_mp_exhausted() {
-        // Characters start at 0 MP and regain floor(WIL/3) per basic attack, so the
+        // Characters start at 0 MP and regain 1 pip per basic attack, so the
         // Emperor basic-attacks to build MP and Crushes the enemy once it is low and
         // affordable — exercising both the basic-attack rhythm and ability use.
-        let mut emperor = emperor_config();
-        emperor.stats.insert(Stat::WIL, 3);
+        let emperor = emperor_config();
 
         let enemy = make_config(
             "Enemy",
@@ -1954,7 +1933,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 4),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -2006,7 +1984,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         a.actives.clear();
@@ -2021,7 +1998,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         b.actives.clear();
@@ -2052,7 +2028,7 @@ mod tests {
     }
 
     #[test]
-    fn basic_attack_restores_one_third_wil_mp() {
+    fn basic_attack_restores_one_mp_pip() {
         let mut a = make_config(
             "A",
             0,
@@ -2063,7 +2039,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 6),
             ],
         );
         a.actives.clear();
@@ -2079,7 +2054,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         b.actives.clear();
@@ -2104,7 +2078,7 @@ mod tests {
             _ => None,
         });
 
-        assert_eq!(mp_restore_on_basic, Some(2));
+        assert_eq!(mp_restore_on_basic, Some(1));
     }
 
     // --- Effect ticking tests ---
@@ -2123,7 +2097,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         attacker.actives = vec!["Poison".to_string()];
@@ -2141,7 +2114,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -2204,7 +2176,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 3),
-                (Stat::WIL, 5),
             ],
         );
         let b = make_config(
@@ -2217,7 +2188,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 3),
-                (Stat::WIL, 5),
             ],
         );
 
@@ -2264,7 +2234,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 14),
-                (Stat::WIL, 4),
             ],
         );
         let enemy = make_config(
@@ -2277,7 +2246,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 1),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -2343,7 +2311,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 14),
-                (Stat::WIL, 4),
             ],
         );
         actor.passive = "Meditation".to_string();
@@ -2358,7 +2325,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 1),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -2436,7 +2402,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         char_config.passive = "TestPassive".to_string();
@@ -2451,7 +2416,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -2517,7 +2481,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         warrior.passive = "PowerUp".to_string();
@@ -2532,7 +2495,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -2591,7 +2553,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         char_config.passive = "NonexistentPassive".to_string();
@@ -2606,7 +2567,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -2643,7 +2603,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         char_config.passive = "Thorns".to_string();
@@ -2658,7 +2617,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -2703,7 +2661,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -2717,7 +2674,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         defender.passive = "Thorns".to_string();
@@ -2762,7 +2718,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -2776,7 +2731,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         defender.passive = "Thorns".to_string();
@@ -2829,7 +2783,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         attacker.passive = "Collapse".to_string();
@@ -2844,7 +2797,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         defender.passive = "Thorns".to_string();
@@ -2919,7 +2871,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         attacker.passive = "Barrier".to_string();
@@ -2934,7 +2885,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         defender.passive = "Thorns".to_string();
@@ -2996,7 +2946,6 @@ mod tests {
         // Emperor with MP cost reduction — should be able to use Crush more
         let mut emperor = emperor_config();
         emperor.passive = "Thrift".to_string();
-        emperor.stats.insert(Stat::WIL, 3); // barely enough MP for Crush(2) without reduction
 
         let enemy = make_config(
             "Enemy",
@@ -3008,7 +2957,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 4),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -3063,7 +3011,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         char_config.passive = "Meditation".to_string();
@@ -3078,7 +3025,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -3130,7 +3076,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         attacker.passive = "Momentum".to_string();
@@ -3145,7 +3090,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -3215,7 +3159,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 4),
                 (Stat::SPD, 5),
-                (Stat::WIL, 5),
             ],
         );
         attacker.passive = "Foreboding".to_string();
@@ -3235,7 +3178,6 @@ mod tests {
                 (Stat::ARM, 2),
                 (Stat::RES, 2),
                 (Stat::SPD, 4),
-                (Stat::WIL, 4),
             ],
         );
         enemy_a.position = Position { row: 0, col: 0 };
@@ -3249,7 +3191,6 @@ mod tests {
                 (Stat::ARM, 2),
                 (Stat::RES, 2),
                 (Stat::SPD, 4),
-                (Stat::WIL, 4),
             ],
         );
         enemy_b.position = Position { row: 0, col: 1 };
@@ -3317,7 +3258,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -3331,7 +3271,6 @@ mod tests {
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         defender.passive = "Vengeance".to_string();
@@ -3395,7 +3334,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         killer.passive = "Reaper".to_string();
@@ -3410,7 +3348,6 @@ mod tests {
                 (Stat::ARM, 2),
                 (Stat::RES, 2),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -3466,7 +3403,6 @@ mod tests {
                 (Stat::ARM, 10),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -3480,7 +3416,6 @@ mod tests {
                 (Stat::ARM, 2),
                 (Stat::RES, 2),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         dying.passive = "Collapse".to_string();
@@ -3539,7 +3474,6 @@ mod tests {
                 (Stat::ARM, 10),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -3553,7 +3487,6 @@ mod tests {
                 (Stat::ARM, 2),
                 (Stat::RES, 2),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         dying.passive = "Collapse".to_string();
@@ -3632,7 +3565,6 @@ mod tests {
                 (Stat::ARM, 4),
                 (Stat::RES, 3),
                 (Stat::SPD, 4),
-                (Stat::WIL, 4),
             ],
         );
 
@@ -3646,7 +3578,6 @@ mod tests {
                 (Stat::ARM, 2),
                 (Stat::RES, 2),
                 (Stat::SPD, 4),
-                (Stat::WIL, 4),
             ],
         );
         dying.passive = "Collapse".to_string();
@@ -3774,7 +3705,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         a.passive = "Splash".to_string();
@@ -3789,7 +3719,6 @@ mod tests {
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
                 (Stat::SPD, 5),
-                (Stat::WIL, 4),
             ],
         );
         b.passive = "Splash".to_string();
