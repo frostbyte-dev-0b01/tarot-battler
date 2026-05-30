@@ -6,56 +6,186 @@
       "id": "justice",
       "template_id": "justice",
       "display_name": "Justice",
-      "position": { "row": 0, "col": 1 },
+      "position": {
+        "row": 0,
+        "col": 1
+      },
       "passive": "Sentence",
-      "actives": ["Condemn", "Verdict", "Rebuke"],
+      "actives": [
+        "Condemn",
+        "Verdict",
+        "Rebuke"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Verdict", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 3 }] },
-        { "ability": "Condemn", "when": [{ "subject": "target", "value": { "has_status": "Omen" }, "op": "gte", "threshold": 1 }] },
-        { "ability": "Rebuke", "when": [] }
+        {
+          "ability": "Verdict",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "status_stacks": "Omen"
+              },
+              "op": "gte",
+              "threshold": 3
+            }
+          ]
+        },
+        {
+          "ability": "Condemn",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "has_status": "Omen"
+              },
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Rebuke",
+          "when": []
+        }
       ]
     },
     {
       "id": "the_moon",
       "template_id": "the_moon",
       "display_name": "The Moon",
-      "position": { "row": 1, "col": 1 },
+      "position": {
+        "row": 1,
+        "col": 1
+      },
       "passive": "Foreboding",
-      "actives": ["Hex", "Eclipse", "Harvest Night"],
-      "aspect": "vitality_charm",
+      "actives": [
+        "Hex",
+        "Eclipse",
+        "Harvest Night"
+      ],
+      "aspect": null,
       "rules": [
-        { "ability": "Harvest Night", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 4 }] },
-        { "ability": "Eclipse", "when": [{ "subject": "target", "value": "target_companion_count", "op": "gte", "threshold": 1 }] },
-        { "ability": "Hex", "when": [] }
+        {
+          "ability": "Harvest Night",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "status_stacks": "Omen"
+              },
+              "op": "gte",
+              "threshold": 4
+            }
+          ]
+        },
+        {
+          "ability": "Eclipse",
+          "when": [
+            {
+              "subject": "target",
+              "value": "target_companion_count",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Hex",
+          "when": []
+        }
       ]
     },
     {
       "id": "the_hierophant",
       "template_id": "the_hierophant",
       "display_name": "The Hierophant",
-      "position": { "row": 1, "col": 2 },
+      "position": {
+        "row": 1,
+        "col": 2
+      },
       "passive": "Sanctuary",
-      "actives": ["Smite", "Consecrate", "Blessing"],
+      "actives": [
+        "Smite",
+        "Consecrate",
+        "Blessing"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Blessing", "when": [{ "subject": "companion", "value": "mp", "op": "lte", "threshold": 2 }] },
-        { "ability": "Consecrate", "when": [{ "subject": "target", "value": "target_companion_count", "op": "gte", "threshold": 1 }] },
-        { "ability": "Smite", "when": [] }
+        {
+          "ability": "Blessing",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "mp",
+              "op": "lte",
+              "threshold": 2
+            }
+          ]
+        },
+        {
+          "ability": "Consecrate",
+          "when": [
+            {
+              "subject": "target",
+              "value": "target_companion_count",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Smite",
+          "when": []
+        }
       ]
     },
     {
       "id": "the_magician",
       "template_id": "the_magician",
       "display_name": "The Magician",
-      "position": { "row": 2, "col": 1 },
+      "position": {
+        "row": 2,
+        "col": 1
+      },
       "passive": "Catalyst",
-      "actives": ["Seal", "Distill", "Transmute"],
+      "actives": [
+        "Seal",
+        "Distill",
+        "Transmute"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Transmute", "when": [{ "subject": "target", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 1 }] },
-        { "ability": "Distill", "when": [{ "subject": "target", "value": { "has_status": "Ward" }, "op": "gte", "threshold": 1 }] },
-        { "ability": "Seal", "when": [] }
+        {
+          "ability": "Transmute",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "status_stacks": "Empower:MGT"
+              },
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Distill",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "has_status": "Ward"
+              },
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Seal",
+          "when": []
+        }
       ]
     }
   ]

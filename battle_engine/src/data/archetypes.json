@@ -20,7 +20,6 @@
       "Interpose",
       "Sunder"
     ],
-    "aspect_slots": 1,
     "cost": 3
   },
   "the_hierophant": {
@@ -44,7 +43,6 @@
       "Sanctify",
       "Rescue"
     ],
-    "aspect_slots": 1,
     "cost": 2
   },
   "the_chariot": {
@@ -68,7 +66,6 @@
       "Sever",
       "Pursue"
     ],
-    "aspect_slots": 1,
     "cost": 2
   },
   "justice": {
@@ -92,7 +89,6 @@
       "Seal",
       "Detonate Mark"
     ],
-    "aspect_slots": 1,
     "cost": 2
   },
   "the_moon": {
@@ -116,7 +112,6 @@
       "Death Mark",
       "Withdraw"
     ],
-    "aspect_slots": 1,
     "cost": 2
   },
   "the_magician": {
@@ -140,7 +135,6 @@
       "Transmute",
       "Smite"
     ],
-    "aspect_slots": 1,
     "cost": 3
   },
   "the_hermit": {
@@ -164,7 +158,6 @@
       "Consecrate",
       "Cleanse the Throne"
     ],
-    "aspect_slots": 1,
     "cost": 1
   },
   "the_fool": {
@@ -188,7 +181,6 @@
       "Pursue",
       "Last Rites"
     ],
-    "aspect_slots": 1,
     "cost": 1
   }
 }

@@ -25,8 +25,6 @@ pub struct ArchetypeTemplate {
     pub default_passive: String,
     pub passive_pool: Vec<String>,
     pub active_pool: Vec<String>,
-    #[serde(alias = "item_slots")]
-    pub aspect_slots: u32,
     /// Point cost for the team budget (coarse tier, 1–4).
     #[serde(default)]
     pub cost: u32,
@@ -1085,13 +1083,13 @@ mod tests {
         let passives = load_passives(&data_dir.join("passives.json")).unwrap();
         let statuses = load_statuses(&data_dir.join("statuses.json")).unwrap();
 
-        // emperor(3)+grace(2) + magician(3)+ruin(2) + chariot(2)+charm(1) + justice(2) = 15 > 14.
-        let make = |id: &str, template: &str, passive: &str, active: &str, aspect: Option<&str>, col: u8| {
+        // Five archetypes (3+3+2+2+2 = 12) + the two aspects (2+2) = 16 > 14.
+        let make = |id: &str, template: &str, passive: &str, active: &str, aspect: Option<&str>, row: u8, col: u8| {
             TeamCharacterLoadout {
                 id: id.to_string(),
                 template_id: template.to_string(),
                 display_name: None,
-                position: crate::models::Position { row: 0, col },
+                position: crate::models::Position { row, col },
                 passive: passive.to_string(),
                 actives: vec![active.to_string()],
                 aspect: aspect.map(|a| a.to_string()),
@@ -1102,10 +1100,11 @@ mod tests {
             version: 2,
             name: "Spendy".to_string(),
             characters: vec![
-                make("a", "the_emperor", "Imperial Formation", "Hold the Line", Some("aspect_of_grace"), 0),
-                make("b", "the_magician", "Catalyst", "Offer", Some("aspect_of_ruin"), 1),
-                make("c", "the_chariot", "Pursuit", "Charge", Some("vitality_charm"), 2),
-                make("d", "justice", "Sentence", "Rebuke", None, 3),
+                make("a", "the_emperor", "Imperial Formation", "Hold the Line", Some("aspect_of_grace"), 0, 0),
+                make("b", "the_magician", "Catalyst", "Offer", Some("aspect_of_ruin"), 0, 1),
+                make("c", "the_chariot", "Pursuit", "Charge", None, 0, 2),
+                make("d", "justice", "Sentence", "Rebuke", None, 1, 0),
+                make("e", "the_hierophant", "Sanctuary", "Smite", None, 1, 1),
             ],
         };
 

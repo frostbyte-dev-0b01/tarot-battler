@@ -92,6 +92,7 @@ pub enum QueryValue {
 pub enum Comparator {
     Gte,
     Lte,
+    Eq,
 }
 
 /// A single condition that must be met for a rule to fire.

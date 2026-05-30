@@ -6,56 +6,196 @@
       "id": "the_emperor",
       "template_id": "the_emperor",
       "display_name": "The Emperor",
-      "position": { "row": 0, "col": 0 },
+      "position": {
+        "row": 0,
+        "col": 0
+      },
       "passive": "Imperial Formation",
-      "actives": ["Hold the Line", "Command", "Taunt"],
-      "aspect": "vitality_charm",
+      "actives": [
+        "Hold the Line",
+        "Command",
+        "Taunt"
+      ],
+      "aspect": null,
       "rules": [
-        { "ability": "Hold the Line", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 5 }] },
-        { "ability": "Taunt", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 4 }] },
-        { "ability": "Command", "when": [{ "subject": "companion", "value": "hp", "op": "gte", "threshold": 1 }] }
+        {
+          "ability": "Hold the Line",
+          "when": [
+            {
+              "subject": "self",
+              "value": "mp",
+              "op": "gte",
+              "threshold": 5
+            }
+          ]
+        },
+        {
+          "ability": "Taunt",
+          "when": [
+            {
+              "subject": "self",
+              "value": "mp",
+              "op": "gte",
+              "threshold": 4
+            }
+          ]
+        },
+        {
+          "ability": "Command",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "hp",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        }
       ]
     },
     {
       "id": "the_hierophant",
       "template_id": "the_hierophant",
       "display_name": "The Hierophant",
-      "position": { "row": 0, "col": 1 },
+      "position": {
+        "row": 0,
+        "col": 1
+      },
       "passive": "Sanctuary",
-      "actives": ["Smite", "Consecrate", "Blessing"],
+      "actives": [
+        "Smite",
+        "Consecrate",
+        "Blessing"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Blessing", "when": [{ "subject": "companion", "value": "mp", "op": "lte", "threshold": 2 }] },
-        { "ability": "Consecrate", "when": [{ "subject": "target", "value": "target_companion_count", "op": "gte", "threshold": 1 }] },
-        { "ability": "Smite", "when": [] }
+        {
+          "ability": "Blessing",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "mp",
+              "op": "lte",
+              "threshold": 2
+            }
+          ]
+        },
+        {
+          "ability": "Consecrate",
+          "when": [
+            {
+              "subject": "target",
+              "value": "target_companion_count",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Smite",
+          "when": []
+        }
       ]
     },
     {
       "id": "justice",
       "template_id": "justice",
       "display_name": "Justice",
-      "position": { "row": 0, "col": 2 },
+      "position": {
+        "row": 0,
+        "col": 2
+      },
       "passive": "Sentence",
-      "actives": ["Condemn", "Verdict", "Rebuke"],
+      "actives": [
+        "Condemn",
+        "Verdict",
+        "Rebuke"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Verdict", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 3 }] },
-        { "ability": "Condemn", "when": [{ "subject": "target", "value": { "has_status": "Omen" }, "op": "gte", "threshold": 1 }] },
-        { "ability": "Rebuke", "when": [] }
+        {
+          "ability": "Verdict",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "status_stacks": "Omen"
+              },
+              "op": "gte",
+              "threshold": 3
+            }
+          ]
+        },
+        {
+          "ability": "Condemn",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "has_status": "Omen"
+              },
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Rebuke",
+          "when": []
+        }
       ]
     },
     {
       "id": "the_chariot",
       "template_id": "the_chariot",
       "display_name": "The Chariot",
-      "position": { "row": 1, "col": 1 },
+      "position": {
+        "row": 1,
+        "col": 1
+      },
       "passive": "Pursuit",
-      "actives": ["Charge", "Withdraw", "Breakthrough"],
+      "actives": [
+        "Charge",
+        "Withdraw",
+        "Breakthrough"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Breakthrough", "when": [{ "subject": "self", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 3 }] },
-        { "ability": "Charge", "when": [{ "subject": "self", "value": "self_row", "op": "gte", "threshold": 1 }] },
-        { "ability": "Withdraw", "when": [{ "subject": "self", "value": "hp", "op": "lte", "threshold": 16 }] }
+        {
+          "ability": "Breakthrough",
+          "when": [
+            {
+              "subject": "self",
+              "value": {
+                "status_stacks": "Empower:MGT"
+              },
+              "op": "gte",
+              "threshold": 3
+            }
+          ]
+        },
+        {
+          "ability": "Charge",
+          "when": [
+            {
+              "subject": "self",
+              "value": "self_row",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Withdraw",
+          "when": [
+            {
+              "subject": "self",
+              "value": "hp",
+              "op": "lte",
+              "threshold": 16
+            }
+          ]
+        }
       ]
     }
   ]

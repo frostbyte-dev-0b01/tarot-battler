@@ -1,6 +1,6 @@
 {
   "Hold the Line": {
-    "description": "▲Ward 1 to your row",
+    "description": "▲Ward 1 to your column",
     "mp_cost": 4,
     "primitives": [
       {
@@ -76,7 +76,7 @@
     ]
   },
   "Charge": {
-    "description": "advance 1 row if empty, then refocus",
+    "description": "advance if empty, then refocus",
     "mp_cost": 3,
     "primitives": [
       {
@@ -96,7 +96,7 @@
     ]
   },
   "Withdraw": {
-    "description": "retreat 1 row if empty; drop enemies on you",
+    "description": "retreat if empty; drop enemies on you",
     "mp_cost": 3,
     "primitives": [
       {
@@ -301,7 +301,7 @@
     ]
   },
   "Sanctify": {
-    "description": "cleanse your column; those cleansed gain ▲Ward 1",
+    "description": "cleanse your lane; those cleansed gain ▲Ward 1",
     "mp_cost": 3,
     "primitives": [
       {
@@ -380,7 +380,7 @@
     ]
   },
   "Rescue": {
-    "description": "+6 HP to a companion; pull it back a row and drop enemies on it",
+    "description": "+6 HP to a companion; retreat it and drop enemies on it",
     "mp_cost": 3,
     "primitives": [
       {

@@ -16,7 +16,7 @@
         "Sunder",
         "Command"
       ],
-      "aspect": "vitality_charm",
+      "aspect": null,
       "rules": [
         {
           "ability": "Taunt",

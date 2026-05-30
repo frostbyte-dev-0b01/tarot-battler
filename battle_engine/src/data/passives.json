@@ -1,6 +1,6 @@
 {
   "Imperial Formation": {
-    "description": "When an ally in The Emperor's row attacks The Emperor's focused enemy, that ally gains Empower MGT 2.",
+    "description": "When an ally in The Emperor's column attacks The Emperor's focused enemy, that ally gains Empower MGT 2.",
     "type": "triggered",
     "trigger": "on_row_ally_damage_my_target",
     "once_per_tick": false,
@@ -156,10 +156,10 @@
     ]
   },
   "Ruinous": {
-    "description": "The first time each tick the user damages an enemy with a condition, deal 2 true damage.",
+    "description": "When the user damages an enemy that has a condition, deal 2 true damage.",
     "type": "triggered",
     "trigger": "on_deal_damage",
-    "once_per_tick": true,
+    "once_per_tick": false,
     "once_per_battle": false,
     "primitives": [
       {
@@ -176,10 +176,10 @@
     ]
   },
   "Grace": {
-    "description": "The first time each tick the user affects an ally with an ability, that ally restores 2 HP.",
+    "description": "When the user affects an ally with an ability, that ally restores 2 HP.",
     "type": "triggered",
     "trigger": "on_affect_ally_with_ability",
-    "once_per_tick": true,
+    "once_per_tick": false,
     "once_per_battle": false,
     "primitives": [
       {

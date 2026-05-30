@@ -6,56 +6,194 @@
       "id": "the_emperor",
       "template_id": "the_emperor",
       "display_name": "The Emperor",
-      "position": { "row": 0, "col": 0 },
+      "position": {
+        "row": 0,
+        "col": 0
+      },
       "passive": "Imperial Formation",
-      "actives": ["Hold the Line", "Command", "Taunt"],
+      "actives": [
+        "Hold the Line",
+        "Command",
+        "Taunt"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Hold the Line", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 5 }] },
-        { "ability": "Taunt", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 4 }] },
-        { "ability": "Command", "when": [{ "subject": "companion", "value": "hp", "op": "gte", "threshold": 1 }] }
+        {
+          "ability": "Hold the Line",
+          "when": [
+            {
+              "subject": "self",
+              "value": "mp",
+              "op": "gte",
+              "threshold": 5
+            }
+          ]
+        },
+        {
+          "ability": "Taunt",
+          "when": [
+            {
+              "subject": "self",
+              "value": "mp",
+              "op": "gte",
+              "threshold": 4
+            }
+          ]
+        },
+        {
+          "ability": "Command",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "hp",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        }
       ]
     },
     {
       "id": "the_chariot",
       "template_id": "the_chariot",
       "display_name": "The Chariot",
-      "position": { "row": 0, "col": 1 },
+      "position": {
+        "row": 0,
+        "col": 1
+      },
       "passive": "Pursuit",
-      "actives": ["Charge", "Withdraw", "Breakthrough"],
-      "aspect": "vitality_charm",
+      "actives": [
+        "Charge",
+        "Withdraw",
+        "Breakthrough"
+      ],
+      "aspect": null,
       "rules": [
-        { "ability": "Breakthrough", "when": [{ "subject": "self", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 3 }] },
-        { "ability": "Charge", "when": [{ "subject": "self", "value": "self_row", "op": "gte", "threshold": 1 }] },
-        { "ability": "Withdraw", "when": [{ "subject": "self", "value": "hp", "op": "lte", "threshold": 16 }] }
+        {
+          "ability": "Breakthrough",
+          "when": [
+            {
+              "subject": "self",
+              "value": {
+                "status_stacks": "Empower:MGT"
+              },
+              "op": "gte",
+              "threshold": 3
+            }
+          ]
+        },
+        {
+          "ability": "Charge",
+          "when": [
+            {
+              "subject": "self",
+              "value": "self_row",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Withdraw",
+          "when": [
+            {
+              "subject": "self",
+              "value": "hp",
+              "op": "lte",
+              "threshold": 16
+            }
+          ]
+        }
       ]
     },
     {
       "id": "the_hierophant",
       "template_id": "the_hierophant",
       "display_name": "The Hierophant",
-      "position": { "row": 0, "col": 2 },
+      "position": {
+        "row": 0,
+        "col": 2
+      },
       "passive": "Sanctuary",
-      "actives": ["Rescue", "Blessing", "Smite"],
+      "actives": [
+        "Rescue",
+        "Blessing",
+        "Smite"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Rescue", "when": [{ "subject": "companion", "value": "hp", "op": "lte", "threshold": 12 }] },
-        { "ability": "Blessing", "when": [{ "subject": "companion", "value": "mp", "op": "lte", "threshold": 2 }] },
-        { "ability": "Smite", "when": [] }
+        {
+          "ability": "Rescue",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "hp",
+              "op": "lte",
+              "threshold": 12
+            }
+          ]
+        },
+        {
+          "ability": "Blessing",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "mp",
+              "op": "lte",
+              "threshold": 2
+            }
+          ]
+        },
+        {
+          "ability": "Smite",
+          "when": []
+        }
       ]
     },
     {
       "id": "the_magician",
       "template_id": "the_magician",
       "display_name": "The Magician",
-      "position": { "row": 2, "col": 1 },
+      "position": {
+        "row": 2,
+        "col": 1
+      },
       "passive": "Catalyst",
-      "actives": ["Offer", "Seal", "Transmute"],
+      "actives": [
+        "Offer",
+        "Seal",
+        "Transmute"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Transmute", "when": [{ "subject": "target", "value": { "status_stacks": "Empower:MGT" }, "op": "gte", "threshold": 1 }] },
-        { "ability": "Offer", "when": [{ "subject": "self", "value": "use_count", "op": "lte", "threshold": 0 }] },
-        { "ability": "Seal", "when": [] }
+        {
+          "ability": "Transmute",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "status_stacks": "Empower:MGT"
+              },
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Offer",
+          "when": [
+            {
+              "subject": "self",
+              "value": "use_count",
+              "op": "lte",
+              "threshold": 0
+            }
+          ]
+        },
+        {
+          "ability": "Seal",
+          "when": []
+        }
       ]
     }
   ]

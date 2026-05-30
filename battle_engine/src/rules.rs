@@ -138,6 +138,7 @@ fn compare(val: u32, comparator: &Comparator, threshold: u32) -> bool {
     match comparator {
         Comparator::Gte => val >= threshold,
         Comparator::Lte => val <= threshold,
+        Comparator::Eq => val == threshold,
     }
 }
 

@@ -22,13 +22,5 @@
     },
     "passive": "Grace",
     "cost": 2
-  },
-  "vitality_charm": {
-    "display_name": "Vitality Charm",
-    "description": "Legacy placeholder aspect for migrated sample teams.",
-    "stat_bonuses": {
-      "vit": 2
-    },
-    "cost": 1
   }
 }

@@ -16,7 +16,7 @@
         "Sunder",
         "Command"
       ],
-      "item": "vitality_charm",
+      "item": null,
       "rules": [
         {
           "ability": "Taunt",
@@ -60,7 +60,7 @@
         "Command",
         "Taunt"
       ],
-      "item": "vitality_charm",
+      "item": null,
       "rules": [
         {
           "ability": "Hold the Line",

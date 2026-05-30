@@ -6,56 +6,189 @@
       "id": "justice",
       "template_id": "justice",
       "display_name": "Justice",
-      "position": { "row": 0, "col": 0 },
+      "position": {
+        "row": 0,
+        "col": 0
+      },
       "passive": "Sentence",
-      "actives": ["Rebuke", "Condemn", "Verdict"],
+      "actives": [
+        "Rebuke",
+        "Condemn",
+        "Verdict"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Verdict", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 3 }] },
-        { "ability": "Condemn", "when": [{ "subject": "target", "value": { "has_status": "Omen" }, "op": "gte", "threshold": 1 }] },
-        { "ability": "Rebuke", "when": [] }
+        {
+          "ability": "Verdict",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "status_stacks": "Omen"
+              },
+              "op": "gte",
+              "threshold": 3
+            }
+          ]
+        },
+        {
+          "ability": "Condemn",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "has_status": "Omen"
+              },
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Rebuke",
+          "when": []
+        }
       ]
     },
     {
       "id": "the_emperor",
       "template_id": "the_emperor",
       "display_name": "The Emperor",
-      "position": { "row": 0, "col": 1 },
+      "position": {
+        "row": 0,
+        "col": 1
+      },
       "passive": "Imperial Formation",
-      "actives": ["Hold the Line", "Interpose", "Command"],
-      "aspect": "vitality_charm",
+      "actives": [
+        "Hold the Line",
+        "Interpose",
+        "Command"
+      ],
+      "aspect": null,
       "rules": [
-        { "ability": "Hold the Line", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 5 }] },
-        { "ability": "Interpose", "when": [{ "subject": "companion", "value": "hp", "op": "lte", "threshold": 14 }] },
-        { "ability": "Command", "when": [{ "subject": "companion", "value": "hp", "op": "gte", "threshold": 1 }] }
+        {
+          "ability": "Hold the Line",
+          "when": [
+            {
+              "subject": "self",
+              "value": "mp",
+              "op": "gte",
+              "threshold": 5
+            }
+          ]
+        },
+        {
+          "ability": "Interpose",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "hp",
+              "op": "lte",
+              "threshold": 14
+            }
+          ]
+        },
+        {
+          "ability": "Command",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "hp",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        }
       ]
     },
     {
       "id": "the_hierophant",
       "template_id": "the_hierophant",
       "display_name": "The Hierophant",
-      "position": { "row": 1, "col": 1 },
+      "position": {
+        "row": 1,
+        "col": 1
+      },
       "passive": "Sanctuary",
-      "actives": ["Sanctify", "Blessing", "Smite"],
+      "actives": [
+        "Sanctify",
+        "Blessing",
+        "Smite"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Blessing", "when": [{ "subject": "companion", "value": "mp", "op": "lte", "threshold": 2 }] },
-        { "ability": "Sanctify", "when": [{ "subject": "self", "value": "mp", "op": "gte", "threshold": 4 }] },
-        { "ability": "Smite", "when": [] }
+        {
+          "ability": "Blessing",
+          "when": [
+            {
+              "subject": "companion",
+              "value": "mp",
+              "op": "lte",
+              "threshold": 2
+            }
+          ]
+        },
+        {
+          "ability": "Sanctify",
+          "when": [
+            {
+              "subject": "self",
+              "value": "mp",
+              "op": "gte",
+              "threshold": 4
+            }
+          ]
+        },
+        {
+          "ability": "Smite",
+          "when": []
+        }
       ]
     },
     {
       "id": "the_moon",
       "template_id": "the_moon",
       "display_name": "The Moon",
-      "position": { "row": 2, "col": 1 },
+      "position": {
+        "row": 2,
+        "col": 1
+      },
       "passive": "Foreboding",
-      "actives": ["Hex", "Eclipse", "Harvest Night"],
+      "actives": [
+        "Hex",
+        "Eclipse",
+        "Harvest Night"
+      ],
       "aspect": null,
       "rules": [
-        { "ability": "Harvest Night", "when": [{ "subject": "target", "value": { "status_stacks": "Omen" }, "op": "gte", "threshold": 4 }] },
-        { "ability": "Eclipse", "when": [{ "subject": "target", "value": "target_companion_count", "op": "gte", "threshold": 1 }] },
-        { "ability": "Hex", "when": [] }
+        {
+          "ability": "Harvest Night",
+          "when": [
+            {
+              "subject": "target",
+              "value": {
+                "status_stacks": "Omen"
+              },
+              "op": "gte",
+              "threshold": 4
+            }
+          ]
+        },
+        {
+          "ability": "Eclipse",
+          "when": [
+            {
+              "subject": "target",
+              "value": "target_companion_count",
+              "op": "gte",
+              "threshold": 1
+            }
+          ]
+        },
+        {
+          "ability": "Hex",
+          "when": []
+        }
       ]
     }
   ]
