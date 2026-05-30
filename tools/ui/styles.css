@@ -3587,12 +3587,20 @@ textarea:focus-visible {
    Replay visual language: identity tokens, beat log, effect chips, board FX
    ===================================================================== */
 :root {
-  --ally: var(--accent-2);   /* cool — your team */
-  --enemy: var(--accent);    /* warm — opponent */
-  --fx-harm: #b14334;
-  --fx-help: #2c8a5a;
-  --fx-status: #7a5cc9;      /* single status hue; ▲/▼ encode buff/debuff */
-  --fx-control: #b08423;
+  /* Identity (persistent, low-chroma): ally cool, enemy warm. */
+  --ally: var(--accent-2);
+  --enemy: var(--accent);
+  /* Effect layer (transient, high-chroma) — one hue per valence; type is icon. */
+  --phys: #b14334;       /* physical harm — red */
+  --arcane: #7a5cc9;     /* magical harm + afflictions — violet */
+  --heal: #2c8a5a;       /* heal + buffs — green */
+  --control: #b08423;    /* control / markers — amber */
+  --resource: #5b87b2;   /* MP pips — blue (your side) */
+  /* Legacy aliases (existing classes) mapped onto the canonical palette. */
+  --fx-harm: var(--phys);
+  --fx-help: var(--heal);
+  --fx-status: var(--arcane);
+  --fx-control: var(--control);
 }
 
 /* Identity tokens (name + side tag) — used in log, narration, inspector. */
@@ -3702,8 +3710,10 @@ textarea:focus-visible {
 .fx-harm { background: color-mix(in srgb, var(--fx-harm) 16%, transparent); color: var(--fx-harm); }
 .fx-help { background: color-mix(in srgb, var(--fx-help) 16%, transparent); color: var(--fx-help); }
 .fx-mp { background: rgba(33, 25, 16, 0.07); color: var(--muted); }
-.fx-status { background: color-mix(in srgb, var(--fx-status) 15%, transparent); color: var(--fx-status); }
-.fx-status.is-removed { opacity: 0.7; text-decoration: line-through; }
+.fx-status-buff { background: color-mix(in srgb, var(--heal) 15%, transparent); color: #1f6e50; }
+.fx-status-debuff { background: color-mix(in srgb, var(--arcane) 15%, transparent); color: var(--arcane); }
+.fx-status-control { background: color-mix(in srgb, var(--control) 18%, transparent); color: #876413; }
+.fx-chip.is-removed { opacity: 0.7; text-decoration: line-through; }
 .fx-control { background: color-mix(in srgb, var(--fx-control) 18%, transparent); color: #8a6510; }
 .chip-arrow { font-size: 0.62rem; }
 .chip-stacks {
@@ -3759,16 +3769,38 @@ textarea:focus-visible {
   .board-popup { animation: none; opacity: 1; transform: translate(-50%, -90%); }
 }
 
-/* Board unit-card status chips speak the same buff/debuff language. */
-.unit-card-chip-arrow { font-size: 0.5rem; margin-right: 1px; }
-.unit-card-chip-buff,
+/* Status chips speak the palette: buff = green, debuff/affliction = violet,
+   control/marker = amber. Icon (or ▲/▼ + stat icon) carries the type. */
+.unit-card-chip-arrow,
+.chip-arrow {
+  font-size: 0.62rem;
+  line-height: 1;
+}
+.unit-card-chip .status-glyph,
+.unit-card-chip .stat-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+}
+.unit-card-chip .status-glyph svg,
+.unit-card-chip .stat-icon svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+.unit-card-chip .chip-name { margin: 0 1px; }
+.unit-card-chip-buff {
+  background: color-mix(in srgb, var(--heal) 16%, transparent);
+  color: #1f6e50;
+}
 .unit-card-chip-debuff {
-  background: color-mix(in srgb, var(--fx-status) 16%, transparent);
+  background: color-mix(in srgb, var(--arcane) 16%, transparent);
   color: #5a3fa6;
 }
-.unit-card-chip-neutral {
-  background: rgba(33, 25, 16, 0.08);
-  color: var(--muted);
+.unit-card-chip-control {
+  background: color-mix(in srgb, var(--control) 20%, transparent);
+  color: #876413;
 }
 
 /* Inspector effects grouped into buff / debuff / condition rows. */
@@ -3847,8 +3879,8 @@ textarea:focus-visible {
 .atk-chip .atk-glyph + .atk-glyph {
   margin-left: -4px;
 }
-.atk-phys { color: var(--fx-harm); }
-.atk-mag { color: #3f6fb0; }
+.atk-phys { color: var(--phys); }
+.atk-mag { color: var(--arcane); }
 
 .selection-browser-entry-title {
   display: inline-flex;

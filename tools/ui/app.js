@@ -2305,10 +2305,62 @@ function renderUnitCard(character) {
   `;
 }
 
-function statusCardChip(name, stacks, polarity) {
-  const arrow = polarity === "buff" ? "▲" : polarity === "debuff" ? "▼" : "•";
-  const label = `${name} x${stacks}`;
-  return `<span class="unit-card-chip unit-card-chip-${polarity}" title="${escapeHtml(label)}"><span class="unit-card-chip-arrow">${arrow}</span>${escapeHtml(name)}<span class="unit-card-chip-stacks">${escapeHtml(stacks)}</span></span>`;
+// Pictorial icons for each status/condition (shown on board cards + inspector).
+// Empower/Weaken render as an arrow + the stat icon instead (see statusIconMarkup).
+const STATUS_ICONS = {
+  ward: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3 19 5.5v5C19 15 16 18.6 12 20 8 18.6 5 15 5 10.5v-5L12 3Z"/></svg>',
+  restoration: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 6.5v11M6.5 12h11"/></svg>',
+  omen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2.6 12S6.2 6.6 12 6.6 21.4 12 21.4 12 17.8 17.4 12 17.4 2.6 12 2.6 12Z"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/></svg>',
+  stun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 8.5 17 8.5 7 15.5 17 15.5"/></svg>',
+  marked: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v3.2M12 18.3v3.2M2.5 12h3.2M18.3 12h3.2" stroke-linecap="round"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>',
+  severed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="6.5" cy="6.5" r="2.4"/><circle cx="6.5" cy="17.5" r="2.4"/><path d="M8.5 8 19 18M8.5 16 19 6"/></svg>',
+};
+
+// Map a status/condition name to its valence (buff/debuff/control) and icon.
+function statusMeta(name) {
+  switch (statusBaseName(name)) {
+    case "Empower": case "Fortify": case "Haste": case "Barrier":
+      return { valence: "buff", stat: true };
+    case "Ward":
+      return { valence: "buff", icon: "ward" };
+    case "Restoration": case "Regen":
+      return { valence: "buff", icon: "restoration" };
+    case "Weaken": case "Enfeeble": case "Slow":
+      return { valence: "debuff", stat: true };
+    case "Omen": case "Bleed": case "Poison": case "Curse":
+      return { valence: "debuff", icon: "omen" };
+    case "Severed":
+      return { valence: "debuff", icon: "severed" };
+    case "Stunned":
+      return { valence: "control", icon: "stun" };
+    case "Marked":
+      return { valence: "control", icon: "marked" };
+    default: {
+      const polarity = statusPolarity(name);
+      return { valence: polarity === "buff" ? "buff" : polarity === "debuff" ? "debuff" : "control" };
+    }
+  }
+}
+
+// Icon for a status chip: Empower/Weaken → ▲/▼ + the stat icon; others → their glyph.
+function statusIconMarkup(name, meta) {
+  if (meta.stat) {
+    const arrow = meta.valence === "buff" ? "▲" : "▼";
+    const statKey = String(name.split(":")[1] ?? "").toLowerCase();
+    return `<span class="chip-arrow">${arrow}</span>${statKey ? renderStatIcon(statKey) : ""}`;
+  }
+  if (meta.icon) {
+    return `<span class="status-glyph">${STATUS_ICONS[meta.icon] ?? ""}</span>`;
+  }
+  const arrow = meta.valence === "buff" ? "▲" : meta.valence === "debuff" ? "▼" : "•";
+  return `<span class="chip-arrow">${arrow}</span>`;
+}
+
+function statusCardChip(name, stacks, { showName = false } = {}) {
+  const meta = statusMeta(name);
+  const label = `${name} ×${stacks}`;
+  const nameText = showName && !meta.stat ? `<span class="chip-name">${escapeHtml(statusBaseName(name))}</span>` : "";
+  return `<span class="unit-card-chip unit-card-chip-${meta.valence}" title="${escapeHtml(label)}">${statusIconMarkup(name, meta)}${nameText}<span class="unit-card-chip-stacks">${escapeHtml(stacks)}</span></span>`;
 }
 
 // Two dedicated rows: beneficial statuses on top, debuffs + conditions below.
@@ -2316,11 +2368,10 @@ function renderUnitCardChips(character) {
   const buffs = [];
   const debuffs = [];
   for (const { name, stacks } of normalizeStatusEntries(character.statuses)) {
-    const polarity = statusPolarity(name);
-    (polarity === "buff" ? buffs : debuffs).push(statusCardChip(name, stacks, polarity === "buff" ? "buff" : "debuff"));
+    (statusMeta(name).valence === "buff" ? buffs : debuffs).push(statusCardChip(name, stacks));
   }
   for (const { name, stacks } of normalizeConditionEntries(character.conditions)) {
-    debuffs.push(statusCardChip(name, stacks, "neutral"));
+    debuffs.push(statusCardChip(name, stacks));
   }
   if (buffs.length === 0 && debuffs.length === 0) {
     return "";
@@ -4732,11 +4783,10 @@ function renderInspectorEffects(character) {
   const buffs = [];
   const debuffs = [];
   for (const { name, stacks } of normalizeStatusEntries(character.statuses)) {
-    const polarity = statusPolarity(name);
-    (polarity === "buff" ? buffs : debuffs).push(statusCardChip(name, stacks, polarity === "buff" ? "buff" : "debuff"));
+    (statusMeta(name).valence === "buff" ? buffs : debuffs).push(statusCardChip(name, stacks, { showName: true }));
   }
   const conditions = normalizeConditionEntries(character.conditions).map(({ name, stacks }) =>
-    statusCardChip(name, stacks, "neutral"),
+    statusCardChip(name, stacks, { showName: true }),
   );
   if (buffs.length === 0 && debuffs.length === 0 && conditions.length === 0) {
     return '<div class="inspector-effects-empty">None</div>';
@@ -4924,10 +4974,10 @@ function statusPolarity(name) {
 }
 
 function statusChip(name, stacksAfter, { removed = false } = {}) {
-  const polarity = statusPolarity(name);
-  const arrow = removed ? "−" : polarity === "buff" ? "▲" : polarity === "debuff" ? "▼" : "•";
+  const valence = statusMeta(name).valence;
+  const arrow = removed ? "−" : valence === "buff" ? "▲" : valence === "debuff" ? "▼" : "•";
   const stacks = stacksAfter == null || removed ? "" : `<span class="chip-stacks">${escapeHtml(stacksAfter)}</span>`;
-  return `<span class="fx-chip fx-status fx-status-${polarity} ${removed ? "is-removed" : ""}"><span class="chip-arrow">${arrow}</span>${escapeHtml(name)}${stacks}</span>`;
+  return `<span class="fx-chip fx-status-${valence} ${removed ? "is-removed" : ""}"><span class="chip-arrow">${arrow}</span>${escapeHtml(name)}${stacks}</span>`;
 }
 
 function amountChip(kind, amount, { lethal = false } = {}) {
