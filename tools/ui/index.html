@@ -8,164 +8,188 @@
   </head>
   <body>
     <div class="app-shell">
-      <div class="workspace-topline">
-        <nav class="tab-bar" aria-label="Workspace sections">
-          <button class="tab-button is-active" type="button" data-tab-target="team-builder">
-            Team Builder
-          </button>
-          <button class="tab-button" type="button" data-tab-target="arena">
-            Training Arena
-          </button>
-          <button class="tab-button" type="button" data-tab-target="replay-viewer">
-            Replay Viewer
-          </button>
-        </nav>
+      <nav class="app-rail" aria-label="Workspace sections">
+        <div class="app-rail-mark" aria-hidden="true">T</div>
+        <button class="rail-button is-active" type="button" data-tab-target="team-builder" title="Team (1)">
+          <span class="rail-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.6"/><circle cx="16" cy="8" r="2.6"/><path d="M3.5 18.5c0-2.6 2-4.5 4.5-4.5s4.5 1.9 4.5 4.5"/><path d="M13.5 14.4c.7-.3 1.5-.4 2.5-.4 2.5 0 4.5 1.9 4.5 4.5"/></svg>
+          </span>
+          <span class="rail-label">Team</span>
+        </button>
+        <button class="rail-button" type="button" data-tab-target="character-builder" title="Character (2)">
+          <span class="rail-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 19.5c0-3.4 2.9-6 6.5-6s6.5 2.6 6.5 6"/></svg>
+          </span>
+          <span class="rail-label">Char</span>
+        </button>
+        <button class="rail-button" type="button" data-tab-target="arena" title="Arena (3)">
+          <span class="rail-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5 19 4l-.5 4.5L7 20l-3-3 10.5-12.5Z"/><path d="m9.5 4.5-5 .5L5 9.5 17 21l3-3"/><path d="m9 13 2 2"/></svg>
+          </span>
+          <span class="rail-label">Arena</span>
+        </button>
+        <button class="rail-button" type="button" data-tab-target="replay-viewer" title="Replay (4)">
+          <span class="rail-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.2"/><path d="M10.2 9.2 15 12l-4.8 2.8V9.2Z" fill="currentColor" stroke="none"/></svg>
+          </span>
+          <span class="rail-label">Replay</span>
+        </button>
+      </nav>
 
-        <div class="replay-inline-actions" id="replay-inline-actions" aria-label="Replay loading actions">
-          <input id="replay-file-input" class="visually-hidden" type="file" accept=".json,application/json">
-          <button id="replay-file-button" type="button" class="icon-button replay-open-button button-quiet" title="Open replay JSON" aria-label="Open replay JSON">📂</button>
-          <button id="replay-run-button" type="button" class="button-secondary" title="Run the current team vs a sample opponent in the browser engine">⚔ Run Battle</button>
-          <button id="replay-stats-button" type="button" class="button-secondary" title="Post-battle stats for the loaded replay">📊 Stats</button>
-          <button id="replay-demo-button" type="button" class="button-secondary">Load Latest Replay</button>
-        </div>
-      </div>
+      <div class="app-content">
+        <main>
+          <section class="workspace is-active" id="team-builder" aria-label="Team Builder">
+            <input id="team-file-input" class="visually-hidden" type="file" accept=".json,application/json">
+            <div id="team-editor" class="team-editor-shell">
+              <div class="board-empty-state">Load a team to edit it here.</div>
+            </div>
+          </section>
 
-      <main>
-        <section class="workspace is-active" id="team-builder" aria-label="Team Builder">
-          <div class="team-builder-layout">
-            <section class="panel panel-team" aria-label="Team Builder Editor">
-              <div class="panel-body team-loader-body">
-                <input id="team-file-input" class="visually-hidden" type="file" accept=".json,application/json">
-                <div id="team-editor" class="team-editor-shell">
-                  <div class="board-empty-state">Load a team to edit it here.</div>
+          <section class="workspace" id="character-builder" aria-label="Character Builder">
+            <div id="character-editor" class="character-editor-shell">
+              <div class="board-empty-state">Select a character from the Team tab to edit it here.</div>
+            </div>
+          </section>
+
+          <section class="workspace" id="arena" aria-label="Training Arena">
+            <div class="arena-shell">
+              <div class="arena-head">
+                <div>
+                  <h2 class="arena-title">Training Arena</h2>
+                  <p class="arena-sub" id="arena-sub">Simulate a team from your roster against the others. Each matchup runs many battles across varied seeds and reports a win rate with a 95% confidence interval.</p>
+                </div>
+                <div class="arena-controls">
+                  <div class="arena-mode" role="group" aria-label="Arena mode">
+                    <button type="button" class="arena-mode-btn is-active" data-arena-mode="test">Test a Team</button>
+                    <button type="button" class="arena-mode-btn" data-arena-mode="roundrobin">Round Robin</button>
+                  </div>
+                  <label class="arena-runs">Battles each
+                    <input id="arena-run-count" type="number" min="1" max="2000" value="50">
+                  </label>
+                  <button id="arena-fight-button" type="button" class="button-primary">Simulate</button>
                 </div>
               </div>
-            </section>
-          </div>
-        </section>
-
-        <section class="workspace" id="arena" aria-label="Training Arena">
-          <div class="arena-shell">
-            <div class="arena-head">
-              <div>
-                <h2 class="arena-title">Training Arena</h2>
-                <p class="arena-sub" id="arena-sub">Simulate a team from your roster against the others. Each matchup runs many battles across varied seeds and reports a win rate with a 95% confidence interval.</p>
-              </div>
-              <div class="arena-controls">
-                <div class="arena-mode" role="group" aria-label="Arena mode">
-                  <button type="button" class="arena-mode-btn is-active" data-arena-mode="test">Test a Team</button>
-                  <button type="button" class="arena-mode-btn" data-arena-mode="roundrobin">Round Robin</button>
-                </div>
-                <label class="arena-runs">Battles each
-                  <input id="arena-run-count" type="number" min="1" max="2000" value="50">
-                </label>
-                <button id="arena-fight-button" type="button" class="button-secondary">Simulate</button>
+              <div id="arena-attacker" class="arena-attacker"></div>
+              <div id="arena-foes" class="arena-foes"></div>
+              <div id="arena-progress" class="arena-progress" hidden></div>
+              <div id="arena-record" class="arena-record" aria-live="polite"></div>
+              <div id="arena-results" class="arena-results">
+                <div class="board-empty-state">Pick opponents from your roster and press Simulate.</div>
               </div>
             </div>
-            <div id="arena-attacker" class="arena-attacker"></div>
-            <div id="arena-foes" class="arena-foes"></div>
-            <div id="arena-progress" class="arena-progress" hidden></div>
-            <div id="arena-record" class="arena-record" aria-live="polite"></div>
-            <div id="arena-results" class="arena-results">
-              <div class="board-empty-state">Pick opponents from your roster and press Simulate.</div>
-            </div>
-          </div>
-        </section>
+          </section>
 
-        <section class="workspace" id="replay-viewer" aria-labelledby="replay-viewer-heading">
-          <h2 id="replay-viewer-heading" class="visually-hidden">Replay Viewer</h2>
-          <textarea
-            id="replay-json-input"
-            class="visually-hidden"
-            rows="10"
-            spellcheck="false"
-            placeholder="Replay JSON buffer"
-          ></textarea>
+          <section class="workspace" id="replay-viewer" aria-labelledby="replay-viewer-heading">
+            <h2 id="replay-viewer-heading" class="visually-hidden">Replay Viewer</h2>
+            <textarea
+              id="replay-json-input"
+              class="visually-hidden"
+              rows="10"
+              spellcheck="false"
+              placeholder="Replay JSON buffer"
+            ></textarea>
 
-          <div class="replay-stage">
-            <aside class="replay-inspector-col">
-              <section class="replay-side-panel replay-inspector-shell" aria-labelledby="inspector-heading">
-                <div class="replay-side-header">
-                  <h3 id="inspector-heading">Character Detail</h3>
+            <div class="replay-stage">
+              <aside class="replay-sidebar" id="replay-sidebar">
+                <div class="replay-sidebar-head">
+                  <div class="seg-toggle" role="tablist" aria-label="Sidebar view">
+                    <button type="button" class="seg-button is-active" role="tab" data-replay-side="detail">Detail</button>
+                    <button type="button" class="seg-button" role="tab" data-replay-side="log">Log</button>
+                  </div>
+                  <button type="button" class="icon-button icon-button-sm" id="replay-sidebar-collapse" title="Collapse panel" aria-label="Collapse panel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7 9 12l5 5"/></svg>
+                  </button>
                 </div>
-                <div id="inspector-panel" class="replay-side-body inspector-panel">
-                  <div class="board-empty-state">
-                    click any character to inspect
+
+                <div class="replay-sidebar-pane replay-pane-detail is-active" data-replay-pane="detail">
+                  <div id="inspector-panel" class="inspector-panel">
+                    <div class="board-empty-state">click any character to inspect</div>
                   </div>
                 </div>
-              </section>
-            </aside>
 
-            <section class="replay-main">
-              <div class="replay-board-head">
-                <div class="replay-time-chips">
-                  <span class="replay-chip" id="current-event-tick">Tick 0</span>
-                  <span class="replay-chip replay-chip-step" id="current-event-index">Step 0</span>
-                </div>
-                <div class="replay-legend" aria-hidden="true">
-                  <span class="legend-item legend-source">source</span>
-                  <span class="legend-item legend-target">target</span>
-                </div>
-              </div>
-
-              <p id="current-event-text" class="replay-narration">
-                Load a replay and move through events to see the current step here.
-              </p>
-
-              <section class="replay-arena" aria-labelledby="board-heading">
-                <h3 id="board-heading" class="visually-hidden">Battle Grid</h3>
-                <div class="arena-team-label arena-team-label-a">your team</div>
-                <div class="arena-team-label arena-team-label-b">opponent</div>
-                <div class="arena-depth-label arena-depth-left">back</div>
-                <div class="arena-depth-label arena-depth-center-left">front</div>
-                <div class="arena-depth-label arena-depth-center-right">front</div>
-                <div class="arena-depth-label arena-depth-right">back</div>
-                <div id="battle-board" class="battle-board"></div>
-              </section>
-
-              <section class="replay-controls-bar" aria-labelledby="playback-heading">
-                <h3 id="playback-heading" class="visually-hidden">Playback Controls</h3>
-                <div class="replay-control-buttons" role="group" aria-label="Playback">
-                  <button id="replay-restart-button" type="button" title="Restart" aria-label="Restart" disabled>&#8634;</button>
-                  <button id="replay-previous-button" type="button" disabled>&larr; prev</button>
-                  <button id="replay-play-button" type="button" disabled>&#9654; play</button>
-                  <button id="replay-next-button" type="button" disabled>next &rarr;</button>
-                </div>
-                <button id="replay-pause-button" class="visually-hidden" type="button" disabled>Pause</button>
-                <div class="speed-group" role="group" aria-label="Playback speed">
-                  <button class="speed-button" type="button" data-speed="0.5">0.5x</button>
-                  <button class="speed-button is-active" type="button" data-speed="1">1x</button>
-                  <button class="speed-button" type="button" data-speed="2">2x</button>
-                  <button class="speed-button" type="button" data-speed="4">4x</button>
-                </div>
-                <input id="replay-event-slider" class="replay-event-slider" type="range" min="0" max="0" value="0" aria-label="Event index" disabled>
-                <div class="replay-step-counter" id="replay-event-label">1 / 1</div>
-                <strong id="replay-tick-display" class="visually-hidden">0</strong>
-              </section>
-            </section>
-
-            <aside class="replay-timeline-col">
-              <section class="replay-side-panel replay-log-shell" aria-labelledby="timeline-heading">
-                <div class="replay-side-header replay-side-header-log">
-                  <h3 id="timeline-heading">Battle Log</h3>
-                  <div class="timeline-filters" role="group" aria-label="Timeline filter">
-                    <button type="button" class="filter-chip is-active" data-timeline-filter="all">All</button>
-                    <button type="button" class="filter-chip" data-timeline-filter="major">Major</button>
-                    <button type="button" class="filter-chip" data-timeline-filter="selected" disabled>Selected</button>
-                  </div>
-                </div>
-                <div class="replay-side-body timeline-panel-body">
-                  <div id="timeline-list" class="timeline-list">
-                    <div class="board-empty-state">
-                      Load a replay to view the timeline.
+                <div class="replay-sidebar-pane replay-pane-log" data-replay-pane="log">
+                  <div class="replay-log-toolbar">
+                    <div class="timeline-filters" role="group" aria-label="Timeline filter">
+                      <button type="button" class="filter-chip is-active" data-timeline-filter="all">All</button>
+                      <button type="button" class="filter-chip" data-timeline-filter="major">Major</button>
+                      <button type="button" class="filter-chip" data-timeline-filter="selected" disabled>Selected</button>
                     </div>
                   </div>
+                  <div id="timeline-list" class="timeline-list">
+                    <div class="board-empty-state">Load a replay to view the timeline.</div>
+                  </div>
                 </div>
+              </aside>
+
+              <section class="replay-main">
+                <div class="replay-board-head">
+                  <button type="button" class="icon-button icon-button-sm replay-sidebar-expand" id="replay-sidebar-expand" title="Show panel" aria-label="Show panel" hidden>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7l5 5-5 5"/></svg>
+                  </button>
+                  <div class="replay-time-chips">
+                    <span class="replay-chip" id="current-event-tick">Tick 0</span>
+                    <span class="replay-chip replay-chip-step" id="current-event-index">Step 0</span>
+                  </div>
+                  <div class="replay-legend" aria-hidden="true">
+                    <span class="legend-item legend-source">source</span>
+                    <span class="legend-item legend-target">target</span>
+                  </div>
+                  <div class="replay-inline-actions" id="replay-inline-actions" aria-label="Replay loading actions">
+                    <input id="replay-file-input" class="visually-hidden" type="file" accept=".json,application/json">
+                    <button id="replay-file-button" type="button" class="icon-button icon-button-sm" title="Open replay JSON" aria-label="Open replay JSON">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5A1.5 1.5 0 0 1 5 5h4l2 2h6a1.5 1.5 0 0 1 1.5 1.5V17a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 17V6.5Z"/></svg>
+                    </button>
+                    <button id="replay-run-button" type="button" class="button-secondary button-icon" title="Run the current team vs a sample opponent in the browser engine">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5 19 4l-.5 4.5L7 20l-3-3 10.5-12.5Z"/><path d="m9.5 4.5-5 .5L5 9.5 17 21l3-3"/></svg>
+                      <span>Run Battle</span>
+                    </button>
+                    <button id="replay-stats-button" type="button" class="button-secondary button-icon" title="Post-battle stats for the loaded replay">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V5"/><path d="M5 19h14"/><rect x="8" y="11" width="2.6" height="5" rx="0.5" fill="currentColor" stroke="none"/><rect x="13" y="8" width="2.6" height="8" rx="0.5" fill="currentColor" stroke="none"/></svg>
+                      <span>Stats</span>
+                    </button>
+                    <button id="replay-demo-button" type="button" class="button-secondary">Load Latest Replay</button>
+                  </div>
+                </div>
+
+                <p id="current-event-text" class="replay-narration">
+                  Load a replay and move through events to see the current step here.
+                </p>
+
+                <section class="replay-arena" aria-labelledby="board-heading">
+                  <h3 id="board-heading" class="visually-hidden">Battle Grid</h3>
+                  <div class="arena-team-label arena-team-label-a">your team</div>
+                  <div class="arena-team-label arena-team-label-b">opponent</div>
+                  <div class="arena-depth-label arena-depth-left">back</div>
+                  <div class="arena-depth-label arena-depth-center-left">front</div>
+                  <div class="arena-depth-label arena-depth-center-right">front</div>
+                  <div class="arena-depth-label arena-depth-right">back</div>
+                  <div id="battle-board" class="battle-board"></div>
+                </section>
+
+                <section class="replay-controls-bar" aria-labelledby="playback-heading">
+                  <h3 id="playback-heading" class="visually-hidden">Playback Controls</h3>
+                  <div class="replay-control-buttons" role="group" aria-label="Playback">
+                    <button id="replay-restart-button" type="button" title="Restart" aria-label="Restart" disabled>&#8634;</button>
+                    <button id="replay-previous-button" type="button" disabled>&larr; prev</button>
+                    <button id="replay-play-button" type="button" disabled>&#9654; play</button>
+                    <button id="replay-next-button" type="button" disabled>next &rarr;</button>
+                  </div>
+                  <button id="replay-pause-button" class="visually-hidden" type="button" disabled>Pause</button>
+                  <div class="speed-group" role="group" aria-label="Playback speed">
+                    <button class="speed-button" type="button" data-speed="0.5">0.5x</button>
+                    <button class="speed-button is-active" type="button" data-speed="1">1x</button>
+                    <button class="speed-button" type="button" data-speed="2">2x</button>
+                    <button class="speed-button" type="button" data-speed="4">4x</button>
+                  </div>
+                  <input id="replay-event-slider" class="replay-event-slider" type="range" min="0" max="0" value="0" aria-label="Event index" disabled>
+                  <div class="replay-step-counter" id="replay-event-label">1 / 1</div>
+                  <strong id="replay-tick-display" class="visually-hidden">0</strong>
+                </section>
               </section>
-            </aside>
-          </div>
-        </section>
-      </main>
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
 
     <div id="stats-overlay" class="stats-overlay" hidden>

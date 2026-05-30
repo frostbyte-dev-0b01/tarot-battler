@@ -1,3 +1,24 @@
+// Unified inline line-icon set (replaces emoji across the UI).
+const UI_ICONS = {
+  library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><path d="m16.5 5 3.4 1 .1.4-3.2 13.4-3.4-1"/></svg>',
+  export: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 18.5h14"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 18.5 9.5 8 20H4v-4L14.5 5.5Z"/><path d="m13 7 4 4"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14"/><path d="M9 7V5h6v2"/><path d="M7 7l.7 12.5h8.6L17 7"/></svg>',
+  add: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v12"/><path d="M6 12h12"/></svg>',
+  passive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6v5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6l7-2.5Z"/></svg>',
+  active: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3 5.5 13H11l-1 8 7.5-11H12l-1-7Z" fill="currentColor" stroke="none"/></svg>',
+  aspect: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="m12 3.5 2.4 5.1 5.6.7-4.1 3.9 1.1 5.6L12 21.2l-5 2.6 1.1-5.6-4.1-3.9 5.6-.7L12 3.5Z" fill="currentColor" stroke="none"/></svg>',
+};
+
+function icon(name) {
+  return `<span class="ui-icon" aria-hidden="true">${UI_ICONS[name] ?? ""}</span>`;
+}
+
+function loadoutTypeIcon(mode) {
+  const key = mode === "passive" ? "passive" : mode === "aspect" ? "aspect" : "active";
+  return `<span class="loadout-chip-icon loadout-chip-icon-${key}" aria-hidden="true">${UI_ICONS[key]}</span>`;
+}
+
 const tabButtons = document.querySelectorAll("[data-tab-target]");
 const workspaces = document.querySelectorAll(".workspace");
 const replayFileInput = document.querySelector("#replay-file-input");
@@ -79,6 +100,14 @@ const teamEditorConfig = {
   validationOutput: document.querySelector("#team-validation-output"),
   editor: document.querySelector("#team-editor"),
 };
+const characterEditor = document.querySelector("#character-editor");
+// Builder DOM event handlers are delegated across both the Team tab
+// (#team-editor) and the Character tab (#character-editor) containers.
+const builderRoots = () => [teamEditorConfig.editor, characterEditor].filter(Boolean);
+const replaySidebar = document.querySelector("#replay-sidebar");
+const replaySidebarCollapse = document.querySelector("#replay-sidebar-collapse");
+const replaySidebarExpand = document.querySelector("#replay-sidebar-expand");
+const replaySideButtons = document.querySelectorAll("[data-replay-side]");
 const replayPreviousButton = document.querySelector("#replay-previous-button");
 const replayPlayButton = document.querySelector("#replay-play-button");
 const replayPauseButton = document.querySelector("#replay-pause-button");
@@ -103,6 +132,8 @@ const appState = {
   playbackTimerId: null,
   playbackSpeed: 1,
   timelineFilter: "all",
+  replaySidebarTab: "detail",
+  replaySidebarCollapsed: false,
   teamConfig: null,
   characterLibrary: [],
   teamRoster: [],
@@ -229,20 +260,27 @@ const demoTeam = {
 
 for (const button of tabButtons) {
   button.addEventListener("click", () => {
-    const targetId = button.dataset.tabTarget;
-
-    setActiveWorkspace(targetId);
-
-    if (targetId === "replay-viewer" && !appState.replay) {
-      void loadLatestReplay();
-    }
-    if (targetId === "arena") {
-      renderArena();
-    }
+    setActiveWorkspace(button.dataset.tabTarget);
   });
 }
 
-replayInlineActions?.classList.remove("is-visible");
+// Keyboard: digit keys jump between workspaces (1 Team … 4 Replay).
+const railShortcutTargets = {
+  Digit1: "team-builder",
+  Digit2: "character-builder",
+  Digit3: "arena",
+  Digit4: "replay-viewer",
+};
+window.addEventListener("keydown", (event) => {
+  if (shouldIgnoreGlobalKeydown(event) || event.metaKey || event.ctrlKey || event.altKey) {
+    return;
+  }
+  const target = railShortcutTargets[event.code];
+  if (target) {
+    event.preventDefault();
+    setActiveWorkspace(target);
+  }
+});
 
 function setActiveWorkspace(targetId) {
   for (const workspace of workspaces) {
@@ -253,8 +291,46 @@ function setActiveWorkspace(targetId) {
     tabButton.classList.toggle("is-active", tabButton.dataset.tabTarget === targetId);
   }
 
-  replayInlineActions?.classList.toggle("is-visible", targetId === "replay-viewer");
+  if (targetId === "replay-viewer" && !appState.replay) {
+    void loadLatestReplay();
+  }
+  if (targetId === "arena") {
+    renderArena();
+  }
 }
+
+// ===== Replay sidebar: Detail / Log segmented toggle + collapse =====
+function setReplaySidebarTab(tab) {
+  appState.replaySidebarTab = tab === "log" ? "log" : "detail";
+  appState.replaySidebarCollapsed = false;
+  renderReplaySidebar();
+}
+
+function renderReplaySidebar() {
+  const tab = appState.replaySidebarTab;
+  const collapsed = appState.replaySidebarCollapsed;
+  replaySidebar?.classList.toggle("is-collapsed", collapsed);
+  replaySidebarExpand && (replaySidebarExpand.hidden = !collapsed);
+  for (const button of replaySideButtons) {
+    button.classList.toggle("is-active", button.dataset.replaySide === tab);
+  }
+  for (const pane of document.querySelectorAll("[data-replay-pane]")) {
+    pane.classList.toggle("is-active", pane.dataset.replayPane === tab);
+  }
+}
+
+for (const button of replaySideButtons) {
+  button.addEventListener("click", () => setReplaySidebarTab(button.dataset.replaySide));
+}
+replaySidebarCollapse?.addEventListener("click", () => {
+  appState.replaySidebarCollapsed = true;
+  renderReplaySidebar();
+});
+replaySidebarExpand?.addEventListener("click", () => {
+  appState.replaySidebarCollapsed = false;
+  renderReplaySidebar();
+});
+renderReplaySidebar();
 
 function scrollSelectedTimelineEventIntoView() {
   window.requestAnimationFrame(() => {
@@ -1149,21 +1225,27 @@ teamEditorConfig.downloadButton?.addEventListener("click", () => {
   downloadTeamJson();
 });
 
-teamEditorConfig.editor.addEventListener("input", (event) => {
-  handleTeamEditorInput(event);
-});
+for (const root of builderRoots()) {
+  root.addEventListener("input", (event) => {
+    handleTeamEditorInput(event);
+  });
 
-teamEditorConfig.editor.addEventListener("change", (event) => {
-  void handleTeamEditorChange(event);
-});
+  root.addEventListener("change", (event) => {
+    void handleTeamEditorChange(event);
+  });
 
-teamEditorConfig.editor.addEventListener("click", (event) => {
-  handleTeamEditorAction(event);
-});
+  root.addEventListener("click", (event) => {
+    handleTeamEditorAction(event);
+  });
+}
 
 // Pointer-based drag to reposition formation cells (also handles tap-to-select
 // and tap-empty-to-move-selected, so the formation grid needs no click action).
+// Double-tapping a placed unit jumps to the Character tab. We detect the double
+// tap manually because tap-select re-renders the grid, which would void a native
+// dblclick (the original node is gone before the second click lands).
 let formationDrag = null;
+let lastFormationTap = { index: -1, time: 0 };
 teamEditorConfig.editor.addEventListener("pointerdown", (event) => {
   const cell = event.target.closest?.(".formation-cell");
   if (!cell || !appState.teamConfig) {
@@ -1205,10 +1287,16 @@ window.addEventListener("pointerup", (event) => {
     moveCharacterToPosition(team, drag.index, targetRow, targetCol); // handles swap
     syncTeamUI();
   } else if (drag.fromFilled && sameCell) {
+    const now = Date.now();
+    const isDoubleTap = lastFormationTap.index === drag.index && now - lastFormationTap.time < 400;
+    lastFormationTap = { index: drag.index, time: now };
     appState.selectedTeamCharacterIndex = drag.index;
     appState.expandedRuleIndex = null;
     appState.teamDetailTab = "design";
     syncTeamUI();
+    if (isDoubleTap) {
+      setActiveWorkspace("character-builder");
+    }
   } else if (!drag.fromFilled && sameCell) {
     moveCharacterToPosition(team, appState.selectedTeamCharacterIndex, drag.row, drag.col);
     syncTeamUI();
@@ -1761,6 +1849,12 @@ function setSelectedEventIndex(nextEventIndex) {
 
 function setSelectedCharacterId(characterId) {
   appState.selectedCharacterId = characterId ?? null;
+  // Selecting a unit surfaces its detail in the (single) replay sidebar.
+  if (characterId) {
+    appState.replaySidebarTab = "detail";
+    appState.replaySidebarCollapsed = false;
+    renderReplaySidebar();
+  }
   renderCurrentReplay();
   renderPlaybackControls();
 }
@@ -2285,7 +2379,7 @@ function captureTeamEditorFocus() {
     return null;
   }
 
-  if (!teamEditorConfig.editor?.contains(activeElement)) {
+  if (!builderRoots().some((root) => root.contains(activeElement))) {
     return null;
   }
 
@@ -2309,7 +2403,7 @@ function captureTeamEditorFocus() {
 }
 
 function restoreTeamEditorFocus(snapshot) {
-  if (!snapshot || !teamEditorConfig.editor) {
+  if (!snapshot) {
     return;
   }
 
@@ -2328,7 +2422,14 @@ function restoreTeamEditorFocus(snapshot) {
     return;
   }
 
-  const nextElement = teamEditorConfig.editor.querySelector(selectorParts.join(""));
+  const selector = selectorParts.join("");
+  let nextElement = null;
+  for (const root of builderRoots()) {
+    nextElement = root.querySelector(selector);
+    if (nextElement) {
+      break;
+    }
+  }
   if (!(nextElement instanceof HTMLElement)) {
     return;
   }
@@ -2428,44 +2529,119 @@ function downloadTeamJson() {
 }
 
 function renderTeamEditor() {
+  renderTeamTab();
+  renderCharacterTab();
+}
+
+function renderTeamTab() {
   const editor = teamEditorConfig.editor;
+  if (!editor) {
+    return;
+  }
   const team = appState.teamConfig;
   if (!team) {
     editor.innerHTML = '<div class="board-empty-state">Load a team to edit it here.</div>';
     return;
   }
 
-  const selectedIndex = appState.selectedTeamCharacterIndex;
-  const selectedCharacter = team.characters[selectedIndex];
-  const characterSlots = renderCharacterSlots(team);
-
   editor.innerHTML = `
-    <section class="team-builder-workspace">
-      <div class="team-builder-topbar">
-        <div class="team-manage-row">
-          <div class="roster-controls">
-            <select class="roster-select" data-team-action="roster-select" aria-label="Saved teams">
-              ${renderRosterOptions()}
-            </select>
-            <button type="button" class="button-quiet" data-team-action="save-team-roster" title="Save the current team to your roster">Save</button>
-            <button type="button" class="button-quiet" data-team-action="new-team" title="Start a new team">New</button>
-            <button type="button" class="button-quiet" data-team-action="delete-team-roster" title="Remove this team from your roster">Delete</button>
-          </div>
-          <label class="field-group team-name-field team-name-field-compact">
-            <input type="text" data-team-field="name" value="${escapeHtml(team.name)}">
-          </label>
-          <div class="file-icon-actions" aria-label="Team actions">
-            <button type="button" class="button-quiet" data-team-action="open-team-library" title="Load a team from your roster or import JSON">Load Team</button>
-            <button type="button" class="icon-button" data-team-action="open-character-library" title="Character library" aria-label="Character library">📚</button>
-            <button type="button" class="icon-button" data-team-action="save-team-file" title="Export team JSON" aria-label="Export team JSON">💾</button>
-          </div>
+    <section class="team-tab">
+      <div class="team-manage-row">
+        <div class="roster-controls">
+          <select class="roster-select" data-team-action="roster-select" aria-label="Saved teams">
+            ${renderRosterOptions()}
+          </select>
+          <button type="button" class="button-quiet" data-team-action="save-team-roster" title="Save the current team to your roster">Save</button>
+          <button type="button" class="button-quiet" data-team-action="new-team" title="Start a new team">New</button>
+          <button type="button" class="button-quiet" data-team-action="delete-team-roster" title="Remove this team from your roster">Delete</button>
         </div>
-        <div class="team-strip-row">
-          ${characterSlots}
-          ${renderBudgetMeter(team)}
+        <label class="field-group team-name-field team-name-field-compact">
+          <input type="text" data-team-field="name" value="${escapeHtml(team.name)}" aria-label="Team name">
+        </label>
+        <div class="file-icon-actions" aria-label="Team actions">
+          <button type="button" class="button-quiet" data-team-action="open-team-library" title="Load a team from your roster or import JSON">Load Team</button>
+          <button type="button" class="icon-button" data-team-action="open-character-library" title="Character library" aria-label="Character library">${icon("library")}</button>
+          <button type="button" class="icon-button" data-team-action="save-team-file" title="Export team JSON" aria-label="Export team JSON">${icon("export")}</button>
         </div>
       </div>
-      ${selectedCharacter ? renderSelectedCharacterWorkspace(selectedCharacter, selectedIndex) : '<div class="board-empty-state">Add a character to begin editing.</div>'}
+      <div class="team-tab-body">
+        <section class="builder-card team-formation-card">
+          <h4 class="builder-card-title">Formation</h4>
+          ${renderFormationGrid(team, appState.selectedTeamCharacterIndex)}
+          <p class="formation-hint">Drag a unit to reposition. Double-click a unit to edit it.</p>
+        </section>
+        <section class="builder-card team-roster-card">
+          <div class="builder-pane-header team-roster-head">
+            <h4 class="builder-card-title" style="margin:0">Roster</h4>
+            ${renderBudgetMeter(team)}
+          </div>
+          ${renderRosterTable(team)}
+        </section>
+      </div>
+    </section>
+  `;
+}
+
+function renderRosterTable(team) {
+  const canAdd = team.characters.length < TEAM_SLOT_POSITIONS.length;
+  const rows = team.characters
+    .map((character, index) => {
+      const archetype = getArchetypeDefinition(character.template_id);
+      const stats = getDerivedCharacterStats(character);
+      const cost = (Number(archetype?.cost ?? 0))
+        + (character.aspect ? Number(getAspectDefinition(character.aspect)?.cost ?? 0) : 0);
+      const isSelected = index === appState.selectedTeamCharacterIndex;
+      const statBits = ["vit", "mgt", "mag", "arm", "res", "spd", "wil"]
+        .map((key) => `<span class="roster-stat"><span class="roster-stat-key">${key.toUpperCase()}</span>${Number(stats?.[key] ?? 0)}</span>`)
+        .join("");
+      return `
+        <div class="roster-row ${isSelected ? "is-selected" : ""}" data-team-action="edit-character" data-character-index="${index}" role="button" tabindex="0" title="Edit ${escapeHtml(character.display_name || character.id || "character")}">
+          <div class="roster-row-main">
+            <span class="roster-portrait">${escapeHtml(getCharacterInitials(character))}</span>
+            <div class="roster-id">
+              <span class="roster-name">${escapeHtml(character.display_name || character.id || `Character ${index + 1}`)}</span>
+              <span class="roster-archetype">${escapeHtml(archetype?.display_name ?? character.template_id ?? "—")}</span>
+            </div>
+            <span class="roster-cost">${cost} pt${cost === 1 ? "" : "s"}</span>
+          </div>
+          <div class="roster-stats">${statBits}</div>
+          <div class="roster-row-actions">
+            <button type="button" class="icon-button icon-button-sm row-action" data-team-action="edit-character" data-character-index="${index}" title="Edit" aria-label="Edit character">${icon("edit")}</button>
+            <button type="button" class="icon-button icon-button-sm row-action row-action-danger" data-team-action="remove-character" data-character-index="${index}" title="Remove" aria-label="Remove character">${icon("trash")}</button>
+          </div>
+        </div>`;
+    })
+    .join("");
+
+  const addRow = canAdd
+    ? `<button type="button" class="roster-add" data-team-action="add-character" title="Add a character">${icon("add")}<span>Add character</span></button>`
+    : "";
+
+  return `
+    <div class="roster-list">
+      ${rows || '<div class="board-empty-state">No characters yet. Add one to begin.</div>'}
+      ${addRow}
+    </div>`;
+}
+
+function renderCharacterTab() {
+  const editor = characterEditor;
+  if (!editor) {
+    return;
+  }
+  const team = appState.teamConfig;
+  if (!team || team.characters.length === 0) {
+    editor.innerHTML = '<div class="board-empty-state">Add a character on the Team tab, then select it here to edit.</div>';
+    return;
+  }
+
+  const selectedIndex = clampValue(appState.selectedTeamCharacterIndex, 0, team.characters.length - 1);
+  const selectedCharacter = team.characters[selectedIndex];
+
+  editor.innerHTML = `
+    <section class="character-tab">
+      <div class="character-chip-row">${renderCharacterSlots(team)}</div>
+      ${selectedCharacter ? renderSelectedCharacterWorkspace(selectedCharacter, selectedIndex) : '<div class="board-empty-state">Select a character to begin editing.</div>'}
     </section>
   `;
 }
@@ -2589,8 +2765,6 @@ function renderIdentityCard(character, characterIndex) {
           <input type="text" data-character-field="display_name" data-character-index="${characterIndex}" value="${escapeHtml(character.display_name ?? "")}">
         </label>
       </div>
-      <h4 class="builder-card-title">Formation</h4>
-      ${renderFormationGrid(appState.teamConfig, characterIndex)}
       <h4 class="builder-card-title">Stats</h4>
       <div class="editor-inline-grid">
         ${["vit", "mgt", "mag", "arm", "res", "spd", "wil"].map((statKey) => `
@@ -2675,24 +2849,26 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
       ? renderAspectSummaryMarkup(value)
       : escapeHtml(description || "No description yet.");
   const mpCost = mode === "active" ? getAbilityMpCost(value) : null;
+  const typeKey = mode === "passive" ? "passive" : mode === "aspect" ? "aspect" : "active";
+  const isEmpty = !displayValue;
+  const tooltip = [label, displayValue ? `— ${displayValue}` : "(empty)", description ? `\n${description}` : ""]
+    .filter(Boolean)
+    .join(" ");
 
   return `
     <button
       type="button"
-      class="loadout-slot ${isSelectedBrowser ? "is-selected" : ""}"
+      class="loadout-slot loadout-slot-${typeKey} ${isSelectedBrowser ? "is-selected" : ""} ${isEmpty ? "is-empty" : ""}"
       data-team-action="focus-browser"
       data-browser-mode="${mode}"
       data-browser-slot-index="${slotIndex ?? 0}"
       data-character-index="${characterIndex}"
+      aria-label="${escapeHtml(label)}"
+      title="${escapeHtml(tooltip)}"
     >
-      <span class="loadout-slot-label">${label}</span>
-      <span class="loadout-slot-value-row">
-        <span class="loadout-slot-value"${renderTitleAttribute(description)}>
-          ${escapeHtml(displayValue || `No ${label.toLowerCase()} selected`)}
-        </span>
-        ${mpCost == null ? "" : `<span class="loadout-slot-cost">${escapeHtml(`${mpCost} MP`)}</span>`}
-      </span>
-      <span class="loadout-slot-description">${descriptionMarkup}</span>
+      ${loadoutTypeIcon(mode)}
+      <span class="loadout-slot-name">${escapeHtml(displayValue || "Empty")}</span>
+      ${mpCost == null ? "" : `<span class="loadout-slot-cost">${escapeHtml(`${mpCost}`)}<span class="loadout-slot-cost-unit">MP</span></span>`}
     </button>
   `;
 }
@@ -2758,23 +2934,19 @@ function renderSelectionBrowser(character) {
       : mode === "aspect"
         ? character.aspect ?? ""
         : normalizeActiveSelections(character.actives)[slotIndex] ?? "";
-  const title =
-    mode === "passive"
-      ? "Passive Browser"
-      : mode === "aspect"
-        ? "Aspect Browser"
-        : `Active ${slotIndex + 1} Browser`;
+  const roleKey = mode === "passive" ? "passive" : mode === "aspect" ? "aspect" : "active";
+  const roleLabel = mode === "passive" ? "Passive" : mode === "aspect" ? "Aspect" : "Active";
   const currentLabel =
     mode === "aspect"
       ? getAspectDisplayName(currentValue)
       : currentValue;
 
   return `
-    <div class="builder-pane-header">
-      <div>
-        <p class="panel-kicker">Selection Browser</p>
-        <h4>${title}</h4>
-      </div>
+    <div class="builder-pane-header browser-header">
+      <span class="role-chip role-chip-${roleKey}">
+        <span class="role-chip-icon" aria-hidden="true">${UI_ICONS[roleKey]}</span>
+        <span>${roleLabel}</span>
+      </span>
       <div class="editor-card-actions">
         <span class="browser-current-label">${escapeHtml(currentLabel || "Nothing selected")}</span>
         <button
@@ -3393,6 +3565,8 @@ function handleTeamEditorAction(event) {
     return;
   }
 
+  let navigateToCharacterTab = false;
+
   switch (action) {
     case "open-team-library":
       openTeamLibrary();
@@ -3424,9 +3598,13 @@ function handleTeamEditorAction(event) {
       return;
     case "add-character":
       addCharacterAtFirstOpenPosition(team);
+      appState.teamDetailTab = "design";
+      navigateToCharacterTab = true;
       break;
     case "add-character-slot":
       addCharacterAtSlot(team, Number(actionTarget.dataset.slotIndex));
+      appState.teamDetailTab = "design";
+      navigateToCharacterTab = true;
       break;
     case "select-detail-tab":
       appState.teamDetailTab = actionTarget.dataset.detailTab === "rules" ? "rules" : "design";
@@ -3435,6 +3613,12 @@ function handleTeamEditorAction(event) {
       appState.selectedTeamCharacterIndex = characterIndex;
       appState.expandedRuleIndex = null;
       appState.teamDetailTab = "design";
+      break;
+    case "edit-character":
+      appState.selectedTeamCharacterIndex = characterIndex;
+      appState.expandedRuleIndex = null;
+      appState.teamDetailTab = "design";
+      navigateToCharacterTab = true;
       break;
     case "focus-browser":
       appState.teamDetailTab = "design";
@@ -3519,6 +3703,9 @@ function handleTeamEditorAction(event) {
   }
 
   syncTeamUI();
+  if (navigateToCharacterTab) {
+    setActiveWorkspace("character-builder");
+  }
 }
 
 function downloadCharacterJson(characterIndex) {
