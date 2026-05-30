@@ -256,6 +256,53 @@ fn remove_status_clears_self_status() {
 }
 
 #[test]
+fn remove_status_emits_status_removed_event() {
+    let mut rng = StdRng::seed_from_u64(0);
+    let mut log = BattleLog::new();
+    let statuses = test_statuses();
+    let mut actor_team = vec![make_char(0, vec![(Stat::VIT, 10), (Stat::WIL, 5)])];
+    let mut enemy_team = vec![make_char(1, vec![(Stat::VIT, 10)])];
+    actor_team[0].set_target(1);
+
+    let bleed = statuses.get("Bleed").unwrap();
+    enemy_team[0].add_status("Bleed", 3, 99, bleed, None);
+
+    let ability = AbilityDef {
+        mp_cost: 1,
+        primitives: vec![Primitive::RemoveStatus {
+            target: SimpleAbilityTarget::CurrentTarget.into(),
+            status: "Bleed".to_string(),
+            stat: None,
+            stacks: 2,
+        }],
+    };
+
+    execute_ability(
+        0,
+        "Dispel",
+        &ability,
+        &mut actor_team,
+        &mut enemy_team,
+        &mut rng,
+        &mut log,
+        1,
+        &statuses,
+    );
+
+    let removed = log.events().iter().find_map(|event| match event {
+        BattleEvent::StatusRemoved {
+            target_id,
+            status_name,
+            stacks_removed,
+            stacks_after,
+            ..
+        } => Some((*target_id, status_name.clone(), *stacks_removed, *stacks_after)),
+        _ => None,
+    });
+    assert_eq!(removed, Some((1, "Bleed".to_string(), 2, 1)));
+}
+
+#[test]
 fn remove_status_clears_current_target_status() {
     let mut rng = StdRng::seed_from_u64(0);
     let mut log = BattleLog::new();

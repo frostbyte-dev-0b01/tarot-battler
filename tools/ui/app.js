@@ -120,17 +120,23 @@ const replaySpeedButtons = document.querySelectorAll(".speed-button");
 const currentEventTick = document.querySelector("#current-event-tick");
 const currentEventIndex = document.querySelector("#current-event-index");
 const currentEventText = document.querySelector("#current-event-text");
-const timelineFilterButtons = document.querySelectorAll("[data-timeline-filter]");
+const logModeButtons = document.querySelectorAll("[data-log-mode]");
+const logFocusButton = document.querySelector("[data-log-focus]");
 const timelineList = document.querySelector("#timeline-list");
 const inspectorPanel = document.querySelector("#inspector-panel");
 const battleBoard = document.querySelector("#battle-board");
+const boardFx = document.querySelector("#board-fx");
+const boardPopups = document.querySelector("#board-popups");
 const appState = {
   replay: null,
   selectedEventIndex: -1,
   selectedCharacterId: null,
   playbackTimerId: null,
   playbackSpeed: 1,
-  timelineFilter: "all",
+  logMode: "story",
+  logFocus: false,
+  beats: [],
+  beatsReplay: null,
   replaySidebarTab: "detail",
   replaySidebarCollapsed: false,
   teamConfig: null,
@@ -333,27 +339,31 @@ renderReplaySidebar();
 
 function scrollSelectedTimelineEventIntoView() {
   window.requestAnimationFrame(() => {
-    const selectedEvent = timelineList?.querySelector(".timeline-event.is-selected");
-    selectedEvent?.scrollIntoView({ block: "nearest" });
+    const selected = timelineList?.querySelector(".timeline-beat.is-active");
+    selected?.scrollIntoView({ block: "nearest" });
   });
 }
 
-function setTimelineFilter(filter) {
-  appState.timelineFilter = filter;
-  for (const button of timelineFilterButtons) {
-    button.classList.toggle("is-active", button.dataset.timelineFilter === filter);
+function setLogMode(mode) {
+  appState.logMode = mode === "detailed" ? "detailed" : "story";
+  for (const button of logModeButtons) {
+    button.classList.toggle("is-active", button.dataset.logMode === appState.logMode);
   }
   renderTimeline();
 }
 
-for (const button of timelineFilterButtons) {
-  button.addEventListener("click", () => {
-    if (button.disabled) {
-      return;
-    }
-    setTimelineFilter(button.dataset.timelineFilter);
-  });
+for (const button of logModeButtons) {
+  button.addEventListener("click", () => setLogMode(button.dataset.logMode));
 }
+
+logFocusButton?.addEventListener("click", () => {
+  if (logFocusButton.disabled) {
+    return;
+  }
+  appState.logFocus = !appState.logFocus;
+  logFocusButton.classList.toggle("is-active", appState.logFocus);
+  renderTimeline();
+});
 
 function loadReplayFromText(sourceText) {
   if (!sourceText) {
@@ -1769,13 +1779,11 @@ function renderPlaybackControls() {
   replayEventSlider.value = String(sliderValue);
   replayFileButton.disabled = false;
 
-  const selectedFilterButton = Array.from(timelineFilterButtons).find(
-    (button) => button.dataset.timelineFilter === "selected",
-  );
-  if (selectedFilterButton) {
-    selectedFilterButton.disabled = !appState.selectedCharacterId;
-    if (!appState.selectedCharacterId && appState.timelineFilter === "selected") {
-      setTimelineFilter("all");
+  if (logFocusButton) {
+    logFocusButton.disabled = !appState.selectedCharacterId;
+    if (!appState.selectedCharacterId && appState.logFocus) {
+      appState.logFocus = false;
+      logFocusButton.classList.remove("is-active");
     }
   }
 
@@ -1790,34 +1798,24 @@ function renderTimeline() {
     return;
   }
 
-  const entries = appState.replay.events
-    .map((event, index) => ({ event, index }))
-    .filter(({ event }) => shouldRenderTimelineEvent(event));
+  const beats = getBeats();
+  const focusId = appState.logFocus ? appState.selectedCharacterId : null;
+  const visible = focusId
+    ? beats.filter((beat) => beatInvolves(beat, focusId))
+    : beats;
 
-  if (entries.length === 0) {
-    timelineList.innerHTML = '<div class="board-empty-state">No events match the active timeline filters.</div>';
+  if (visible.length === 0) {
+    timelineList.innerHTML = '<div class="board-empty-state">No beats involve the selected unit.</div>';
     return;
   }
 
   let previousTick = null;
-  const markup = entries.map(({ event, index }) => {
-    const tickHeader = event.tick !== previousTick
-      ? `<div class="timeline-tick-label">Tick ${event.tick}</div>`
+  const markup = visible.map((beat) => {
+    const tickHeader = beat.tick !== previousTick
+      ? `<div class="timeline-tick-label">Tick ${beat.tick}</div>`
       : "";
-    previousTick = event.tick;
-
-    return `
-      <section class="timeline-tick-group">
-        ${tickHeader}
-        <button class="timeline-event ${index === appState.selectedEventIndex ? "is-selected" : ""}" type="button" data-event-index="${index}">
-          <div class="timeline-event-meta">
-            <span>${formatEventType(event.type)}</span>
-            <span>#${index + 1}</span>
-          </div>
-          <p class="timeline-event-text">${formatTimelineMarkup(event)}</p>
-        </button>
-      </section>
-    `;
+    previousTick = beat.tick;
+    return `${tickHeader}${renderBeat(beat, focusId)}`;
   }).join("");
 
   timelineList.innerHTML = markup;
@@ -1826,13 +1824,94 @@ function renderTimeline() {
 }
 
 function bindTimelineEvents() {
-  const eventButtons = timelineList.querySelectorAll("[data-event-index]");
-  for (const button of eventButtons) {
+  for (const button of timelineList.querySelectorAll("[data-jump-index]")) {
     button.addEventListener("click", () => {
-      const index = Number(button.dataset.eventIndex);
-      setSelectedEventIndex(index);
+      setSelectedEventIndex(Number(button.dataset.jumpIndex));
     });
   }
+}
+
+// ===== Beat model: fold the raw event stream into one entry per turn =====
+function getBeats() {
+  if (!appState.replay) {
+    return [];
+  }
+  if (appState.beatsReplay !== appState.replay) {
+    appState.beats = buildBeats(appState.replay.events ?? []);
+    appState.beatsReplay = appState.replay;
+  }
+  return appState.beats;
+}
+
+function eventParticipants(event) {
+  return [event.actor_id, event.source_id, event.target_id, event.new_target_id, event.character_id]
+    .filter((id) => typeof id === "string");
+}
+
+function buildBeats(events) {
+  const beats = [];
+  let current = null;
+  events.forEach((event, index) => {
+    const type = event.type;
+    if (type === "battle_start" || type === "battle_end") {
+      current = null;
+      beats.push({ kind: "system", type, tick: event.tick, startIndex: index, endIndex: index, winner: event.winner, participants: new Set() });
+      return;
+    }
+    if (type === "turn_start") {
+      current = {
+        kind: "turn",
+        actorId: event.actor_id,
+        tick: event.tick,
+        startIndex: index,
+        endIndex: index,
+        action: null,
+        preTicks: [],
+        segments: [{ cause: "action", events: [] }],
+        participants: new Set([event.actor_id]),
+      };
+      beats.push(current);
+      return;
+    }
+    if (!current) {
+      beats.push({ kind: "loose", type, tick: event.tick, startIndex: index, endIndex: index, events: [event], participants: new Set(eventParticipants(event)) });
+      return;
+    }
+    current.endIndex = index;
+    for (const id of eventParticipants(event)) {
+      current.participants.add(id);
+    }
+    if (!current.action && (type === "basic_attack" || type === "ability_used" || type === "rest" || type === "turn_skipped")) {
+      current.action = event;
+    } else if (type === "status_tick" && !current.action) {
+      current.preTicks.push(event);
+    } else if (type === "passive_triggered") {
+      current.segments.push({ cause: "passive", passive: event.passive, actorId: event.actor_id, events: [] });
+    } else {
+      current.segments[current.segments.length - 1].events.push(event);
+    }
+  });
+  return beats;
+}
+
+function beatInvolves(beat, characterId) {
+  return Boolean(characterId) && beat.participants?.has(characterId);
+}
+
+function beatAtEventIndex(eventIndex) {
+  const beats = getBeats();
+  if (eventIndex < 0) {
+    return beats[0] ?? null;
+  }
+  let match = null;
+  for (const beat of beats) {
+    if (beat.startIndex <= eventIndex) {
+      match = beat;
+    } else {
+      break;
+    }
+  }
+  return match;
 }
 
 function setSelectedEventIndex(nextEventIndex) {
@@ -1926,14 +2005,17 @@ function renderCurrentEventSummary() {
   if (!appState.replay || appState.selectedEventIndex < 0) {
     currentEventTick.textContent = "Tick 0";
     currentEventIndex.textContent = "Step 0";
-    currentEventText.textContent = "Battle state before the first logged event.";
+    currentEventText.textContent = "Battle has not started yet.";
     return;
   }
 
   const event = appState.replay.events[appState.selectedEventIndex];
   currentEventTick.textContent = `Tick ${event.tick ?? 0}`;
   currentEventIndex.textContent = `Step ${appState.selectedEventIndex + 1}`;
-  currentEventText.innerHTML = formatTimelineMarkup(event);
+  // Narrate the beat (the whole turn) rather than the isolated sub-event, so
+  // the headline reads as one coherent moment.
+  const beat = beatAtEventIndex(appState.selectedEventIndex);
+  currentEventText.innerHTML = beat ? narrateBeat(beat) : formatTimelineMarkup(event);
 }
 
 function stopPlayback() {
@@ -1976,6 +2058,7 @@ function renderBattleBoard(container, replayState) {
 
   if (!replayState) {
     container.innerHTML = '<div class="board-empty-state">No replay loaded. Run battles in the Training Arena, use “Run Battle”, or open a replay JSON.</div>';
+    clearBoardFx();
     return;
   }
 
@@ -2012,6 +2095,88 @@ function renderBattleBoard(container, replayState) {
 
   container.innerHTML = cellsMarkup;
   bindBoardSelection(container);
+  renderBoardFx(container, currentEvent, currentEventActorId, currentEventTargetId);
+}
+
+function clearBoardFx() {
+  if (boardFx) boardFx.innerHTML = "";
+  if (boardPopups) boardPopups.innerHTML = "";
+}
+
+function boardEffectKind(event) {
+  if (!event) return null;
+  switch (event.type) {
+    case "damage":
+    case "basic_attack":
+      return "harm";
+    case "heal":
+    case "healing":
+    case "mp_restore":
+      return "help";
+    case "status_applied":
+    case "condition_applied":
+    case "status_removed":
+      return "status";
+    case "status_tick":
+      return event.kind === "heal" ? "help" : "harm";
+    case "retargeted":
+      return "control";
+    default:
+      return null;
+  }
+}
+
+// Draws the action vector (source → target) and a floating ±N popup so the
+// board narrates the current step on its own.
+function renderBoardFx(container, event, actorId, targetId) {
+  clearBoardFx();
+  if (!boardFx || !boardPopups || !event) {
+    return;
+  }
+  const kind = boardEffectKind(event);
+  const sourceId = event.type === "retargeted" ? event.actor_id : actorId;
+  const destId = event.type === "retargeted" ? event.new_target_id : targetId;
+
+  const origin = boardFx.getBoundingClientRect();
+  if (origin.width === 0 || origin.height === 0) {
+    return;
+  }
+  const cellOf = (id) =>
+    id
+      ? [...container.querySelectorAll("[data-character-id]")]
+          .find((el) => el.dataset.characterId === id)
+          ?.closest(".arena-cell") ?? null
+      : null;
+  const centerOf = (cell) => {
+    const rect = cell.getBoundingClientRect();
+    return { x: rect.left - origin.left + rect.width / 2, y: rect.top - origin.top + rect.height / 2 };
+  };
+
+  boardFx.setAttribute("viewBox", `0 0 ${origin.width} ${origin.height}`);
+  boardFx.setAttribute("preserveAspectRatio", "none");
+
+  const sourceCell = cellOf(sourceId);
+  const destCell = cellOf(destId);
+  if (kind && sourceCell && destCell && sourceCell !== destCell) {
+    const a = centerOf(sourceCell);
+    const b = centerOf(destCell);
+    const dashed = event.type === "retargeted" ? "fx-line-dashed" : "";
+    boardFx.innerHTML = `
+      <line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="fx-line fx-line-${kind} ${dashed}" />
+      <circle cx="${b.x}" cy="${b.y}" r="4.5" class="fx-dot fx-dot-${kind}" />`;
+  }
+
+  const hasAmount = ["damage", "heal", "healing", "status_tick"].includes(event.type);
+  if (hasAmount && destCell && event.amount != null) {
+    const b = centerOf(destCell);
+    const help = kind === "help";
+    const popup = document.createElement("div");
+    popup.className = `board-popup board-popup-${help ? "help" : "harm"}`;
+    popup.style.left = `${b.x}px`;
+    popup.style.top = `${b.y}px`;
+    popup.textContent = `${help ? "+" : "−"}${event.amount}`;
+    boardPopups.appendChild(popup);
+  }
 }
 
 function isReplayPosition(position) {
@@ -2052,17 +2217,19 @@ function renderUnitCard(character) {
 
 function renderUnitCardChips(character) {
   const entries = [
-    ...normalizeStatusEntries(character.statuses),
-    ...normalizeConditionEntries(character.conditions),
+    ...normalizeStatusEntries(character.statuses).map((entry) => ({ ...entry, isStatus: true })),
+    ...normalizeConditionEntries(character.conditions).map((entry) => ({ ...entry, isStatus: false })),
   ];
   if (entries.length === 0) {
     return "";
   }
 
   const chips = entries
-    .map(({ name, stacks }) => {
+    .map(({ name, stacks, isStatus }) => {
+      const polarity = isStatus ? statusPolarity(name) : "neutral";
+      const arrow = polarity === "buff" ? "▲" : polarity === "debuff" ? "▼" : "•";
       const label = `${name} x${stacks}`;
-      return `<span class="unit-card-chip" title="${escapeHtml(label)}">${escapeHtml(name)}<span class="unit-card-chip-stacks">${escapeHtml(stacks)}</span></span>`;
+      return `<span class="unit-card-chip unit-card-chip-${polarity}" title="${escapeHtml(label)}"><span class="unit-card-chip-arrow">${arrow}</span>${escapeHtml(name)}<span class="unit-card-chip-stacks">${escapeHtml(stacks)}</span></span>`;
     })
     .join("");
   return `<div class="unit-card-chips">${chips}</div>`;
@@ -4502,48 +4669,6 @@ function applyStatusModifier(stats, rawStatKey, delta) {
   stats[statKey] += delta;
 }
 
-function shouldRenderTimelineEvent(event) {
-  if (appState.timelineFilter === "major" && !isMajorEvent(event.type)) {
-    return false;
-  }
-
-  if (appState.timelineFilter === "selected" && appState.selectedCharacterId) {
-    const eventCharacters = [
-      event.actor_id,
-      event.source_id,
-      event.target_id,
-      event.new_target_id,
-      event.character_id,
-    ].filter(Boolean);
-
-    return eventCharacters.includes(appState.selectedCharacterId);
-  }
-
-  return true;
-}
-
-function isMajorEvent(type) {
-  return [
-    "ability_used",
-    "rest",
-    "basic_attack",
-    "damage",
-    "heal",
-    "healing",
-    "mp_restore",
-    "status_applied",
-    "condition_applied",
-    "status_removed",
-    "status_tick",
-    "passive_triggered",
-    "turn_skipped",
-    "retargeted",
-    "moved",
-    "defeat",
-    "battle_end",
-  ].includes(type);
-}
-
 function formatEventType(type) {
   return type.replaceAll("_", " ");
 }
@@ -4582,18 +4707,35 @@ function formatCharacterLabel(characterId, fallbackName) {
   return fallbackName || getReplayCharacterName(characterId) || characterId || "Unknown";
 }
 
-function getReplayCharacterTeamClass(characterId) {
-  const config = getReplayCharacterConfig(characterId);
-  if (!config?.team_key) {
-    return "";
+// Team identity is encoded in the replay id prefix (team_a: / team_b:);
+// fall back to the config team_key for older replays. team_a is "your team".
+function teamKeyOf(characterId) {
+  if (typeof characterId === "string") {
+    if (characterId.startsWith("team_a:")) return "team_a";
+    if (characterId.startsWith("team_b:")) return "team_b";
   }
-  return `event-character-${config.team_key}`;
+  return getReplayCharacterConfig(characterId)?.team_key ?? null;
 }
 
+function sideOf(characterId) {
+  const key = teamKeyOf(characterId);
+  return key === "team_b" ? "enemy" : key === "team_a" ? "ally" : null;
+}
+
+function getReplayCharacterTeamClass(characterId) {
+  const side = sideOf(characterId);
+  return side ? `ent-${side}` : "";
+}
+
+// Identity token: name + a small side tag, colored ally (cool) / enemy (warm).
+// The tag disambiguates duplicate arcana names across teams.
 function formatCharacterLabelMarkup(characterId, fallbackName) {
-  return `<span class="event-character ${getReplayCharacterTeamClass(characterId)}">${escapeHtml(
+  const side = sideOf(characterId);
+  const tag = side === "ally" ? "A" : side === "enemy" ? "B" : "";
+  const tagMarkup = tag ? `<span class="ent-tag">${tag}</span>` : "";
+  return `<span class="ent ${getReplayCharacterTeamClass(characterId)}">${escapeHtml(
     formatCharacterLabel(characterId, fallbackName),
-  )}</span>`;
+  )}${tagMarkup}</span>`;
 }
 
 function getEventActorId(event) {
@@ -4641,6 +4783,239 @@ function damageSourceSuffix(event) {
   return event.source_name && event.source_kind === "ability"
     ? ` with ${escapeHtml(event.source_name)}`
     : "";
+}
+
+// ===== Hybrid effect language: help/harm for HP, one status hue (▲ buff / ▼
+// debuff), amber control, neutral resource/move. =====
+const BUFF_STATUSES = new Set(["Empower", "Fortify", "Regen", "Ward", "Restoration", "Haste", "Barrier"]);
+const DEBUFF_STATUSES = new Set(["Weaken", "Enfeeble", "Bleed", "Poison", "Omen", "Curse", "Slow"]);
+
+function statusBaseName(name) {
+  return String(name ?? "").split(":")[0];
+}
+
+// "buff" | "debuff" | "neutral"
+function statusPolarity(name) {
+  const base = statusBaseName(name);
+  if (BUFF_STATUSES.has(base)) return "buff";
+  if (DEBUFF_STATUSES.has(base)) return "debuff";
+  return "neutral";
+}
+
+function statusChip(name, stacksAfter, { removed = false } = {}) {
+  const polarity = statusPolarity(name);
+  const arrow = removed ? "−" : polarity === "buff" ? "▲" : polarity === "debuff" ? "▼" : "•";
+  const stacks = stacksAfter == null || removed ? "" : `<span class="chip-stacks">${escapeHtml(stacksAfter)}</span>`;
+  return `<span class="fx-chip fx-status fx-status-${polarity} ${removed ? "is-removed" : ""}"><span class="chip-arrow">${arrow}</span>${escapeHtml(name)}${stacks}</span>`;
+}
+
+function amountChip(kind, amount, { lethal = false } = {}) {
+  // kind: "harm" | "help" | "mp"
+  const sign = kind === "harm" ? "−" : "+";
+  const unit = kind === "mp" ? '<span class="chip-unit">MP</span>' : "";
+  const skull = lethal ? '<span class="fx-lethal" title="lethal">✕</span>' : "";
+  return `<span class="fx-chip fx-${kind}">${sign}${escapeHtml(amount ?? "?")}${unit}${skull}</span>`;
+}
+
+// Render a single in-beat effect event as a chip (used inline on the headline
+// or on a passive sub-line). Returns "" for events with no chip representation.
+function effectChip(event) {
+  switch (event.type) {
+    case "damage":
+      return amountChip("harm", event.amount, { lethal: event.target_hp_after === 0 });
+    case "heal":
+    case "healing":
+      return amountChip("help", event.amount);
+    case "mp_restore":
+      return amountChip("mp", event.amount);
+    case "status_applied":
+      return statusChip(event.status, event.stacks_after);
+    case "status_removed":
+      return statusChip(event.status, event.stacks_after, { removed: true });
+    case "condition_applied":
+      return statusChip(event.condition, event.stacks_after);
+    case "status_tick":
+      return amountChip(event.kind === "heal" ? "help" : "harm", event.amount, { lethal: event.target_hp_after === 0 });
+    default:
+      return "";
+  }
+}
+
+// Group a segment's effect events by target so we render "→ Target  −5 ▼Omen"
+// once per distinct target.
+function groupEffectsByTarget(events) {
+  const order = [];
+  const byTarget = new Map();
+  for (const event of events) {
+    if (event.type === "defeat" || event.type === "retargeted" || event.type === "moved") {
+      continue; // promoted to their own lines
+    }
+    const targetId = event.target_id ?? event.new_target_id ?? null;
+    const key = targetId ?? "_";
+    if (!byTarget.has(key)) {
+      byTarget.set(key, { targetId, chips: [] });
+      order.push(key);
+    }
+    const chip = effectChip(event);
+    if (chip) {
+      byTarget.get(key).chips.push(chip);
+    }
+  }
+  return order.map((key) => byTarget.get(key)).filter((group) => group.chips.length > 0);
+}
+
+function targetEffectsMarkup(events, { showArrow = true } = {}) {
+  const groups = groupEffectsByTarget(events);
+  return groups
+    .map((group) => {
+      const target = group.targetId ? `${formatCharacterLabelMarkup(group.targetId)} ` : "";
+      const arrow = showArrow && group.targetId ? '<span class="fx-arrow">→</span> ' : "";
+      return `<span class="beat-target">${arrow}${target}${group.chips.join("")}</span>`;
+    })
+    .join("");
+}
+
+function actionVerbIcon(name) {
+  return `<span class="beat-verb" aria-hidden="true">${name}</span>`;
+}
+
+// The headline for a turn beat: actor + what they did + inline result chips.
+function renderBeatHead(beat) {
+  const actor = formatCharacterLabelMarkup(beat.actorId);
+  const action = beat.action;
+  const actionEffects = beat.segments[0]?.events ?? [];
+
+  if (!action) {
+    // No chosen action (pure passive/ tick turn, or an unrecognized stream).
+    const fx = targetEffectsMarkup(actionEffects);
+    return `${actor} ${fx || '<span class="beat-muted">waits</span>'}`;
+  }
+
+  switch (action.type) {
+    case "basic_attack": {
+      const fx = targetEffectsMarkup(actionEffects);
+      return `${actor} <span class="beat-verb beat-verb-attack">⚔</span> ${fx || '<span class="beat-muted">attacks</span>'}`;
+    }
+    case "ability_used": {
+      const ability = `<span class="beat-ability">✦${escapeHtml(action.ability ?? "Ability")}</span>`;
+      const fx = targetEffectsMarkup(actionEffects);
+      return `${actor} ${ability}${fx ? ` ${fx}` : ""}`;
+    }
+    case "rest":
+      return `${actor} <span class="beat-muted">rests</span>`;
+    case "turn_skipped":
+      return `${actor} <span class="fx-chip fx-control">⊘ ${escapeHtml(action.reason ?? "skipped")}</span>`;
+    default:
+      return actor;
+  }
+}
+
+// Sub-lines: start-of-turn ticks, passive procs, retargets, moves, defeats.
+function renderBeatSubLines(beat) {
+  const lines = [];
+
+  for (const tick of beat.preTicks ?? []) {
+    lines.push(`<span class="beat-sub-icon">↳</span> ${statusNameMarkup(tick.status)} ${effectChip(tick)}`);
+  }
+
+  // Passive segments (segment[0] is the action segment, already in the head).
+  for (const segment of (beat.segments ?? []).slice(1)) {
+    if (segment.cause !== "passive") continue;
+    const label = `<span class="beat-passive">⚡${escapeHtml(segment.passive ?? "Passive")}</span>`;
+    const fx = targetEffectsMarkup(segment.events);
+    lines.push(`<span class="beat-sub-icon">↳</span> ${label}${fx ? ` ${fx}` : ""}`);
+  }
+
+  // Retargets and moves anywhere in the beat.
+  for (const segment of beat.segments ?? []) {
+    for (const event of segment.events) {
+      if (event.type === "retargeted") {
+        const target = event.new_target_id
+          ? formatCharacterLabelMarkup(event.new_target_id, event.new_target_name)
+          : '<span class="beat-muted">no target</span>';
+        lines.push(`<span class="fx-chip fx-control">⟲</span> ${formatCharacterLabelMarkup(event.actor_id ?? beat.actorId)} now targets ${target}`);
+      } else if (event.type === "moved") {
+        lines.push(`<span class="beat-sub-icon">↳</span> ${formatCharacterLabelMarkup(event.actor_id ?? beat.actorId)} <span class="beat-muted">repositions</span>`);
+      }
+    }
+  }
+
+  // Defeats are story-critical — strong treatment.
+  for (const segment of beat.segments ?? []) {
+    for (const event of segment.events) {
+      if (event.type === "defeat") {
+        lines.push(`<span class="beat-defeat"><span class="fx-lethal">✕</span> ${formatCharacterLabelMarkup(event.actor_id, event.actor_name)} defeated</span>`);
+      }
+    }
+  }
+
+  return lines.map((line) => `<div class="beat-sub">${line}</div>`).join("");
+}
+
+function renderSystemBeat(beat) {
+  const isActive = beat.startIndex === appState.selectedEventIndex
+    || (appState.selectedEventIndex < 0 && beat.type === "battle_start");
+  let text;
+  if (beat.type === "battle_start") {
+    text = "Battle starts.";
+  } else if (beat.type === "battle_end") {
+    text = `Battle ends — <strong>${escapeHtml(formatWinnerLabel(beat.winner))}</strong> wins.`;
+  } else {
+    text = formatEventType(beat.type);
+  }
+  return `
+    <button class="timeline-beat timeline-beat-system ${isActive ? "is-active" : ""}" type="button" data-jump-index="${beat.startIndex}">
+      <span class="beat-system-text">${text}</span>
+    </button>`;
+}
+
+function renderBeat(beat, focusId) {
+  if (beat.kind === "system") {
+    return renderSystemBeat(beat);
+  }
+  if (beat.kind === "loose") {
+    const isActive = appState.selectedEventIndex >= beat.startIndex && appState.selectedEventIndex <= beat.endIndex;
+    return `<button class="timeline-beat ${isActive ? "is-active" : ""}" type="button" data-jump-index="${beat.endIndex}"><div class="beat-head">${formatTimelineMarkup(beat.events[0])}</div></button>`;
+  }
+
+  const isActive = appState.selectedEventIndex >= beat.startIndex && appState.selectedEventIndex <= beat.endIndex;
+  const side = sideOf(beat.actorId);
+  const focusClass = focusId && beat.actorId === focusId ? "is-focus" : "";
+
+  if (appState.logMode === "detailed") {
+    const rows = beat.segments
+      .flatMap((segment) => segment.events)
+      .concat(beat.preTicks ?? [])
+      .map((event) => `<div class="beat-detail-row">${formatTimelineMarkup(event)}</div>`)
+      .join("");
+    return `
+      <button class="timeline-beat beat-${side ?? "neutral"} ${isActive ? "is-active" : ""} ${focusClass}" type="button" data-jump-index="${beat.endIndex}">
+        <div class="beat-head">${renderBeatHead(beat)}</div>
+        ${rows}
+      </button>`;
+  }
+
+  return `
+    <button class="timeline-beat beat-${side ?? "neutral"} ${isActive ? "is-active" : ""} ${focusClass}" type="button" data-jump-index="${beat.endIndex}">
+      <div class="beat-head">${renderBeatHead(beat)}</div>
+      ${renderBeatSubLines(beat)}
+    </button>`;
+}
+
+// One-line narration for the board header — the active beat headline.
+function narrateBeat(beat) {
+  if (!beat) {
+    return "";
+  }
+  if (beat.kind === "system") {
+    return beat.type === "battle_end"
+      ? `Battle ends — ${escapeHtml(formatWinnerLabel(beat.winner))} wins.`
+      : "Battle starts.";
+  }
+  if (beat.kind === "loose") {
+    return formatTimelineMarkup(beat.events[0]);
+  }
+  return renderBeatHead(beat);
 }
 
 function formatTimelineMarkup(event) {

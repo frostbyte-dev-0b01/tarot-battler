@@ -109,11 +109,11 @@
 
                 <div class="replay-sidebar-pane replay-pane-log" data-replay-pane="log">
                   <div class="replay-log-toolbar">
-                    <div class="timeline-filters" role="group" aria-label="Timeline filter">
-                      <button type="button" class="filter-chip is-active" data-timeline-filter="all">All</button>
-                      <button type="button" class="filter-chip" data-timeline-filter="major">Major</button>
-                      <button type="button" class="filter-chip" data-timeline-filter="selected" disabled>Selected</button>
+                    <div class="seg-toggle" role="group" aria-label="Log detail">
+                      <button type="button" class="seg-button is-active" data-log-mode="story">Story</button>
+                      <button type="button" class="seg-button" data-log-mode="detailed">Detailed</button>
                     </div>
+                    <button type="button" class="filter-chip" data-log-focus disabled title="Show only beats involving the selected unit">Focus</button>
                   </div>
                   <div id="timeline-list" class="timeline-list">
                     <div class="board-empty-state">Load a replay to view the timeline.</div>
@@ -164,6 +164,8 @@
                   <div class="arena-depth-label arena-depth-center-right">front</div>
                   <div class="arena-depth-label arena-depth-right">back</div>
                   <div id="battle-board" class="battle-board"></div>
+                  <svg class="board-fx" id="board-fx" aria-hidden="true"></svg>
+                  <div class="board-popups" id="board-popups" aria-hidden="true"></div>
                 </section>
 
                 <section class="replay-controls-bar" aria-labelledby="playback-heading">

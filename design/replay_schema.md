@@ -481,7 +481,7 @@ The replay format should support at least these event families:
 
 ## Current Engine Coverage
 
-The current engine writes this replay schema directly, but it does not yet emit every event family listed above.
+The current engine writes this replay schema directly.
 
 Currently emitted:
 
@@ -489,20 +489,27 @@ Currently emitted:
 - `turn_start`
 - `basic_attack`
 - `ability_used`
-- `damage`
+- `damage` (covers basic attacks, abilities, and reflects via `source_kind`)
+- `heal`
+- `mp_restore`
+- `status_applied`
+- `status_removed` (explicit `RemoveStatus` effects; natural tick-down decay is
+  reflected through `stacks_after` on `status_tick` rather than a removal event)
+- `condition_applied`
 - `status_tick`
 - `passive_triggered`
+- `retargeted`
+- `moved`
 - `turn_skipped`
 - `defeat`
 - `battle_end`
 
-Still missing from engine output:
+### Notes for viewers
 
-- `healing` as a standalone event
-- `status_applied`
-- `status_removed`
-
-Those gaps should be filled later so the replay viewer can show status state with full fidelity without reconstructing hidden engine details.
+- The replay viewer can reconstruct full status lifecycles (apply / change /
+  expire) by diffing each character's `statuses` and `conditions` across
+  consecutive snapshots; `status_applied` / `status_removed` events add actor
+  attribution ("who did it") that snapshots alone do not carry.
 
 This is enough for:
 
