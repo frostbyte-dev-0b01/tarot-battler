@@ -6,7 +6,7 @@
    `K = 12`. No flat base damage on attacks. True damage and Omen bypass mitigation.
    Both the ability damage path and the basic/command-attack path use this formula.
 2. **Four power tiers (enum, not float).** Stored in ability data as `"power"`:
-   - `strike` ×1.0, `strong` ×1.5, `heavy` ×2.0, `execute` ×2.5.
+   - `light` ×1.0, `medium` ×1.5, `heavy` ×2.0, `ultimate` ×2.5.
    Players see pips/names, never decimals.
 3. **Empower / Weaken are permanent** (no decay), removed only by dispel/cleanse/
    opposing-cancellation/consume. Capped at **8 stacks per stat**.
@@ -45,5 +45,5 @@
 - Permanent Empower (e.g. Pursuit granting +1 per ally hit on focus) snowballs by
   design; the 8-stack cap is the leash. Revisit application amounts during tuning.
 - Removing flat base lowers some low-tier hits; ratio mitigation keeps them
-  relevant (a Strike is never floored to 1 except against extreme defense).
+  relevant (a Light hit is never floored to 1 except against extreme defense).
 </content>
