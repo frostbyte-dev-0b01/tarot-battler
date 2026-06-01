@@ -124,31 +124,49 @@ const TEAM_SLOT_POSITIONS = [
 ];
 // Team-building point budget. Must match TEAM_BUDGET in battle_engine/src/loader.rs.
 const TEAM_BUDGET = 14;
+// Subjects a condition can read. Engine values are stable (serde); only the
+// labels are player-facing. "Companion" stays a fixed bond set at battle start,
+// distinct from the live Any/Lowest scopes that scan the team each turn.
 const ruleSubjectOptions = [
   { value: "self", label: "Self" },
-  { value: "target", label: "Target" },
-  { value: "companion", label: "Companion" },
+  {
+    value: "companion",
+    label: "Companion",
+    hint: "Companions are the allies cardinally adjacent at battle start. The bond is fixed — it stays even if units move or a companion is elsewhere on the board.",
+  },
+  { value: "any_ally", label: "Any ally", hint: "True if any living ally (the whole team) matches." },
+  { value: "lowest_ally", label: "Lowest-HP ally", hint: "Reads the living ally with the lowest current HP." },
+  { value: "target", label: "Current target", hint: "The enemy this character is currently focusing." },
+  { value: "any_enemy", label: "Any enemy", hint: "True if any living enemy matches." },
+  { value: "lowest_enemy", label: "Lowest-HP enemy", hint: "Reads the living enemy with the lowest current HP." },
   { value: "world", label: "Game State" },
 ];
+// Each value carries a `group` so the dropdown can be categorized.
 const ruleValueTypeOptions = [
-  { value: "hp", label: "HP" },
-  { value: "mp", label: "MP" },
-  { value: "self_row", label: "Column" },
-  { value: "self_companion_count", label: "Companion Count" },
-  { value: "target_companion_count", label: "Companion Count" },
-  { value: "use_count", label: "Use Count" },
-  { value: "turns_since_use", label: "Turns Since Use" },
-  { value: "tick_count", label: "Tick Count" },
-  { value: "ally_count", label: "Allies Alive" },
-  { value: "enemy_count", label: "Enemies Alive" },
-  { value: "stat", label: "Stat" },
-  { value: "status_stacks", label: "Status" },
-  { value: "condition_stacks", label: "Condition" },
+  { value: "hp", label: "HP %", group: "Vitals" },
+  { value: "mp", label: "MP", group: "Vitals" },
+  { value: "self_row", label: "Column", group: "Position" },
+  { value: "focused_by_count", label: "Enemies Targeting", group: "Threat" },
+  { value: "self_companion_count", label: "Companion Count", group: "Bonds" },
+  { value: "target_companion_count", label: "Companion Count", group: "Bonds" },
+  { value: "stat", label: "Stat", group: "Attributes" },
+  { value: "status_stacks", label: "Status", group: "Effects" },
+  { value: "condition_stacks", label: "Condition", group: "Effects" },
+  { value: "use_count", label: "Use Count", group: "Cadence" },
+  { value: "turns_since_use", label: "Turns Since Use", group: "Cadence" },
+  { value: "tick_count", label: "Tick Count", group: "Battlefield" },
+  { value: "ally_count", label: "Allies Alive", group: "Battlefield" },
+  { value: "enemy_count", label: "Enemies Alive", group: "Battlefield" },
 ];
+// Order within each subject also defines optgroup order in the dropdown.
 const ruleValueOptionsBySubject = {
-  self: ["hp", "mp", "self_row", "stat", "status_stacks", "condition_stacks", "self_companion_count"],
+  self: ["hp", "mp", "self_row", "focused_by_count", "stat", "status_stacks", "condition_stacks", "self_companion_count"],
+  companion: ["hp", "mp", "self_row", "focused_by_count", "stat", "status_stacks", "condition_stacks"],
+  any_ally: ["hp", "mp", "self_row", "focused_by_count", "stat", "status_stacks", "condition_stacks"],
+  lowest_ally: ["hp", "mp", "self_row", "focused_by_count", "stat", "status_stacks", "condition_stacks"],
   target: ["hp", "mp", "self_row", "stat", "status_stacks", "condition_stacks", "target_companion_count"],
-  companion: ["hp", "mp", "self_row", "stat", "status_stacks", "condition_stacks"],
+  any_enemy: ["hp", "mp", "self_row", "stat", "status_stacks", "condition_stacks"],
+  lowest_enemy: ["hp", "mp", "self_row", "stat", "status_stacks", "condition_stacks"],
   world: ["use_count", "turns_since_use", "tick_count", "ally_count", "enemy_count"],
 };
 const ruleOperatorOptions = [
@@ -329,7 +347,7 @@ const demoTeam = {
           },
           {
             ability: "Withdraw",
-            when: [{ subject: "self", value: "hp", op: "lte", threshold: 16 }],
+            when: [{ subject: "self", value: "hp", op: "lte", threshold: 50 }],
           },
         ],
       },
@@ -2798,8 +2816,8 @@ function validateCharacterConfig(candidate, prefix = "character") {
 
   if (!Array.isArray(candidate.rules)) {
     errors.push(`${prefix}.rules must be an array.`);
-  } else if (candidate.rules.length > 5) {
-    errors.push(`${prefix}.rules must contain at most 5 rules.`);
+  } else if (candidate.rules.length > 7) {
+    errors.push(`${prefix}.rules must contain at most 7 rules.`);
   }
 
   return errors;
@@ -3356,7 +3374,7 @@ function renderLoadoutSlot(label, value, mode, characterIndex, slotIndex = null)
 function renderCompactRules(character, characterIndex) {
   const rules = character.rules ?? [];
   const ruleCount = rules.length;
-  const canAddRule = ruleCount < 5;
+  const canAddRule = ruleCount < 7;
   const rulesMarkup = rules.map((rule, ruleIndex) => {
     const isSelected = appState.expandedRuleIndex === ruleIndex;
     return `
@@ -3380,7 +3398,7 @@ function renderCompactRules(character, characterIndex) {
     <div class="builder-pane-header">
       <h4 class="builder-card-title" style="margin:0">Priority Rules</h4>
       <div class="editor-card-actions">
-        <span class="rule-count-label">${ruleCount} / 5</span>
+        <span class="rule-count-label">${ruleCount} / 7</span>
         <button type="button" class="button-secondary" data-team-action="add-rule" data-character-index="${characterIndex}" ${canAddRule ? "" : "disabled"}>Add Rule</button>
       </div>
     </div>
@@ -3502,7 +3520,21 @@ function renderRuleEditor(characterIndex, rule, ruleIndex) {
   const abilityOptions = abilityChoices
     .map((name) => `<option value="${escapeHtml(name)}" ${name === currentAbility ? "selected" : ""}>${escapeHtml(name)}</option>`)
     .join("");
-  const condition = rule.when?.[0] ?? null;
+  const conditions = Array.isArray(rule.when) ? rule.when : [];
+  const matchAny = rule.match_any === true;
+  // The match toggle only changes behavior with two or more conditions.
+  const matchToggle = conditions.length >= 2
+    ? `
+      <div class="rule-match-toggle" role="group" aria-label="How conditions combine">
+        <span class="rule-match-label">Fire when</span>
+        <button type="button" class="match-pill ${matchAny ? "" : "is-active"}" data-team-action="set-match-mode" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-match-any="false">Match ALL</button>
+        <button type="button" class="match-pill ${matchAny ? "is-active" : ""}" data-team-action="set-match-mode" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-match-any="true">Match ANY</button>
+      </div>
+    `
+    : "";
+  const conditionsMarkup = conditions.length > 0
+    ? conditions.map((condition, index) => renderConditionEditor(characterIndex, ruleIndex, condition, index)).join("")
+    : '<div class="board-empty-state">Add one or more conditions to decide when this priority fires.</div>';
 
   return `
     <article class="editor-card">
@@ -3516,15 +3548,12 @@ function renderRuleEditor(characterIndex, rule, ruleIndex) {
         </select>
       </label>
       <div class="editor-card-header">
+        ${matchToggle}
         <div class="editor-card-actions">
-          ${
-            condition
-              ? ``
-              : `<button type="button" class="button-secondary" data-team-action="add-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Add Condition</button>`
-          }
+          <button type="button" class="button-secondary" data-team-action="add-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}">Add Condition</button>
         </div>
       </div>
-      <div class="condition-editor-list">${condition ? renderConditionEditor(characterIndex, ruleIndex, condition, 0) : '<div class="board-empty-state">Add one condition to decide when this priority fires.</div>'}</div>
+      <div class="condition-editor-list">${conditionsMarkup}</div>
     </article>
   `;
 }
@@ -3581,7 +3610,7 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
         <label class="field-group">
           <span>Value</span>
           <select data-condition-field="value_type" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
-            ${allowedValueOptions.map((option) => `<option value="${option.value}" ${valueType === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
+            ${renderRuleValueSelectOptions(allowedValueOptions, valueType)}
           </select>
         </label>
         ${detailFieldMarkup}
@@ -3592,16 +3621,27 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
           </select>
         </label>
         <label class="field-group">
-          <span>${valueType === "self_row" ? "Column" : "Threshold"}</span>
+          <span>${valueType === "self_row" ? "Column" : valueType === "hp" ? "Threshold (%)" : "Threshold"}</span>
           ${valueType === "self_row"
             ? `<select data-condition-field="threshold" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
                 ${columnOptions.map((option) => `<option value="${option.value}" ${Number(condition.threshold ?? 0) === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
               </select>`
-            : `<input type="number" data-condition-field="threshold" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}" value="${condition.threshold ?? 0}">`}
+            : `<input type="number" data-condition-field="threshold" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}" value="${condition.threshold ?? 0}" min="0" ${valueType === "hp" ? `max="100"` : ""}>`}
         </label>
       </div>
+      ${renderSubjectHint(condition.subject ?? "self")}
     </div>
   `;
+}
+
+// A one-line clarification for subjects whose meaning is easy to misread
+// (notably the fixed Companion bond versus the live Any/Lowest scopes).
+function renderSubjectHint(subject) {
+  const option = ruleSubjectOptions.find((entry) => entry.value === subject);
+  if (!option?.hint) {
+    return "";
+  }
+  return `<p class="condition-hint">${escapeHtml(option.hint)}</p>`;
 }
 
 function handleTeamEditorInput(event) {
@@ -4165,7 +4205,7 @@ function handleTeamEditorAction(event) {
       appState.expandedRuleIndex = null;
       break;
     case "add-rule":
-      if ((team.characters[characterIndex]?.rules?.length ?? 0) < 5) {
+      if ((team.characters[characterIndex]?.rules?.length ?? 0) < 7) {
         team.characters[characterIndex]?.rules.push(createEmptyRule());
         appState.expandedRuleIndex = team.characters[characterIndex].rules.length - 1;
         appState.teamDetailTab = "rules";
@@ -4195,16 +4235,39 @@ function handleTeamEditorAction(event) {
         appState.expandedRuleIndex = ruleIndex;
       }
       break;
-    case "add-condition":
-      if (team.characters[characterIndex]?.rules?.[ruleIndex]) {
-        team.characters[characterIndex].rules[ruleIndex].when = [createEmptyCondition()];
+    case "add-condition": {
+      const rule = team.characters[characterIndex]?.rules?.[ruleIndex];
+      if (rule) {
+        if (!Array.isArray(rule.when)) {
+          rule.when = [];
+        }
+        rule.when.push(createEmptyCondition());
       }
       break;
-    case "remove-condition":
-      if (team.characters[characterIndex]?.rules?.[ruleIndex]) {
-        team.characters[characterIndex].rules[ruleIndex].when = [];
+    }
+    case "remove-condition": {
+      const rule = team.characters[characterIndex]?.rules?.[ruleIndex];
+      if (Array.isArray(rule?.when)) {
+        rule.when.splice(conditionIndex, 1);
+        // A single remaining condition makes the match toggle moot; drop it.
+        if (rule.when.length < 2 && rule.match_any) {
+          delete rule.match_any;
+        }
       }
       break;
+    }
+    case "set-match-mode": {
+      const rule = team.characters[characterIndex]?.rules?.[ruleIndex];
+      if (rule) {
+        const matchAny = actionTarget.dataset.matchAny === "true";
+        if (matchAny) {
+          rule.match_any = true;
+        } else {
+          delete rule.match_any;
+        }
+      }
+      break;
+    }
     default:
       return;
   }
@@ -4541,6 +4604,29 @@ function getAllowedRuleValueOptions(subject) {
     .filter(Boolean);
 }
 
+// Render the value dropdown with <optgroup>s, preserving subject option order.
+function renderRuleValueSelectOptions(allowedOptions, selectedValue) {
+  const groupsInOrder = [];
+  const byGroup = new Map();
+  for (const option of allowedOptions) {
+    const group = option.group ?? "Other";
+    if (!byGroup.has(group)) {
+      byGroup.set(group, []);
+      groupsInOrder.push(group);
+    }
+    byGroup.get(group).push(option);
+  }
+  return groupsInOrder
+    .map((group) => {
+      const optionsMarkup = byGroup
+        .get(group)
+        .map((option) => `<option value="${option.value}" ${selectedValue === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`)
+        .join("");
+      return `<optgroup label="${escapeHtml(group)}">${optionsMarkup}</optgroup>`;
+    })
+    .join("");
+}
+
 function getDefaultRuleValueForSubject(subject) {
   const [firstOption] = getAllowedRuleValueOptions(subject);
   if (!firstOption) {
@@ -4623,6 +4709,10 @@ function formatConditionPreview(condition) {
     return `${prefix}Column ${operatorLabel} ${columnLabel}`;
   }
 
+  if (valueType === "hp") {
+    return `${prefix}HP ${operatorLabel} ${threshold}%`;
+  }
+
   const contextualLabel = getContextualRuleValueLabel(subject, valueType);
   return `${prefix}${contextualLabel} ${operatorLabel} ${threshold}`;
 }
@@ -4634,7 +4724,8 @@ function formatRulePreview(rule) {
     return `Use ${abilityLabel} always`;
   }
 
-  return `Use ${abilityLabel} if ${conditions.map((condition) => formatConditionPreview(condition)).join(" and ")}`;
+  const joiner = rule?.match_any === true ? " or " : " and ";
+  return `Use ${abilityLabel} if ${conditions.map((condition) => formatConditionPreview(condition)).join(joiner)}`;
 }
 
 function getContextualRuleValueLabel(subject, valueType) {
