@@ -177,6 +177,13 @@ Because rules use effective stats, the team builder and replay inspection tools 
 
 This is especially important once threshold unlocks and aspect-based identity shifts are in the main design.
 
+Future improvement: **flag stale saved teams on load.** The roster persists to
+`localStorage`, so a team saved before a content change can reference removed or
+renamed content (e.g. a deleted aspect). The Arena now surfaces the engine's
+rejection, but it would be better to validate persisted teams against the
+current catalogs when the roster loads and mark the offending team in the
+roster / Team Builder, so the player catches it before reaching the Arena.
+
 ### Template-Based Character Builds
 
 The engine and Team Builder now use the template-based `version: 2` team schema:
