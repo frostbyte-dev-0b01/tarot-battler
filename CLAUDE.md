@@ -27,6 +27,15 @@ cargo test <name>  # run a single test by name
 
 All cargo commands should be run from `battle_engine/`.
 
+### UI tests
+
+```bash
+node --test tools/ui/tests/*.test.cjs   # Tier 1: pure-logic unit tests (fast, no browser)
+node tools/ui/smoke-test.cjs            # Tier 2: headless end-to-end smoke test
+```
+
+Tier 1 unit-tests the DOM-free helpers in `tools/ui/rules-lib.js` via Node's built-in test runner (no dependencies). Tier 2 drives the static site in headless Chromium (Playwright) and checks the core flows — replay load/render, rule attribution, Arena run, Watch-Victory persistence, and the stale-team error banner. The smoke test self-serves over http and discovers Playwright/Chromium via `PW_MODULE` / `PW_CHROME` env overrides (see the file header); set `SMOKE_SERVE=0` to use an already-running server.
+
 To rebuild the in-browser WebAssembly engine used by the UI dev tool, run `tools/ui/build-engine.sh` (one-time prerequisites: `rustup target add wasm32-unknown-unknown` and `cargo install wasm-bindgen-cli`). It outputs `tools/ui/engine/`, which is committed so the static site needs no build step.
 
 ## Architecture
@@ -35,8 +44,11 @@ To rebuild the in-browser WebAssembly engine used by the UI dev tool, run `tools
 
 ### UI Dev Tools (`tools/ui/`)
 
-- `index.html` — static shell for Team Builder and Replay Viewer tabs
+- `index.html` — static shell for Team Builder and Replay Viewer tabs; loads `rules-lib.js` before `app.js`
 - `styles.css` — responsive layout and placeholder styling for the dev tool
+- `rules-lib.js` — pure, DOM-free helpers (rule option vocabulary, rule/condition formatting + attribution clauses, Wilson interval, small utils) shared by `app.js` (as globals) and the Tier 1 unit tests (via `module.exports`). Keep it free of DOM/appState so it stays unit-testable.
+- `tests/rules-lib.test.cjs` — Tier 1 `node --test` unit tests for `rules-lib.js`
+- `smoke-test.cjs` — Tier 2 headless end-to-end smoke test (Playwright)
 - `app.js` — lightweight UI bootstrapping, currently tab switching plus replay loading, team loading, validation, structured team editing, import/export helpers, metadata rendering, snapshot board rendering, replay state application, playback controls, timeline rendering with rule attribution (which scripted rule drove each action), inspector state, and a "Run Battle" path that runs the current team vs a sample opponent through the in-browser WASM engine
 - `engine/` — generated WebAssembly build of the battle engine (`battle_engine.js` + `battle_engine_bg.wasm`), produced by `build-engine.sh`; `index.html` loads it to run battles in-browser with no backend
 - `build-engine.sh` — rebuilds the WASM engine into `engine/`
