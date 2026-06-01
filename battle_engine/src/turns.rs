@@ -5,15 +5,22 @@ use rand::rngs::StdRng;
 use crate::abilities::{AbilityDef, AbilityMap, DamageRecord, execute_ability_for_side};
 use crate::logger::BattleLog;
 use crate::models::{CharacterState, Stat};
-use crate::rules::{WorldState, evaluate_rules};
+use crate::rules::{WorldState, select_rule};
 use crate::statuses::StatusMap;
 use crate::targeting::select_target;
 
 pub(crate) const BASIC_ATTACK_ACTION: &str = "Basic Attack";
 
 pub(crate) enum ChosenAction {
-    Ability(String, AbilityDef),
-    BasicAttack,
+    /// `rule_index` is the ordered rule that fired (for replay attribution).
+    Ability {
+        name: String,
+        def: AbilityDef,
+        rule_index: Option<usize>,
+    },
+    BasicAttack {
+        rule_index: Option<usize>,
+    },
 }
 
 pub(crate) struct TurnRuntime<'a> {
@@ -111,7 +118,7 @@ pub(crate) fn choose_action(
         ally_count: actor_team.iter().filter(|c| c.is_alive()).count() as u32,
         enemy_count: enemy_team.iter().filter(|c| c.is_alive()).count() as u32,
     };
-    let ability_name = evaluate_rules(
+    let hit = select_rule(
         &actor_team[actor_idx],
         Some(target_ref),
         actor_team,
@@ -119,11 +126,16 @@ pub(crate) fn choose_action(
         world,
         runtime.abilities,
     )?;
-    if ability_name == BASIC_ATTACK_ACTION {
-        return Some(ChosenAction::BasicAttack);
+    let rule_index = Some(hit.rule_index);
+    if hit.ability == BASIC_ATTACK_ACTION {
+        return Some(ChosenAction::BasicAttack { rule_index });
     }
-    let ability_def = runtime.abilities.get(&ability_name)?.clone();
-    Some(ChosenAction::Ability(ability_name, ability_def))
+    let ability_def = runtime.abilities.get(&hit.ability)?.clone();
+    Some(ChosenAction::Ability {
+        name: hit.ability,
+        def: ability_def,
+        rule_index,
+    })
 }
 
 pub(crate) fn execute_ability_action(
@@ -133,6 +145,7 @@ pub(crate) fn execute_ability_action(
     enemy_team: &mut [CharacterState],
     ability_name: &str,
     ability_def: &AbilityDef,
+    rule_index: Option<usize>,
 ) -> (usize, Vec<DamageRecord>) {
     let effective_cost = ability_def
         .mp_cost
@@ -153,6 +166,7 @@ pub(crate) fn execute_ability_action(
         runtime.log,
         runtime.step,
         runtime.status_defs,
+        rule_index,
     );
 
     (event_start, damage_dealt)
@@ -163,6 +177,7 @@ pub(crate) fn execute_basic_attack_action(
     actor_idx: usize,
     actor_team: &mut [CharacterState],
     enemy_team: &mut [CharacterState],
+    rule_index: Option<usize>,
 ) -> Vec<DamageRecord> {
     let target_id = match actor_team[actor_idx].target() {
         Some(target_id) => target_id,
@@ -199,6 +214,7 @@ pub(crate) fn execute_basic_attack_action(
         target_hp_remaining,
         mp_restored,
         actor_mp_after,
+        rule_index,
     });
     capture_runtime_snapshot(runtime, actor_team, enemy_team);
     vec![DamageRecord {

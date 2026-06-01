@@ -561,6 +561,7 @@ pub fn execute_ability_with_context(
     actor_idx: usize,
     ability_name: &str,
     ability: &AbilityDef,
+    rule_index: Option<usize>,
 ) -> Vec<DamageRecord> {
     let actor_id = ctx.actor_team[actor_idx].id();
     let actor_name = ctx.actor_team[actor_idx].base_name().to_string();
@@ -571,6 +572,7 @@ pub fn execute_ability_with_context(
         actor_name,
         ability_name: ability_name.to_string(),
         mp_cost: ability.mp_cost,
+        rule_index,
     });
     capture_context_snapshot(ctx);
 
@@ -604,6 +606,7 @@ pub fn execute_ability(
         log,
         step,
         status_defs,
+        None,
     )
 }
 
@@ -619,6 +622,7 @@ pub fn execute_ability_for_side(
     log: &mut BattleLog,
     step: u32,
     status_defs: &StatusMap,
+    rule_index: Option<usize>,
 ) -> Vec<DamageRecord> {
     let mut ctx = ExecutionContext::new(
         actor_team,
@@ -629,7 +633,7 @@ pub fn execute_ability_for_side(
         status_defs,
         actor_team_is_a,
     );
-    execute_ability_with_context(&mut ctx, actor_idx, ability_name, ability)
+    execute_ability_with_context(&mut ctx, actor_idx, ability_name, ability, rule_index)
 }
 
 /// Execute a list of primitives (shared by abilities and passives) using a shared execution
@@ -1485,6 +1489,8 @@ pub fn execute_primitives_with_context(
                     target_hp_remaining: hp,
                     mp_restored: 0,
                     actor_mp_after: ctx.actor_team[companion_idx].current_mp(),
+                    // A commanded attack isn't driven by the actor's own rule list.
+                    rule_index: None,
                 });
                 capture_context_snapshot(ctx);
                 damage_dealt.push(DamageRecord {

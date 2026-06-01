@@ -33,6 +33,8 @@ pub enum BattleEvent {
         target_hp_remaining: u32,
         mp_restored: u32,
         actor_mp_after: u32,
+        /// Ordered rule that chose this action, or None for the default fallback.
+        rule_index: Option<usize>,
     },
     AbilityUsed {
         tick_count: u32,
@@ -40,6 +42,8 @@ pub enum BattleEvent {
         actor_name: String,
         ability_name: String,
         mp_cost: u32,
+        /// Ordered rule that chose this ability, or None for the default fallback.
+        rule_index: Option<usize>,
     },
     AbilityDamage {
         tick_count: u32,
@@ -411,6 +415,7 @@ impl BattleLog {
                     target_hp_remaining,
                     mp_restored,
                     actor_mp_after,
+                    rule_index,
                     ..
                 } => {
                     replay_events.push(json!({
@@ -421,6 +426,7 @@ impl BattleLog {
                         "damage_kind": "basic",
                         "mp_restored": mp_restored,
                         "actor_mp_after": actor_mp_after,
+                        "rule_index": rule_index,
                     }));
                     replay_events.push(json!({
                         "tick": tick_count,
@@ -439,6 +445,7 @@ impl BattleLog {
                     actor_id,
                     ability_name,
                     mp_cost,
+                    rule_index,
                     ..
                 } => {
                     last_ability_by_actor.insert(*actor_id, ability_name.clone());
@@ -448,6 +455,7 @@ impl BattleLog {
                         "actor_id": stable_id(*actor_id, &id_map),
                         "ability": ability_name,
                         "mp_cost": mp_cost,
+                        "rule_index": rule_index,
                     }));
                 }
                 BattleEvent::AbilityDamage {

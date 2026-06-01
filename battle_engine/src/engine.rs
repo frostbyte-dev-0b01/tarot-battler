@@ -528,7 +528,11 @@ impl BattleState {
 
         if let Some(action_choice) = action_choice {
             match action_choice {
-                turns::ChosenAction::Ability(ability_name, ability_def) => {
+                turns::ChosenAction::Ability {
+                    name: ability_name,
+                    def: ability_def,
+                    rule_index,
+                } => {
                     let (actor_team, enemy_team) =
                         Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
                     let (event_start, damage_dealt) = {
@@ -547,6 +551,7 @@ impl BattleState {
                             enemy_team,
                             &ability_name,
                             &ability_def,
+                            rule_index,
                         )
                     };
 
@@ -554,7 +559,7 @@ impl BattleState {
                     self.process_ally_ability_effect_events(event_start, actor_idx, is_team_a);
                     self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
                 }
-                turns::ChosenAction::BasicAttack => {
+                turns::ChosenAction::BasicAttack { rule_index } => {
                     let basic_attack_target_id = if is_team_a {
                         self.team_a[actor_idx].target()
                     } else {
@@ -576,6 +581,7 @@ impl BattleState {
                             actor_idx,
                             actor_team,
                             enemy_team,
+                            rule_index,
                         )
                     };
 
@@ -622,7 +628,14 @@ impl BattleState {
                 self.step,
                 is_team_a,
             );
-            turns::execute_basic_attack_action(&mut runtime, actor_idx, actor_team, enemy_team)
+            // Fallback path: no rule matched, so there is no attribution.
+            turns::execute_basic_attack_action(
+                &mut runtime,
+                actor_idx,
+                actor_team,
+                enemy_team,
+                None,
+            )
         };
         if let Some(target_id) = basic_attack_target_id {
             self.try_fire_passive_with_target(
