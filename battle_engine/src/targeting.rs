@@ -276,8 +276,11 @@ mod tests {
         let mut targeted_phys = 0;
         for seed in 0..50 {
             let mut rng = StdRng::seed_from_u64(seed);
-            let target =
-                select_disoriented_target(&attacker, &[phys_def.clone(), mag_def.clone()], &mut rng);
+            let target = select_disoriented_target(
+                &attacker,
+                &[phys_def.clone(), mag_def.clone()],
+                &mut rng,
+            );
             if target == Some(10) {
                 targeted_phys += 1;
             }

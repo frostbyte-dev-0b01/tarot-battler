@@ -115,6 +115,7 @@ pub(crate) fn choose_action(
         &actor_team[actor_idx],
         Some(target_ref),
         actor_team,
+        enemy_team,
         world,
         runtime.abilities,
     )?;
@@ -167,7 +168,10 @@ pub(crate) fn execute_basic_attack_action(
         Some(target_id) => target_id,
         None => return Vec::new(),
     };
-    let Some(target_idx) = enemy_team.iter().position(|c| c.id() == target_id && c.is_alive()) else {
+    let Some(target_idx) = enemy_team
+        .iter()
+        .position(|c| c.id() == target_id && c.is_alive())
+    else {
         return Vec::new();
     };
 

@@ -91043,7 +91043,7 @@
                 {
                   "op": "lte",
                   "subject": "self",
-                  "threshold": 16,
+                  "threshold": 48,
                   "value": "hp"
                 }
               ]
@@ -91152,7 +91152,7 @@
                 {
                   "op": "lte",
                   "subject": "self",
-                  "threshold": 16,
+                  "threshold": 48,
                   "value": "hp"
                 }
               ]

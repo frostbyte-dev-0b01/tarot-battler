@@ -7,7 +7,11 @@ use crate::models::StatusTick;
 use super::BattleState;
 
 impl BattleState {
-    pub(crate) fn process_status_application_events(&mut self, event_start: usize, is_team_a: bool) {
+    pub(crate) fn process_status_application_events(
+        &mut self,
+        event_start: usize,
+        is_team_a: bool,
+    ) {
         let omen_applications: Vec<(u32, u32)> = self
             .log
             .events_from(event_start)
@@ -25,7 +29,8 @@ impl BattleState {
 
         for (source_id, target_id) in omen_applications {
             let owner_indices: Vec<usize> = {
-                let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                let (actor_team, _) =
+                    Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
                 actor_team
                     .iter()
                     .enumerate()
@@ -54,14 +59,32 @@ impl BattleState {
         };
         for tick in ticks {
             match tick {
-                StatusTick::DamageDealt { name, damage, source_id } => {
-                    let actor = if is_team_a { &self.team_a[idx] } else { &self.team_b[idx] };
-                    self.log.push_status_damage(step, actor, &name, source_id, damage);
+                StatusTick::DamageDealt {
+                    name,
+                    damage,
+                    source_id,
+                } => {
+                    let actor = if is_team_a {
+                        &self.team_a[idx]
+                    } else {
+                        &self.team_b[idx]
+                    };
+                    self.log
+                        .push_status_damage(step, actor, &name, source_id, damage);
                     self.capture_latest_replay_snapshot();
                 }
-                StatusTick::HealApplied { name, amount, source_id } => {
-                    let actor = if is_team_a { &self.team_a[idx] } else { &self.team_b[idx] };
-                    self.log.push_status_heal(step, actor, &name, source_id, amount);
+                StatusTick::HealApplied {
+                    name,
+                    amount,
+                    source_id,
+                } => {
+                    let actor = if is_team_a {
+                        &self.team_a[idx]
+                    } else {
+                        &self.team_b[idx]
+                    };
+                    self.log
+                        .push_status_heal(step, actor, &name, source_id, amount);
                     self.capture_latest_replay_snapshot();
                 }
             }

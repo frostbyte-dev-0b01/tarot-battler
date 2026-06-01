@@ -21,7 +21,7 @@
           "subject": "target",
           "value": "hp",
           "op": "lte",
-          "threshold": 4
+          "threshold": 10
         }
       ]
     },

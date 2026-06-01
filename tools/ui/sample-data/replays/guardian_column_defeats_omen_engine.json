@@ -90438,7 +90438,7 @@
                 {
                   "op": "lte",
                   "subject": "companion",
-                  "threshold": 14,
+                  "threshold": 29,
                   "value": "hp"
                 }
               ]

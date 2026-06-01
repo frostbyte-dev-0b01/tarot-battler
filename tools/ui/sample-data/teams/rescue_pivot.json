@@ -100,7 +100,7 @@
               "subject": "self",
               "value": "hp",
               "op": "lte",
-              "threshold": 16
+              "threshold": 53
             }
           ]
         }
@@ -129,7 +129,7 @@
               "subject": "companion",
               "value": "hp",
               "op": "lte",
-              "threshold": 12
+              "threshold": 29
             }
           ]
         },

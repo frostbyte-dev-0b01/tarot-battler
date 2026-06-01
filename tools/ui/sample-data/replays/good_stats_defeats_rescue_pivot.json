@@ -60193,7 +60193,7 @@
                 {
                   "op": "lte",
                   "subject": "target",
-                  "threshold": 4,
+                  "threshold": 8,
                   "value": "hp"
                 }
               ]
@@ -60370,7 +60370,7 @@
                 {
                   "op": "lte",
                   "subject": "target",
-                  "threshold": 4,
+                  "threshold": 13,
                   "value": "hp"
                 }
               ]
@@ -60540,7 +60540,7 @@
                 {
                   "op": "lte",
                   "subject": "self",
-                  "threshold": 16,
+                  "threshold": 44,
                   "value": "hp"
                 }
               ]
@@ -60578,7 +60578,7 @@
                 {
                   "op": "lte",
                   "subject": "companion",
-                  "threshold": 12,
+                  "threshold": 29,
                   "value": "hp"
                 }
               ]

@@ -506,7 +506,11 @@ fn resolve_enemy_targets_for_context(
             .as_ref()
             .into_iter()
             .flatten()
-            .filter_map(|id| ctx.enemy_team.iter().position(|c| c.id() == *id && c.is_alive()))
+            .filter_map(|id| {
+                ctx.enemy_team
+                    .iter()
+                    .position(|c| c.id() == *id && c.is_alive())
+            })
             .collect(),
         _ => resolve_enemy_targets(
             target,
@@ -530,11 +534,19 @@ fn resolve_ally_targets_for_context(
             .as_ref()
             .into_iter()
             .flatten()
-            .filter_map(|id| ctx.actor_team.iter().position(|c| c.id() == *id && c.is_alive()))
+            .filter_map(|id| {
+                ctx.actor_team
+                    .iter()
+                    .position(|c| c.id() == *id && c.is_alive())
+            })
             .collect(),
         AbilityTarget::Simple(SimpleAbilityTarget::TriggerAlly) => ctx
             .trigger_target_id
-            .and_then(|id| ctx.actor_team.iter().position(|c| c.id() == id && c.is_alive()))
+            .and_then(|id| {
+                ctx.actor_team
+                    .iter()
+                    .position(|c| c.id() == id && c.is_alive())
+            })
             .into_iter()
             .collect(),
         _ => resolve_ally_targets(target, actor_idx, ctx.actor_team, ctx.rng),
@@ -608,7 +620,15 @@ pub fn execute_ability_for_side(
     step: u32,
     status_defs: &StatusMap,
 ) -> Vec<DamageRecord> {
-    let mut ctx = ExecutionContext::new(actor_team, enemy_team, rng, log, step, status_defs, actor_team_is_a);
+    let mut ctx = ExecutionContext::new(
+        actor_team,
+        enemy_team,
+        rng,
+        log,
+        step,
+        status_defs,
+        actor_team_is_a,
+    );
     execute_ability_with_context(&mut ctx, actor_idx, ability_name, ability)
 }
 
@@ -672,7 +692,9 @@ pub fn execute_primitives_with_context(
                 double_empower_stat,
             } => {
                 let actor_str = match double_empower_stat {
-                    Some(Stat::MGT) => ctx.actor_team[actor_idx].get_eff_stat_with_doubled_empower(&Stat::MGT),
+                    Some(Stat::MGT) => {
+                        ctx.actor_team[actor_idx].get_eff_stat_with_doubled_empower(&Stat::MGT)
+                    }
                     _ => ctx.actor_team[actor_idx].get_eff_stat(&Stat::MGT),
                 };
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
@@ -713,11 +735,8 @@ pub fn execute_primitives_with_context(
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_arm = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
-                    let mut raw_damage = scaled_damage_with_defense(
-                        actor_mgt,
-                        power.multiplier(),
-                        defender_arm,
-                    );
+                    let mut raw_damage =
+                        scaled_damage_with_defense(actor_mgt, power.multiplier(), defender_arm);
                     if ctx.enemy_team[tidx].has_status(&key) {
                         raw_damage = raw_damage.saturating_add(*bonus_damage);
                     }
@@ -776,7 +795,11 @@ pub fn execute_primitives_with_context(
                 let Some(target_id) = ctx.actor_team[actor_idx].target() else {
                     continue;
                 };
-                let Some(target_idx) = ctx.enemy_team.iter().position(|c| c.id() == target_id && c.is_alive()) else {
+                let Some(target_idx) = ctx
+                    .enemy_team
+                    .iter()
+                    .position(|c| c.id() == target_id && c.is_alive())
+                else {
                     continue;
                 };
 
@@ -874,12 +897,9 @@ pub fn execute_primitives_with_context(
                 for tidx in target_indices {
                     let defender_res = ctx.enemy_team[tidx].get_eff_stat(&Stat::RES);
                     let consumed_stacks = ctx.enemy_team[tidx].status_stacks(&key);
-                    let raw_damage = scaled_damage_with_defense(
-                        actor_int,
-                        power.multiplier(),
-                        defender_res,
-                    )
-                        + consumed_stacks.saturating_mul(*bonus_per_stack);
+                    let raw_damage =
+                        scaled_damage_with_defense(actor_int, power.multiplier(), defender_res)
+                            + consumed_stacks.saturating_mul(*bonus_per_stack);
                     let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
                     if consumed_stacks > 0 {
                         ctx.enemy_team[tidx].remove_status(&key, consumed_stacks);
@@ -955,12 +975,9 @@ pub fn execute_primitives_with_context(
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 for tidx in target_indices {
                     let defender_arm = ctx.enemy_team[tidx].get_eff_stat(&Stat::ARM);
-                    let raw_damage = scaled_damage_with_defense(
-                        actor_mgt,
-                        power.multiplier(),
-                        defender_arm,
-                    )
-                        + consumed_stacks.saturating_mul(*bonus_per_stack);
+                    let raw_damage =
+                        scaled_damage_with_defense(actor_mgt, power.multiplier(), defender_arm)
+                            + consumed_stacks.saturating_mul(*bonus_per_stack);
                     let damage = ctx.enemy_team[tidx].take_hit(raw_damage);
                     let tid = ctx.enemy_team[tidx].id();
                     let tname = ctx.enemy_team[tidx].base_name().to_string();
@@ -1067,7 +1084,8 @@ pub fn execute_primitives_with_context(
                 if let Some(def) = ctx.status_defs.get(status) {
                     let key = status_key(status, stat.as_ref());
                     if target_is_enemy_side(target) {
-                        let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
+                        let target_indices =
+                            resolve_enemy_targets_for_context(ctx, target, actor_idx);
                         for tidx in target_indices {
                             if ctx.enemy_team[tidx].is_alive() {
                                 let applied = ctx.enemy_team[tidx].add_status(
@@ -1081,7 +1099,9 @@ pub fn execute_primitives_with_context(
                                     ctx.log.push(BattleEvent::StatusApplied {
                                         tick_count: ctx.step,
                                         actor_id,
-                                        actor_name: ctx.actor_team[actor_idx].base_name().to_string(),
+                                        actor_name: ctx.actor_team[actor_idx]
+                                            .base_name()
+                                            .to_string(),
                                         target_id: ctx.enemy_team[tidx].id(),
                                         target_name: ctx.enemy_team[tidx].base_name().to_string(),
                                         status_name: key.clone(),
@@ -1093,7 +1113,8 @@ pub fn execute_primitives_with_context(
                             }
                         }
                     } else {
-                        let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
+                        let target_indices =
+                            resolve_ally_targets_for_context(ctx, target, actor_idx);
                         for tidx in target_indices {
                             if ctx.actor_team[tidx].is_alive() {
                                 let applied = ctx.actor_team[tidx].add_status(
@@ -1105,13 +1126,7 @@ pub fn execute_primitives_with_context(
                                 );
                                 if applied {
                                     log_status_applied(
-                                        ctx,
-                                        actor_id,
-                                        actor_idx,
-                                        tidx,
-                                        &key,
-                                        *stacks,
-                                        false,
+                                        ctx, actor_id, actor_idx, tidx, &key, *stacks, false,
                                     );
                                 }
                             }
@@ -1134,13 +1149,7 @@ pub fn execute_primitives_with_context(
                             && ctx.enemy_team[tidx].add_condition(kind, *stacks, actor_id)
                         {
                             log_condition_applied(
-                                ctx,
-                                actor_id,
-                                actor_idx,
-                                tidx,
-                                kind,
-                                *stacks,
-                                true,
+                                ctx, actor_id, actor_idx, tidx, kind, *stacks, true,
                             );
                         }
                     }
@@ -1151,13 +1160,7 @@ pub fn execute_primitives_with_context(
                             && ctx.actor_team[tidx].add_condition(kind, *stacks, actor_id)
                         {
                             log_condition_applied(
-                                ctx,
-                                actor_id,
-                                actor_idx,
-                                tidx,
-                                kind,
-                                *stacks,
-                                false,
+                                ctx, actor_id, actor_idx, tidx, kind, *stacks, false,
                             );
                         }
                     }
@@ -1178,7 +1181,16 @@ pub fn execute_primitives_with_context(
                         ctx.enemy_team[tidx].remove_status(&key, *stacks);
                         let after = ctx.enemy_team[tidx].status_stacks(&key);
                         if before > after {
-                            log_status_removed(ctx, actor_id, actor_idx, tidx, &key, before - after, after, true);
+                            log_status_removed(
+                                ctx,
+                                actor_id,
+                                actor_idx,
+                                tidx,
+                                &key,
+                                before - after,
+                                after,
+                                true,
+                            );
                         }
                     }
                 } else {
@@ -1188,7 +1200,16 @@ pub fn execute_primitives_with_context(
                         ctx.actor_team[tidx].remove_status(&key, *stacks);
                         let after = ctx.actor_team[tidx].status_stacks(&key);
                         if before > after {
-                            log_status_removed(ctx, actor_id, actor_idx, tidx, &key, before - after, after, false);
+                            log_status_removed(
+                                ctx,
+                                actor_id,
+                                actor_idx,
+                                tidx,
+                                &key,
+                                before - after,
+                                after,
+                                false,
+                            );
                         }
                     }
                 }
@@ -1247,8 +1268,7 @@ pub fn execute_primitives_with_context(
                         ctx.enemy_team[tidx].cleanse(*amount, *group);
                     }
                 } else {
-                    let target_indices =
-                        resolve_ally_targets_for_context(ctx, target, actor_idx);
+                    let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         ctx.actor_team[tidx].cleanse(*amount, *group);
                     }
@@ -1265,8 +1285,7 @@ pub fn execute_primitives_with_context(
                         ctx.enemy_team[tidx].dispel(*amount, *group);
                     }
                 } else {
-                    let target_indices =
-                        resolve_ally_targets_for_context(ctx, target, actor_idx);
+                    let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         ctx.actor_team[tidx].dispel(*amount, *group);
                     }
@@ -1427,13 +1446,18 @@ pub fn execute_primitives_with_context(
                     Some(target_id) => target_id,
                     None => continue,
                 };
-                let Some(target_idx) = ctx.enemy_team.iter().position(|c| c.id() == target_id) else {
+                let Some(target_idx) = ctx.enemy_team.iter().position(|c| c.id() == target_id)
+                else {
                     continue;
                 };
                 let Some(companion_idx) = ctx.actor_team[actor_idx]
                     .effective_companion_ids()
                     .iter()
-                    .filter_map(|id| ctx.actor_team.iter().position(|c| c.id() == *id && c.is_alive()))
+                    .filter_map(|id| {
+                        ctx.actor_team
+                            .iter()
+                            .position(|c| c.id() == *id && c.is_alive())
+                    })
                     .max_by_key(|idx| ctx.actor_team[*idx].get_eff_stat(&Stat::MGT))
                 else {
                     continue;
@@ -1442,8 +1466,11 @@ pub fn execute_primitives_with_context(
                 let attacker_str = ctx.actor_team[companion_idx].get_eff_stat(&Stat::MGT);
                 let defender_for = ctx.enemy_team[target_idx].get_eff_stat(&Stat::ARM);
                 // Commanded attack is a Light-tier physical hit.
-                let raw_damage =
-                    scaled_damage_with_defense(attacker_str, PowerTier::Light.multiplier(), defender_for);
+                let raw_damage = scaled_damage_with_defense(
+                    attacker_str,
+                    PowerTier::Light.multiplier(),
+                    defender_for,
+                );
                 let damage = ctx.enemy_team[target_idx].take_hit(raw_damage);
                 let source_id = ctx.actor_team[companion_idx].id();
                 let source_name = ctx.actor_team[companion_idx].base_name().to_string();
@@ -1522,8 +1549,7 @@ pub fn execute_primitives_with_context(
                         );
                     }
                 } else {
-                    let target_indices =
-                        resolve_ally_targets_for_context(ctx, target, actor_idx);
+                    let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         transform_statuses(
                             &mut ctx.actor_team[tidx],
@@ -1559,13 +1585,14 @@ pub fn execute_primitives_with_context(
                                 stat.clone(),
                             );
                             if applied {
-                                log_status_applied(ctx, actor_id, actor_idx, tidx, &key, *stacks, true);
+                                log_status_applied(
+                                    ctx, actor_id, actor_idx, tidx, &key, *stacks, true,
+                                );
                             }
                         }
                     }
                 } else {
-                    let target_indices =
-                        resolve_ally_targets_for_context(ctx, target, actor_idx);
+                    let target_indices = resolve_ally_targets_for_context(ctx, target, actor_idx);
                     for tidx in target_indices {
                         if ctx.actor_team[tidx].cleanse(*amount, None) {
                             let applied = ctx.actor_team[tidx].add_status(
@@ -1577,13 +1604,7 @@ pub fn execute_primitives_with_context(
                             );
                             if applied {
                                 log_status_applied(
-                                    ctx,
-                                    actor_id,
-                                    actor_idx,
-                                    tidx,
-                                    &key,
-                                    *stacks,
-                                    false,
+                                    ctx, actor_id, actor_idx, tidx, &key, *stacks, false,
                                 );
                             }
                         }
@@ -1598,9 +1619,9 @@ pub fn execute_primitives_with_context(
             } => {
                 let key = status_key(status, stat.as_ref());
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
-                let should_execute = target_indices
-                    .iter()
-                    .any(|tidx| ctx.enemy_team[*tidx].is_alive() && ctx.enemy_team[*tidx].has_status(&key));
+                let should_execute = target_indices.iter().any(|tidx| {
+                    ctx.enemy_team[*tidx].is_alive() && ctx.enemy_team[*tidx].has_status(&key)
+                });
                 if should_execute {
                     let nested_damage =
                         execute_primitives_with_context(ctx, actor_idx, _source_name, primitives);
@@ -1615,9 +1636,9 @@ pub fn execute_primitives_with_context(
             } => {
                 let key = status_key(status, stat.as_ref());
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
-                let should_execute = target_indices
-                    .iter()
-                    .any(|tidx| ctx.enemy_team[*tidx].is_alive() && !ctx.enemy_team[*tidx].has_status(&key));
+                let should_execute = target_indices.iter().any(|tidx| {
+                    ctx.enemy_team[*tidx].is_alive() && !ctx.enemy_team[*tidx].has_status(&key)
+                });
                 if should_execute {
                     let nested_damage =
                         execute_primitives_with_context(ctx, actor_idx, _source_name, primitives);
@@ -1675,7 +1696,8 @@ pub fn execute_primitives_with_context(
             Primitive::IfTargetHasAnyCondition { target, primitives } => {
                 let target_indices = resolve_enemy_targets_for_context(ctx, target, actor_idx);
                 let should_execute = target_indices.iter().any(|tidx| {
-                    ctx.enemy_team[*tidx].is_alive() && !ctx.enemy_team[*tidx].conditions().is_empty()
+                    ctx.enemy_team[*tidx].is_alive()
+                        && !ctx.enemy_team[*tidx].conditions().is_empty()
                 });
                 if should_execute {
                     let nested_damage =
@@ -1692,7 +1714,8 @@ pub fn execute_primitives_with_context(
                 let should_execute = target_indices.iter().any(|tidx| {
                     let target = &ctx.enemy_team[*tidx];
                     let max_hp = target.get_base_stat(&Stat::VIT) * 3;
-                    target.is_alive() && target.current_hp() * 100 <= max_hp.saturating_mul(*percent)
+                    target.is_alive()
+                        && target.current_hp() * 100 <= max_hp.saturating_mul(*percent)
                 });
                 if should_execute {
                     let nested_damage =
@@ -1737,7 +1760,8 @@ pub fn execute_primitives_with_context(
                 }
                 if removed_total > 0 && *damage_per_removed > 0 {
                     if let Some(damage_target) = damage_target {
-                        let target_indices = resolve_enemy_targets_for_context(ctx, damage_target, actor_idx);
+                        let target_indices =
+                            resolve_enemy_targets_for_context(ctx, damage_target, actor_idx);
                         if let Some(&tidx) = target_indices.first()
                             && ctx.enemy_team[tidx].is_alive()
                         {
@@ -2015,9 +2039,11 @@ fn compute_retarget_target_id(
 
 fn capture_context_snapshot(ctx: &mut ExecutionContext<'_>) {
     if ctx.actor_team_is_a {
-        ctx.log.capture_latest_snapshot(ctx.actor_team, ctx.enemy_team);
+        ctx.log
+            .capture_latest_snapshot(ctx.actor_team, ctx.enemy_team);
     } else {
-        ctx.log.capture_latest_snapshot(ctx.enemy_team, ctx.actor_team);
+        ctx.log
+            .capture_latest_snapshot(ctx.enemy_team, ctx.actor_team);
     }
 }
 
@@ -2065,10 +2091,12 @@ fn try_move_character(
         row: next_row,
         col: current.col,
     };
-    let occupied = moving_team
-        .iter()
-        .enumerate()
-        .any(|(idx, c)| idx != character_idx && c.is_alive() && c.position().row == destination.row && c.position().col == destination.col);
+    let occupied = moving_team.iter().enumerate().any(|(idx, c)| {
+        idx != character_idx
+            && c.is_alive()
+            && c.position().row == destination.row
+            && c.position().col == destination.col
+    });
     if if_empty && occupied {
         return;
     }

@@ -54,7 +54,6 @@ impl BattleState {
                     replay_display_name(c),
                     c,
                 )
-                
             })
             .collect();
 
@@ -69,7 +68,6 @@ impl BattleState {
                     replay_display_name(c),
                     c,
                 )
-                
             })
             .collect();
 
@@ -128,7 +126,8 @@ impl BattleState {
     }
 
     pub fn run(mut self) -> BattleLog {
-        self.log.capture_initial_snapshot(&self.team_a, &self.team_b);
+        self.log
+            .capture_initial_snapshot(&self.team_a, &self.team_b);
         self.log.push(BattleEvent::BattleStart {
             tick_count: 0,
             team_a: self
@@ -594,7 +593,13 @@ impl BattleState {
 
             let (actor_team, enemy_team) =
                 Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
-            Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng, self.step);
+            Self::reassign_target_if_dead(
+                actor_idx,
+                actor_team,
+                enemy_team,
+                &mut self.rng,
+                self.step,
+            );
             self.process_focus_change_passives();
             self.finish_turn(actor_idx, is_team_a);
             return;
@@ -606,7 +611,8 @@ impl BattleState {
         } else {
             self.team_b[actor_idx].target()
         };
-        let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+        let (actor_team, enemy_team) =
+            Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         let damage_dealt = {
             let mut runtime = TurnRuntime::new(
                 &self.abilities,
@@ -627,7 +633,8 @@ impl BattleState {
             );
         }
         self.process_damage_results(actor_idx, is_team_a, &damage_dealt);
-        let (actor_team, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+        let (actor_team, enemy_team) =
+            Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
         Self::reassign_target_if_dead(actor_idx, actor_team, enemy_team, &mut self.rng, self.step);
         self.process_focus_change_passives();
         self.finish_turn(actor_idx, is_team_a);
@@ -762,7 +769,6 @@ impl BattleState {
             );
         }
     }
-
 }
 
 fn replay_character_id(config: &CharacterConfig, team_key: &str, index: usize) -> String {
@@ -872,18 +878,8 @@ mod tests {
 
     #[test]
     fn on_ally_damage_my_target_fires_for_matching_target() {
-        let striker = make_config_at(
-            "Striker",
-            0,
-            0,
-            vec![(Stat::MGT, 10), (Stat::VIT, 10)],
-        );
-        let mut chariot = make_config_at(
-            "Chariot",
-            0,
-            1,
-            vec![(Stat::MGT, 8), (Stat::VIT, 10)],
-        );
+        let striker = make_config_at("Striker", 0, 0, vec![(Stat::MGT, 10), (Stat::VIT, 10)]);
+        let mut chariot = make_config_at("Chariot", 0, 1, vec![(Stat::MGT, 8), (Stat::VIT, 10)]);
         chariot.passive = "Pursuit".to_string();
         let enemy = make_config_at("Target", 0, 0, vec![(Stat::ARM, 3), (Stat::VIT, 10)]);
 
@@ -935,26 +931,17 @@ mod tests {
         );
 
         assert_eq!(
-            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
+            battle.team_a[1]
+                .status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
             1
         );
     }
 
     #[test]
     fn on_ally_damage_my_target_does_not_fire_for_self_or_other_targets() {
-        let mut chariot = make_config_at(
-            "Chariot",
-            0,
-            1,
-            vec![(Stat::MGT, 8), (Stat::VIT, 10)],
-        );
+        let mut chariot = make_config_at("Chariot", 0, 1, vec![(Stat::MGT, 8), (Stat::VIT, 10)]);
         chariot.passive = "Pursuit".to_string();
-        let ally = make_config_at(
-            "Ally",
-            0,
-            0,
-            vec![(Stat::MGT, 10), (Stat::VIT, 10)],
-        );
+        let ally = make_config_at("Ally", 0, 0, vec![(Stat::MGT, 10), (Stat::VIT, 10)]);
         let enemy_a = make_config_at("EnemyA", 0, 0, vec![(Stat::ARM, 3), (Stat::VIT, 10)]);
         let enemy_b = make_config_at("EnemyB", 0, 1, vec![(Stat::ARM, 3), (Stat::VIT, 10)]);
 
@@ -1004,7 +991,8 @@ mod tests {
             }],
         );
         assert_eq!(
-            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
+            battle.team_a[1]
+                .status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
             0
         );
 
@@ -1018,26 +1006,17 @@ mod tests {
             }],
         );
         assert_eq!(
-            battle.team_a[1].status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
+            battle.team_a[1]
+                .status_stacks(&crate::statuses::status_key("Empower", Some(&Stat::MGT))),
             0
         );
     }
 
     #[test]
     fn on_ally_apply_omen_applies_extra_omen_to_same_target() {
-        let mut moon = make_config_at(
-            "Moon",
-            0,
-            0,
-            vec![(Stat::MAG, 8), (Stat::VIT, 10)],
-        );
+        let mut moon = make_config_at("Moon", 0, 0, vec![(Stat::MAG, 8), (Stat::VIT, 10)]);
         moon.actives = vec!["Hex".to_string()];
-        let mut magician = make_config_at(
-            "Magician",
-            0,
-            1,
-            vec![(Stat::MAG, 6), (Stat::VIT, 10)],
-        );
+        let mut magician = make_config_at("Magician", 0, 1, vec![(Stat::MAG, 6), (Stat::VIT, 10)]);
         magician.passive = "Catalyst".to_string();
         let enemy = make_config_at("Target", 0, 0, vec![(Stat::RES, 3), (Stat::VIT, 10)]);
 
@@ -1083,7 +1062,14 @@ mod tests {
         .into_iter()
         .collect();
 
-        let mut battle = BattleState::new(&[moon, magician], &[enemy], abilities, passives, statuses, 42);
+        let mut battle = BattleState::new(
+            &[moon, magician],
+            &[enemy],
+            abilities,
+            passives,
+            statuses,
+            42,
+        );
         battle.team_a[0].set_target(battle.team_b[0].id());
 
         let event_start = battle.log.len();
@@ -1105,19 +1091,9 @@ mod tests {
 
     #[test]
     fn once_per_tick_passive_only_fires_once_for_multiple_omen_applications() {
-        let mut moon = make_config_at(
-            "Moon",
-            0,
-            0,
-            vec![(Stat::MAG, 8), (Stat::VIT, 10)],
-        );
+        let mut moon = make_config_at("Moon", 0, 0, vec![(Stat::MAG, 8), (Stat::VIT, 10)]);
         moon.actives = vec!["DoubleHex".to_string()];
-        let mut magician = make_config_at(
-            "Magician",
-            0,
-            1,
-            vec![(Stat::MAG, 6), (Stat::VIT, 10)],
-        );
+        let mut magician = make_config_at("Magician", 0, 1, vec![(Stat::MAG, 6), (Stat::VIT, 10)]);
         magician.passive = "Catalyst".to_string();
         let enemy = make_config_at("Target", 0, 0, vec![(Stat::RES, 3), (Stat::VIT, 10)]);
 
@@ -1171,7 +1147,14 @@ mod tests {
         .into_iter()
         .collect();
 
-        let mut battle = BattleState::new(&[moon, magician], &[enemy], abilities, passives, statuses, 42);
+        let mut battle = BattleState::new(
+            &[moon, magician],
+            &[enemy],
+            abilities,
+            passives,
+            statuses,
+            42,
+        );
         battle.team_a[0].set_target(battle.team_b[0].id());
 
         let event_start = battle.log.len();
@@ -1755,6 +1738,8 @@ mod tests {
                 comparator: Comparator::Lte,
                 threshold: 1,
             }],
+
+            match_any: false,
         }];
 
         let companion = make_config_at(
@@ -1858,6 +1843,8 @@ mod tests {
                     comparator: Comparator::Lte,
                     threshold: 3,
                 }],
+
+                match_any: false,
             },
             Rule {
                 ability: "Embolden".to_string(),
@@ -1867,10 +1854,14 @@ mod tests {
                     comparator: Comparator::Lte,
                     threshold: 1,
                 }],
+
+                match_any: false,
             },
             Rule {
                 ability: "Crush".to_string(),
                 conditions: Vec::new(), // always
+
+                match_any: false,
             },
         ];
         config
@@ -2103,6 +2094,8 @@ mod tests {
         attacker.rules = vec![Rule {
             ability: "Poison".to_string(),
             conditions: Vec::new(),
+
+            match_any: false,
         }];
         let enemy = make_config(
             "Enemy",
@@ -3166,6 +3159,8 @@ mod tests {
         attacker.rules = vec![Rule {
             ability: "Eclipse".to_string(),
             conditions: vec![],
+
+            match_any: false,
         }];
 
         let mut enemy_a = make_config(
@@ -3234,7 +3229,14 @@ mod tests {
             },
         );
 
-        let mut battle = BattleState::new(&[attacker], &[enemy_a, enemy_b], abilities, passives, statuses, 42);
+        let mut battle = BattleState::new(
+            &[attacker],
+            &[enemy_a, enemy_b],
+            abilities,
+            passives,
+            statuses,
+            42,
+        );
         battle.team_a[0].restore_mp(5);
         battle.step = 1;
         battle.execute_turn(0, true);
@@ -3641,6 +3643,8 @@ mod tests {
         striker.rules = vec![Rule {
             ability: "Strike".to_string(),
             conditions: vec![],
+
+            match_any: false,
         }];
         let enemy = mage();
 
@@ -3671,7 +3675,10 @@ mod tests {
         assert_eq!(log.snapshots()[0].event_index, -1);
         assert_eq!(log.snapshots()[0].tick, 0);
 
-        let last_snapshot = log.snapshots().last().expect("snapshot log should not be empty");
+        let last_snapshot = log
+            .snapshots()
+            .last()
+            .expect("snapshot log should not be empty");
         assert_eq!(last_snapshot.event_index as usize, log.events().len() - 1);
         assert_eq!(
             last_snapshot.tick,
@@ -3686,7 +3693,10 @@ mod tests {
             .iter()
             .flat_map(|snapshot| snapshot.team_a.iter().chain(snapshot.team_b.iter()))
             .any(|character| character.current_hp < character.max_hp);
-        assert!(damage_was_captured, "snapshots should capture changing HP state");
+        assert!(
+            damage_was_captured,
+            "snapshots should capture changing HP state"
+        );
     }
 
     #[test]

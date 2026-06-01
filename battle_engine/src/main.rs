@@ -48,8 +48,8 @@ fn main() {
     }
 
     let data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data");
-    let archetypes =
-        loader::load_archetypes(&data_dir.join("archetypes.json")).expect("Failed to load archetypes");
+    let archetypes = loader::load_archetypes(&data_dir.join("archetypes.json"))
+        .expect("Failed to load archetypes");
     let abilities =
         loader::load_abilities(&data_dir.join("abilities.json")).expect("Failed to load abilities");
     let passives =
@@ -58,16 +58,15 @@ fn main() {
         loader::load_statuses(&data_dir.join("statuses.json")).expect("Failed to load statuses");
     let aspects =
         loader::load_aspects(&data_dir.join("aspects.json")).expect("Failed to load aspects");
-    let (team_a_name, team_b_name, team_a, team_b) = match (team_a_path, team_b_path, named_teams)
-    {
+    let (team_a_name, team_b_name, team_a, team_b) = match (team_a_path, team_b_path, named_teams) {
         (Some(_), Some(_), Some(_)) | (Some(_), None, Some(_)) | (None, Some(_), Some(_)) => {
             panic!("Use either --team-a/--team-b or --teams, not both")
         }
         (Some(team_a_path), Some(team_b_path), None) => {
-            let team_a_config = loader::load_team_config(Path::new(&team_a_path))
-                .expect("Failed to load team A");
-            let team_b_config = loader::load_team_config(Path::new(&team_b_path))
-                .expect("Failed to load team B");
+            let team_a_config =
+                loader::load_team_config(Path::new(&team_a_path)).expect("Failed to load team A");
+            let team_b_config =
+                loader::load_team_config(Path::new(&team_b_path)).expect("Failed to load team B");
             let team_a = loader::validate_team_config(
                 &team_a_config,
                 &archetypes,
@@ -155,8 +154,7 @@ fn main() {
 
     let battle = engine::BattleState::new(&team_a, &team_b, abilities, passives, statuses, seed);
     let log = battle.run();
-    let replay_json =
-        log.to_replay_json(seed, &team_a_name, &team_b_name, &team_a, &team_b);
+    let replay_json = log.to_replay_json(seed, &team_a_name, &team_b_name, &team_a, &team_b);
     let replay_path = json_out_path
         .map(PathBuf::from)
         .unwrap_or_else(default_replay_output_path);
@@ -174,8 +172,7 @@ fn main() {
 }
 
 fn default_replay_output_path() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../tools/ui/sample-data/latest_replay.json")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../tools/ui/sample-data/latest_replay.json")
 }
 
 fn resolve_named_team_path(name: &str) -> PathBuf {

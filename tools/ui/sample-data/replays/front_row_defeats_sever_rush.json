@@ -119283,7 +119283,7 @@
                 {
                   "op": "lte",
                   "subject": "self",
-                  "threshold": 14,
+                  "threshold": 39,
                   "value": "hp"
                 }
               ]
@@ -119504,7 +119504,7 @@
                 {
                   "op": "lte",
                   "subject": "self",
-                  "threshold": 15,
+                  "threshold": 42,
                   "value": "hp"
                 }
               ]
