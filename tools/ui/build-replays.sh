@@ -11,6 +11,9 @@
 # reproducible set that stays honest against the current engine. Each matchup
 # uses a deterministic per-pair seed, so reruns produce identical files.
 #
+# It also rewrites sample-data/teams.json, the manifest the static UI reads to
+# seed its bundled roster (a browser can't enumerate the teams/ directory).
+#
 # Usage: tools/ui/build-replays.sh
 set -euo pipefail
 
@@ -70,6 +73,14 @@ for stem in stems:
         valid.append(stem)
 
 print(f"Valid teams ({len(valid)}): {', '.join(valid)}")
+
+# Rewrite the UI roster manifest from the same scan, so it never drifts from
+# the bundled team files.
+manifest_path = "tools/ui/sample-data/teams.json"
+with open(manifest_path, "w") as fh:
+    json.dump([f"{stem}.json" for stem in valid], fh, indent=2)
+    fh.write("\n")
+print(f"Wrote {manifest_path} ({len(valid)} teams)")
 
 # Clear stale replays so phantom teams and contradictory both-direction
 # duplicates do not linger.
