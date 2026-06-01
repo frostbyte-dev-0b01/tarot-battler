@@ -1082,22 +1082,32 @@ fn build_runtime_team_snapshot(
                         .map(|candidate| candidate.replay_id().to_string())
                 })
                 .collect(),
-            statuses: character
-                .statuses()
-                .iter()
-                .map(|(name, status)| ReplayStatusState {
-                    name: name.clone(),
-                    stacks: status.stacks,
-                })
-                .collect(),
-            conditions: character
-                .conditions()
-                .iter()
-                .map(|(kind, condition)| ReplayConditionState {
-                    name: kind.as_key().to_string(),
-                    stacks: condition.stacks,
-                })
-                .collect(),
+            statuses: {
+                // Statuses live in a HashMap (randomized iteration), so sort by
+                // name for deterministic, diff-stable replay output.
+                let mut statuses: Vec<ReplayStatusState> = character
+                    .statuses()
+                    .iter()
+                    .map(|(name, status)| ReplayStatusState {
+                        name: name.clone(),
+                        stacks: status.stacks,
+                    })
+                    .collect();
+                statuses.sort_by(|a, b| a.name.cmp(&b.name));
+                statuses
+            },
+            conditions: {
+                let mut conditions: Vec<ReplayConditionState> = character
+                    .conditions()
+                    .iter()
+                    .map(|(kind, condition)| ReplayConditionState {
+                        name: kind.as_key().to_string(),
+                        stacks: condition.stacks,
+                    })
+                    .collect();
+                conditions.sort_by(|a, b| a.name.cmp(&b.name));
+                conditions
+            },
         })
         .collect()
 }

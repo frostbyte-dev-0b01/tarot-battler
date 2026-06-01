@@ -1,8 +1,0 @@
-[
-  { "file": "front_row.json", "name": "Front Row", "strategy": "Aggressive front-line bruisers" },
-  { "file": "guardian_column.json", "name": "Guardian Column", "strategy": "Tanky wall and protection" },
-  { "file": "omen_engine.json", "name": "Omen Engine", "strategy": "Omen setup and payoff" },
-  { "file": "magic_raw_damage.json", "name": "Magic Raw Damage", "strategy": "Raw magical burst" },
-  { "file": "rescue_pivot.json", "name": "Rescue Pivot", "strategy": "Sustain and repositioning" },
-  { "file": "sever_rush.json", "name": "Sever Rush", "strategy": "Anti-buff and condition pressure" }
-]

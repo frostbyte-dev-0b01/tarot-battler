@@ -176,6 +176,13 @@ pub enum StatusTick {
     },
 }
 
+/// The status name a tick event refers to (used for deterministic ordering).
+fn status_tick_name(tick: &StatusTick) -> &str {
+    match tick {
+        StatusTick::DamageDealt { name, .. } | StatusTick::HealApplied { name, .. } => name,
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum StatusDecayTiming {
     StartOfTurn,
@@ -1021,6 +1028,10 @@ impl CharacterState {
 
         self.decay_statuses(StatusDecayTiming::StartOfTurn);
 
+        // Statuses are collected from a HashMap (randomized iteration), so sort
+        // by name for deterministic, diff-stable tick-event ordering. The net HP
+        // change above is already order-independent.
+        ticks.sort_by(|a, b| status_tick_name(a).cmp(status_tick_name(b)));
         ticks
     }
 
