@@ -159,8 +159,10 @@ const ruleValueTypeOptions = [
   { value: "enemy_count", label: "Enemies Alive", group: "Battlefield" },
 ];
 // Order within each subject also defines optgroup order in the dropdown.
+// use_count / turns_since_use are actor-self ability cadence (the engine
+// ignores their subject), so they live under both Self and Game State.
 const ruleValueOptionsBySubject = {
-  self: ["hp", "mp", "self_row", "focused_by_count", "stat", "status_stacks", "condition_stacks", "self_companion_count"],
+  self: ["hp", "mp", "self_row", "focused_by_count", "stat", "status_stacks", "condition_stacks", "self_companion_count", "use_count", "turns_since_use"],
   companion: ["hp", "mp", "self_row", "focused_by_count", "stat", "status_stacks", "condition_stacks"],
   any_ally: ["hp", "mp", "self_row", "focused_by_count", "stat", "status_stacks", "condition_stacks"],
   lowest_ally: ["hp", "mp", "self_row", "focused_by_count", "stat", "status_stacks", "condition_stacks"],
@@ -3574,7 +3576,7 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
     : buildRequiredSelectOptions(appState.catalogs.statuses, statusValue);
   const detailFieldMarkup = valueType === "stat"
     ? `
-        <label class="field-group">
+        <label class="field-group condition-field-detail">
           <span>Stat</span>
           <select data-condition-field="value_stat" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
             ${statFieldOptions.map((option) => `<option value="${option}" ${statValue === option ? "selected" : ""}>${option.toUpperCase()}</option>`).join("")}
@@ -3583,7 +3585,7 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
       `
     : valueType === "status_stacks" || valueType === "condition_stacks"
       ? `
-        <label class="field-group">
+        <label class="field-group condition-field-detail">
           <span>${valueType === "condition_stacks" ? "Condition" : "Status"}</span>
           <select data-condition-field="value_status" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
             ${statusOptions}
@@ -3592,15 +3594,20 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
       `
       : "";
 
+  // Inline unit hint so a threshold's meaning is obvious without reading labels.
+  const thresholdUnit = valueType === "hp" ? "%" : valueType === "mp" ? "/ 5" : "";
+  const thresholdField = valueType === "self_row"
+    ? `<select data-condition-field="threshold" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
+        ${columnOptions.map((option) => `<option value="${option.value}" ${Number(condition.threshold ?? 0) === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
+      </select>`
+    : `<div class="threshold-input">
+        <input type="number" data-condition-field="threshold" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}" value="${condition.threshold ?? 0}" min="0" ${valueType === "hp" ? `max="100"` : valueType === "mp" ? `max="5"` : ""}>
+        ${thresholdUnit ? `<span class="input-unit">${thresholdUnit}</span>` : ""}
+      </div>`;
+
   return `
-    <div class="editor-card">
-      <div class="editor-card-header">
-        <div class="condition-preview">${escapeHtml(formatConditionPreview(condition))}</div>
-        <div class="editor-card-actions">
-          <button type="button" class="button-quiet rule-icon-button" title="Remove condition" aria-label="Remove condition" data-team-action="remove-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">&#128465;</button>
-        </div>
-      </div>
-      <div class="condition-grid">
+    <div class="condition-card">
+      <div class="condition-fields">
         <label class="field-group">
           <span>Subject</span>
           <select data-condition-field="subject" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
@@ -3614,20 +3621,17 @@ function renderConditionEditor(characterIndex, ruleIndex, condition, conditionIn
           </select>
         </label>
         ${detailFieldMarkup}
-        <label class="field-group">
+        <label class="field-group condition-field-operator">
           <span>Operator</span>
           <select data-condition-field="op" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
             ${ruleOperatorOptions.map((option) => `<option value="${option.value}" ${(condition.op ?? condition.comparator) === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
           </select>
         </label>
         <label class="field-group">
-          <span>${valueType === "self_row" ? "Column" : valueType === "hp" ? "Threshold (%)" : "Threshold"}</span>
-          ${valueType === "self_row"
-            ? `<select data-condition-field="threshold" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">
-                ${columnOptions.map((option) => `<option value="${option.value}" ${Number(condition.threshold ?? 0) === option.value ? "selected" : ""}>${option.label}</option>`).join("")}
-              </select>`
-            : `<input type="number" data-condition-field="threshold" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}" value="${condition.threshold ?? 0}" min="0" ${valueType === "hp" ? `max="100"` : ""}>`}
+          <span>${valueType === "self_row" ? "Column" : "Threshold"}</span>
+          ${thresholdField}
         </label>
+        <button type="button" class="button-quiet rule-icon-button condition-remove" title="Remove condition" aria-label="Remove condition" data-team-action="remove-condition" data-character-index="${characterIndex}" data-rule-index="${ruleIndex}" data-condition-index="${conditionIndex}">&#128465;</button>
       </div>
       ${renderSubjectHint(condition.subject ?? "self")}
     </div>
@@ -4588,6 +4592,9 @@ function createEmptyRule() {
   };
 }
 
+// A new condition starts as the canonical "always true" check (self HP >= 1).
+// A living actor always satisfies it, so a freshly added condition is
+// permissive until the player constrains it. Previews render it as "Always".
 function createEmptyCondition() {
   return {
     subject: "self",
@@ -4595,6 +4602,15 @@ function createEmptyCondition() {
     op: "gte",
     threshold: 1,
   };
+}
+
+// The canonical always-true condition: self HP >= 1 (any living actor).
+function isAlwaysCondition(condition) {
+  if (!condition || (condition.subject ?? "self") !== "self") {
+    return false;
+  }
+  const op = condition.op ?? condition.comparator ?? "gte";
+  return getConditionValueType(condition) === "hp" && op === "gte" && Number(condition.threshold ?? 0) <= 1;
 }
 
 function getAllowedRuleValueOptions(subject) {
@@ -4606,9 +4622,17 @@ function getAllowedRuleValueOptions(subject) {
 
 // Render the value dropdown with <optgroup>s, preserving subject option order.
 function renderRuleValueSelectOptions(allowedOptions, selectedValue) {
+  // Safety net: always include the saved value even if it is not normally
+  // offered for this subject, so the dropdown can never silently fall back to
+  // a different option than the data actually holds.
+  const options = [...allowedOptions];
+  if (selectedValue && !options.some((option) => option.value === selectedValue)) {
+    const known = ruleValueTypeOptions.find((option) => option.value === selectedValue);
+    options.push(known ?? { value: selectedValue, label: selectedValue, group: "Other" });
+  }
   const groupsInOrder = [];
   const byGroup = new Map();
-  for (const option of allowedOptions) {
+  for (const option of options) {
     const group = option.group ?? "Other";
     if (!byGroup.has(group)) {
       byGroup.set(group, []);
@@ -4685,6 +4709,9 @@ function getConditionValueType(condition) {
 }
 
 function formatConditionPreview(condition) {
+  if (isAlwaysCondition(condition)) {
+    return "Always";
+  }
   const subject = condition.subject ?? "self";
   const subjectLabel = getRuleOptionLabel(ruleSubjectOptions, subject);
   const valueType = getConditionValueType(condition);
@@ -4720,12 +4747,16 @@ function formatConditionPreview(condition) {
 function formatRulePreview(rule) {
   const abilityLabel = rule?.ability || "an ability";
   const conditions = Array.isArray(rule?.when) ? rule.when : [];
-  if (conditions.length === 0) {
+  // Always-true conditions add nothing under AND, so read them as "always".
+  const meaningful = rule?.match_any === true
+    ? conditions
+    : conditions.filter((condition) => !isAlwaysCondition(condition));
+  if (meaningful.length === 0) {
     return `Use ${abilityLabel} always`;
   }
 
   const joiner = rule?.match_any === true ? " or " : " and ";
-  return `Use ${abilityLabel} if ${conditions.map((condition) => formatConditionPreview(condition)).join(joiner)}`;
+  return `Use ${abilityLabel} if ${meaningful.map((condition) => formatConditionPreview(condition)).join(joiner)}`;
 }
 
 function getContextualRuleValueLabel(subject, valueType) {
