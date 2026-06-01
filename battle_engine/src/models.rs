@@ -62,6 +62,14 @@ pub enum ConditionSubject {
     SelfChar,
     Target,
     Companion,
+    /// Any living ally (the whole team, position-independent).
+    AnyAlly,
+    /// The living ally with the lowest current HP.
+    LowestAlly,
+    /// Any living enemy.
+    AnyEnemy,
+    /// The living enemy with the lowest current HP.
+    LowestEnemy,
     World,
 }
 
@@ -84,6 +92,8 @@ pub enum QueryValue {
     EnemyCount,
     UseCount,
     TurnsSinceUse,
+    /// Number of living enemies whose current focus is this character.
+    FocusedByCount,
 }
 
 /// Comparison operator for conditions.
@@ -111,6 +121,9 @@ pub struct Rule {
     pub ability: String,
     #[serde(rename = "when")]
     pub conditions: Vec<Condition>,
+    /// When true, the rule fires if ANY condition holds (default: all must hold).
+    #[serde(default)]
+    pub match_any: bool,
 }
 
 /// Static character definition loaded from JSON (archetype + loadout).
@@ -151,8 +164,16 @@ pub enum TraitEffect {
 /// What happened when statuses ticked.
 #[derive(Debug, Clone)]
 pub enum StatusTick {
-    DamageDealt { name: String, damage: u32, source_id: u32 },
-    HealApplied { name: String, amount: u32, source_id: u32 },
+    DamageDealt {
+        name: String,
+        damage: u32,
+        source_id: u32,
+    },
+    HealApplied {
+        name: String,
+        amount: u32,
+        source_id: u32,
+    },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -398,9 +419,10 @@ impl CharacterState {
                 .traits
                 .iter()
                 .filter_map(|t| match t {
-                    TraitEffect::AuraStatMod { stat: aura_stat, amount } if aura_stat == stat => {
-                        Some(*amount)
-                    }
+                    TraitEffect::AuraStatMod {
+                        stat: aura_stat,
+                        amount,
+                    } if aura_stat == stat => Some(*amount),
                     _ => None,
                 })
                 .sum::<i32>();
@@ -432,9 +454,10 @@ impl CharacterState {
                 .traits
                 .iter()
                 .filter_map(|t| match t {
-                    TraitEffect::AuraStatMod { stat: aura_stat, amount } if aura_stat == stat => {
-                        Some(*amount)
-                    }
+                    TraitEffect::AuraStatMod {
+                        stat: aura_stat,
+                        amount,
+                    } if aura_stat == stat => Some(*amount),
                     _ => None,
                 })
                 .sum::<i32>();
@@ -504,7 +527,10 @@ impl CharacterState {
         self.max_ticks += 2;
         self.ticks_until_turn = self.max_ticks.max(1) as u32;
         if self.pending_haste > 0 {
-            self.ticks_until_turn = self.ticks_until_turn.saturating_sub(self.pending_haste).max(1);
+            self.ticks_until_turn = self
+                .ticks_until_turn
+                .saturating_sub(self.pending_haste)
+                .max(1);
             self.pending_haste = 0;
         }
     }
@@ -595,7 +621,9 @@ impl CharacterState {
     }
 
     pub fn condition_stacks(&self, kind: ConditionKind) -> u32 {
-        self.conditions.get(&kind).map_or(0, |condition| condition.stacks)
+        self.conditions
+            .get(&kind)
+            .map_or(0, |condition| condition.stacks)
     }
 
     pub fn has_condition_key(&self, key: &str) -> bool {
@@ -658,15 +686,25 @@ impl CharacterState {
     pub fn query_value(&self, qv: &QueryValue) -> u32 {
         match qv {
             QueryValue::Stat(stat) => self.get_eff_stat(stat),
-            QueryValue::Hp => self.curr_hp,
+            // HP is a percentage of max (0–100) so rules port across stat lines.
+            QueryValue::Hp => {
+                let max = self.get_base_stat(&Stat::VIT) * 3;
+                if max == 0 {
+                    0
+                } else {
+                    (self.curr_hp * 100) / max
+                }
+            }
             QueryValue::Mp => self.curr_mp,
             QueryValue::SelfRow => u32::from(self.position.row),
             QueryValue::HasStatus(key) => u32::from(self.has_status(key)),
             QueryValue::StatusStacks(key) => self.status_stacks(key),
             QueryValue::HasCondition(key) => u32::from(self.has_condition_key(key)),
             QueryValue::ConditionStacks(key) => self.condition_stacks_key(key),
+            // These need context the character can't see alone (computed in rules.rs).
             QueryValue::SelfCompanionCount
             | QueryValue::TargetCompanionCount
+            | QueryValue::FocusedByCount
             | QueryValue::TickCount
             | QueryValue::AllyCount
             | QueryValue::EnemyCount
@@ -836,8 +874,13 @@ impl CharacterState {
             existing.stacks = 1;
             existing.source_id = source_id;
         } else {
-            self.conditions
-                .insert(kind, ConditionInstance { stacks: 1, source_id });
+            self.conditions.insert(
+                kind,
+                ConditionInstance {
+                    stacks: 1,
+                    source_id,
+                },
+            );
         }
 
         true
@@ -1043,7 +1086,10 @@ fn effect_polarity(inst: &StatusInstance) -> Option<EffectPolarity> {
     }
 }
 
-fn status_decay_rule(key: &str, inst: &StatusInstance) -> Option<(StatusDecayTiming, StatusDecayMode)> {
+fn status_decay_rule(
+    key: &str,
+    inst: &StatusInstance,
+) -> Option<(StatusDecayTiming, StatusDecayMode)> {
     // Restoration stays on halving decay so sustain is self-limiting.
     if key == "Restoration" {
         return Some((StatusDecayTiming::StartOfTurn, StatusDecayMode::Halve));
@@ -1056,9 +1102,13 @@ fn status_decay_rule(key: &str, inst: &StatusInstance) -> Option<(StatusDecayTim
     // Empower/Weaken are permanent (Permanent stack_type below -> no decay).
 
     match (&inst.stack_type, &inst.behavior) {
-        (StackType::TickDown, _) => Some((StatusDecayTiming::StartOfTurn, StatusDecayMode::TickDown)),
+        (StackType::TickDown, _) => {
+            Some((StatusDecayTiming::StartOfTurn, StatusDecayMode::TickDown))
+        }
         (StackType::NoStack, StatusBehavior::SkipTurn) => None,
-        (StackType::NoStack, _) => Some((StatusDecayTiming::StartOfTurn, StatusDecayMode::TickDown)),
+        (StackType::NoStack, _) => {
+            Some((StatusDecayTiming::StartOfTurn, StatusDecayMode::TickDown))
+        }
         (StackType::Permanent, _) => None,
     }
 }

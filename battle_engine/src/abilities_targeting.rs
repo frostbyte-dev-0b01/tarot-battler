@@ -37,11 +37,11 @@ pub(crate) fn resolve_enemy_targets(
 
             let companion_ids = enemy_team[target_idx].effective_companion_ids();
             let mut targets = vec![target_idx];
-            targets.extend(
-                companion_ids
+            targets.extend(companion_ids.iter().filter_map(|id| {
+                enemy_team
                     .iter()
-                    .filter_map(|id| enemy_team.iter().position(|c| c.id() == *id && c.is_alive())),
-            );
+                    .position(|c| c.id() == *id && c.is_alive())
+            }));
             targets.sort_unstable();
             targets.dedup();
             targets
@@ -110,7 +110,8 @@ pub(crate) fn resolve_ally_targets(
             .map(|(i, _)| i)
             .collect(),
         AbilityTarget::Detailed(spec) if matches!(spec.category, TargetCategory::Ally) => {
-            let mut candidates = ally_candidates(actor_idx, actor_team, None, spec.position.as_ref());
+            let mut candidates =
+                ally_candidates(actor_idx, actor_team, None, spec.position.as_ref());
             match spec.selector.as_ref() {
                 Some(selector) => {
                     select_single_target(&mut candidates, actor_team, Some(selector), rng)
@@ -122,8 +123,12 @@ pub(crate) fn resolve_ally_targets(
         }
         AbilityTarget::Detailed(spec) if matches!(spec.category, TargetCategory::Companion) => {
             let comp_ids = actor_team[actor_idx].effective_companion_ids();
-            let mut candidates =
-                ally_candidates(actor_idx, actor_team, Some(&comp_ids), spec.position.as_ref());
+            let mut candidates = ally_candidates(
+                actor_idx,
+                actor_team,
+                Some(&comp_ids),
+                spec.position.as_ref(),
+            );
             match spec.selector.as_ref() {
                 Some(selector) => {
                     select_single_target(&mut candidates, actor_team, Some(selector), rng)
@@ -354,10 +359,18 @@ fn select_single_target(
         TargetSelector::LowestStat { stat } => {
             extrema_indices(candidates, |idx| team[*idx].get_eff_stat(stat), false)
         }
-        TargetSelector::HighestHp => extrema_indices(candidates, |idx| team[*idx].current_hp(), true),
-        TargetSelector::LowestHp => extrema_indices(candidates, |idx| team[*idx].current_hp(), false),
-        TargetSelector::HighestMp => extrema_indices(candidates, |idx| team[*idx].current_mp(), true),
-        TargetSelector::LowestMp => extrema_indices(candidates, |idx| team[*idx].current_mp(), false),
+        TargetSelector::HighestHp => {
+            extrema_indices(candidates, |idx| team[*idx].current_hp(), true)
+        }
+        TargetSelector::LowestHp => {
+            extrema_indices(candidates, |idx| team[*idx].current_hp(), false)
+        }
+        TargetSelector::HighestMp => {
+            extrema_indices(candidates, |idx| team[*idx].current_mp(), true)
+        }
+        TargetSelector::LowestMp => {
+            extrema_indices(candidates, |idx| team[*idx].current_mp(), false)
+        }
         TargetSelector::MostStacks { status, stat } => {
             let key = status_key(status, stat.as_ref());
             extrema_indices(candidates, |idx| team[*idx].status_stacks(&key), true)
@@ -402,19 +415,25 @@ fn select_single_target(
                 .filter(|idx| !team[*idx].has_condition(kind))
                 .collect()
         }
-        TargetSelector::MostBuffs => extrema_indices(candidates, |idx| {
-            team[*idx]
-                .statuses()
-                .values()
-                .filter(|status| match status.behavior {
-                    crate::statuses::StatusBehavior::HealPerStack { .. }
-                    | crate::statuses::StatusBehavior::Ward => true,
-                    crate::statuses::StatusBehavior::StatModPerStack { magnitude } => magnitude > 0,
-                    _ => false,
-                })
-                .map(|status| status.stacks)
-                .sum::<u32>()
-        }, true),
+        TargetSelector::MostBuffs => extrema_indices(
+            candidates,
+            |idx| {
+                team[*idx]
+                    .statuses()
+                    .values()
+                    .filter(|status| match status.behavior {
+                        crate::statuses::StatusBehavior::HealPerStack { .. }
+                        | crate::statuses::StatusBehavior::Ward => true,
+                        crate::statuses::StatusBehavior::StatModPerStack { magnitude } => {
+                            magnitude > 0
+                        }
+                        _ => false,
+                    })
+                    .map(|status| status.stacks)
+                    .sum::<u32>()
+            },
+            true,
+        ),
         TargetSelector::Random => candidates.to_owned(),
     };
 

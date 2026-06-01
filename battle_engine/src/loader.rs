@@ -193,7 +193,10 @@ pub fn validate_team_config(
     }
 
     if team.characters.is_empty() {
-        errors.push(format!("team '{}' must contain at least 1 character", team.name));
+        errors.push(format!(
+            "team '{}' must contain at least 1 character",
+            team.name
+        ));
     }
 
     let mut seen_templates = HashSet::new();
@@ -216,10 +219,7 @@ pub fn validate_team_config(
         }
         if let Some(aspect) = &character.aspect {
             if !seen_aspects.insert(aspect.as_str()) {
-                errors.push(format!(
-                    "team '{}' repeats aspect '{}'",
-                    team.name, aspect
-                ));
+                errors.push(format!("team '{}' repeats aspect '{}'", team.name, aspect));
             }
             if let Some(aspect_def) = aspects.get(aspect) {
                 total_cost += aspect_def.cost;
@@ -242,7 +242,14 @@ pub fn validate_team_config(
         }
     }
 
-    validate_team(&team.name, &characters, abilities, passives, statuses, &mut errors);
+    validate_team(
+        &team.name,
+        &characters,
+        abilities,
+        passives,
+        statuses,
+        &mut errors,
+    );
 
     let mut seen_positions = HashSet::new();
     for character in &characters {
@@ -401,12 +408,7 @@ fn validate_team(
             }
 
             for condition in &rule.conditions {
-                validate_rule_query_value(
-                    &character.base_name,
-                    &condition.value,
-                    statuses,
-                    errors,
-                );
+                validate_rule_query_value(&character.base_name, &condition.value, statuses, errors);
             }
         }
         if let Some(id) = &character.id
@@ -582,9 +584,7 @@ fn validate_primitives(
                     ));
                 }
             }
-            Primitive::DealPhysicalDamageBonusVsStatus {
-                status, stat, ..
-            } => {
+            Primitive::DealPhysicalDamageBonusVsStatus { status, stat, .. } => {
                 let Some(def) = statuses.get(status) else {
                     errors.push(format!(
                         "{} references unknown status '{}'",
@@ -595,9 +595,7 @@ fn validate_primitives(
 
                 validate_status_stat_usage(source_name, status, stat.as_ref(), def, errors);
             }
-            Primitive::DealMagicalDamageConsumeStatus {
-                status, stat, ..
-            } => {
+            Primitive::DealMagicalDamageConsumeStatus { status, stat, .. } => {
                 let Some(def) = statuses.get(status) else {
                     errors.push(format!(
                         "{} references unknown status '{}'",
@@ -627,9 +625,7 @@ fn validate_primitives(
                     );
                 }
             }
-            Primitive::DealTrueDamageConsumeTargetStatus {
-                status, stat, ..
-            } => {
+            Primitive::DealTrueDamageConsumeTargetStatus { status, stat, .. } => {
                 let Some(def) = statuses.get(status) else {
                     errors.push(format!(
                         "{} references unknown status '{}'",
@@ -1009,7 +1005,10 @@ mod tests {
         assert_eq!(team.name, "Test Team");
         assert_eq!(team.characters.len(), 1);
         assert_eq!(team.characters[0].id, "the_emperor");
-        assert_eq!(team.characters[0].display_name.as_deref(), Some("The Emperor"));
+        assert_eq!(
+            team.characters[0].display_name.as_deref(),
+            Some("The Emperor")
+        );
         assert_eq!(team.characters[0].rules[0].conditions.len(), 1);
     }
 
@@ -1019,21 +1018,18 @@ mod tests {
             &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/archetypes.json"),
         )
         .unwrap();
-        let abilities = load_abilities(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/abilities.json"),
-        )
-        .unwrap();
+        let abilities =
+            load_abilities(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/abilities.json"))
+                .unwrap();
         let aspects =
             load_aspects(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/aspects.json"))
                 .unwrap();
-        let passives = load_passives(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/passives.json"),
-        )
-        .unwrap();
-        let statuses = load_statuses(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/statuses.json"),
-        )
-        .unwrap();
+        let passives =
+            load_passives(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/passives.json"))
+                .unwrap();
+        let statuses =
+            load_statuses(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/statuses.json"))
+                .unwrap();
 
         let team = TeamConfig {
             version: 2,
@@ -1070,7 +1066,7 @@ mod tests {
             &passives,
             &statuses,
         )
-            .unwrap_err();
+        .unwrap_err();
         assert!(err.contains("duplicate character id 'dup'"));
     }
 
@@ -1084,7 +1080,13 @@ mod tests {
         let statuses = load_statuses(&data_dir.join("statuses.json")).unwrap();
 
         // Five archetypes (3+3+2+2+2 = 12) + the two aspects (2+2) = 16 > 14.
-        let make = |id: &str, template: &str, passive: &str, active: &str, aspect: Option<&str>, row: u8, col: u8| {
+        let make = |id: &str,
+                    template: &str,
+                    passive: &str,
+                    active: &str,
+                    aspect: Option<&str>,
+                    row: u8,
+                    col: u8| {
             TeamCharacterLoadout {
                 id: id.to_string(),
                 template_id: template.to_string(),
@@ -1100,16 +1102,39 @@ mod tests {
             version: 2,
             name: "Spendy".to_string(),
             characters: vec![
-                make("a", "the_emperor", "Imperial Formation", "Hold the Line", Some("aspect_of_grace"), 0, 0),
-                make("b", "the_magician", "Catalyst", "Offer", Some("aspect_of_ruin"), 0, 1),
+                make(
+                    "a",
+                    "the_emperor",
+                    "Imperial Formation",
+                    "Hold the Line",
+                    Some("aspect_of_grace"),
+                    0,
+                    0,
+                ),
+                make(
+                    "b",
+                    "the_magician",
+                    "Catalyst",
+                    "Offer",
+                    Some("aspect_of_ruin"),
+                    0,
+                    1,
+                ),
                 make("c", "the_chariot", "Pursuit", "Charge", None, 0, 2),
                 make("d", "justice", "Sentence", "Rebuke", None, 1, 0),
                 make("e", "the_hierophant", "Sanctuary", "Smite", None, 1, 1),
             ],
         };
 
-        let err = validate_team_config(&team, &archetypes, &aspects, &abilities, &passives, &statuses)
-            .unwrap_err();
+        let err = validate_team_config(
+            &team,
+            &archetypes,
+            &aspects,
+            &abilities,
+            &passives,
+            &statuses,
+        )
+        .unwrap_err();
         assert!(err.contains("over the 14-point budget"), "got: {err}");
     }
 
@@ -1119,21 +1144,18 @@ mod tests {
             &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/archetypes.json"),
         )
         .unwrap();
-        let abilities = load_abilities(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/abilities.json"),
-        )
-        .unwrap();
+        let abilities =
+            load_abilities(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/abilities.json"))
+                .unwrap();
         let aspects =
             load_aspects(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/aspects.json"))
                 .unwrap();
-        let passives = load_passives(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/passives.json"),
-        )
-        .unwrap();
-        let statuses = load_statuses(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/statuses.json"),
-        )
-        .unwrap();
+        let passives =
+            load_passives(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/passives.json"))
+                .unwrap();
+        let statuses =
+            load_statuses(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/statuses.json"))
+                .unwrap();
 
         let team = TeamConfig {
             version: 2,
@@ -1228,7 +1250,12 @@ mod tests {
                 &passives,
                 &statuses,
             );
-            assert!(validated.is_ok(), "{} should validate: {:?}", path.display(), validated);
+            assert!(
+                validated.is_ok(),
+                "{} should validate: {:?}",
+                path.display(),
+                validated
+            );
         }
     }
 
@@ -1247,6 +1274,8 @@ mod tests {
             rules: vec![crate::models::Rule {
                 ability: "MissingAbility".to_string(),
                 conditions: Vec::new(),
+
+                match_any: false,
             }],
         }];
         let abilities = [(
@@ -1281,6 +1310,8 @@ mod tests {
             rules: vec![crate::models::Rule {
                 ability: "OtherAbility".to_string(),
                 conditions: Vec::new(),
+
+                match_any: false,
             }],
         }];
         let abilities = [
@@ -1556,6 +1587,8 @@ mod tests {
                     comparator: crate::models::Comparator::Gte,
                     threshold: 1,
                 }],
+
+                match_any: false,
             }],
         }];
         let abilities = [(
@@ -1594,6 +1627,8 @@ mod tests {
                         comparator: crate::models::Comparator::Gte,
                         threshold: 2,
                     }],
+
+                    match_any: false,
                 },
                 crate::models::Rule {
                     ability: "Crush".to_string(),
@@ -1603,6 +1638,8 @@ mod tests {
                         comparator: crate::models::Comparator::Gte,
                         threshold: 1,
                     }],
+
+                    match_any: false,
                 },
                 crate::models::Rule {
                     ability: "Crush".to_string(),
@@ -1612,6 +1649,8 @@ mod tests {
                         comparator: crate::models::Comparator::Gte,
                         threshold: 1,
                     }],
+
+                    match_any: false,
                 },
             ],
         }];

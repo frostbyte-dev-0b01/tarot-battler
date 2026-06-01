@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 
-use crate::abilities::{AbilityDef, AbilityMap, PassiveMap, PowerTier, Primitive, SimpleAbilityTarget};
+use crate::abilities::{
+    AbilityDef, AbilityMap, PassiveMap, PowerTier, Primitive, SimpleAbilityTarget,
+};
 use crate::engine::BattleState;
 use crate::models::{CharacterConfig, CharacterState, Condition, Position, Rule, Stat};
 use crate::statuses::{StackType, StatusBehavior, StatusDef, StatusMap};
@@ -122,12 +124,17 @@ pub fn make_config_at(name: &str, row: u8, col: u8, stats: Vec<(Stat, u32)>) -> 
         rules: vec![Rule {
             ability: "Strike".to_string(),
             conditions: Vec::<Condition>::new(),
+
+            match_any: false,
         }],
     }
 }
 
 pub fn make_char(id: u32, stats: Vec<(Stat, u32)>) -> CharacterState {
-    with_full_mp(CharacterState::from_config(id, &make_config_at(&format!("Char{}", id), 0, 0, stats)))
+    with_full_mp(CharacterState::from_config(
+        id,
+        &make_config_at(&format!("Char{}", id), 0, 0, stats),
+    ))
 }
 
 /// Characters now start a battle at 0 MP; most unit tests assume MP is available
@@ -147,13 +154,11 @@ pub fn build_battle(
     BattleState::new(team_a, team_b, abilities, passives, statuses, 42)
 }
 
-pub fn make_adjacent_char(
-    id: u32,
-    row: u8,
-    col: u8,
-    stats: Vec<(Stat, u32)>,
-) -> CharacterState {
-    with_full_mp(CharacterState::from_config(id, &make_config_at(&format!("Char{}", id), row, col, stats)))
+pub fn make_adjacent_char(id: u32, row: u8, col: u8, stats: Vec<(Stat, u32)>) -> CharacterState {
+    with_full_mp(CharacterState::from_config(
+        id,
+        &make_config_at(&format!("Char{}", id), row, col, stats),
+    ))
 }
 
 pub fn warrior() -> CharacterConfig {

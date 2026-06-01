@@ -307,7 +307,11 @@ impl BattleLog {
         &self.events[start.min(self.events.len())..]
     }
 
-    pub fn capture_initial_snapshot(&mut self, team_a: &[CharacterState], team_b: &[CharacterState]) {
+    pub fn capture_initial_snapshot(
+        &mut self,
+        team_a: &[CharacterState],
+        team_b: &[CharacterState],
+    ) {
         self.snapshots.push(ReplaySnapshotRecord {
             tick: 0,
             event_index: -1,
@@ -316,7 +320,11 @@ impl BattleLog {
         });
     }
 
-    pub fn capture_latest_snapshot(&mut self, team_a: &[CharacterState], team_b: &[CharacterState]) {
+    pub fn capture_latest_snapshot(
+        &mut self,
+        team_a: &[CharacterState],
+        team_b: &[CharacterState],
+    ) {
         let Some(last_event) = self.events.last() else {
             return;
         };
@@ -328,7 +336,11 @@ impl BattleLog {
         });
     }
 
-    pub fn refresh_latest_snapshot(&mut self, team_a: &[CharacterState], team_b: &[CharacterState]) {
+    pub fn refresh_latest_snapshot(
+        &mut self,
+        team_a: &[CharacterState],
+        team_b: &[CharacterState],
+    ) {
         let Some(last_event) = self.events.last() else {
             return;
         };
@@ -1000,7 +1012,10 @@ fn build_character_id_map(
     }
     let offset = team_a_configs.len() as u32;
     for (idx, config) in team_b_configs.iter().enumerate() {
-        id_map.insert(offset + idx as u32, replay_character_id(config, "team_b", idx));
+        id_map.insert(
+            offset + idx as u32,
+            replay_character_id(config, "team_b", idx),
+        );
     }
     id_map
 }

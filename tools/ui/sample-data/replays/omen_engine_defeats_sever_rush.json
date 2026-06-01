@@ -60870,7 +60870,7 @@
                 {
                   "op": "lte",
                   "subject": "self",
-                  "threshold": 15,
+                  "threshold": 42,
                   "value": "hp"
                 }
               ]

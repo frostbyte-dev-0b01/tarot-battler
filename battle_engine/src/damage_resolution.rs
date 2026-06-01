@@ -92,7 +92,8 @@ impl BattleState {
                 continue;
             };
             let reflect = {
-                let (actor_team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                let (actor_team, _) =
+                    Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
                 if !actor_team[source_idx].is_alive() {
                     continue;
                 }
@@ -151,7 +152,9 @@ impl BattleState {
                     .iter()
                     .enumerate()
                     .filter(|(_, c)| {
-                        c.is_alive() && c.id() != record.source_id && c.target() == Some(record.target_id)
+                        c.is_alive()
+                            && c.id() != record.source_id
+                            && c.target() == Some(record.target_id)
                     })
                     .map(|(idx, _)| idx)
                     .collect()
@@ -196,11 +199,12 @@ impl BattleState {
 
         for eidx in damaged_enemy_indices {
             let (enemy_alive, target_id, below_half, companion_owner_indices) = {
-                let (_, enemy_team) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
+                let (_, enemy_team) =
+                    Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
                 let enemy_alive = enemy_team[eidx].is_alive();
                 let target_id = enemy_team[eidx].id();
-                let below_half =
-                    enemy_team[eidx].current_hp() * 2 <= enemy_team[eidx].get_base_stat(&crate::models::Stat::VIT) * 3;
+                let below_half = enemy_team[eidx].current_hp() * 2
+                    <= enemy_team[eidx].get_base_stat(&crate::models::Stat::VIT) * 3;
                 let companion_owner_indices = if enemy_alive && below_half {
                     enemy_team
                         .iter()
@@ -262,7 +266,11 @@ impl BattleState {
             let (team, _) = Self::teams_mut(&mut self.team_a, &mut self.team_b, is_team_a);
             team[char_idx].mark_defeat_resolved();
         }
-        let actor = if is_team_a { &self.team_a[char_idx] } else { &self.team_b[char_idx] };
+        let actor = if is_team_a {
+            &self.team_a[char_idx]
+        } else {
+            &self.team_b[char_idx]
+        };
         self.log.push_defeat(self.step, actor);
         self.capture_latest_replay_snapshot();
         self.refresh_auras();

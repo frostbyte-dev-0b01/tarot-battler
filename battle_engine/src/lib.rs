@@ -76,7 +76,13 @@ pub fn run_battle_json(team_a_json: &str, team_b_json: &str, seed: u64) -> Resul
 
     let battle = engine::BattleState::new(&team_a, &team_b, abilities, passives, statuses, seed);
     let log = battle.run();
-    Ok(log.to_replay_json(seed, &team_a_config.name, &team_b_config.name, &team_a, &team_b))
+    Ok(log.to_replay_json(
+        seed,
+        &team_a_config.name,
+        &team_b_config.name,
+        &team_a,
+        &team_b,
+    ))
 }
 
 /// WebAssembly entry point. Returns replay-schema JSON on success, or a
@@ -86,9 +92,7 @@ pub fn run_battle_json(team_a_json: &str, team_b_json: &str, seed: u64) -> Resul
 pub fn run_battle(team_a_json: &str, team_b_json: &str, seed: u32) -> String {
     match run_battle_json(team_a_json, team_b_json, seed as u64) {
         Ok(replay) => replay,
-        Err(message) => {
-            serde_json::json!({ "error": message }).to_string()
-        }
+        Err(message) => serde_json::json!({ "error": message }).to_string(),
     }
 }
 

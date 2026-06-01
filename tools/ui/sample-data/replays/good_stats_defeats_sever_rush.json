@@ -102529,7 +102529,7 @@
                 {
                   "op": "lte",
                   "subject": "target",
-                  "threshold": 4,
+                  "threshold": 8,
                   "value": "hp"
                 }
               ]
@@ -102706,7 +102706,7 @@
                 {
                   "op": "lte",
                   "subject": "target",
-                  "threshold": 4,
+                  "threshold": 13,
                   "value": "hp"
                 }
               ]
@@ -102805,7 +102805,7 @@
                 {
                   "op": "lte",
                   "subject": "self",
-                  "threshold": 15,
+                  "threshold": 42,
                   "value": "hp"
                 }
               ]

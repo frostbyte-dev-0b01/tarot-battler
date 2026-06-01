@@ -1032,6 +1032,46 @@ main {
   line-height: 1.28;
 }
 
+/* Per-rule "Match ALL / Match ANY" toggle (only shown with 2+ conditions). */
+.rule-match-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rule-match-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.match-pill {
+  border: 1px solid rgba(33, 25, 16, 0.12);
+  border-radius: 999px;
+  padding: 4px 11px;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.match-pill.is-active {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #fff7ef;
+}
+
+/* Inline clarification under a condition (e.g. fixed Companion bonds). */
+.condition-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.32;
+}
+
 .button-row button,
 .panel-controls button {
   border: 0;

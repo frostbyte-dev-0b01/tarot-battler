@@ -97,13 +97,14 @@ The current system is template-based:
       "op": "gte",
       "threshold": 5
     }
-  ]
+  ],
+  "match_any": false
 }
 ```
 
 Rules are character-level priorities, not per-ability subprograms.
 
-Each character may have up to 5 rules total.
+Each character may have up to 7 rules total.
 
 They are evaluated in array order:
 
@@ -111,10 +112,18 @@ They are evaluated in array order:
 - later rules are ignored once one rule fires
 - if no rule is satisfied, the character uses `Basic Attack`
 
+The condition list is flat — there are no nested boolean groups. Within a
+single rule the conditions combine with AND by default; the ordered list of
+rules already provides an implicit OR across priorities. The optional
+`match_any` flag flips a single rule to OR (fire if **any** condition holds)
+without introducing nesting.
+
 ### Fields
 
 - `ability: string`
 - `when: Condition[]`
+- `match_any?: boolean` — defaults to `false` (all conditions must hold). When
+  `true`, the rule fires if any condition holds.
 
 ## Condition
 
@@ -129,28 +138,45 @@ They are evaluated in array order:
 
 ### Fields
 
-- `subject: "self" | "target" | "companion" | "world"`
+- `subject: ConditionSubject`
 - `value: QueryValue`
 - `op: "gte" | "lte" | "eq"`
 - `threshold: number`
+
+### ConditionSubject
+
+- `"self"` — this character
+- `"companion"` — any **fixed** companion (the allies cardinally adjacent at
+  battle start; the bond persists even if units move). True if any companion
+  matches.
+- `"any_ally"` — any living ally (the whole team, position-independent)
+- `"lowest_ally"` — the living ally with the lowest current HP
+- `"target"` — the current target (the enemy this character is focusing)
+- `"any_enemy"` — any living enemy
+- `"lowest_enemy"` — the living enemy with the lowest current HP
+- `"world"` — battle-wide state (see the world-only query values below)
 
 ## QueryValue
 
 Allowed values:
 
-- `"hp"`
+- `"hp"` — current HP as a **percentage of max HP** (`0`–`100`)
 - `"mp"`
 - `"self_row"`
+- `"focused_by_count"` — number of living enemies whose current focus is the
+  subject (a threat signal; surfaced on ally-side subjects in the builder)
 - `"self_companion_count"`
 - `"target_companion_count"`
-- `"use_count"`
-- `"turns_since_use"`
-- `"tick_count"`
-- `"ally_count"`
-- `"enemy_count"`
+- `"use_count"` (world)
+- `"turns_since_use"` (world)
+- `"tick_count"` (world)
+- `"ally_count"` (world)
+- `"enemy_count"` (world)
 - `{ "stat": "vit" | "mgt" | "mag" | "arm" | "res" | "spd" }`
 - `{ "has_status": "Ward" }`
 - `{ "status_stacks": "Empower:MGT" }`
+- `{ "has_condition": "Stunned" }`
+- `{ "condition_stacks": "Severed" }`
 
 ## Archetype Catalog
 

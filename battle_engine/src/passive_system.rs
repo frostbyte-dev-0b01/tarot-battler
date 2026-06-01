@@ -62,10 +62,7 @@ pub(crate) fn collect_passive_names(team: &[CharacterState]) -> Vec<(usize, Stri
         .collect()
 }
 
-pub(crate) fn load_passive(
-    runtime: &PassiveRuntime<'_>,
-    passive_name: &str,
-) -> Option<PassiveDef> {
+pub(crate) fn load_passive(runtime: &PassiveRuntime<'_>, passive_name: &str) -> Option<PassiveDef> {
     runtime.passives.get(passive_name).cloned()
 }
 

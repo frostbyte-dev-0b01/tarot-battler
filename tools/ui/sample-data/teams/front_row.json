@@ -49,7 +49,7 @@
               "subject": "self",
               "value": "hp",
               "op": "lte",
-              "threshold": 14
+              "threshold": 47
             }
           ]
         }
