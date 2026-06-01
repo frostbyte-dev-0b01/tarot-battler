@@ -19,7 +19,10 @@ use crate::statuses::StatusMap;
 use crate::targeting::select_target;
 use crate::turns::{self, TurnRuntime};
 
-const MAX_STEPS: u32 = 1000;
+/// Hard tick limit for a match: if neither side has won by this many world
+/// steps, the battle resolves to a draw. A game rule (stalls shouldn't drag on),
+/// not just an anti-infinite-loop safety net.
+const MAX_BATTLE_TICKS: u32 = 250;
 pub struct BattleState {
     team_a: Vec<CharacterState>,
     team_b: Vec<CharacterState>,
@@ -349,7 +352,7 @@ impl BattleState {
     fn step_once(&mut self) -> bool {
         self.step += 1;
 
-        if self.step > MAX_STEPS {
+        if self.step > MAX_BATTLE_TICKS {
             self.log.push(BattleEvent::BattleEnd {
                 tick_count: self.step,
                 winner: "draw".to_string(),
