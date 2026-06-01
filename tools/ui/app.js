@@ -815,6 +815,7 @@ async function runArenaSimulation() {
         const parsed = JSON.parse(resultJson);
         if (parsed && typeof parsed.error === "string") {
           row.errors += 1;
+          if (!row.errorMessage) row.errorMessage = parsed.error;
         } else {
           const store = arenaReplayStore.get(foeName) ?? {};
           if (parsed.winner === "team_a") {
@@ -828,8 +829,9 @@ async function runArenaSimulation() {
           }
           arenaReplayStore.set(foeName, store);
         }
-      } catch {
+      } catch (e) {
         row.errors += 1;
+        if (!row.errorMessage) row.errorMessage = e?.message ? String(e.message) : String(e);
       }
       done += 1;
       if (done % 20 === 0) {
@@ -874,7 +876,10 @@ function renderArenaResults(rows, runs) {
       const pct = rowDecisive ? row.wins / rowDecisive : 0;
       const cls = pct >= 0.55 ? "arena-badge-win" : pct <= 0.45 ? "arena-badge-loss" : "arena-badge-draw";
       const ciText = rowDecisive ? `[${formatPct(rlo)}–${formatPct(rhi)}]` : "—";
-      const wld = `${row.wins}–${row.losses}${row.draws ? `–${row.draws}D` : ""}${row.errors ? ` · ${row.errors} err` : ""}`;
+      const errHtml = row.errors
+        ? ` · <span class="arena-err" title="${escapeHtml(row.errorMessage ?? "battle error")}">${row.errors} err</span>`
+        : "";
+      const wld = `${row.wins}–${row.losses}${row.draws ? `–${row.draws}D` : ""}`;
       const store = arenaReplayStore.get(row.name) ?? {};
       const watchBtn = (outcome, label) =>
         store[outcome]
@@ -884,7 +889,7 @@ function renderArenaResults(rows, runs) {
       return `
         <tr>
           <td class="arena-opp-name">${escapeHtml(row.name)}</td>
-          <td class="arena-detail">${escapeHtml(wld)}</td>
+          <td class="arena-detail">${escapeHtml(wld)}${errHtml}</td>
           <td><span class="arena-badge ${cls}">${formatPct(pct)}</span></td>
           <td class="arena-detail arena-ci">${escapeHtml(ciText)}</td>
           <td>${action}</td>
@@ -892,7 +897,15 @@ function renderArenaResults(rows, runs) {
     })
     .join("");
 
+  // Surface battle errors (e.g. a saved team referencing removed content) instead
+  // of silently showing an "err" count — otherwise the Arena looks broken.
+  const firstError = rows.find((row) => row.errorMessage)?.errorMessage;
+  const errorBanner = firstError
+    ? `<div class="arena-error-banner">⚠ Some battles couldn't run — <strong>${escapeHtml(firstError)}</strong>.<br>This usually means a saved team references content that no longer exists (e.g. a removed aspect). Re-open the team in the Team Builder, fix the flagged loadout, and save it again.</div>`
+    : "";
+
   arenaResults.innerHTML = `
+    ${errorBanner}
     <table class="arena-table">
       <thead>
         <tr><th>Opponent</th><th>W–L</th><th>Win %</th><th>95% CI</th><th></th></tr>
@@ -943,6 +956,7 @@ async function runRoundRobin() {
 
   const total = ((n * (n - 1)) / 2) * runs;
   let done = 0;
+  let firstError = null;
   for (let i = 0; i < n; i += 1) {
     for (let j = i + 1; j < n; j += 1) {
       for (let seed = 0; seed < runs; seed += 1) {
@@ -953,6 +967,7 @@ async function runRoundRobin() {
         try {
           const parsed = JSON.parse(window.runBattleWasm(teamA, teamB, seed));
           if (!parsed || typeof parsed.error === "string") {
+            if (!firstError && parsed?.error) firstError = parsed.error;
             matrix[i][j].draws += 1;
             matrix[j][i].draws += 1;
           } else {
@@ -969,7 +984,8 @@ async function runRoundRobin() {
               matrix[j][i].wins += 1;
             }
           }
-        } catch {
+        } catch (e) {
+          if (!firstError) firstError = e?.message ? String(e.message) : String(e);
           matrix[i][j].draws += 1;
           matrix[j][i].draws += 1;
         }
@@ -990,6 +1006,12 @@ async function runRoundRobin() {
   arenaFightButton.disabled = false;
   appState.lastRoundRobin = { names, matrix, runs };
   renderRoundRobinResults(names, matrix, runs);
+  if (firstError) {
+    const banner = document.createElement("div");
+    banner.className = "arena-error-banner";
+    banner.innerHTML = `⚠ Some battles couldn't run — <strong>${escapeHtml(firstError)}</strong>.<br>A saved team likely references content that no longer exists; re-open it in the Team Builder and save again. (Those matchups were scored as draws.)`;
+    arenaResults.prepend(banner);
+  }
 }
 
 function recordWinRate(rec) {

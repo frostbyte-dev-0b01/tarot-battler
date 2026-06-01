@@ -2497,6 +2497,23 @@ textarea:focus-visible {
   overflow: hidden;
 }
 
+.arena-error-banner {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(150, 40, 30, 0.28);
+  background: rgba(150, 40, 30, 0.08);
+  color: var(--ink);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.arena-err {
+  color: #9c3a2c;
+  font-weight: 700;
+  cursor: help;
+}
+
 .arena-table {
   width: 100%;
   border-collapse: collapse;
