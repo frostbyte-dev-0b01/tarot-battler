@@ -16,6 +16,7 @@
       "actor_mp_after": 1,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:justice",
       "tick": 1,
       "type": "basic_attack"
@@ -58,6 +59,7 @@
       "actor_mp_after": 1,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_a:the_chariot",
       "tick": 3,
       "type": "basic_attack"
@@ -85,6 +87,7 @@
       "actor_mp_after": 2,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:justice",
       "tick": 4,
       "type": "basic_attack"
@@ -127,6 +130,7 @@
       "actor_mp_after": 1,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:justice",
       "tick": 5,
       "type": "basic_attack"
@@ -169,6 +173,7 @@
       "actor_mp_after": 1,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:justice",
       "tick": 5,
       "type": "basic_attack"
@@ -241,6 +246,7 @@
       "actor_mp_after": 1,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_a:the_emperor",
       "tick": 5,
       "type": "basic_attack"
@@ -283,6 +289,7 @@
       "actor_mp_after": 3,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:justice",
       "tick": 6,
       "type": "basic_attack"
@@ -325,6 +332,7 @@
       "actor_mp_after": 1,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:justice",
       "tick": 6,
       "type": "basic_attack"
@@ -367,6 +375,7 @@
       "actor_mp_after": 1,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_a:justice",
       "tick": 6,
       "type": "basic_attack"
@@ -394,6 +403,7 @@
       "actor_mp_after": 1,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_a:the_emperor",
       "tick": 7,
       "type": "basic_attack"
@@ -421,6 +431,7 @@
       "actor_mp_after": 2,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_a:the_chariot",
       "tick": 8,
       "type": "basic_attack"
@@ -448,6 +459,7 @@
       "actor_mp_after": 4,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:justice",
       "tick": 11,
       "type": "basic_attack"
@@ -494,6 +506,7 @@
       "ability": "Sunder",
       "actor_id": "team_a:the_emperor",
       "mp_cost": 1,
+      "rule_index": 2,
       "tick": 12,
       "type": "ability_used"
     },
@@ -544,6 +557,7 @@
       "actor_mp_after": 2,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:the_hierophant",
       "tick": 12,
       "type": "basic_attack"
@@ -585,6 +599,7 @@
       "ability": "Offer",
       "actor_id": "team_a:the_magician",
       "mp_cost": 1,
+      "rule_index": 1,
       "tick": 14,
       "type": "ability_used"
     },
@@ -630,6 +645,7 @@
       "actor_mp_after": 2,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_a:justice",
       "tick": 14,
       "type": "basic_attack"
@@ -657,6 +673,7 @@
       "actor_mp_after": 3,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_a:the_chariot",
       "tick": 15,
       "type": "basic_attack"
@@ -684,6 +701,7 @@
       "actor_mp_after": 2,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_a:the_emperor",
       "tick": 16,
       "type": "basic_attack"
@@ -710,6 +728,7 @@
       "ability": "Breakthrough",
       "actor_id": "team_a:the_chariot",
       "mp_cost": 4,
+      "rule_index": 0,
       "tick": 18,
       "type": "ability_used"
     },
@@ -756,6 +775,7 @@
       "actor_mp_after": 1,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:the_hierophant",
       "tick": 21,
       "type": "basic_attack"
@@ -797,6 +817,7 @@
       "ability": "Rebuke",
       "actor_id": "team_a:justice",
       "mp_cost": 2,
+      "rule_index": 2,
       "tick": 21,
       "type": "ability_used"
     },
@@ -859,6 +880,7 @@
       "ability": "Seal",
       "actor_id": "team_a:the_magician",
       "mp_cost": 3,
+      "rule_index": 2,
       "tick": 24,
       "type": "ability_used"
     },
@@ -909,6 +931,7 @@
       "actor_mp_after": 3,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_a:justice",
       "tick": 24,
       "type": "basic_attack"
@@ -936,6 +959,7 @@
       "actor_mp_after": 1,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:the_hierophant",
       "tick": 25,
       "type": "basic_attack"
@@ -982,6 +1006,7 @@
       "ability": "Sunder",
       "actor_id": "team_a:the_emperor",
       "mp_cost": 1,
+      "rule_index": 2,
       "tick": 32,
       "type": "ability_used"
     },
@@ -1032,6 +1057,7 @@
       "actor_mp_after": 1,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:the_magician",
       "tick": 32,
       "type": "basic_attack"
@@ -1104,6 +1130,7 @@
       "actor_mp_after": 2,
       "damage_kind": "basic",
       "mp_restored": 1,
+      "rule_index": null,
       "target_id": "team_b:the_magician",
       "tick": 34,
       "type": "basic_attack"

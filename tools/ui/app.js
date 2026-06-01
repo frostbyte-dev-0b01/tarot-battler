@@ -4767,6 +4767,20 @@ function formatRulePreview(rule) {
   return `Use ${abilityLabel} if ${meaningful.map((condition) => formatConditionPreview(condition)).join(joiner)}`;
 }
 
+// Just the "why" clause of a rule (no "Use <ability>" prefix): "self HP ≤ 50%"
+// or "always". Used for replay rule attribution.
+function formatRuleConditionClause(rule) {
+  const conditions = Array.isArray(rule?.when) ? rule.when : [];
+  const meaningful = rule?.match_any === true
+    ? conditions
+    : conditions.filter((condition) => !isAlwaysCondition(condition));
+  if (meaningful.length === 0) {
+    return "always";
+  }
+  const joiner = rule?.match_any === true ? " or " : " and ";
+  return meaningful.map((condition) => formatConditionPreview(condition)).join(joiner);
+}
+
 function getContextualRuleValueLabel(subject, valueType) {
   if (valueType === "self_row") {
     return "Column";
@@ -5389,9 +5403,36 @@ function renderBeatHead(beat) {
   }
 }
 
+// Replay rule attribution: which scripted rule drove this action, and why.
+// Returns e.g. "Rule 4 · self HP ≤ 50%", "default — no rule matched", or null
+// when there's nothing to attribute (no action, or a pre-attribution replay).
+function describeRuleAttribution(beat) {
+  const action = beat?.action;
+  if (!action || (action.type !== "basic_attack" && action.type !== "ability_used")) {
+    return null;
+  }
+  const ruleIndex = action.rule_index;
+  if (ruleIndex === undefined) {
+    return null; // replay predates rule attribution
+  }
+  if (ruleIndex === null) {
+    // The default fallback only happens for basic attacks (abilities need a rule).
+    return action.type === "basic_attack" ? "default — no rule matched" : null;
+  }
+  const rule = getReplayCharacterConfig(beat.actorId)?.rules?.[ruleIndex];
+  const clause = rule ? formatRuleConditionClause(rule) : null;
+  return clause ? `Rule ${ruleIndex + 1} · ${clause}` : `Rule ${ruleIndex + 1}`;
+}
+
 // Sub-lines: start-of-turn ticks, passive procs, retargets, moves, defeats.
 function renderBeatSubLines(beat) {
   const lines = [];
+
+  // Lead with the rule that chose this action, so the player sees their script run.
+  const attribution = describeRuleAttribution(beat);
+  if (attribution) {
+    lines.push(`<span class="beat-sub-icon">↳</span> <span class="beat-rule">⚙ ${escapeHtml(attribution)}</span>`);
+  }
 
   for (const tick of beat.preTicks ?? []) {
     lines.push(`<span class="beat-sub-icon">↳</span> ${statusNameMarkup(tick.status)} ${effectChip(tick)}`);
@@ -5514,7 +5555,11 @@ function narrateBeatActive(beat) {
     ? '<span class="beat-verb beat-verb-attack">attacks</span>'
     : `uses <span class="beat-ability">✦${escapeHtml(action.ability ?? "Ability")}</span>`;
   const targets = narrateTargets(effects);
-  return `${actor} ${verb}${targets ? ` <span class="fx-arrow">→</span> ${targets}` : ""}`;
+  const attribution = describeRuleAttribution(beat);
+  const attributionMarkup = attribution
+    ? ` <span class="nar-rule">⚙ ${escapeHtml(attribution)}</span>`
+    : "";
+  return `${actor} ${verb}${targets ? ` <span class="fx-arrow">→</span> ${targets}` : ""}${attributionMarkup}`;
 }
 
 function narrateTargets(events) {

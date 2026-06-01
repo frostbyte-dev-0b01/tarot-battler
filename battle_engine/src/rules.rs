@@ -11,18 +11,26 @@ pub struct WorldState {
     pub enemy_count: u32,
 }
 
-/// Evaluate the actor's rules in order. Returns the name of the first ability
-/// whose conditions are all met AND whose MP cost the actor can afford.
-/// Returns None if no rule matches (caller should fall back to Basic Attack).
-pub fn evaluate_rules(
+/// A fired rule: which ordered rule matched and the ability it selected.
+pub struct RuleHit {
+    /// 0-based index into the actor's ordered rule list.
+    pub rule_index: usize,
+    pub ability: String,
+}
+
+/// Evaluate the actor's rules in order, returning the first rule whose
+/// conditions are all met (or any, per `match_any`) AND whose MP cost the actor
+/// can afford — along with its index for replay attribution. Returns None if no
+/// rule matches (caller should fall back to Basic Attack).
+pub fn select_rule(
     actor: &CharacterState,
     target: Option<&CharacterState>,
     allies: &[CharacterState],
     enemies: &[CharacterState],
     world: WorldState,
     abilities: &AbilityMap,
-) -> Option<String> {
-    for rule in actor.rules() {
+) -> Option<RuleHit> {
+    for (rule_index, rule) in actor.rules().iter().enumerate() {
         let is_basic_attack = rule.ability == BASIC_ATTACK_ACTION;
         if !is_basic_attack && !actor.has_active(&rule.ability) {
             continue;
@@ -59,10 +67,25 @@ pub fn evaluate_rules(
         };
 
         if met {
-            return Some(rule.ability.clone());
+            return Some(RuleHit {
+                rule_index,
+                ability: rule.ability.clone(),
+            });
         }
     }
     None
+}
+
+/// Convenience wrapper returning just the selected ability name.
+pub fn evaluate_rules(
+    actor: &CharacterState,
+    target: Option<&CharacterState>,
+    allies: &[CharacterState],
+    enemies: &[CharacterState],
+    world: WorldState,
+    abilities: &AbilityMap,
+) -> Option<String> {
+    select_rule(actor, target, allies, enemies, world, abilities).map(|hit| hit.ability)
 }
 
 /// Check a single condition against the relevant subject.
@@ -371,6 +394,36 @@ mod tests {
             evaluate_rules(&actor, None, &[companion_low], &[], world(), &abilities).as_deref(),
             Some("Embolden")
         );
+    }
+
+    #[test]
+    fn select_rule_reports_the_matching_rule_index() {
+        // First rule can't fire (target HP too high); second rule matches.
+        let rules = vec![
+            Rule {
+                ability: "Crush".to_string(),
+                conditions: vec![Condition {
+                    subject: ConditionSubject::Target,
+                    value: QueryValue::Hp,
+                    comparator: Comparator::Lte,
+                    threshold: 10,
+                }],
+                match_any: false,
+            },
+            Rule {
+                ability: "Embolden".to_string(),
+                conditions: Vec::new(),
+                match_any: false,
+            },
+        ];
+        let actor = make_char_with_rules(0, vec![], rules);
+        let abilities = make_abilities();
+        let target = make_char(1, vec![(Stat::VIT, 10)]); // full HP
+
+        let hit = select_rule(&actor, Some(&target), &[], &[], world(), &abilities)
+            .expect("a rule should fire");
+        assert_eq!(hit.rule_index, 1);
+        assert_eq!(hit.ability, "Embolden");
     }
 
     #[test]

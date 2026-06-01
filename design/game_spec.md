@@ -224,6 +224,53 @@ These effects are intentionally narrow:
 
 This keeps battlefield control effects like taunt and forced refocus legible without overcomplicating the core targeting model.
 
+### Focus Policy (planned)
+
+Focus is currently chosen by a fixed weakness heuristic. The planned addition
+lets each unit carry **one focus policy** — a *selection rule* for who to
+commit to among **legal (reachable) targets** when it needs a focus. It never
+bypasses row protection; it only prioritizes among enemies it could already hit.
+
+Focus stays **sticky**: a policy is applied only at *acquisition* (battle start,
+the current target dying, or a forced refocus), never re-evaluated every turn.
+Stickiness is what makes targeting-manipulation tools (`Taunt`, `Rebuke`,
+`disorient`, `Command`, movement) lasting, meaningful actions rather than nudges
+the autopilot overwrites. Dynamic "chase the lowest / snap to the setup target"
+behavior is intentionally an **active ability** (a refocus, see below), not a
+passive policy.
+
+Planned policy menu (grouped, with `Weakness: Auto` as the zero-config default):
+
+- **Weakness** — `Auto` / `ARM` / `RES`: the enemy weakest to my [inferred /
+  physical / magical] damage. The explicit ARM/RES variants let a player declare
+  intent for hybrids or units buffed into a new lane mid-fight.
+- **Execute** — lowest current HP (kill-chains: re-picks the next-lowest on a kill).
+- **Setup** — `Omen` / `Marked`: the target with the most stacks of that effect
+  (feeds the different payoff engines).
+- **Isolate** — an enemy with no companions (pairs with `Sever` / The Hermit).
+- **Focus-fire** — follow the **Captain's** current focus (the team converges).
+
+Rules:
+
+- **Universal fallback → `Weakness: Auto`** whenever a policy has no valid pick
+  (no setup target yet, no isolated enemy, captain dead). One rule, no special
+  cases. A captain set to Focus-fire is also treated as `Weakness: Auto`.
+- Precedence: **forced focus > policy > fallback**. When a forced refocus ends,
+  the unit **picks fresh** via its policy (no remembered target).
+- Ties resolve deterministically (no random tiebreak).
+
+### Refocus and Focus-as-Intent (planned)
+
+Refocus abilities reuse the **Ability Targeting Model** below (target category +
+selector + positional condition + optional row-bypass) to set a unit's focus —
+e.g. *"focus the backmost enemy with the lowest HP, then deal magical damage."*
+No separate refocus vocabulary.
+
+Because a refocus can (with row-bypass) point focus past the front, **focus is
+treated as intent**: an ordinary hit lands on the focus if it's legal, otherwise
+on the frontmost reachable enemy, and the focus persists either way. Refocus
+respects row protection unless the ability explicitly bypasses it.
+
 ## Ability Targeting Model
 
 Abilities define their own targets independent of rules.
@@ -689,6 +736,46 @@ Examples:
 - damage reflection
 - row-bypass permission
 - target redirection
+
+## Captain and Banners (planned)
+
+Each team designates **one captain**. Designation is free (no budget cost); the
+captain is a single, legible strategic decision that gives the team a spine, a
+small effect, and — via the **Focus-fire** policy — a rally point. It is also
+the counterplay hook: killing the captain removes its persistent banner and the
+focus-fire director.
+
+### Banners
+
+When captained, a card flies a **banner** chosen from **5 options**: its own
+**signature banner** (a property of the card, distinct from its passive pool)
+plus **4 shared banners** available to any captain. Banner space spans two axes:
+
+- **scope:** self / companions / team
+- **duration:** opener (fires once at battle start) / persistent (while the
+  captain lives) / triggered (on an event)
+
+Banner duration should track the captain's survivability, which makes "who is my
+captain" a real risk read: fragile captains favor **opener** banners (snipe-proof
+— already fired) or **self-sustain** (snipe-resistant); durable captains carry
+**persistent team auras** worth both protecting and sniping.
+
+The four shared banners span the grid so every captain has range:
+
+- **Rally** (opener / team) — the team's first turn comes sooner
+- **Bulwark** (persistent / team) — allies in the captain's column take less from the first hit each turn
+- **Resolve** (persistent / self) — the captain regains a little HP each turn
+- **Last Stand** (triggered / team) — the first time the captain drops below 50%, the team gains `Ward 1`
+
+### Captain and focus
+
+Under the **Focus-fire** policy, allies copy the captain's current focus at
+acquisition, so the captain's *own* focus policy becomes the team's targeting
+doctrine. A persistent team banner that rewards attacking the captain's focus
+(e.g. the Emperor's) plus allies on Focus-fire forms a self-reinforcing
+focus-fire engine. If the captain dies, focus-fire units keep their current
+target (sticky) and fall back to `Weakness: Auto` on their next acquisition, like
+every other policy.
 
 ## Aspects and Build Depth
 

@@ -278,7 +278,8 @@ Example:
   "type": "basic_attack",
   "actor_id": "the_emperor",
   "target_id": "the_fool",
-  "damage_kind": "physical"
+  "damage_kind": "physical",
+  "rule_index": null
 }
 ```
 
@@ -290,9 +291,24 @@ Example:
   "type": "ability_used",
   "actor_id": "the_emperor",
   "ability": "Hold the Line",
-  "mp_cost": 2
+  "mp_cost": 2,
+  "rule_index": 0
 }
 ```
+
+### Rule attribution (`rule_index`)
+
+`basic_attack` and `ability_used` events carry a `rule_index`:
+
+- a **number** is the 0-based index into the acting character's ordered `rules`
+  list (from the initial team snapshot) that fired this action
+- `null` means no rule matched and the character fell back to its default
+  `Basic Attack`
+
+The viewer uses this to show *why* an action happened — e.g. "Rule 4 · self HP
+≤ 50%" — by looking up `teams.<side>.characters[].rules[rule_index]`. A
+commanded attack (one unit ordered to strike by another's ability) is not
+driven by the actor's own rules and reports `null`.
 
 ### `damage`
 

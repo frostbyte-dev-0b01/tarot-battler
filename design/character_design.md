@@ -527,6 +527,19 @@ Good examples:
 
 Signature abilities should often use more expressive targeting than generic attacks.
 
+### Focus Policy and Captains (planned)
+
+Two planned systems give the player legible targeting/strategy agency without
+manual in-battle control (see `game_spec.md` for the full design):
+
+- **Focus policy** — a per-unit, sticky selection rule (Weakness ARM/RES,
+  Execute, Setup Omen/Marked, Isolate, Focus-fire) for who to commit to among
+  reachable enemies. It turns archetype game plans (Omen execute, isolation,
+  formation focus-fire) into something the player authors rather than hopes for.
+- **Captains and banners** — one team-level identity pick that sets a small
+  banner effect and acts as the Focus-fire rally point. A character's signature
+  banner is a distinct identity axis worth considering during kit design.
+
 ## Statuses as Team-Building Systems
 
 Statuses should support archetypes rather than only serving as generic DOT or stat math.
