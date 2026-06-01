@@ -143,6 +143,12 @@ Each character has a speed counter derived from `SPD`.
 
 This preserves the value of high `SPD` while softening the advantage over long fights.
 
+When several characters become ready on the **same step**, the order in which
+they act is randomized by the seeded battle RNG (rather than a fixed
+team-then-index order). This removes the structural first-mover advantage and
+gives close matchups outcome spread across seeds, while the battle stays fully
+deterministic for any given seed (see Randomness and Determinism).
+
 Turn timing effects still happen if a character is stunned. Stun prevents the action itself, not the rest of turn processing.
 
 Design note:
@@ -408,8 +414,13 @@ Position and bond queries include:
 
 ### Special Rule Conditions
 
-- `always`
-- `probability(X%)`
+- `always` (implemented: a rule with no conditions)
+- `probability(X%)` (**planned**): the rule fires only if a seeded roll passes
+  the given chance — a *visible, scriptable* source of variance the player can
+  build around (e.g. "30% chance to Taunt"). Implementing it threads the seeded
+  battle RNG into rule evaluation; the roll stays deterministic per seed, so
+  replays remain reproducible. A small number of kits should use it so variance
+  is designed and legible rather than hidden in damage math.
 
 ### World State Timing
 
@@ -869,6 +880,43 @@ The core loop should reward:
 - matchup-aware rule writing
 
 Mechanics that only add raw damage or raw stats are lower priority than mechanics that change how a team behaves.
+
+## Randomness and Determinism
+
+Determinism and variance are treated as **orthogonal**:
+
+- **Per-seed determinism = reproducibility.** A battle is fully determined by
+  `(team A, team B, seed)`. This is non-negotiable: replays, debugging, and the
+  gauntlet runner all depend on it. All randomness draws from the single seeded
+  battle RNG — never wall-clock or unseeded sources.
+- **Cross-seed variance = the outcome distribution.** A tuning dial. Skill
+  (team, rules, formation, captain) sets the *mean* of a matchup's win-rate
+  distribution; variance sets the *spread*. Skill should dominate the mean;
+  variance should mainly decide *close* matchups — "fair noise" that flips
+  coin-flip games without overriding a real advantage. The daily loop's **5
+  battles per round** then averages per-battle variance into an expected score,
+  so a round is not a single dice roll.
+
+Calibration targets (win rate for the favored side):
+
+- clear advantage: ~85–97% (rare upsets), never a guaranteed 100%
+- favored ~65–75% · even ~50% · counter/underdog ~5–20% (never an auto-0%)
+
+Sources of variance, by preference:
+
+1. **Turn order among simultaneously-ready units** (implemented) — seed-shuffled
+   each step. Preserves the coarse-tier damage model, doesn't override authored
+   decisions, and doubles as a fairness fix (removes the first-mover bias).
+2. **`probability(X%)` rule conditions and proc passives** (planned) — variance
+   that is visible and scriptable, so players build around it.
+3. **Global damage rolls** are intentionally avoided: they fight the
+   coarse-tier / no-decimals pillar and make breakpoints opaque. Reach for a
+   small flat jitter only if turn-order variance proves insufficient.
+
+Things that stay deterministic regardless: the MP economy, status stacks and
+durations, the speed formula, damage tiers, and anything the player explicitly
+authored (team, rules, formation). The Arena's win-rate + confidence interval
+display is the calibration instrument for tuning variance magnitude.
 
 ## Open Design Areas
 

@@ -9,6 +9,7 @@ use std::collections::HashSet;
 
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use rand::seq::SliceRandom;
 
 use crate::abilities::{AbilityMap, DamageRecord, PassiveMap, PassiveTrigger};
 use crate::logger::{BattleEvent, BattleLog};
@@ -371,15 +372,25 @@ impl BattleState {
             }
         }
 
-        // Execute turns for ready characters (re-check alive — may have died this step)
-        for idx in ready_a {
-            if self.team_a[idx].is_alive() {
-                self.execute_turn(idx, true);
-            }
-        }
-        for idx in ready_b {
-            if self.team_b[idx].is_alive() {
-                self.execute_turn(idx, false);
+        // Execute turns for ready characters in a seed-randomized order.
+        // Randomizing the order of simultaneously-ready units (across both teams)
+        // removes the structural team-A-first bias and gives close matchups
+        // outcome spread, while staying fully deterministic for a given seed.
+        // (re-check alive — a unit may have died earlier this step)
+        let mut ready: Vec<(bool, usize)> = ready_a
+            .into_iter()
+            .map(|i| (true, i))
+            .chain(ready_b.into_iter().map(|i| (false, i)))
+            .collect();
+        ready.shuffle(&mut self.rng);
+        for (is_team_a, idx) in ready {
+            let alive = if is_team_a {
+                self.team_a[idx].is_alive()
+            } else {
+                self.team_b[idx].is_alive()
+            };
+            if alive {
+                self.execute_turn(idx, is_team_a);
             }
         }
 
@@ -2867,6 +2878,9 @@ mod tests {
         use crate::abilities::{PassiveDef, PassiveTrigger};
         use crate::models::TraitEffect;
 
+        // Attacker is clearly faster so it strikes (with Ward up) before the
+        // defender can act — keeps the assertion independent of the seed-based
+        // turn-order shuffle among simultaneously-ready units.
         let mut attacker = make_config(
             "Attacker",
             0,
@@ -2876,7 +2890,7 @@ mod tests {
                 (Stat::MAG, 3),
                 (Stat::ARM, 5),
                 (Stat::RES, 3),
-                (Stat::SPD, 5),
+                (Stat::SPD, 8),
             ],
         );
         attacker.passive = "Barrier".to_string();
@@ -2890,7 +2904,7 @@ mod tests {
                 (Stat::MAG, 3),
                 (Stat::ARM, 3),
                 (Stat::RES, 3),
-                (Stat::SPD, 5),
+                (Stat::SPD, 4),
             ],
         );
         defender.passive = "Thorns".to_string();
