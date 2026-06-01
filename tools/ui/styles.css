@@ -925,6 +925,59 @@ main {
   align-items: end;
 }
 
+/* Compact, sentence-style condition row: Subject · Value · (detail) · Op · Threshold. */
+.condition-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(33, 25, 16, 0.08);
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.condition-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.condition-fields > .field-group {
+  flex: 1 1 130px;
+  min-width: 110px;
+  margin: 0;
+}
+
+/* The operator is a narrow ≥ / ≤ / = picker; don't let it claim a full column. */
+.condition-fields > .condition-field-operator {
+  flex: 0 1 88px;
+  min-width: 72px;
+}
+
+.condition-fields > .condition-remove {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  margin-bottom: 2px;
+}
+
+.threshold-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.threshold-input > input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.input-unit {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .editor-card {
   display: grid;
   gap: 14px;
