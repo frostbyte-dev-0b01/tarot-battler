@@ -4092,3 +4092,29 @@ textarea:focus-visible {
 /* Arena Watch Victory / Watch Defeat */
 .arena-watch-buttons { display: inline-flex; gap: 6px; }
 .arena-view-button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Transient toast feedback (save/export confirmations) */
+#toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%) translateY(12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+  z-index: 1000;
+}
+#toast-region.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.toast {
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--accent-2, #264653);
+  color: #fff7ef;
+  font-size: 0.86rem;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(33, 25, 16, 0.22);
+}
+.toast-error { background: #9c3a2c; }

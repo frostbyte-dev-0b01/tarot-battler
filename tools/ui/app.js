@@ -89,7 +89,6 @@ const workspaces = document.querySelectorAll(".workspace");
 const replayFileInput = document.querySelector("#replay-file-input");
 const replayFileButton = document.querySelector("#replay-file-button");
 const replayJsonInput = document.querySelector("#replay-json-input");
-const replayDemoButton = document.querySelector("#replay-demo-button");
 const replayRunButton = document.querySelector("#replay-run-button");
 const sampleOpponentTeamPath = "./sample-data/teams/omen_engine.json";
 const arenaFightButton = document.querySelector("#arena-fight-button");
@@ -175,6 +174,7 @@ const appState = {
   beatsReplay: null,
   replaySidebarTab: "detail",
   replaySidebarCollapsed: false,
+  catalogsReady: false,
   teamConfig: null,
   characterLibrary: [],
   teamRoster: [],
@@ -315,6 +315,15 @@ const railShortcutTargets = {
 window.addEventListener("keydown", (event) => {
   if (shouldIgnoreGlobalKeydown(event) || event.metaKey || event.ctrlKey || event.altKey) {
     return;
+  }
+  // Spacebar toggles replay playback while the replay viewer is open.
+  if (event.code === "Space") {
+    const replayActive = document.getElementById("replay-viewer")?.classList.contains("is-active");
+    if (replayActive && appState.replay) {
+      event.preventDefault();
+      togglePlayback();
+      return;
+    }
   }
   const target = railShortcutTargets[event.code];
   if (target) {
@@ -460,11 +469,6 @@ function loadReplayFromText(sourceText) {
     return false;
   }
 }
-
-replayDemoButton.addEventListener("click", () => {
-  setActiveWorkspace("replay-viewer");
-  void loadLatestReplay();
-});
 
 replayRunButton?.addEventListener("click", () => {
   setActiveWorkspace("replay-viewer");
@@ -1220,15 +1224,16 @@ replaySoundToggle?.addEventListener("click", () => {
   replaySoundToggle.querySelector(".sound-off").hidden = !muted;
 });
 
-replayPlayButton.addEventListener("click", () => {
+function togglePlayback() {
   if (appState.playbackTimerId !== null) {
     stopPlayback();
     renderPlaybackControls();
-    return;
+  } else {
+    startPlayback();
   }
+}
 
-  startPlayback();
-});
+replayPlayButton.addEventListener("click", togglePlayback);
 
 replayPauseButton.addEventListener("click", () => {
   stopPlayback();
@@ -1395,7 +1400,7 @@ if (teamEditorConfig.jsonInput) {
 resetTeamSummary();
 renderTeamEditor();
 renderCharacterLibrary();
-renderTeamValidation(validateTeamConfig(appState.teamConfig));
+renderAmbientTeamValidation();
 void loadEditorCatalogs();
 void loadLatestReplay();
 
@@ -1554,7 +1559,9 @@ function applyCatalogs(archetypes, passives, abilities, aspects, statuses) {
     Object.entries(aspects).map(([name, definition]) => [name, definition?.description ?? ""]),
   );
   appState.catalogs.aspectDefinitions = aspects;
+  appState.catalogsReady = true;
   renderTeamEditor();
+  renderAmbientTeamValidation();
 }
 
 function applyEmptyCatalogs() {
@@ -1570,6 +1577,10 @@ function applyEmptyCatalogs() {
   appState.catalogs.abilityDescriptions = {};
   appState.catalogs.aspectDescriptions = {};
   appState.catalogs.aspectDefinitions = {};
+  // The load attempt is over (catalogs unavailable); resolve the banner rather
+  // than leaving it stuck on "Checking team…".
+  appState.catalogsReady = true;
+  renderAmbientTeamValidation();
 }
 
 async function loadEditorCatalogs() {
@@ -2820,7 +2831,7 @@ function syncTeamUI() {
     teamEditorConfig.jsonInput.value = JSON.stringify(teamConfig, null, 2);
   }
   renderTeamSummary(teamConfig);
-  renderTeamValidation(validateTeamConfig(teamConfig));
+  renderAmbientTeamValidation();
   renderTeamEditor();
   restoreTeamEditorFocus(preservedFocus);
 }
@@ -2894,6 +2905,17 @@ function restoreTeamEditorFocus(snapshot) {
   }
 }
 
+// Ambient team-validity banner. Suppressed until the catalogs finish loading,
+// because validating references (aspects/passives/abilities) against empty
+// catalogs briefly reports false "unknown reference" issues on a valid team.
+function renderAmbientTeamValidation() {
+  if (!appState.catalogsReady) {
+    setTeamValidationStatus("idle", "Checking team…");
+    return;
+  }
+  renderTeamValidation(validateTeamConfig(appState.teamConfig));
+}
+
 function renderTeamValidation(result) {
   const output = teamEditorConfig.validationOutput;
   if (!output) {
@@ -2910,6 +2932,24 @@ function renderTeamValidation(result) {
   }
 
   setTeamValidationStatus("error", `${result.errors.length} issue${result.errors.length === 1 ? "" : "s"}`, result.errors);
+}
+
+// Transient toast feedback, visible on any workspace (the team-validity banner
+// lives on the Team tab and isn't seen while editing a character).
+let toastTimerId = null;
+function showToast(message, kind = "success") {
+  let region = document.getElementById("toast-region");
+  if (!region) {
+    region = document.createElement("div");
+    region.id = "toast-region";
+    document.body.appendChild(region);
+  }
+  region.innerHTML = `<div class="toast toast-${kind}">${escapeHtml(message)}</div>`;
+  region.classList.add("is-visible");
+  if (toastTimerId) {
+    clearTimeout(toastTimerId);
+  }
+  toastTimerId = setTimeout(() => region.classList.remove("is-visible"), 2200);
 }
 
 function setTeamValidationStatus(kind, label, errors = []) {
@@ -3026,7 +3066,6 @@ function renderTeamTab() {
         </label>
         <div class="file-icon-actions" aria-label="Team actions">
           <button type="button" class="button-quiet" data-team-action="open-team-library" title="Load a team from your roster or import JSON">Load Team</button>
-          <button type="button" class="icon-button" data-team-action="open-character-library" title="Character library" aria-label="Character library">${icon("library")}</button>
           <button type="button" class="icon-button" data-team-action="save-team-file" title="Export team JSON" aria-label="Export team JSON">${icon("export")}</button>
         </div>
       </div>
@@ -3182,6 +3221,7 @@ function renderSelectedCharacterWorkspace(character, characterIndex) {
         </div>
         <div class="team-detail-tabbar-actions">
           <button type="button" class="button-quiet" data-team-action="save-character" data-character-index="${characterIndex}" title="Save this character build to your library">Save Character</button>
+          <button type="button" class="button-quiet" data-team-action="download-character" data-character-index="${characterIndex}" title="Export this character to a JSON file">Export</button>
           <button type="button" class="button-quiet" data-team-action="load-character" data-character-index="${characterIndex}" title="Load a saved character into this slot">Load Character</button>
           <button type="button" class="button-quiet" data-team-action="remove-character" data-character-index="${characterIndex}">Delete</button>
         </div>
@@ -3953,6 +3993,7 @@ function renderCharacterLibraryOverlay() {
   libraryBody.innerHTML = `
     ${intro}
     <div class="library-actions">
+      <button type="button" class="button-secondary" data-library-action="new">New character</button>
       <button type="button" class="button-secondary" data-library-action="import">Import JSON…</button>
       <input class="visually-hidden" type="file" id="library-import-input" accept=".json,application/json">
     </div>
@@ -3972,6 +4013,18 @@ function handleLibraryAction(event) {
 
   if (action === "import") {
     libraryBody?.querySelector("#library-import-input")?.click();
+    return;
+  }
+  if (action === "new") {
+    const team = appState.teamConfig;
+    if (!team) {
+      return;
+    }
+    closeCharacterLibrary();
+    addCharacterAtFirstOpenPosition(team);
+    appState.teamDetailTab = "design";
+    syncTeamUI();
+    setActiveWorkspace("character-builder");
     return;
   }
   if (action === "use") {
@@ -4112,10 +4165,11 @@ function handleTeamEditorAction(event) {
       openCharacterLibrary();
       return;
     case "add-character":
-      addCharacterAtFirstOpenPosition(team);
-      appState.teamDetailTab = "design";
-      navigateToCharacterTab = true;
-      break;
+      // Open the library picker (Add-to-team mode); its "New" button creates a
+      // blank build, and saved characters can be added directly.
+      appState.libraryTargetSlot = null;
+      openCharacterLibrary();
+      return;
     case "add-character-slot":
       addCharacterAtSlot(team, Number(actionTarget.dataset.slotIndex));
       appState.teamDetailTab = "design";
@@ -4160,9 +4214,14 @@ function handleTeamEditorAction(event) {
       if (character) {
         upsertCharacterInLibrary(character);
         setTeamValidationStatus("success", `Saved “${characterLabel(character)}” to library`);
+        showToast(`Saved “${characterLabel(character)}” to your library`);
       }
       return;
     }
+    case "download-character":
+      downloadCharacterJson(characterIndex);
+      showToast("Character exported to JSON");
+      return;
     case "load-character":
       appState.libraryTargetSlot = characterIndex;
       openCharacterLibrary();
