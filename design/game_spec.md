@@ -45,7 +45,7 @@ Each character loadout consists of:
 - locked base stats from that template
 - one passive selected from that character's passive pool
 - two or three equipped active abilities
-- up to five ordered rules
+- up to seven ordered rules
 - one aspect slot
 - a formation position on a 3-column by 3-row grid
 
@@ -274,7 +274,7 @@ Enemy targeting should also support positional conditions such as:
 
 ## Rule System
 
-Each character has up to 5 ordered rules.
+Each character has up to 7 ordered rules.
 
 These rules form one shared priority list for the character.
 
@@ -286,31 +286,57 @@ Rules answer only one question:
 
 If the first rule's conditions are met and the character has enough MP to pay the cost, that action is used. Otherwise the next rule is checked. If no rule is satisfied, the character uses `Basic Attack`.
 
-### Rule Condition Groups
+### Logic Structure
 
-Rules can inspect only:
+The condition logic is deliberately flat — there are no nested boolean groups.
+
+- Within a single rule, conditions combine with **AND** by default.
+- The ordered list of rules provides an implicit **OR** across priorities.
+- A per-rule `match_any` flag flips one rule to **OR** (fire if any condition
+  holds) for the occasional case where a flat AND-list is not enough. This
+  buys cheap OR without the cognitive cost of nesting.
+
+The intent is a policy language that is shallow to read yet deep to play:
+tactical depth comes from observable state and ordering, not boolean trees.
+
+### Rule Condition Subjects
+
+Rules can inspect these subjects:
 
 - `self`
-- `companion`
-- `target`
+- `companion` — any **fixed** companion
+- `any_ally` — any living ally (the whole team)
+- `lowest_ally` — the living ally with the lowest current HP
+- `target` — the current target
+- `any_enemy` — any living enemy
+- `lowest_enemy` — the living enemy with the lowest current HP
 - `world`
 
-`companion` means any adjacent ally. It does not imply targeting that same companion.
+`companion` is a fixed bond: companions are the allies cardinally adjacent at
+battle start, and the bond persists even if units move. It does not imply
+targeting that same companion. The `any_*` and `lowest_*` scopes are live —
+they re-scan the relevant team each turn — and are intentionally distinct from
+the fixed companion bond.
 
 Example:
 
-- `if companion HP < 4, cast Restore`
+- `if any_ally HP < 30%, cast Restore`
 
-This triggers if any companion is below 4 HP. The ability still picks its own target using its own targeting rules.
+This triggers if any living ally is below 30% HP. The ability still picks its
+own target using its own targeting rules.
 
 ### Rule Properties
 
-`self`, `companion`, and `target` can inspect:
+Character subjects (`self`, `companion`, `any_ally`, `lowest_ally`, `target`,
+`any_enemy`, `lowest_enemy`) can inspect:
 
 - any effective stat
-- current HP
+- current HP, expressed as a **percentage of max HP** (`0`–`100`) so thresholds
+  port across different stat lines
 - current MP
 - position information such as row for `self`
+- `focused_by_count` — how many living enemies are currently focusing the
+  subject (a threat/aggro signal that supports blind play)
 - companion count for `self` and `target`
 - stack count of a named effect using a status key such as `Empower:MGT`
 - whether a named effect is present or absent using a key such as `Ward`
@@ -321,7 +347,7 @@ This triggers if any companion is below 4 HP. The ability still picks its own ta
 - `ally_count`
 - `enemy_count`
 
-This is expected to include queries such as:
+Position and bond queries include:
 
 - `self_row`
 - `self_companion_count`
@@ -329,8 +355,8 @@ This is expected to include queries such as:
 
 ### Rule Operators
 
-- greater than
-- less than
+- greater than or equal to
+- less than or equal to
 - equal to
 
 ### Special Rule Conditions
