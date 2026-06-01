@@ -397,7 +397,13 @@ function setActiveWorkspace(targetId) {
     // fetch/parse to the next frame so the workspace renders without a stall.
     appState.replayLoading = true;
     resetBoards();
-    window.requestAnimationFrame(() => void loadLatestReplay());
+    // Re-check on the deferred frame: if something loaded a replay in the
+    // meantime (e.g. an arena "Watch" click), don't clobber it with the latest.
+    window.requestAnimationFrame(() => {
+      if (!appState.replay) {
+        void loadLatestReplay();
+      }
+    });
   }
   if (targetId === "arena") {
     renderArena();
@@ -921,8 +927,11 @@ function renderArenaResults(rows, runs) {
         return;
       }
       replayJsonInput.value = replay;
-      setActiveWorkspace("replay-viewer");
+      // Load before switching: setActiveWorkspace only auto-loads the latest
+      // replay when none is loaded, so loading first prevents it from clobbering
+      // this arena replay a frame later.
       loadReplayFromText(replay.trim());
+      setActiveWorkspace("replay-viewer");
     });
   }
 }
