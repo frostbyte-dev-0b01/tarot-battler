@@ -14,10 +14,13 @@
 
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use axum::{routing::get, Json, Router};
 use tower_http::services::ServeDir;
 
+mod api;
+mod content;
 mod db;
 mod draft;
 mod models;
@@ -38,12 +41,21 @@ async fn main() {
         eprintln!("failed to open database at {db_path}: {e}");
         std::process::exit(1);
     });
-    // Hold the handle for the process lifetime (state wiring lands with the data model).
-    let _db = db;
+    // Parse the engine content catalogs once (team validation + draft pools).
+    let content = content::Content::load().unwrap_or_else(|e| {
+        eprintln!("failed to load engine content: {e}");
+        std::process::exit(1);
+    });
+    let state = api::AppState {
+        db: Arc::new(db),
+        content: Arc::new(content),
+    };
 
     let app = Router::new()
         .route("/healthz", get(healthz))
         .route("/api/version", get(version))
+        // Season API.
+        .merge(api::router(state))
         // Everything else is served from the static UI directory.
         .fallback_service(ServeDir::new(&ui_dir).append_index_html_on_directories(true));
 
