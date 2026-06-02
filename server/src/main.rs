@@ -19,6 +19,7 @@ use axum::{routing::get, Json, Router};
 use tower_http::services::ServeDir;
 
 mod db;
+mod models;
 
 #[tokio::main]
 async fn main() {
