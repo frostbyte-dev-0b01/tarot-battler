@@ -173,6 +173,18 @@ pub fn validate_teams(
     }
 }
 
+/// The content a season team is allowed to use. `None` (in
+/// `validate_team_config_with`) means everything is unlocked. Archetypes and
+/// aspects are the draftable units; a character's passive/actives come from its
+/// archetype pool, so unlocking the archetype unlocks those.
+#[derive(Debug, Default, Clone)]
+pub struct UnlockedPool {
+    pub archetypes: HashSet<String>,
+    pub aspects: HashSet<String>,
+}
+
+/// Validate a team against the default budget with everything unlocked
+/// (standalone CLI / non-season play).
 pub fn validate_team_config(
     team: &TeamConfig,
     archetypes: &ArchetypeMap,
@@ -180,6 +192,32 @@ pub fn validate_team_config(
     abilities: &AbilityMap,
     passives: &PassiveMap,
     statuses: &StatusMap,
+) -> Result<Vec<CharacterConfig>, String> {
+    validate_team_config_with(
+        team,
+        archetypes,
+        aspects,
+        abilities,
+        passives,
+        statuses,
+        TEAM_BUDGET,
+        None,
+    )
+}
+
+/// Validate a team against a specific point `budget` and an optional unlocked
+/// `pool` (season play). A team over budget, or using an archetype/aspect
+/// outside the pool, is rejected.
+#[allow(clippy::too_many_arguments)]
+pub fn validate_team_config_with(
+    team: &TeamConfig,
+    archetypes: &ArchetypeMap,
+    aspects: &AspectMap,
+    abilities: &AbilityMap,
+    passives: &PassiveMap,
+    statuses: &StatusMap,
+    budget: u32,
+    pool: Option<&UnlockedPool>,
 ) -> Result<Vec<CharacterConfig>, String> {
     let mut errors = Vec::new();
     let mut seen_ids = HashSet::new();
@@ -217,6 +255,14 @@ pub fn validate_team_config(
         if let Some(archetype) = archetypes.get(&character.template_id) {
             total_cost += archetype.cost;
         }
+        if let Some(pool) = pool {
+            if !pool.archetypes.contains(&character.template_id) {
+                errors.push(format!(
+                    "team '{}' uses locked archetype '{}' (not in this season's pool)",
+                    team.name, character.template_id
+                ));
+            }
+        }
         if let Some(aspect) = &character.aspect {
             if !seen_aspects.insert(aspect.as_str()) {
                 errors.push(format!("team '{}' repeats aspect '{}'", team.name, aspect));
@@ -224,13 +270,21 @@ pub fn validate_team_config(
             if let Some(aspect_def) = aspects.get(aspect) {
                 total_cost += aspect_def.cost;
             }
+            if let Some(pool) = pool {
+                if !pool.aspects.contains(aspect) {
+                    errors.push(format!(
+                        "team '{}' uses locked aspect '{}' (not in this season's pool)",
+                        team.name, aspect
+                    ));
+                }
+            }
         }
     }
 
-    if total_cost > TEAM_BUDGET {
+    if total_cost > budget {
         errors.push(format!(
             "team '{}' costs {} points, over the {}-point budget",
-            team.name, total_cost, TEAM_BUDGET
+            team.name, total_cost, budget
         ));
     }
 
@@ -1136,6 +1190,119 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.contains("over the 14-point budget"), "got: {err}");
+    }
+
+    #[test]
+    fn validate_team_config_with_enforces_a_custom_budget() {
+        let data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data");
+        let archetypes = load_archetypes(&data_dir.join("archetypes.json")).unwrap();
+        let abilities = load_abilities(&data_dir.join("abilities.json")).unwrap();
+        let aspects = load_aspects(&data_dir.join("aspects.json")).unwrap();
+        let passives = load_passives(&data_dir.join("passives.json")).unwrap();
+        let statuses = load_statuses(&data_dir.join("statuses.json")).unwrap();
+
+        // The Chariot (cost 2) alone, no aspect → total cost 2.
+        let team = TeamConfig {
+            version: 2,
+            name: "Lean".to_string(),
+            characters: vec![TeamCharacterLoadout {
+                id: "c".to_string(),
+                template_id: "the_chariot".to_string(),
+                display_name: None,
+                position: crate::models::Position { row: 0, col: 0 },
+                passive: "Pursuit".to_string(),
+                actives: vec!["Charge".to_string()],
+                aspect: None,
+                rules: vec![],
+            }],
+        };
+
+        // Budget 1 < cost 2 → rejected.
+        let err = validate_team_config_with(
+            &team,
+            &archetypes,
+            &aspects,
+            &abilities,
+            &passives,
+            &statuses,
+            1,
+            None,
+        )
+        .unwrap_err();
+        assert!(err.contains("over the 1-point budget"), "got: {err}");
+
+        // Budget 2 → accepted.
+        assert!(
+            validate_team_config_with(
+                &team,
+                &archetypes,
+                &aspects,
+                &abilities,
+                &passives,
+                &statuses,
+                2,
+                None,
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn validate_team_config_with_rejects_locked_content() {
+        let data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data");
+        let archetypes = load_archetypes(&data_dir.join("archetypes.json")).unwrap();
+        let abilities = load_abilities(&data_dir.join("abilities.json")).unwrap();
+        let aspects = load_aspects(&data_dir.join("aspects.json")).unwrap();
+        let passives = load_passives(&data_dir.join("passives.json")).unwrap();
+        let statuses = load_statuses(&data_dir.join("statuses.json")).unwrap();
+
+        let team = TeamConfig {
+            version: 2,
+            name: "Locked".to_string(),
+            characters: vec![TeamCharacterLoadout {
+                id: "c".to_string(),
+                template_id: "the_chariot".to_string(),
+                display_name: None,
+                position: crate::models::Position { row: 0, col: 0 },
+                passive: "Pursuit".to_string(),
+                actives: vec!["Charge".to_string()],
+                aspect: Some("aspect_of_ruin".to_string()),
+                rules: vec![],
+            }],
+        };
+
+        // Pool unlocks a different archetype + the aspect → both flagged.
+        let mut pool = UnlockedPool::default();
+        pool.archetypes.insert("the_emperor".to_string());
+        pool.aspects.insert("aspect_of_ruin".to_string());
+        let err = validate_team_config_with(
+            &team,
+            &archetypes,
+            &aspects,
+            &abilities,
+            &passives,
+            &statuses,
+            20,
+            Some(&pool),
+        )
+        .unwrap_err();
+        assert!(err.contains("locked archetype 'the_chariot'"), "got: {err}");
+
+        // Unlock the archetype too → accepted.
+        pool.archetypes.insert("the_chariot".to_string());
+        assert!(
+            validate_team_config_with(
+                &team,
+                &archetypes,
+                &aspects,
+                &abilities,
+                &passives,
+                &statuses,
+                20,
+                Some(&pool),
+            )
+            .is_ok()
+        );
     }
 
     #[test]
