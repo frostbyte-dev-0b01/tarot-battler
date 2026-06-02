@@ -4347,3 +4347,131 @@ textarea:focus-visible {
 .season-result-draw .season-result-outcome {
   color: var(--muted);
 }
+
+/* Season: current beat + draft offers */
+.season-beat-panel {
+  margin-bottom: var(--s-4);
+}
+
+.season-open-head {
+  margin: 0 0 var(--s-2);
+}
+
+.season-offers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: var(--s-2) 0;
+}
+
+.season-offer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.season-offer:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.season-offer.is-claimed {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.season-offer-tag {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Season: team builder panel */
+.season-builder-panel {
+  grid-column: 1 / -1;
+}
+
+.season-builder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.season-builder-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.season-builder label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.season-builder select {
+  padding: var(--s-1) var(--s-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font: inherit;
+  color: var(--ink);
+  min-width: 12rem;
+}
+
+.season-cost {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.season-cost.is-over {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.season-passives {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: center;
+}
+
+.season-builder-label {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.season-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: var(--text-sm);
+}
+
+.season-warn {
+  color: var(--accent);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.season-builder-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.season-ok {
+  color: #2f7d3f;
+  font-size: var(--text-sm);
+}

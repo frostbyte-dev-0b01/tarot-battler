@@ -182,29 +182,47 @@ async function main() {
       results: { results: [
         { id: "d0-tester-vs-rival", day: 0, player_a: "tester", player_b: "rival", winner: "a", seed: 1, replay_id: "d0-tester-vs-rival" },
       ] },
-      draft: {
-        player: "tester",
-        current_beat: 2,
-        budget: 11,
-        unlocked: { archetypes: ["the_emperor"], aspects: [], team_passives: [], banner: "Rally" },
-        beats: [
-          { index: 0, kind: "banner", budget_delta: 0, offers: ["Rally", "Bulwark"], claimed: "Rally", open: false },
-          { index: 1, kind: "item", budget_delta: 1, offers: ["Sharp"], claimed: "Sharp", open: false },
-          { index: 2, kind: "character", budget_delta: 0, offers: ["the_fool"], claimed: null, open: true },
-        ],
-      },
     };
+    // The open beat (index 2) is unclaimed until the client claims it; the
+    // /api/team stub allows only chariot/justice archetypes so we can exercise
+    // both the success and the rejection paths.
+    let beat2Claimed = null;
+    const teamPoolAllow = ["the_chariot", "justice"];
+    const draftPayload = () => ({
+      player: "tester",
+      current_beat: 2,
+      budget: 11,
+      unlocked: { archetypes: ["the_chariot", "justice", "the_emperor"], aspects: [], team_passives: ["Aegis"], banner: "Rally" },
+      beats: [
+        { index: 0, kind: "banner", budget_delta: 0, offers: ["Rally", "Bulwark"], claimed: "Rally", open: false },
+        { index: 1, kind: "item", budget_delta: 1, offers: ["Sharp"], claimed: "Sharp", open: false },
+        { index: 2, kind: "character", budget_delta: 0, offers: ["the_fool", "the_hermit"], claimed: beat2Claimed, open: true },
+      ],
+    });
     await page.route("**/api/**", (route) => {
       // NB: a local `const URL` (the page address) shadows the global URL
       // constructor in this file, so match on the raw request URL string.
       const u = route.request().url();
       const json = (obj) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(obj) });
+      const fail = (msg) => route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ error: msg }) });
       if (u.includes("/api/version")) return json(stubs.version);
       if (u.includes("/api/join")) return json(stubs.join);
       if (u.includes("/api/season")) return json(stubs.season);
       if (u.includes("/api/standings")) return json(stubs.standings);
       if (u.includes("/api/results")) return json(stubs.results);
-      if (u.includes("/api/draft")) return json(stubs.draft);
+      if (u.includes("/api/draft/claim")) {
+        const body = JSON.parse(route.request().postData() || "{}");
+        beat2Claimed = body.choice;
+        return json(draftPayload());
+      }
+      if (u.includes("/api/draft")) return json(draftPayload());
+      if (u.includes("/api/team")) {
+        const body = JSON.parse(route.request().postData() || "{}");
+        const ids = ((body.team && body.team.characters) || []).map((c) => c.template_id);
+        const locked = ids.filter((id) => !teamPoolAllow.includes(id));
+        if (locked.length) return fail(`team uses locked archetype '${locked[0]}' (not in this season's pool)`);
+        return json({ ok: true, player: "tester" });
+      }
       if (u.includes("/api/replays/")) return route.fulfill({ status: 200, contentType: "application/json", body: sampleReplay });
       return route.fulfill({ status: 404, contentType: "application/json", body: '{"error":"not found"}' });
     });
@@ -230,6 +248,38 @@ async function main() {
     check("season dashboard renders standings", dash.standings === 2, `rows=${dash.standings}`);
     check("season dashboard renders results", dash.results === 1, `results=${dash.results}`);
     check("season clock line is legible", /Day \d+ · Beat \d+ of 8/.test(dash.clock), dash.clock);
+
+    // Draft UI: the open beat offers claimable options.
+    const offersShown = await page.evaluate(() => document.querySelectorAll('.season-open-beat .season-offer').length);
+    check("season open beat shows claimable offers", offersShown >= 2, `offers=${offersShown}`);
+
+    // Claim the first offer → it reflects as claimed.
+    await page.evaluate(() => document.querySelector('.season-offer[data-season-action="claim"]')?.click());
+    await page.waitForFunction(() => !!document.querySelector('.season-offer.is-claimed'), { timeout: 5000 }).catch(() => {});
+    const claimed = await page.evaluate(() => document.querySelector('.season-offer.is-claimed')?.textContent?.trim() || "");
+    check("season claim marks the chosen offer", /the_fool/.test(claimed), claimed);
+
+    // Season builder: submitting a team within the pool succeeds.
+    const builderReady = await page.evaluate(() => !!document.querySelector('[data-season-action="submit-team"]'));
+    check("season team builder renders", builderReady);
+    await page.evaluate(() => document.querySelector('[data-season-action="submit-team"]')?.click());
+    await page.waitForFunction(() => !!document.querySelector('.season-ok'), { timeout: 5000 }).catch(() => {});
+    const submitOk = await page.evaluate(() => document.querySelector('.season-ok')?.textContent?.trim() || "");
+    check("season team submit succeeds within pool", /submitted/i.test(submitOk), submitOk);
+
+    // Submitting a team that uses locked content is rejected with a message.
+    await page.evaluate(() => {
+      const sel = document.querySelector('select[data-season-action="select-team"]');
+      if (sel) { sel.value = "Stale Team"; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+    });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => document.querySelector('[data-season-action="submit-team"]')?.click());
+    await page.waitForFunction(
+      () => /locked archetype/i.test(document.querySelector('.season-builder-actions .season-error')?.textContent || ""),
+      { timeout: 5000 },
+    ).catch(() => {});
+    const submitErr = await page.evaluate(() => document.querySelector('.season-builder-actions .season-error')?.textContent?.trim() || "");
+    check("season team submit rejects locked content with a message", /locked archetype/i.test(submitErr), submitErr);
 
     // Watch a result → loads the replay into the existing viewer.
     await page.evaluate(() => document.querySelector('[data-season-action="watch"]')?.click());
