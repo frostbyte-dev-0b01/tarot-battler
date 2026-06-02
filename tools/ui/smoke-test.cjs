@@ -148,6 +148,102 @@ async function main() {
     await page.waitForTimeout(2500);
     const banner = await page.evaluate(() => document.querySelector(".arena-error-banner")?.textContent?.trim() || null);
     check("arena surfaces stale-team error banner", !!banner && /unknown aspect/i.test(banner), banner || "no banner");
+
+    // ===== Scenario 3: Season tab against a stubbed /api server (PR #42) =====
+    // Intercept every /api/** request with canned JSON so the Season workspace
+    // can be exercised without running the Rust server.
+    const sampleReplay = fs.readFileSync(
+      path.join(repoRoot, "tools/ui/sample-data/replays/front_row_defeats_good_stats.json"),
+      "utf8",
+    );
+    const schedule = [
+      { index: 0, kind: "banner", budget_delta: 0 },
+      { index: 1, kind: "item", budget_delta: 1 },
+      { index: 2, kind: "character", budget_delta: 0 },
+      { index: 3, kind: "team_passive", budget_delta: 1 },
+      { index: 4, kind: "item", budget_delta: 1 },
+      { index: 5, kind: "character", budget_delta: 1 },
+      { index: 6, kind: "swap", budget_delta: 0 },
+      { index: 7, kind: "item", budget_delta: 1 },
+    ];
+    const stubs = {
+      version: { name: "tarot-server", version: "0.1.0" },
+      join: { player: { id: "tester", name: "Tester", points: 10 }, season: { id: "season-1", name: "Season 1" } },
+      season: {
+        season: { id: "season-1", name: "Season 1", day: 1, beats_revealed: 3, seed: 1 },
+        schedule,
+        current_beat: 2,
+        budget: 11,
+      },
+      standings: { standings: [
+        { id: "tester", name: "Tester", points: 10 },
+        { id: "rival", name: "Rival", points: 5 },
+      ] },
+      results: { results: [
+        { id: "d0-tester-vs-rival", day: 0, player_a: "tester", player_b: "rival", winner: "a", seed: 1, replay_id: "d0-tester-vs-rival" },
+      ] },
+      draft: {
+        player: "tester",
+        current_beat: 2,
+        budget: 11,
+        unlocked: { archetypes: ["the_emperor"], aspects: [], team_passives: [], banner: "Rally" },
+        beats: [
+          { index: 0, kind: "banner", budget_delta: 0, offers: ["Rally", "Bulwark"], claimed: "Rally", open: false },
+          { index: 1, kind: "item", budget_delta: 1, offers: ["Sharp"], claimed: "Sharp", open: false },
+          { index: 2, kind: "character", budget_delta: 0, offers: ["the_fool"], claimed: null, open: true },
+        ],
+      },
+    };
+    await page.route("**/api/**", (route) => {
+      // NB: a local `const URL` (the page address) shadows the global URL
+      // constructor in this file, so match on the raw request URL string.
+      const u = route.request().url();
+      const json = (obj) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(obj) });
+      if (u.includes("/api/version")) return json(stubs.version);
+      if (u.includes("/api/join")) return json(stubs.join);
+      if (u.includes("/api/season")) return json(stubs.season);
+      if (u.includes("/api/standings")) return json(stubs.standings);
+      if (u.includes("/api/results")) return json(stubs.results);
+      if (u.includes("/api/draft")) return json(stubs.draft);
+      if (u.includes("/api/replays/")) return route.fulfill({ status: 200, contentType: "application/json", body: sampleReplay });
+      return route.fulfill({ status: 404, contentType: "application/json", body: '{"error":"not found"}' });
+    });
+
+    // Open the Season tab → should reach the join form (no stored player).
+    await page.evaluate(() => localStorage.removeItem("tarot:season:player"));
+    await page.evaluate(() => { const el = [...document.querySelectorAll("button")].find((x) => /^season$/i.test(x.textContent.trim())); el && el.click(); });
+    await page.waitForFunction(() => !!document.querySelector("#season-name"), { timeout: 5000 }).catch(() => {});
+    const joinFormShown = await page.evaluate(() => !!document.querySelector('[data-season-action="join"]'));
+    check("season tab shows join form when no player is stored", joinFormShown);
+
+    // Join → dashboard with schedule + standings.
+    await page.evaluate(() => { const i = document.querySelector("#season-name"); if (i) { i.value = "Tester"; } });
+    await page.evaluate(() => document.querySelector('[data-season-action="join"]')?.click());
+    await page.waitForFunction(() => document.querySelectorAll(".season-beat").length > 0, { timeout: 5000 }).catch(() => {});
+    const dash = await page.evaluate(() => ({
+      beats: document.querySelectorAll(".season-beat").length,
+      standings: document.querySelectorAll(".season-standing-row").length,
+      results: document.querySelectorAll(".season-result").length,
+      clock: document.querySelector(".season-header .season-hint")?.textContent?.trim() || "",
+    }));
+    check("season dashboard renders schedule", dash.beats === 8, `beats=${dash.beats}`);
+    check("season dashboard renders standings", dash.standings === 2, `rows=${dash.standings}`);
+    check("season dashboard renders results", dash.results === 1, `results=${dash.results}`);
+    check("season clock line is legible", /Day \d+ · Beat \d+ of 8/.test(dash.clock), dash.clock);
+
+    // Watch a result → loads the replay into the existing viewer.
+    await page.evaluate(() => document.querySelector('[data-season-action="watch"]')?.click());
+    await page.waitForFunction(
+      () => document.getElementById("replay-viewer")?.classList.contains("is-active") &&
+            document.querySelectorAll("#battle-board .board-cell, #battle-board .grid-unit, #battle-board > *").length > 0,
+      { timeout: 8000 },
+    ).catch(() => {});
+    const watched = await page.evaluate(() => ({
+      replayActive: document.getElementById("replay-viewer")?.classList.contains("is-active"),
+      board: document.querySelectorAll("#battle-board > *").length,
+    }));
+    check("season Watch opens the replay viewer", watched.replayActive && watched.board > 0, JSON.stringify(watched));
+    await page.unroute("**/api/**");
   } finally {
     await browser.close();
     if (server) server.kill("SIGTERM");

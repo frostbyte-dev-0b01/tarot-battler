@@ -183,6 +183,16 @@ const appState = {
   arenaAttackerName: null,
   arenaResultView: "winrate",
   lastRoundRobin: null,
+  season: {
+    player: null,      // { id, name, points } once joined
+    season: null,      // /api/season payload
+    draft: null,       // /api/draft payload
+    standings: [],     // /api/standings rows
+    results: [],       // /api/results rows
+    available: null,   // null = unknown, true/false after a probe
+    error: null,       // last error message to surface
+    busy: false,       // a request is in flight
+  },
   selectedTeamCharacterIndex: 0,
   teamDetailTab: "design",
   teamDesignRightPane: "loadout",
@@ -311,6 +321,7 @@ const railShortcutTargets = {
   Digit2: "character-builder",
   Digit3: "arena",
   Digit4: "replay-viewer",
+  Digit5: "season",
 };
 window.addEventListener("keydown", (event) => {
   if (shouldIgnoreGlobalKeydown(event) || event.metaKey || event.ctrlKey || event.altKey) {
@@ -356,6 +367,9 @@ function setActiveWorkspace(targetId) {
   }
   if (targetId === "arena") {
     renderArena();
+  }
+  if (targetId === "season") {
+    void renderSeasonTab();
   }
 }
 
@@ -5501,3 +5515,318 @@ function formatDepthLabel(row) {
   return `row ${row}`;
 }
 
+
+// ===== Season workspace =====
+//
+// A thin client over the local server's /api endpoints (see server/src/api.rs).
+// The static app works standalone: if no server answers, the Season tab shows a
+// friendly offline panel and the rest of the app is unaffected.
+
+const SEASON_PLAYER_KEY = "tarot:season:player";
+const seasonRoot = document.querySelector("#season-root");
+
+function loadStoredSeasonPlayer() {
+  try {
+    const raw = localStorage.getItem(SEASON_PLAYER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeSeasonPlayer(player) {
+  try {
+    if (player) localStorage.setItem(SEASON_PLAYER_KEY, JSON.stringify(player));
+    else localStorage.removeItem(SEASON_PLAYER_KEY);
+  } catch {
+    /* ignore storage failures (private mode etc.) */
+  }
+}
+
+// Fetch wrapper: resolves to parsed JSON, throws Error(message) on HTTP error
+// (surfacing the server's {"error": ...} body when present).
+async function seasonFetch(path, options = {}) {
+  const response = await fetch(path, {
+    headers: { "content-type": "application/json" },
+    ...options,
+  });
+  let body = null;
+  try {
+    body = await response.json();
+  } catch {
+    /* non-JSON body */
+  }
+  if (!response.ok) {
+    const message = body && body.error ? body.error : `HTTP ${response.status}`;
+    throw new Error(message);
+  }
+  return body;
+}
+
+// Probe whether a season server is reachable. Network failure or a non-2xx
+// reply both count as "no server".
+async function probeSeasonServer() {
+  try {
+    await seasonFetch("/api/version");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Refresh the player-scoped payloads from the server into appState.season.
+async function refreshSeasonData(playerId) {
+  const s = appState.season;
+  const [season, standings, results, draft] = await Promise.all([
+    seasonFetch("/api/season"),
+    seasonFetch("/api/standings"),
+    seasonFetch(`/api/results?player=${encodeURIComponent(playerId)}`),
+    seasonFetch(`/api/draft?player=${encodeURIComponent(playerId)}`),
+  ]);
+  s.season = season;
+  s.standings = (standings && standings.standings) || [];
+  s.results = (results && results.results) || [];
+  s.draft = draft;
+}
+
+async function renderSeasonTab() {
+  if (!seasonRoot) return;
+  const s = appState.season;
+
+  // First entry: probe the server once.
+  if (s.available === null) {
+    seasonRoot.innerHTML = `<div class="board-empty-state">Connecting to the season server…</div>`;
+    s.available = await probeSeasonServer();
+  }
+
+  if (!s.available) {
+    seasonRoot.innerHTML = renderSeasonOffline();
+    return;
+  }
+
+  if (!s.player) {
+    s.player = loadStoredSeasonPlayer();
+  }
+
+  if (!s.player) {
+    seasonRoot.innerHTML = renderSeasonJoin(s.error);
+    s.error = null;
+    const input = seasonRoot.querySelector("#season-name");
+    if (input) input.focus();
+    return;
+  }
+
+  // Joined: pull the live data and paint the dashboard.
+  try {
+    await refreshSeasonData(s.player.id);
+  } catch (error) {
+    s.error = error.message;
+  }
+  seasonRoot.innerHTML = renderSeasonDashboard();
+}
+
+function renderSeasonOffline() {
+  return `
+    <div class="season-panel season-offline">
+      <h2>Season</h2>
+      <p>No season server is connected.</p>
+      <p class="season-hint">
+        Start the local server (<code>cd server &amp;&amp; cargo run</code>) and open
+        the app from <code>http://127.0.0.1:8080</code> to join your pod, draft, and
+        battle. The Team, Character, Arena, and Replay tools work without it.
+      </p>
+      <button type="button" class="button-secondary" data-season-action="retry">Retry</button>
+    </div>`;
+}
+
+function renderSeasonJoin(error) {
+  return `
+    <div class="season-panel season-join">
+      <h2>Join the season</h2>
+      <p class="season-hint">Enter a display name to join your pod. Everyone in the friend group shares one pod.</p>
+      ${error ? `<p class="season-error">${escapeHtml(error)}</p>` : ""}
+      <div class="season-join-row">
+        <input id="season-name" type="text" placeholder="Display name" maxlength="40" autocomplete="off">
+        <button type="button" class="button-primary" data-season-action="join">Join</button>
+      </div>
+    </div>`;
+}
+
+function renderSeasonDashboard() {
+  const s = appState.season;
+  const player = s.player;
+  const season = s.season || {};
+  const clock = seasonClockLine(season.season || {}, (season.schedule || []).length || 8);
+  const record = tallyRecord(player.id, s.results);
+  const me = s.standings.find((row) => row.id === player.id);
+  const points = me ? me.points : (player.points || 0);
+
+  return `
+    <div class="season-dashboard">
+      <header class="season-header">
+        <div>
+          <h2>Season</h2>
+          <p class="season-hint">${escapeHtml(clock)}</p>
+        </div>
+        <div class="season-identity">
+          <span class="season-you">${escapeHtml(player.name)}</span>
+          <span class="season-points">${points} pts</span>
+          <span class="season-record">${record.wins}–${record.losses}–${record.draws}</span>
+          <button type="button" class="icon-button icon-button-sm" data-season-action="refresh" title="Refresh">&#8635;</button>
+          <button type="button" class="icon-button icon-button-sm" data-season-action="leave" title="Leave / switch player">&#10005;</button>
+        </div>
+      </header>
+      ${s.error ? `<p class="season-error">${escapeHtml(s.error)}</p>` : ""}
+      <div class="season-columns">
+        <section class="season-panel">
+          <h3>Draft schedule</h3>
+          ${renderSeasonSchedule()}
+          <div class="season-admin">
+            <button type="button" class="button-secondary button-sm" data-season-action="run-day" title="Play today's pod matches">Run match day</button>
+          </div>
+        </section>
+        <section class="season-panel">
+          <h3>Standings</h3>
+          ${renderSeasonStandings()}
+        </section>
+        <section class="season-panel season-results-panel">
+          <h3>Your results</h3>
+          ${renderSeasonResults()}
+        </section>
+      </div>
+    </div>`;
+}
+
+function renderSeasonSchedule() {
+  const s = appState.season;
+  const season = s.season || {};
+  const schedule = season.schedule || [];
+  if (!schedule.length) return `<p class="season-hint">No schedule yet.</p>`;
+  const current = Number(season.current_beat || 0);
+  // Map claimed picks (from the draft payload) by beat index.
+  const claimed = {};
+  for (const beat of (s.draft && s.draft.beats) || []) {
+    if (beat.claimed) claimed[beat.index] = beat.claimed;
+  }
+  const items = schedule
+    .map((beat) => {
+      const state = beat.index < current ? "past" : beat.index === current ? "current" : "future";
+      const pick = claimed[beat.index];
+      const delta = beat.budget_delta ? `<span class="season-beat-budget">+${beat.budget_delta}</span>` : "";
+      return `
+        <li class="season-beat season-beat-${state}">
+          <span class="season-beat-num">${beat.index + 1}</span>
+          <span class="season-beat-kind">${escapeHtml(beatKindLabel(beat.kind))}${delta}</span>
+          <span class="season-beat-pick">${pick ? escapeHtml(pick) : (state === "current" ? "open" : state === "future" ? "—" : "")}</span>
+        </li>`;
+    })
+    .join("");
+  return `<ol class="season-schedule">${items}</ol>`;
+}
+
+function renderSeasonStandings() {
+  const s = appState.season;
+  if (!s.standings.length) return `<p class="season-hint">No players yet.</p>`;
+  const rows = s.standings
+    .map((row, index) => {
+      const you = s.player && row.id === s.player.id ? " season-row-you" : "";
+      return `
+        <tr class="season-standing-row${you}">
+          <td class="season-rank">${index + 1}</td>
+          <td class="season-name">${escapeHtml(row.name)}</td>
+          <td class="season-pts">${row.points}</td>
+        </tr>`;
+    })
+    .join("");
+  return `<table class="season-table"><thead><tr><th>#</th><th>Player</th><th>Pts</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderSeasonResults() {
+  const s = appState.season;
+  if (!s.results.length) return `<p class="season-hint">No battles yet. Submit a team and run a match day.</p>`;
+  const items = s.results
+    .slice()
+    .sort((a, b) => (b.day - a.day) || String(a.id).localeCompare(String(b.id)))
+    .map((r) => {
+      const me = s.player.id;
+      const oppId = r.player_a === me ? r.player_b : r.player_a;
+      const youAreA = r.player_a === me;
+      const outcome = r.winner === "draw" ? "draw" : ((r.winner === "a") === youAreA ? "win" : "loss");
+      return `
+        <li class="season-result season-result-${outcome}">
+          <span class="season-result-day">Day ${r.day + 1}</span>
+          <span class="season-result-vs">vs ${escapeHtml(oppId)}</span>
+          <span class="season-result-outcome">${outcome}</span>
+          <button type="button" class="button-secondary button-sm" data-season-action="watch" data-replay-id="${escapeHtml(r.replay_id)}">Watch</button>
+        </li>`;
+    })
+    .join("");
+  return `<ul class="season-results">${items}</ul>`;
+}
+
+async function watchSeasonReplay(replayId) {
+  try {
+    const replay = await seasonFetch(`/api/replays/${encodeURIComponent(replayId)}`);
+    setActiveWorkspace("replay-viewer");
+    loadReplayFromText(JSON.stringify(replay));
+  } catch (error) {
+    appState.season.error = error.message;
+    void renderSeasonTab();
+  }
+}
+
+// One delegated handler for every Season action.
+if (seasonRoot) {
+  seasonRoot.addEventListener("click", async (event) => {
+    const target = event.target.closest("[data-season-action]");
+    if (!target) return;
+    const action = target.dataset.seasonAction;
+    const s = appState.season;
+
+    if (action === "retry") {
+      s.available = null;
+      void renderSeasonTab();
+    } else if (action === "join") {
+      const input = seasonRoot.querySelector("#season-name");
+      const name = (input && input.value || "").trim();
+      if (!name) {
+        s.error = "Please enter a display name.";
+        void renderSeasonTab();
+        return;
+      }
+      try {
+        const result = await seasonFetch("/api/join", { method: "POST", body: JSON.stringify({ name }) });
+        s.player = result.player;
+        storeSeasonPlayer(result.player);
+        s.error = null;
+      } catch (error) {
+        s.error = error.message;
+      }
+      void renderSeasonTab();
+    } else if (action === "leave") {
+      s.player = null;
+      storeSeasonPlayer(null);
+      void renderSeasonTab();
+    } else if (action === "refresh") {
+      void renderSeasonTab();
+    } else if (action === "run-day") {
+      try {
+        await seasonFetch("/api/admin/run-day", { method: "POST" });
+      } catch (error) {
+        s.error = error.message;
+      }
+      void renderSeasonTab();
+    } else if (action === "watch") {
+      await watchSeasonReplay(target.dataset.replayId);
+    }
+  });
+
+  // Enter submits the join form.
+  seasonRoot.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && event.target && event.target.id === "season-name") {
+      event.preventDefault();
+      const button = seasonRoot.querySelector('[data-season-action="join"]');
+      if (button) button.click();
+    }
+  });
+}

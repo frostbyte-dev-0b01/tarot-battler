@@ -34,6 +34,12 @@
           </span>
           <span class="rail-label">Replay</span>
         </button>
+        <button class="rail-button" type="button" data-tab-target="season" title="Season (5)">
+          <span class="rail-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 14.6 8.3 20.5 9.2 16.2 13.3 17.3 19.1 12 16.4 6.7 19.1 7.8 13.3 3.5 9.2 9.4 8.3 12 3Z"/></svg>
+          </span>
+          <span class="rail-label">Season</span>
+        </button>
       </nav>
 
       <div class="app-content">
@@ -192,6 +198,12 @@
                   <strong id="replay-tick-display" class="visually-hidden">0</strong>
                 </section>
               </section>
+            </div>
+          </section>
+
+          <section class="workspace" id="season" aria-label="Season">
+            <div id="season-root" class="season-root">
+              <div class="board-empty-state">Loading the season…</div>
             </div>
           </section>
         </main>
