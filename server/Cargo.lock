@@ -518,6 +518,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "battle_engine",
+ "rand",
  "redb",
  "serde",
  "serde_json",
