@@ -21,6 +21,7 @@ use tower_http::services::ServeDir;
 mod db;
 mod draft;
 mod models;
+mod runner;
 
 #[tokio::main]
 async fn main() {
