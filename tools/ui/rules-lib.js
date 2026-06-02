@@ -303,6 +303,47 @@ function getRuleOptionLabel(options, value) {
   return options.find((option) => option.value === value)?.label ?? String(value);
 }
 
+// ===== Season / draft schedule (pure presentation helpers) =====
+
+// Player-facing label for a draft beat's kind (server sends snake_case tags).
+const beatKindLabels = {
+  banner: "Banner",
+  item: "Item",
+  character: "New Character",
+  team_passive: "Team Passive",
+  swap: "Swap",
+};
+
+function beatKindLabel(kind) {
+  return beatKindLabels[kind] || String(kind || "");
+}
+
+// A short, legible clock line for a season, e.g. "Day 3 · Beat 2 of 8".
+// `totalBeats` defaults to the full 8-beat season.
+function seasonClockLine(season, totalBeats = 8) {
+  if (!season || typeof season !== "object") return "";
+  const day = Number(season.day || 0);
+  const revealed = Math.max(0, Number(season.beats_revealed || 0));
+  const current = Math.min(Math.max(revealed, 1), totalBeats);
+  return `Day ${day + 1} · Beat ${current} of ${totalBeats}`;
+}
+
+// Describe a player's win/loss record from a list of stored match results.
+// Pure: takes the player id and the results array, returns a {wins,losses,draws}.
+function tallyRecord(playerId, results) {
+  const tally = { wins: 0, losses: 0, draws: 0 };
+  if (!Array.isArray(results)) return tally;
+  for (const r of results) {
+    const isA = r.player_a === playerId;
+    const isB = r.player_b === playerId;
+    if (!isA && !isB) continue;
+    if (r.winner === "draw") tally.draws += 1;
+    else if ((r.winner === "a" && isA) || (r.winner === "b" && isB)) tally.wins += 1;
+    else tally.losses += 1;
+  }
+  return tally;
+}
+
 // Node (test) export. In the browser `module` is undefined, so these stay
 // plain top-level declarations shared with app.js as globals.
 if (typeof module !== "undefined" && module.exports) {
@@ -334,5 +375,8 @@ if (typeof module !== "undefined" && module.exports) {
     formatRuleConditionClause,
     getContextualRuleValueLabel,
     getRuleOptionLabel,
+    beatKindLabel,
+    seasonClockLine,
+    tallyRecord,
   };
 }

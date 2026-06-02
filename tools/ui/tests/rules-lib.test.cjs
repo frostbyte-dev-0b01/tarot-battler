@@ -124,3 +124,33 @@ test("renderRuleValueSelectOptions groups options and never drops the saved valu
 test("escapeHtml escapes the dangerous characters", () => {
   assert.equal(R.escapeHtml(`<a href="x" o='y'>&`), "&lt;a href=&quot;x&quot; o=&#39;y&#39;&gt;&amp;");
 });
+
+test("beatKindLabel maps server tags to friendly labels", () => {
+  assert.equal(R.beatKindLabel("banner"), "Banner");
+  assert.equal(R.beatKindLabel("character"), "New Character");
+  assert.equal(R.beatKindLabel("team_passive"), "Team Passive");
+  assert.equal(R.beatKindLabel("swap"), "Swap");
+  // Unknown kinds pass through as their raw string.
+  assert.equal(R.beatKindLabel("mystery"), "mystery");
+});
+
+test("seasonClockLine reads day/beat as 1-based and clamps to the season length", () => {
+  assert.equal(R.seasonClockLine({ day: 0, beats_revealed: 1 }), "Day 1 · Beat 1 of 8");
+  assert.equal(R.seasonClockLine({ day: 2, beats_revealed: 3 }), "Day 3 · Beat 3 of 8");
+  // beats_revealed beyond the schedule clamps; a fresh season shows Beat 1.
+  assert.equal(R.seasonClockLine({ day: 0, beats_revealed: 0 }), "Day 1 · Beat 1 of 8");
+  assert.equal(R.seasonClockLine({ day: 0, beats_revealed: 99 }, 8), "Day 1 · Beat 8 of 8");
+  assert.equal(R.seasonClockLine(null), "");
+});
+
+test("tallyRecord counts wins/losses/draws for a player across both sides", () => {
+  const results = [
+    { player_a: "ada", player_b: "bo", winner: "a" },   // ada win
+    { player_a: "bo", player_b: "ada", winner: "a" },   // ada loss (bo won)
+    { player_a: "ada", player_b: "cy", winner: "draw" }, // draw
+    { player_a: "bo", player_b: "cy", winner: "b" },     // not ada's match
+  ];
+  assert.deepEqual(R.tallyRecord("ada", results), { wins: 1, losses: 1, draws: 1 });
+  assert.deepEqual(R.tallyRecord("nobody", results), { wins: 0, losses: 0, draws: 0 });
+  assert.deepEqual(R.tallyRecord("ada", null), { wins: 0, losses: 0, draws: 0 });
+});

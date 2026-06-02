@@ -4118,3 +4118,232 @@ textarea:focus-visible {
   box-shadow: 0 6px 20px rgba(33, 25, 16, 0.22);
 }
 .toast-error { background: #9c3a2c; }
+
+/* ===== Season workspace ===== */
+.season-root {
+  padding: var(--s-5);
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.season-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--s-4);
+}
+
+.season-panel h2,
+.season-dashboard h2 {
+  margin: 0 0 var(--s-2);
+  color: var(--accent);
+}
+
+.season-panel h3 {
+  margin: 0 0 var(--s-3);
+  font-size: var(--text-md);
+  color: var(--accent-2);
+}
+
+.season-hint {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  margin: var(--s-1) 0;
+}
+
+.season-error {
+  color: var(--accent);
+  font-size: var(--text-sm);
+  margin: var(--s-2) 0;
+}
+
+.season-join-row {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.season-join-row input {
+  flex: 1;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font: inherit;
+}
+
+.season-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--s-4);
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.season-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-size: var(--text-sm);
+}
+
+.season-you {
+  font-weight: 600;
+}
+
+.season-points {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.season-record {
+  color: var(--muted);
+}
+
+.season-columns {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: var(--s-4);
+}
+
+.season-results-panel {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 760px) {
+  .season-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.season-schedule {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.season-beat {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr auto;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+}
+
+.season-beat-num {
+  width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-strong);
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.season-beat-current {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.season-beat-current .season-beat-num {
+  background: var(--accent);
+  color: #fff;
+}
+
+.season-beat-future {
+  opacity: 0.65;
+}
+
+.season-beat-budget {
+  margin-left: var(--s-1);
+  color: var(--accent-2);
+  font-size: var(--text-xs);
+}
+
+.season-beat-pick {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+.season-admin {
+  margin-top: var(--s-3);
+}
+
+.button-sm {
+  font-size: var(--text-xs);
+  padding: var(--s-1) var(--s-2);
+}
+
+.season-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.season-table th,
+.season-table td {
+  text-align: left;
+  padding: var(--s-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.season-table th:last-child,
+.season-table td:last-child,
+.season-pts {
+  text-align: right;
+}
+
+.season-row-you {
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.season-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.season-result {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+}
+
+.season-result-outcome {
+  text-transform: uppercase;
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+}
+
+.season-result-win .season-result-outcome {
+  color: #2f7d3f;
+}
+
+.season-result-loss .season-result-outcome {
+  color: var(--accent);
+}
+
+.season-result-draw .season-result-outcome {
+  color: var(--muted);
+}
