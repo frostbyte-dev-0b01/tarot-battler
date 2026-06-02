@@ -1,0 +1,21 @@
+[package]
+name = "tarot-server"
+version = "0.1.0"
+edition = "2021"
+
+# Sibling crate with a path dependency on the engine (no Cargo workspace, so the
+# engine's target dir, WASM build, replay generator, and CI stay untouched). Run
+# from this directory: `cargo run`.
+
+[[bin]]
+name = "tarot-server"
+path = "src/main.rs"
+
+[dependencies]
+battle_engine = { path = "../battle_engine" }
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+tower-http = { version = "0.6", features = ["fs", "trace"] }
+redb = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
