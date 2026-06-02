@@ -192,6 +192,11 @@ const appState = {
     available: null,   // null = unknown, true/false after a probe
     error: null,       // last error message to surface
     busy: false,       // a request is in flight
+    builderTeam: null, // selected team name for season submission
+    commander: "",     // selected commander character id ("" = none)
+    teamPassives: [],  // selected team-passive names
+    submitMsg: null,   // last submit success message
+    submitErr: null,   // last submit error message
   },
   selectedTeamCharacterIndex: 0,
   teamDetailTab: "design",
@@ -5677,6 +5682,10 @@ function renderSeasonDashboard() {
         </div>
       </header>
       ${s.error ? `<p class="season-error">${escapeHtml(s.error)}</p>` : ""}
+      <section class="season-panel season-beat-panel">
+        <h3>Current draft beat</h3>
+        ${renderSeasonOpenBeat()}
+      </section>
       <div class="season-columns">
         <section class="season-panel">
           <h3>Draft schedule</h3>
@@ -5689,12 +5698,166 @@ function renderSeasonDashboard() {
           <h3>Standings</h3>
           ${renderSeasonStandings()}
         </section>
+        <section class="season-panel season-builder-panel">
+          <h3>Your season team</h3>
+          ${renderSeasonBuilder()}
+        </section>
         <section class="season-panel season-results-panel">
           <h3>Your results</h3>
           ${renderSeasonResults()}
         </section>
       </div>
     </div>`;
+}
+
+// The currently open beat: its offered options as claimable cards, plus the
+// claim/auto-resolve rules. Swap beats note that they're skipped if unclaimed.
+function renderSeasonOpenBeat() {
+  const s = appState.season;
+  const beats = (s.draft && s.draft.beats) || [];
+  const open = beats.find((b) => b.open);
+  if (!open) {
+    return `<p class="season-hint">No beat is open right now. The next beat reveals on the next match day.</p>`;
+  }
+  const kind = beatKindLabel(open.kind);
+  const offers = (open.offers || [])
+    .map((choice) => {
+      const isClaimed = open.claimed === choice;
+      return `
+        <button type="button"
+          class="season-offer ${isClaimed ? "is-claimed" : ""}"
+          data-season-action="claim"
+          data-beat="${open.index}"
+          data-choice="${escapeHtml(choice)}">
+          <span class="season-offer-name">${escapeHtml(choice)}</span>
+          ${isClaimed ? `<span class="season-offer-tag">claimed</span>` : ""}
+        </button>`;
+    })
+    .join("");
+  const isSwap = open.kind === "swap";
+  const rule = isSwap
+    ? "Swap beats are never auto-applied — if you don't claim, nothing is swapped."
+    : "Claim before the next beat opens, or one is auto-chosen at random for you.";
+  return `
+    <div class="season-open-beat">
+      <p class="season-open-head"><strong>Beat ${open.index + 1}: ${escapeHtml(kind)}</strong>
+        ${open.budget_delta ? `<span class="season-beat-budget">+${open.budget_delta} budget</span>` : ""}
+      </p>
+      <div class="season-offers">${offers || `<p class="season-hint">No options offered.</p>`}</div>
+      <p class="season-hint">${escapeHtml(rule)}</p>
+      ${open.claimed ? `<p class="season-hint">You can re-claim until the next beat reveals.</p>` : ""}
+    </div>`;
+}
+
+// Season-mode team submission: pick a saved team, set a commander + team
+// passives from the unlocked pool, and submit it (server validates pool/budget).
+function renderSeasonBuilder() {
+  const s = appState.season;
+  const unlocked = (s.draft && s.draft.unlocked) || { archetypes: [], aspects: [], team_passives: [], banner: null };
+  const budget = (s.draft && s.draft.budget) || 0;
+  const roster = appState.teamRoster || [];
+
+  if (!roster.length) {
+    return `<p class="season-hint">Build a team in the Team tab first, then come back to submit it to the season.</p>`;
+  }
+
+  // Default selection to the first team if none chosen.
+  if (!s.builderTeam || !roster.some((t) => teamDisplayName(t) === s.builderTeam)) {
+    s.builderTeam = teamDisplayName(roster[0]);
+  }
+  const team = roster.find((t) => teamDisplayName(t) === s.builderTeam);
+  const characters = (team && team.characters) || [];
+  const cost = computeTeamCost(characters);
+  const overBudget = cost > budget;
+
+  // Client-side pool pre-check (the server is the source of truth on submit).
+  const lockedArche = characters
+    .map((c) => c.template_id)
+    .filter((id) => !unlocked.archetypes.includes(id));
+  const lockedAspects = characters
+    .map((c) => c.aspect)
+    .filter((a) => a && !unlocked.aspects.includes(a));
+
+  const teamOptions = roster
+    .map((t) => {
+      const name = teamDisplayName(t);
+      return `<option value="${escapeHtml(name)}" ${name === s.builderTeam ? "selected" : ""}>${escapeHtml(name)}</option>`;
+    })
+    .join("");
+
+  const commanderOptions = [`<option value="">— none —</option>`]
+    .concat(characters.map((c) => {
+      const id = c.id || c.template_id;
+      const label = c.display_name || c.template_id || id;
+      return `<option value="${escapeHtml(id)}" ${s.commander === id ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    }))
+    .join("");
+
+  const passiveBoxes = (unlocked.team_passives || []).length
+    ? unlocked.team_passives.map((name) => `
+        <label class="season-check">
+          <input type="checkbox" data-season-action="toggle-passive" data-passive="${escapeHtml(name)}" ${s.teamPassives.includes(name) ? "checked" : ""}>
+          <span>${escapeHtml(name)}</span>
+        </label>`).join("")
+    : `<p class="season-hint">No team passives unlocked yet.</p>`;
+
+  const banner = unlocked.banner;
+  const bannerLine = banner
+    ? (s.commander
+        ? `<p class="season-hint">Banner <strong>${escapeHtml(banner)}</strong> flies for your commander.</p>`
+        : `<p class="season-hint">Drafted banner <strong>${escapeHtml(banner)}</strong> applies once you pick a commander.</p>`)
+    : `<p class="season-hint">No banner drafted yet.</p>`;
+
+  const warnings = [];
+  if (overBudget) warnings.push(`Team costs ${cost}, over your ${budget}-point budget.`);
+  if (lockedArche.length) warnings.push(`Locked characters: ${lockedArche.join(", ")}.`);
+  if (lockedAspects.length) warnings.push(`Locked items: ${lockedAspects.join(", ")}.`);
+
+  return `
+    <div class="season-builder">
+      <div class="season-builder-row">
+        <label>Team
+          <select data-season-action="select-team">${teamOptions}</select>
+        </label>
+        <span class="season-cost ${overBudget ? "is-over" : ""}">Cost ${cost} / ${budget}</span>
+      </div>
+      <div class="season-builder-row">
+        <label>Commander
+          <select data-season-action="select-commander">${commanderOptions}</select>
+        </label>
+      </div>
+      ${bannerLine}
+      <div class="season-passives">
+        <span class="season-builder-label">Team passives</span>
+        ${passiveBoxes}
+      </div>
+      ${warnings.length ? `<p class="season-warn">${warnings.map(escapeHtml).join(" ")}</p>` : ""}
+      <div class="season-builder-actions">
+        <button type="button" class="button-primary button-sm" data-season-action="submit-team">Submit to season</button>
+        ${s.submitMsg ? `<span class="season-ok">${escapeHtml(s.submitMsg)}</span>` : ""}
+        ${s.submitErr ? `<span class="season-error">${escapeHtml(s.submitErr)}</span>` : ""}
+      </div>
+    </div>`;
+}
+
+// Assemble the season team-config JSON to submit: the chosen saved team plus
+// the commander / banner / team-passive selections.
+function buildSeasonTeamConfig() {
+  const s = appState.season;
+  const roster = appState.teamRoster || [];
+  const team = roster.find((t) => teamDisplayName(t) === s.builderTeam);
+  if (!team) return null;
+  const unlocked = (s.draft && s.draft.unlocked) || {};
+  const config = JSON.parse(JSON.stringify(team));
+  config.team_passives = s.teamPassives.slice();
+  if (s.commander) {
+    config.commander = s.commander;
+    if (unlocked.banner) config.banner = unlocked.banner;
+  } else {
+    config.commander = null;
+    config.banner = null;
+  }
+  return config;
 }
 
 function renderSeasonSchedule() {
@@ -5818,6 +5981,63 @@ if (seasonRoot) {
       void renderSeasonTab();
     } else if (action === "watch") {
       await watchSeasonReplay(target.dataset.replayId);
+    } else if (action === "claim") {
+      const beat = Number(target.dataset.beat);
+      const choice = target.dataset.choice;
+      try {
+        await seasonFetch("/api/draft/claim", {
+          method: "POST",
+          body: JSON.stringify({ player: s.player.id, beat, choice }),
+        });
+        s.error = null;
+      } catch (error) {
+        s.error = error.message;
+      }
+      void renderSeasonTab();
+    } else if (action === "submit-team") {
+      const config = buildSeasonTeamConfig();
+      s.submitMsg = null;
+      s.submitErr = null;
+      if (!config) {
+        s.submitErr = "Pick a team to submit.";
+        void renderSeasonTab();
+        return;
+      }
+      try {
+        await seasonFetch("/api/team", {
+          method: "POST",
+          body: JSON.stringify({ player: s.player.id, team: config }),
+        });
+        s.submitMsg = "Team submitted.";
+      } catch (error) {
+        s.submitErr = error.message;
+      }
+      void renderSeasonTab();
+    }
+  });
+
+  // Selection changes in the season builder (team / commander).
+  seasonRoot.addEventListener("change", (event) => {
+    const target = event.target.closest("[data-season-action]");
+    if (!target) return;
+    const action = target.dataset.seasonAction;
+    const s = appState.season;
+    if (action === "select-team") {
+      s.builderTeam = target.value;
+      s.commander = "";
+      s.submitMsg = null;
+      s.submitErr = null;
+      void renderSeasonTab();
+    } else if (action === "select-commander") {
+      s.commander = target.value;
+      void renderSeasonTab();
+    } else if (action === "toggle-passive") {
+      const name = target.dataset.passive;
+      if (target.checked) {
+        if (!s.teamPassives.includes(name)) s.teamPassives.push(name);
+      } else {
+        s.teamPassives = s.teamPassives.filter((p) => p !== name);
+      }
     }
   });
 
