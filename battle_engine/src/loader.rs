@@ -54,6 +54,12 @@ pub struct TeamConfig {
     /// catalog; resolved and applied at battle start.
     #[serde(default)]
     pub team_passives: Vec<String>,
+    /// Character `id` designated as the team's Commander (flies a banner).
+    #[serde(default)]
+    pub commander: Option<String>,
+    /// Banner name (from the banner catalog) the Commander flies.
+    #[serde(default)]
+    pub banner: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -290,6 +296,15 @@ pub fn validate_team_config_with(
             "team '{}' costs {} points, over the {}-point budget",
             team.name, total_cost, budget
         ));
+    }
+
+    if let Some(commander) = &team.commander {
+        if !team.characters.iter().any(|c| &c.id == commander) {
+            errors.push(format!(
+                "team '{}' Commander '{}' is not one of its characters",
+                team.name, commander
+            ));
+        }
     }
 
     let mut characters = Vec::with_capacity(team.characters.len());
@@ -1116,6 +1131,8 @@ mod tests {
             ],
 
             team_passives: vec![],
+            commander: None,
+            banner: None,
         };
 
         let err = validate_team_config(
@@ -1186,6 +1203,8 @@ mod tests {
             ],
 
             team_passives: vec![],
+            commander: None,
+            banner: None,
         };
 
         let err = validate_team_config(
@@ -1225,6 +1244,8 @@ mod tests {
             }],
 
             team_passives: vec![],
+            commander: None,
+            banner: None,
         };
 
         // Budget 1 < cost 2 → rejected.
@@ -1281,6 +1302,8 @@ mod tests {
             }],
 
             team_passives: vec![],
+            commander: None,
+            banner: None,
         };
 
         // Pool unlocks a different archetype + the aspect → both flagged.
@@ -1363,6 +1386,8 @@ mod tests {
             ],
 
             team_passives: vec![],
+            commander: None,
+            banner: None,
         };
 
         let err = validate_team_config(

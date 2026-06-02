@@ -8,6 +8,7 @@
 
 pub mod abilities;
 pub mod abilities_targeting;
+pub mod banners;
 pub mod engine;
 pub mod loader;
 pub mod logger;
@@ -23,6 +24,7 @@ pub mod turns;
 mod test_support;
 
 use abilities::{AbilityMap, PassiveMap};
+use banners::BannerMap;
 use loader::{ArchetypeMap, AspectMap, TeamConfig};
 use statuses::StatusMap;
 use team_passives::TeamPassiveMap;
@@ -35,6 +37,7 @@ pub const PASSIVES_JSON: &str = include_str!("data/passives.json");
 pub const STATUSES_JSON: &str = include_str!("data/statuses.json");
 pub const ASPECTS_JSON: &str = include_str!("data/aspects.json");
 pub const TEAM_PASSIVES_JSON: &str = include_str!("data/team_passives.json");
+pub const BANNERS_JSON: &str = include_str!("data/banners.json");
 
 /// Run a battle from two team-config JSON strings, using the embedded content
 /// data, and return replay-schema JSON. Returns `Err` with a human-readable
@@ -52,6 +55,8 @@ pub fn run_battle_json(team_a_json: &str, team_b_json: &str, seed: u64) -> Resul
         serde_json::from_str(ASPECTS_JSON).map_err(|e| format!("bundled aspects: {e}"))?;
     let team_passive_catalog: TeamPassiveMap = serde_json::from_str(TEAM_PASSIVES_JSON)
         .map_err(|e| format!("bundled team passives: {e}"))?;
+    let banner_catalog: BannerMap =
+        serde_json::from_str(BANNERS_JSON).map_err(|e| format!("bundled banners: {e}"))?;
 
     let team_a_config: TeamConfig =
         serde_json::from_str(team_a_json).map_err(|e| format!("team A JSON: {e}"))?;
@@ -86,9 +91,15 @@ pub fn run_battle_json(team_a_json: &str, team_b_json: &str, seed: u64) -> Resul
         team_passives::resolve(&team_b_config.team_passives, &team_passive_catalog)
             .map_err(|e| format!("team B: {e}"))?;
 
+    let team_a_banner =
+        resolve_banner(&team_a_config, &banner_catalog).map_err(|e| format!("team A: {e}"))?;
+    let team_b_banner =
+        resolve_banner(&team_b_config, &banner_catalog).map_err(|e| format!("team B: {e}"))?;
+
     let mut battle =
         engine::BattleState::new(&team_a, &team_b, abilities, passives, statuses, seed);
     battle.set_team_passives(team_a_passives, team_b_passives);
+    battle.set_team_banners(team_a_banner, team_b_banner);
     let log = battle.run();
     Ok(log.to_replay_json(
         seed,
@@ -97,6 +108,22 @@ pub fn run_battle_json(team_a_json: &str, team_b_json: &str, seed: u64) -> Resul
         &team_a,
         &team_b,
     ))
+}
+
+/// Resolve a team's Commander + banner into `(commander_id, BannerDef)`, or
+/// `None` if no banner is flown. A banner requires a Commander.
+fn resolve_banner(
+    config: &TeamConfig,
+    catalog: &BannerMap,
+) -> Result<Option<(String, banners::BannerDef)>, String> {
+    match (&config.commander, &config.banner) {
+        (Some(commander), Some(banner)) => Ok(Some((
+            commander.clone(),
+            banners::resolve(banner, catalog)?,
+        ))),
+        (None, Some(_)) => Err("a banner requires a Commander".to_string()),
+        _ => Ok(None),
+    }
 }
 
 /// WebAssembly entry point. Returns replay-schema JSON on success, or a
@@ -122,6 +149,7 @@ pub fn catalog_json(name: &str) -> String {
         "statuses" => STATUSES_JSON,
         "aspects" => ASPECTS_JSON,
         "team_passives" => TEAM_PASSIVES_JSON,
+        "banners" => BANNERS_JSON,
         _ => "null",
     }
     .to_string()
