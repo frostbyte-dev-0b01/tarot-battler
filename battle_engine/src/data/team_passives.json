@@ -1,0 +1,34 @@
+{
+  "Vanguard's Oath": {
+    "description": "Your front column starts each battle with Ward 1.",
+    "front_status": { "status": "Ward", "stacks": 1 }
+  },
+  "War Drums": {
+    "description": "The team's first turn each battle comes 2 ticks sooner.",
+    "opening_haste": 2
+  },
+  "Aegis": {
+    "description": "Each ally negates the first debuff applied to it each battle.",
+    "debuff_resistance": 1
+  },
+  "Reservoir": {
+    "description": "Each ally's abilities cost 1 less MP (minimum 1).",
+    "mp_cost_reduction": 1
+  },
+  "Iron Standard": {
+    "description": "All allies start each battle with Empower ARM 1.",
+    "team_status": { "status": "Empower", "stat": "arm", "stacks": 1 }
+  },
+  "Battle Hymn": {
+    "description": "All allies start each battle with Empower MGT 1.",
+    "team_status": { "status": "Empower", "stat": "mgt", "stacks": 1 }
+  },
+  "Second Breath": {
+    "description": "All allies start each battle with Restoration 2.",
+    "team_status": { "status": "Restoration", "stacks": 2 }
+  },
+  "Warden's Vow": {
+    "description": "Your front column starts each battle with Empower ARM 2.",
+    "front_status": { "status": "Empower", "stat": "arm", "stacks": 2 }
+  }
+}

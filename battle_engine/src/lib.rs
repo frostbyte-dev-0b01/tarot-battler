@@ -16,6 +16,7 @@ pub mod passive_system;
 pub mod rules;
 pub mod statuses;
 pub mod targeting;
+pub mod team_passives;
 pub mod turns;
 
 #[cfg(test)]
@@ -24,6 +25,7 @@ mod test_support;
 use abilities::{AbilityMap, PassiveMap};
 use loader::{ArchetypeMap, AspectMap, TeamConfig};
 use statuses::StatusMap;
+use team_passives::TeamPassiveMap;
 
 /// Bundled content data, embedded at compile time so the engine is fully
 /// self-contained (no filesystem reads at runtime).
@@ -32,6 +34,7 @@ pub const ABILITIES_JSON: &str = include_str!("data/abilities.json");
 pub const PASSIVES_JSON: &str = include_str!("data/passives.json");
 pub const STATUSES_JSON: &str = include_str!("data/statuses.json");
 pub const ASPECTS_JSON: &str = include_str!("data/aspects.json");
+pub const TEAM_PASSIVES_JSON: &str = include_str!("data/team_passives.json");
 
 /// Run a battle from two team-config JSON strings, using the embedded content
 /// data, and return replay-schema JSON. Returns `Err` with a human-readable
@@ -47,6 +50,8 @@ pub fn run_battle_json(team_a_json: &str, team_b_json: &str, seed: u64) -> Resul
         serde_json::from_str(STATUSES_JSON).map_err(|e| format!("bundled statuses: {e}"))?;
     let aspects: AspectMap =
         serde_json::from_str(ASPECTS_JSON).map_err(|e| format!("bundled aspects: {e}"))?;
+    let team_passive_catalog: TeamPassiveMap = serde_json::from_str(TEAM_PASSIVES_JSON)
+        .map_err(|e| format!("bundled team passives: {e}"))?;
 
     let team_a_config: TeamConfig =
         serde_json::from_str(team_a_json).map_err(|e| format!("team A JSON: {e}"))?;
@@ -74,7 +79,16 @@ pub fn run_battle_json(team_a_json: &str, team_b_json: &str, seed: u64) -> Resul
     loader::validate_teams(&team_a, &team_b, &abilities, &passives, &statuses)
         .map_err(|e| format!("battle content: {e}"))?;
 
-    let battle = engine::BattleState::new(&team_a, &team_b, abilities, passives, statuses, seed);
+    let team_a_passives =
+        team_passives::resolve(&team_a_config.team_passives, &team_passive_catalog)
+            .map_err(|e| format!("team A: {e}"))?;
+    let team_b_passives =
+        team_passives::resolve(&team_b_config.team_passives, &team_passive_catalog)
+            .map_err(|e| format!("team B: {e}"))?;
+
+    let mut battle =
+        engine::BattleState::new(&team_a, &team_b, abilities, passives, statuses, seed);
+    battle.set_team_passives(team_a_passives, team_b_passives);
     let log = battle.run();
     Ok(log.to_replay_json(
         seed,
@@ -107,6 +121,7 @@ pub fn catalog_json(name: &str) -> String {
         "passives" => PASSIVES_JSON,
         "statuses" => STATUSES_JSON,
         "aspects" => ASPECTS_JSON,
+        "team_passives" => TEAM_PASSIVES_JSON,
         _ => "null",
     }
     .to_string()

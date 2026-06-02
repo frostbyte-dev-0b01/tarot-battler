@@ -35,6 +35,8 @@ pub struct BattleState {
     in_passive_phase: bool,
     passive_fired_this_tick: HashSet<(u32, String, u32)>,
     passive_fired_this_battle: HashSet<(u32, String)>,
+    team_a_passives: Vec<crate::team_passives::TeamPassiveDef>,
+    team_b_passives: Vec<crate::team_passives::TeamPassiveDef>,
 }
 
 impl BattleState {
@@ -87,10 +89,70 @@ impl BattleState {
             in_passive_phase: false,
             passive_fired_this_tick: HashSet::new(),
             passive_fired_this_battle: HashSet::new(),
+            team_a_passives: Vec::new(),
+            team_b_passives: Vec::new(),
         };
         state.assign_companions();
         state.assign_all_targets();
         state
+    }
+
+    /// Equip team-wide passives, applied to each team at battle start. Default is
+    /// none, so existing callers (and tests) are unaffected.
+    pub fn set_team_passives(
+        &mut self,
+        team_a: Vec<crate::team_passives::TeamPassiveDef>,
+        team_b: Vec<crate::team_passives::TeamPassiveDef>,
+    ) {
+        self.team_a_passives = team_a;
+        self.team_b_passives = team_b;
+    }
+
+    /// Apply each team's team passives to its living members (battle start).
+    fn apply_team_passives(&mut self) {
+        Self::apply_team_passive_set(&self.team_a_passives, &mut self.team_a, &self.status_defs);
+        Self::apply_team_passive_set(&self.team_b_passives, &mut self.team_b, &self.status_defs);
+    }
+
+    fn apply_team_passive_set(
+        passives: &[crate::team_passives::TeamPassiveDef],
+        team: &mut [CharacterState],
+        status_defs: &StatusMap,
+    ) {
+        use crate::models::TraitEffect;
+        for tp in passives {
+            for member in team.iter_mut().filter(|c| c.is_alive()) {
+                if let Some(count) = tp.debuff_resistance {
+                    member.add_trait(TraitEffect::DebuffResistance { count });
+                }
+                if let Some(amount) = tp.mp_cost_reduction {
+                    member.add_trait(TraitEffect::MpCostReduction { amount });
+                }
+                if let Some(amount) = tp.opening_haste {
+                    member.apply_haste(amount);
+                }
+                if let Some(grant) = &tp.team_status {
+                    Self::apply_status_grant(member, grant, status_defs);
+                }
+                if let Some(grant) = &tp.front_status {
+                    if member.position().row == 0 {
+                        Self::apply_status_grant(member, grant, status_defs);
+                    }
+                }
+            }
+        }
+    }
+
+    fn apply_status_grant(
+        member: &mut CharacterState,
+        grant: &crate::team_passives::StatusGrant,
+        status_defs: &StatusMap,
+    ) {
+        if let Some(def) = status_defs.get(&grant.status) {
+            let key = crate::statuses::status_key(&grant.status, grant.stat.as_ref());
+            let id = member.id();
+            member.add_status(&key, grant.stacks, id, def, grant.stat.clone());
+        }
     }
 
     /// Assigns companions based on cardinal adjacency within each team.
@@ -162,6 +224,7 @@ impl BattleState {
         self.capture_latest_replay_snapshot();
 
         self.execute_battle_start_passives();
+        self.apply_team_passives();
 
         loop {
             if self.step_once() {
@@ -1844,6 +1907,68 @@ mod tests {
         map.insert("Crush".to_string(), crush_ability());
         map.insert("Embolden".to_string(), embolden_ability());
         map
+    }
+
+    #[test]
+    fn team_passives_apply_at_battle_start() {
+        use crate::loader::load_statuses;
+        use crate::statuses::status_key;
+        use crate::team_passives::{StatusGrant, TeamPassiveDef};
+        use std::path::Path;
+
+        let statuses =
+            load_statuses(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/statuses.json"))
+                .unwrap();
+
+        // Team A: a front-column unit (row 0) and a back unit (row 2).
+        let front = make_config("Front", 0, vec![(Stat::VIT, 10), (Stat::MGT, 8)]);
+        let back = make_config_at("Back", 2, 0, vec![(Stat::VIT, 10), (Stat::MGT, 8)]);
+        let enemy = make_config("Enemy", 0, vec![(Stat::VIT, 10)]);
+
+        let mut battle = build_battle(
+            &[front, back],
+            &[enemy],
+            empty_abilities(),
+            empty_passives(),
+            statuses,
+        );
+        battle.set_team_passives(
+            vec![TeamPassiveDef {
+                front_status: Some(StatusGrant {
+                    status: "Ward".to_string(),
+                    stat: None,
+                    stacks: 1,
+                }),
+                team_status: Some(StatusGrant {
+                    status: "Empower".to_string(),
+                    stat: Some(Stat::MGT),
+                    stacks: 1,
+                }),
+                debuff_resistance: Some(1),
+                ..Default::default()
+            }],
+            vec![],
+        );
+        battle.apply_team_passives();
+
+        let empower_key = status_key("Empower", Some(&Stat::MGT));
+        // front_status (Ward) only on the front column; team_status (Empower) on both.
+        assert_eq!(battle.team_a[0].status_stacks("Ward"), 1);
+        assert_eq!(battle.team_a[1].status_stacks("Ward"), 0);
+        assert_eq!(battle.team_a[0].status_stacks(&empower_key), 1);
+        assert_eq!(battle.team_a[1].status_stacks(&empower_key), 1);
+        assert_eq!(battle.team_a[0].get_eff_stat(&Stat::MGT), 9);
+
+        // debuff_resistance: the first debuff (Weaken) on a member is negated.
+        let weaken_def = battle.status_defs.get("Weaken").unwrap().clone();
+        let weaken_key = status_key("Weaken", Some(&Stat::MGT));
+        let applied = battle.team_a[1].add_status(&weaken_key, 2, 99, &weaken_def, Some(Stat::MGT));
+        assert!(applied, "debuff resistance reports the debuff as handled");
+        assert_eq!(
+            battle.team_a[1].status_stacks(&weaken_key),
+            0,
+            "the debuff was negated by team Aegis"
+        );
     }
 
     fn emperor_config() -> CharacterConfig {
