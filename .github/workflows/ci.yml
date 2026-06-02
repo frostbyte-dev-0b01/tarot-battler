@@ -25,6 +25,27 @@ jobs:
       - name: cargo test
         run: cargo test
 
+  server:
+    name: Server (fmt + build + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server
+      - name: cargo fmt --check
+        run: cargo fmt --check
+      - name: cargo build
+        run: cargo build
+      - name: cargo test
+        run: cargo test
+
   ui-unit:
     name: UI unit tests (Tier 1)
     runs-on: ubuntu-latest
