@@ -37,6 +37,9 @@ pub struct BattleState {
     passive_fired_this_battle: HashSet<(u32, String)>,
     team_a_passives: Vec<crate::team_passives::TeamPassiveDef>,
     team_b_passives: Vec<crate::team_passives::TeamPassiveDef>,
+    // (Commander loadout id, banner) per team, applied at battle start.
+    team_a_banner: Option<(String, crate::banners::BannerDef)>,
+    team_b_banner: Option<(String, crate::banners::BannerDef)>,
 }
 
 impl BattleState {
@@ -91,6 +94,8 @@ impl BattleState {
             passive_fired_this_battle: HashSet::new(),
             team_a_passives: Vec::new(),
             team_b_passives: Vec::new(),
+            team_a_banner: None,
+            team_b_banner: None,
         };
         state.assign_companions();
         state.assign_all_targets();
@@ -106,6 +111,66 @@ impl BattleState {
     ) {
         self.team_a_passives = team_a;
         self.team_b_passives = team_b;
+    }
+
+    /// Equip each team's Commander banner (loadout id + banner def), applied at
+    /// battle start. Default is none.
+    pub fn set_team_banners(
+        &mut self,
+        team_a: Option<(String, crate::banners::BannerDef)>,
+        team_b: Option<(String, crate::banners::BannerDef)>,
+    ) {
+        self.team_a_banner = team_a;
+        self.team_b_banner = team_b;
+    }
+
+    /// Apply each team's banner to its scoped members (battle start). No effect
+    /// if the Commander is absent or already defeated.
+    fn apply_banners(&mut self) {
+        Self::apply_banner_set(&self.team_a_banner, &mut self.team_a, &self.status_defs);
+        Self::apply_banner_set(&self.team_b_banner, &mut self.team_b, &self.status_defs);
+    }
+
+    fn apply_banner_set(
+        banner: &Option<(String, crate::banners::BannerDef)>,
+        team: &mut [CharacterState],
+        status_defs: &StatusMap,
+    ) {
+        use crate::banners::BannerScope;
+        use crate::models::TraitEffect;
+        let Some((commander_id, def)) = banner else {
+            return;
+        };
+        // Locate the (living) Commander; no Commander on the field → no banner.
+        let Some((commander_runtime_id, commander_row)) = team
+            .iter()
+            .find(|c| c.replay_id() == commander_id && c.is_alive())
+            .map(|c| (c.id(), c.position().row))
+        else {
+            return;
+        };
+        for member in team.iter_mut().filter(|c| c.is_alive()) {
+            let in_scope = match def.scope {
+                BannerScope::Commander => member.id() == commander_runtime_id,
+                BannerScope::Column => member.position().row == commander_row,
+                BannerScope::Team => true,
+            };
+            if !in_scope {
+                continue;
+            }
+            if let Some(count) = def.debuff_resistance {
+                member.add_trait(TraitEffect::DebuffResistance { count });
+            }
+            if let Some(amount) = def.mp_cost_reduction {
+                member.add_trait(TraitEffect::MpCostReduction { amount });
+            }
+            if let Some(amount) = def.opening_haste {
+                member.apply_haste(amount);
+            }
+            if let Some(grant) = &def.status {
+                Self::apply_status_grant(member, grant, status_defs);
+            }
+        }
     }
 
     /// Apply each team's team passives to its living members (battle start).
@@ -225,6 +290,7 @@ impl BattleState {
 
         self.execute_battle_start_passives();
         self.apply_team_passives();
+        self.apply_banners();
 
         loop {
             if self.step_once() {
@@ -1969,6 +2035,92 @@ mod tests {
             0,
             "the debuff was negated by team Aegis"
         );
+    }
+
+    #[test]
+    fn commander_banner_applies_by_scope() {
+        use crate::banners::{BannerDef, BannerScope};
+        use crate::loader::load_statuses;
+        use crate::statuses::status_key;
+        use crate::team_passives::StatusGrant;
+        use std::path::Path;
+
+        let statuses =
+            load_statuses(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data/statuses.json"))
+                .unwrap();
+
+        // Commander + a same-column ally (both row 0) + a back-column ally (row 2).
+        let cmd = make_config_at("Cmd", 0, 0, vec![(Stat::VIT, 10), (Stat::ARM, 4)]);
+        let front2 = make_config_at("Front2", 0, 1, vec![(Stat::VIT, 10), (Stat::ARM, 4)]);
+        let back = make_config_at("Back", 2, 0, vec![(Stat::VIT, 10), (Stat::ARM, 4)]);
+        let enemy = make_config("Enemy", 0, vec![(Stat::VIT, 10)]);
+
+        // Bulwark: Column scope, Empower ARM 1.
+        let bulwark = BannerDef {
+            description: String::new(),
+            scope: BannerScope::Column,
+            status: Some(StatusGrant {
+                status: "Empower".to_string(),
+                stat: Some(Stat::ARM),
+                stacks: 1,
+            }),
+            opening_haste: None,
+            debuff_resistance: None,
+            mp_cost_reduction: None,
+        };
+        let mut battle = build_battle(
+            &[cmd.clone(), front2.clone(), back.clone()],
+            &[enemy.clone()],
+            empty_abilities(),
+            empty_passives(),
+            statuses.clone(),
+        );
+        battle.set_team_banners(Some(("team_a:0".to_string(), bulwark)), None);
+        battle.apply_banners();
+
+        let arm_key = status_key("Empower", Some(&Stat::ARM));
+        assert_eq!(
+            battle.team_a[0].status_stacks(&arm_key),
+            1,
+            "commander (col)"
+        );
+        assert_eq!(battle.team_a[1].status_stacks(&arm_key), 1, "same column");
+        assert_eq!(battle.team_a[2].status_stacks(&arm_key), 0, "other column");
+
+        // Resolve: Commander scope only.
+        let resolve = BannerDef {
+            description: String::new(),
+            scope: BannerScope::Commander,
+            status: Some(StatusGrant {
+                status: "Restoration".to_string(),
+                stat: None,
+                stacks: 3,
+            }),
+            opening_haste: None,
+            debuff_resistance: None,
+            mp_cost_reduction: None,
+        };
+        let mut battle2 = build_battle(
+            &[cmd, front2, back],
+            &[enemy],
+            empty_abilities(),
+            empty_passives(),
+            statuses,
+        );
+        battle2.set_team_banners(Some(("team_a:0".to_string(), resolve)), None);
+        battle2.apply_banners();
+        assert_eq!(
+            battle2.team_a[0].status_stacks("Restoration"),
+            3,
+            "commander"
+        );
+        assert_eq!(
+            battle2.team_a[1].status_stacks("Restoration"),
+            0,
+            "non-commander"
+        );
+        // No banner equipped on team B → nothing applied.
+        assert_eq!(battle2.team_b[0].status_stacks("Restoration"), 0);
     }
 
     fn emperor_config() -> CharacterConfig {

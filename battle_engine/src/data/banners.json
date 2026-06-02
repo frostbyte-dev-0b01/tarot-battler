@@ -1,0 +1,17 @@
+{
+  "Rally": {
+    "description": "The team's first turn each battle comes 2 ticks sooner.",
+    "scope": "team",
+    "opening_haste": 2
+  },
+  "Bulwark": {
+    "description": "Allies in the Commander's column start each battle with Empower ARM 1.",
+    "scope": "column",
+    "status": { "status": "Empower", "stat": "arm", "stacks": 1 }
+  },
+  "Resolve": {
+    "description": "The Commander starts each battle with Restoration 3 (self-sustain).",
+    "scope": "commander",
+    "status": { "status": "Restoration", "stacks": 3 }
+  }
+}
