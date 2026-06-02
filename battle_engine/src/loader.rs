@@ -50,6 +50,10 @@ pub struct TeamConfig {
     pub version: u32,
     pub name: String,
     pub characters: Vec<TeamCharacterLoadout>,
+    /// Team-wide passives (season draft). Names reference the team-passive
+    /// catalog; resolved and applied at battle start.
+    #[serde(default)]
+    pub team_passives: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -1110,6 +1114,8 @@ mod tests {
                     rules: vec![],
                 },
             ],
+
+            team_passives: vec![],
         };
 
         let err = validate_team_config(
@@ -1178,6 +1184,8 @@ mod tests {
                 make("d", "justice", "Sentence", "Rebuke", None, 1, 0),
                 make("e", "the_hierophant", "Sanctuary", "Smite", None, 1, 1),
             ],
+
+            team_passives: vec![],
         };
 
         let err = validate_team_config(
@@ -1215,6 +1223,8 @@ mod tests {
                 aspect: None,
                 rules: vec![],
             }],
+
+            team_passives: vec![],
         };
 
         // Budget 1 < cost 2 → rejected.
@@ -1269,6 +1279,8 @@ mod tests {
                 aspect: Some("aspect_of_ruin".to_string()),
                 rules: vec![],
             }],
+
+            team_passives: vec![],
         };
 
         // Pool unlocks a different archetype + the aspect → both flagged.
@@ -1349,6 +1361,8 @@ mod tests {
                     rules: vec![],
                 },
             ],
+
+            team_passives: vec![],
         };
 
         let err = validate_team_config(
