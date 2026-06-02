@@ -32,6 +32,9 @@ pub struct Season {
     #[serde(default)]
     pub beats_revealed: u32,
     pub created_unix: i64,
+    /// Seed driving deterministic, pod-wide draft offers and match seeds.
+    #[serde(default)]
+    pub seed: u64,
 }
 
 /// One draft pick a player has claimed.
