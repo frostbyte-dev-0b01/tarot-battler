@@ -145,3 +145,53 @@ reason to return.
    draft windows should be generous.
 7. **Population** at high tiers and at season boundaries; ghost padding helps but
    matchmaking density is a real constraint early.
+
+## Addendum — resolved decisions (follow-up)
+
+### Scoring model — resolved (both zero-sum *and* absolute)
+
+- Every player has a single persistent **point total** — the source of truth for
+  their tier.
+- A battle awards **+5 win / −5 loss / 0 draw**, exchanged **within the pod**, so
+  it is simultaneously **zero-sum** (the pod's total is conserved) and
+  **absolute** (your total is a real number a threshold can read).
+- New players start at a **baseline** (e.g. 800). A tier is a **point band**
+  (e.g. Bronze < 1000, Silver 1000–2000, …). At each season boundary, players are
+  re-sorted into tier pods by their total. You stay in your pod all season; only
+  the final total moves you.
+- A **floor at 0** prevents negative totals (no points are lost below 0).
+- Exact numbers (points-per-battle, battles-per-day, band widths) are **tuning**:
+  calibrate so a season produces roughly one band of movement for clear over- and
+  under-performers while most players hold their tier.
+
+### Authorship & telemetry — direction (needs its own deep dive)
+
+The expression payoff is **legible cause→effect**, never a "cleverness" grade.
+Build toward:
+
+- A **beefier post-game stats page**: per-team and **per-character** breakdowns
+  (damage, healing, kills, abilities used, **rule firings**).
+- **Aggregate stats across matches**: your record + stat lines **vs a specific
+  opponent team** and **vs the field**, with trends over the season.
+- **Per-rule telemetry**: how often each rule fired and what it led to
+  (kills / saves), to drive iteration — outcomes, not a score.
+- **Replay rule-pinning**: pin a rule / character / event while watching to mark
+  and jump to each time it fires on the timeline.
+
+These warrant a focused follow-up on *which metrics matter*.
+
+### Tone — locked
+
+- **Register: earnest-mystical with a wry, warm edge ("elegant occult").** Fate
+  spoken with gravitas, but self-aware enough not to be pompous; the cards carry
+  weight, the experience carries warmth.
+- The **Major Arcana as a living pantheon** — each card's tarot meaning is its
+  personality and colors its kit; **Reversed = its shadow aspect**.
+- **Ambient voice-of-fate + the cards' own voices**, rather than a single mascot
+  NPC.
+- **Divination as the pervasive vocabulary** — battles are Readings, the meta is
+  the Wheel turning, drafts are the cards fate deals you, a defeat is a card spent.
+- Atmosphere **ennobles the mechanics** (determinism = fate is fixed once the
+  cards are laid; the seeded turn-order = fortune's small turns) rather than
+  masking them; the tactics stay legible beneath the mood.
+
