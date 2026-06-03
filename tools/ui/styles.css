@@ -4523,3 +4523,62 @@ textarea:focus-visible {
   margin-left: var(--s-1);
   cursor: help;
 }
+
+/* Season build mode: context strip in the Team builder */
+.builder-mode-toggle {
+  margin-left: auto;
+}
+
+.season-build-strip {
+  margin: var(--s-2) 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+}
+
+.season-build-strip.is-muted {
+  color: var(--muted);
+}
+
+.season-build-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.season-build-summary {
+  color: var(--muted);
+}
+
+.season-build-ok {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.season-build-bad {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.season-build-reasons {
+  margin: var(--s-2) 0 0;
+  padding-left: var(--s-4);
+  color: var(--accent);
+}
+
+.season-build-head .button-sm {
+  margin-left: auto;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
