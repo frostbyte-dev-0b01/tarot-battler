@@ -14,9 +14,16 @@ use crate::turns::BASIC_ATTACK_ACTION;
 pub type ArchetypeMap = HashMap<String, ArchetypeTemplate>;
 pub type AspectMap = HashMap<String, AspectDef>;
 
-/// Team-building point budget. The sum of character archetype costs plus aspect
-/// costs must not exceed this. Coarse and intended as a primary tuning knob.
+/// Reference team-building budget (the sum of character archetype costs plus
+/// aspect costs). Used as a display/tuning reference; **not** enforced by the
+/// default [`validate_team_config`] path, which is unlimited (free build). Season
+/// play enforces its own budget via [`validate_team_config_with`].
 pub const TEAM_BUDGET: u32 = 14;
+
+/// Sentinel budget meaning "no limit" — [`validate_team_config_with`] skips the
+/// budget check when given this, so free build / arena / standalone battles
+/// accept a team of any point cost.
+pub const NO_BUDGET_LIMIT: u32 = u32::MAX;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ArchetypeTemplate {
@@ -193,8 +200,9 @@ pub struct UnlockedPool {
     pub aspects: HashSet<String>,
 }
 
-/// Validate a team against the default budget with everything unlocked
-/// (standalone CLI / non-season play).
+/// Validate a team with everything unlocked and **no budget limit** (standalone
+/// CLI / arena / non-season play). Season play uses [`validate_team_config_with`]
+/// with the season budget + unlocked pool.
 pub fn validate_team_config(
     team: &TeamConfig,
     archetypes: &ArchetypeMap,
@@ -210,7 +218,7 @@ pub fn validate_team_config(
         abilities,
         passives,
         statuses,
-        TEAM_BUDGET,
+        NO_BUDGET_LIMIT,
         None,
     )
 }
@@ -291,7 +299,7 @@ pub fn validate_team_config_with(
         }
     }
 
-    if total_cost > budget {
+    if budget != NO_BUDGET_LIMIT && total_cost > budget {
         errors.push(format!(
             "team '{}' costs {} points, over the {}-point budget",
             team.name, total_cost, budget
@@ -1148,7 +1156,7 @@ mod tests {
     }
 
     #[test]
-    fn validate_team_config_rejects_over_budget() {
+    fn validate_team_config_has_no_default_budget_cap() {
         let data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/data");
         let archetypes = load_archetypes(&data_dir.join("archetypes.json")).unwrap();
         let abilities = load_abilities(&data_dir.join("abilities.json")).unwrap();
@@ -1207,13 +1215,27 @@ mod tests {
             banner: None,
         };
 
-        let err = validate_team_config(
+        // Free build is unlimited: the 16-point team validates by default.
+        validate_team_config(
             &team,
             &archetypes,
             &aspects,
             &abilities,
             &passives,
             &statuses,
+        )
+        .expect("free build has no budget cap");
+
+        // But a season-style call with an explicit budget still enforces it.
+        let err = validate_team_config_with(
+            &team,
+            &archetypes,
+            &aspects,
+            &abilities,
+            &passives,
+            &statuses,
+            14,
+            None,
         )
         .unwrap_err();
         assert!(err.contains("over the 14-point budget"), "got: {err}");

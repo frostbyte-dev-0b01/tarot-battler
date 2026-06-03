@@ -319,6 +319,9 @@ async function main() {
     // Phase 2/3: Season build mode in the Team builder.
     await page.evaluate(() => { const el = [...document.querySelectorAll("button")].find((x) => /^team$/i.test(x.textContent.trim())); el && el.click(); });
     await page.waitForFunction(() => !!document.querySelector('[data-builder-mode="season"]'), { timeout: 5000 }).catch(() => {});
+    // Free build (the default) shows a point value, not a budget cap.
+    const freeBudget = await page.evaluate(() => (document.querySelector(".budget-meter")?.textContent || "").replace(/\s+/g, " ").trim());
+    check("free build shows points with no budget cap", /Points/.test(freeBudget) && !/\//.test(freeBudget), freeBudget);
     await page.evaluate(() => document.querySelector('[data-builder-mode="season"]')?.click());
     await page.waitForFunction(() => !!document.querySelector(".season-build-strip"), { timeout: 5000 }).catch(() => {});
     const seasonBuild = await page.evaluate(() => ({

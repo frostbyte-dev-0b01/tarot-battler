@@ -2764,11 +2764,8 @@ function validateTeamCharacters(characters, errors) {
       }
     }
   });
-
-  const spend = computeTeamCost(characters);
-  if (spend > TEAM_BUDGET) {
-    errors.push(`Team costs ${spend} points, over the ${TEAM_BUDGET}-point budget.`);
-  }
+  // No budget cap on battle-readiness — free build is unlimited. Season-budget
+  // legality is shown separately in the Season-build strip.
 }
 
 // Sum of archetype costs plus aspect costs for a team's characters.
@@ -3221,12 +3218,20 @@ function renderRosterOptions() {
 
 function renderBudgetMeter(team) {
   const spend = computeTeamCost(team.characters);
+  // Free build has no budget limit — just show the team's point value. Season
+  // build shows the spend against the season budget (and flags going over).
+  if (!builderSeasonActive()) {
+    return `
+      <div class="budget-meter" title="Team point value — free build has no budget limit">
+        <span class="budget-meter-label">Points</span>
+        <strong>${spend}</strong>
+      </div>`;
+  }
   const budget = activeTeamBudget();
   const over = spend > budget;
-  const season = builderSeasonActive();
   return `
-    <div class="budget-meter ${over ? "is-over" : ""}" title="Character + aspect point cost vs the ${season ? "season" : "team"} budget">
-      <span class="budget-meter-label">${season ? "Season budget" : "Budget"}</span>
+    <div class="budget-meter ${over ? "is-over" : ""}" title="Character + aspect point cost vs the season budget">
+      <span class="budget-meter-label">Season budget</span>
       <strong>${spend} / ${budget}</strong>
     </div>`;
 }
