@@ -4582,3 +4582,74 @@ textarea:focus-visible {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Season: next-action status strip */
+.season-status-strip {
+  list-style: none;
+  margin: var(--s-3) 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+}
+
+.season-todo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--text-sm);
+}
+
+.season-todo-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  font-size: var(--text-xs);
+}
+
+.season-todo.is-done {
+  color: var(--muted);
+}
+
+.season-todo.is-done .season-todo-mark {
+  background: rgba(47, 125, 63, 0.15);
+  color: #2f7d3f;
+}
+
+.season-todo.is-pending {
+  font-weight: 600;
+}
+
+.season-todo.is-pending .season-todo-mark {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Season: collapsible host controls */
+.season-host {
+  margin-top: var(--s-3);
+  border-top: 1px solid var(--line);
+  padding-top: var(--s-2);
+}
+
+.season-host > summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  user-select: none;
+}
+
+.season-host[open] > summary {
+  color: var(--ink);
+  margin-bottom: var(--s-2);
+}
+
+.season-danger {
+  border-color: var(--accent);
+  color: var(--accent);
+}

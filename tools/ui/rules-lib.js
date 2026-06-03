@@ -344,6 +344,35 @@ function tallyRecord(playerId, results) {
   return tally;
 }
 
+// The player's "what should I do now?" checklist for the Season dashboard.
+// Pure: takes primitive flags, returns `{ done, text }` items. Used by the
+// status strip and unit-tested.
+function seasonNextActions(state) {
+  const s = state || {};
+  const items = [];
+  if (s.openBeatIndex !== null && s.openBeatIndex !== undefined && s.openBeatIndex >= 0) {
+    const kind = s.openBeatKind ? ` (${beatKindLabel(s.openBeatKind)})` : "";
+    items.push({
+      done: !!s.openBeatClaimed,
+      text: s.openBeatClaimed
+        ? `Beat ${s.openBeatIndex + 1}${kind} claimed`
+        : `Beat ${s.openBeatIndex + 1}${kind} is open — claim a pick`,
+    });
+  }
+  if (s.teamSubmitted) {
+    items.push({
+      done: s.teamLegal !== false,
+      text:
+        s.teamLegal === false
+          ? "Your submitted team is no longer season-legal — update it"
+          : "Team submitted for the season",
+    });
+  } else {
+    items.push({ done: false, text: "Submit a team for the season" });
+  }
+  return items;
+}
+
 // Format a stat-bonus map (e.g. { mgt: 2, vit: -2 }) as "MGT +2, VIT -2".
 // Keeps a stable stat order so the same item always reads the same way.
 const STAT_ORDER = ["vit", "mgt", "mag", "arm", "res", "spd"];
@@ -473,6 +502,7 @@ if (typeof module !== "undefined" && module.exports) {
     beatKindLabel,
     seasonClockLine,
     tallyRecord,
+    seasonNextActions,
     formatStatBonuses,
     describeDraftOffer,
     teamSeasonValidity,

@@ -240,3 +240,26 @@ test("teamSeasonValidity wants a commander when a banner is set", () => {
 test("teamSeasonValidity is invalid without a season context", () => {
   assert.equal(R.teamSeasonValidity({ characters: [] }, null, 0).valid, false);
 });
+
+test("seasonNextActions surfaces the open beat and team-submission state", () => {
+  // Open, unclaimed beat + no team submitted → two pending items.
+  let items = R.seasonNextActions({ openBeatIndex: 2, openBeatKind: "character", openBeatClaimed: false, teamSubmitted: false });
+  assert.equal(items.length, 2);
+  assert.equal(items[0].done, false);
+  assert.match(items[0].text, /Beat 3 \(New Character\) is open/);
+  assert.equal(items[1].done, false);
+  assert.match(items[1].text, /Submit a team/);
+
+  // Claimed beat + a legal submitted team → both done.
+  items = R.seasonNextActions({ openBeatIndex: 0, openBeatKind: "banner", openBeatClaimed: true, teamSubmitted: true, teamLegal: true });
+  assert.equal(items[0].done, true);
+  assert.match(items[0].text, /Beat 1 \(Banner\) claimed/);
+  assert.equal(items[1].done, true);
+  assert.match(items[1].text, /Team submitted/);
+
+  // Submitted but no longer legal → flagged pending.
+  items = R.seasonNextActions({ teamSubmitted: true, teamLegal: false });
+  assert.equal(items.length, 1); // no open beat
+  assert.equal(items[0].done, false);
+  assert.match(items[0].text, /no longer season-legal/);
+});

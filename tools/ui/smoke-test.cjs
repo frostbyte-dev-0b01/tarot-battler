@@ -74,6 +74,8 @@ async function main() {
     page.on("response", (r) => {
       if (r.status() >= 400 && !isBenignResource(r.url())) badResources.push(`${r.status()} ${r.url()}`);
     });
+    // Accept the host-control confirm() dialogs (finals / new season).
+    page.on("dialog", (d) => d.accept());
 
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.waitForFunction(() => typeof window.runBattleWasm === "function", { timeout: 20000 });
@@ -268,6 +270,15 @@ async function main() {
     check("season dashboard renders standings", dash.standings === 2, `rows=${dash.standings}`);
     check("season dashboard renders results", dash.results === 1, `results=${dash.results}`);
     check("season clock line is legible", /Day \d+ · Beat \d+ of 8/.test(dash.clock), dash.clock);
+
+    // Next-action status strip + collapsible host controls.
+    const uiBits = await page.evaluate(() => ({
+      todos: document.querySelectorAll(".season-status-strip .season-todo").length,
+      hostCollapsible: document.querySelector(".season-host")?.tagName === "DETAILS",
+      adminButtons: document.querySelectorAll('.season-host [data-season-action="run-day"], .season-host [data-season-action="run-finals"], .season-host [data-season-action="reset-season"]').length,
+    }));
+    check("season shows a next-action status strip", uiBits.todos >= 1, `todos=${uiBits.todos}`);
+    check("season host controls are collapsible + grouped", uiBits.hostCollapsible && uiBits.adminButtons === 3, JSON.stringify(uiBits));
 
     // Stats panel renders per-player W/L/D.
     const statRows = await page.evaluate(() => document.querySelectorAll(".season-stat-row").length);

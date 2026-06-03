@@ -204,6 +204,9 @@ const appState = {
     adminMsg: null,    // last admin action message (run-day/finals/reset)
     builderSubmitMsg: null, // Team-tab "Submit to season" success message
     builderSubmitErr: null, // Team-tab "Submit to season" error message
+    submittedTeam: null,    // the player's currently-submitted season team (or null)
+    pollTimer: null,        // auto-refresh interval while the Season tab is open
+    hostOpen: false,        // is the Host controls section expanded
   },
   selectedTeamCharacterIndex: 0,
   teamDetailTab: "design",
@@ -384,6 +387,9 @@ function setActiveWorkspace(targetId) {
   }
   if (targetId === "season") {
     void renderSeasonTab();
+    startSeasonPolling();
+  } else {
+    stopSeasonPolling();
   }
 }
 
@@ -5726,6 +5732,12 @@ async function refreshSeasonData(playerId) {
   s.results = (results && results.results) || [];
   s.draft = draft;
   s.stats = (stats && stats.stats) || [];
+  // Whether the player has a team submitted (tolerant: 404 → none).
+  try {
+    s.submittedTeam = await seasonFetch(`/api/team?player=${encodeURIComponent(playerId)}`);
+  } catch {
+    s.submittedTeam = null;
+  }
 }
 
 async function renderSeasonTab() {
@@ -5817,6 +5829,7 @@ function renderSeasonDashboard() {
           <button type="button" class="icon-button icon-button-sm" data-season-action="leave" title="Leave / switch player">&#10005;</button>
         </div>
       </header>
+      ${renderSeasonStatusStrip()}
       ${s.error ? `<p class="season-error">${escapeHtml(s.error)}</p>` : ""}
       <section class="season-panel season-beat-panel">
         <h3>Current draft beat</h3>
@@ -5826,12 +5839,16 @@ function renderSeasonDashboard() {
         <section class="season-panel">
           <h3>Draft schedule</h3>
           ${renderSeasonSchedule()}
-          <div class="season-admin">
-            <button type="button" class="button-secondary button-sm" data-season-action="run-day" title="Play today's pod matches">Run match day</button>
-            <button type="button" class="button-secondary button-sm" data-season-action="run-finals" title="Run the end-of-season Victors round">Run finals</button>
-            <button type="button" class="button-secondary button-sm" data-season-action="reset-season" title="Start a new season, carrying points + titles">New season</button>
-          </div>
-          ${s.adminMsg ? `<p class="season-ok">${escapeHtml(s.adminMsg)}</p>` : ""}
+          <details class="season-host" ${s.hostOpen ? "open" : ""}>
+            <summary>Host controls</summary>
+            <p class="season-hint">These drive the pod for everyone — usually just the host runs them.</p>
+            <div class="season-admin">
+              <button type="button" class="button-secondary button-sm" data-season-action="run-day" title="Play today's pod matches">Run match day</button>
+              <button type="button" class="button-secondary button-sm" data-season-action="run-finals" title="Run the end-of-season Victors round">Run finals</button>
+              <button type="button" class="button-secondary button-sm season-danger" data-season-action="reset-season" title="Start a new season, carrying points + titles">New season</button>
+            </div>
+            ${s.adminMsg ? `<p class="season-ok">${escapeHtml(s.adminMsg)}</p>` : ""}
+          </details>
         </section>
         <section class="season-panel">
           <h3>Standings</h3>
@@ -5851,6 +5868,62 @@ function renderSeasonDashboard() {
         </section>
       </div>
     </div>`;
+}
+
+// The "what should I do now?" checklist at the top of the dashboard.
+function renderSeasonStatusStrip() {
+  const s = appState.season;
+  const beats = (s.draft && s.draft.beats) || [];
+  const open = beats.find((b) => b.open);
+  const submitted = !!s.submittedTeam;
+  const teamLegal = submitted ? teamSeasonLegal(s.submittedTeam) : null;
+  const items = seasonNextActions({
+    openBeatIndex: open ? open.index : null,
+    openBeatKind: open ? open.kind : null,
+    openBeatClaimed: open ? !!open.claimed : false,
+    teamSubmitted: submitted,
+    teamLegal,
+  });
+  const lis = items
+    .map(
+      (it) => `<li class="season-todo ${it.done ? "is-done" : "is-pending"}">
+        <span class="season-todo-mark" aria-hidden="true">${it.done ? "✓" : "○"}</span>
+        <span>${escapeHtml(it.text)}</span>
+      </li>`,
+    )
+    .join("");
+  return `<ul class="season-status-strip" aria-label="Next actions">${lis}</ul>`;
+}
+
+// ----- Auto-refresh: poll live data while the Season tab is open -----
+const SEASON_POLL_MS = 15000;
+
+function startSeasonPolling() {
+  const s = appState.season;
+  if (s.pollTimer) return;
+  s.pollTimer = window.setInterval(seasonPollTick, SEASON_POLL_MS);
+}
+
+function stopSeasonPolling() {
+  const s = appState.season;
+  if (s.pollTimer) {
+    window.clearInterval(s.pollTimer);
+    s.pollTimer = null;
+  }
+}
+
+function seasonPollTick() {
+  const s = appState.season;
+  // Only refresh when the tab is visible/active, the player is joined, and the
+  // user isn't mid-interaction (don't clobber a focused input/select).
+  if (document.hidden) return;
+  if (!document.getElementById("season")?.classList.contains("is-active")) return;
+  if (!s.available || !s.player) return;
+  const active = document.activeElement;
+  if (active && seasonRoot && seasonRoot.contains(active) && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName)) {
+    return;
+  }
+  void renderSeasonTab();
 }
 
 // The loaded content catalogs as plain data for the pure offer-describer.
@@ -6251,6 +6324,19 @@ async function watchSeasonReplay(replayId) {
 
 // One delegated handler for every Season action.
 if (seasonRoot) {
+  // Remember whether Host controls are expanded so re-renders (incl. polling)
+  // don't collapse them. `toggle` doesn't bubble, so listen in the capture phase.
+  seasonRoot.addEventListener(
+    "toggle",
+    (event) => {
+      const t = event.target;
+      if (t && t.classList && t.classList.contains("season-host")) {
+        appState.season.hostOpen = t.open;
+      }
+    },
+    true,
+  );
+
   seasonRoot.addEventListener("click", async (event) => {
     const target = event.target.closest("[data-season-action]");
     if (!target) return;
@@ -6284,6 +6370,7 @@ if (seasonRoot) {
     } else if (action === "refresh") {
       void renderSeasonTab();
     } else if (action === "run-day") {
+      s.hostOpen = true;
       s.adminMsg = null;
       try {
         const r = await seasonFetch("/api/admin/run-day", { method: "POST" });
@@ -6293,6 +6380,8 @@ if (seasonRoot) {
       }
       void renderSeasonTab();
     } else if (action === "run-finals") {
+      if (!window.confirm("Run the Victors round now? This plays the finals and awards the season title.")) return;
+      s.hostOpen = true;
       s.adminMsg = null;
       try {
         const r = await seasonFetch("/api/admin/run-finals", { method: "POST" });
@@ -6304,6 +6393,8 @@ if (seasonRoot) {
       }
       void renderSeasonTab();
     } else if (action === "reset-season") {
+      if (!window.confirm("Start a new season? Teams, drafts, and results reset for everyone (points and titles carry over). This can't be undone.")) return;
+      s.hostOpen = true;
       s.adminMsg = null;
       try {
         const r = await seasonFetch("/api/admin/reset-season", { method: "POST" });
