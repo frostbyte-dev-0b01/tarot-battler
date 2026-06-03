@@ -147,7 +147,7 @@ where
     // player not in the eligible set (their team isn't season-legal today).
     let mut teams = db.all_teams()?;
     teams.sort_by(|a, b| a.0.cmp(&b.0));
-    teams.retain(|(id, _)| eligible.map_or(true, |e| e.contains(id)));
+    teams.retain(|(id, _)| eligible.is_none_or(|e| e.contains(id)));
     let ids: Vec<String> = teams.iter().map(|(id, _)| id.clone()).collect();
     let team_json: HashMap<&str, &str> = teams
         .iter()
@@ -223,10 +223,16 @@ pub fn run_finals(
     season_seed: u64,
     season_label: &str,
     top_n: usize,
+    eligible: Option<&HashSet<String>>,
 ) -> Result<FinalsReport, String> {
-    run_finals_with(db, season_seed, season_label, top_n, |a, b, seed| {
-        battle_engine::run_battle_json(a, b, seed)
-    })
+    run_finals_with(
+        db,
+        season_seed,
+        season_label,
+        top_n,
+        eligible,
+        battle_engine::run_battle_json,
+    )
 }
 
 /// Finals, resolving battles through `battle` (testable).
@@ -235,6 +241,7 @@ pub fn run_finals_with<F>(
     season_seed: u64,
     season_label: &str,
     top_n: usize,
+    eligible: Option<&HashSet<String>>,
     battle: F,
 ) -> Result<FinalsReport, String>
 where
@@ -258,12 +265,12 @@ where
         });
     }
 
-    // Finalists: top standings that have actually submitted a team.
+    // Finalists: top standings with a submitted, season-legal team.
     let teams: HashMap<String, String> = db.all_teams()?.into_iter().collect();
     let finalists: Vec<String> = db
         .standings()?
         .into_iter()
-        .filter(|p| teams.contains_key(&p.id))
+        .filter(|p| teams.contains_key(&p.id) && eligible.is_none_or(|e| e.contains(&p.id)))
         .map(|p| p.id)
         .take(top_n.max(2))
         .collect();
@@ -443,7 +450,7 @@ mod tests {
         seed_player(&db, "p2", 110, r#"{"neutral":true}"#);
         seed_player(&db, "p3", 100, r#"{"neutral":true}"#);
 
-        let report = run_finals_with(&db, 7, "Season 1", 4, fake_battle).unwrap();
+        let report = run_finals_with(&db, 7, "Season 1", 4, None, fake_battle).unwrap();
         assert_eq!(report.matches, 3);
         assert_eq!(report.victor.as_deref(), Some("p1"));
 
@@ -461,7 +468,7 @@ mod tests {
             .all(|r| r.day == FINALS_DAY));
 
         // Idempotent: a second run is a no-op that still reports the victor.
-        let again = run_finals_with(&db, 7, "Season 1", 4, fake_battle).unwrap();
+        let again = run_finals_with(&db, 7, "Season 1", 4, None, fake_battle).unwrap();
         assert!(again.already_run);
         assert_eq!(again.victor.as_deref(), Some("p1"));
     }
@@ -470,7 +477,7 @@ mod tests {
     fn finals_need_at_least_two_teams() {
         let db = temp_db();
         seed_player(&db, "solo", 100, r#"{"win":"a"}"#);
-        let report = run_finals_with(&db, 1, "Season 1", 4, fake_battle).unwrap();
+        let report = run_finals_with(&db, 1, "Season 1", 4, None, fake_battle).unwrap();
         assert_eq!(report.matches, 0);
         assert!(report.victor.is_none());
     }

@@ -410,7 +410,14 @@ impl AppState {
     /// the cosmetic title.
     pub fn run_finals(&self) -> Result<Value, ApiError> {
         let season = self.ensure_season()?;
-        let report = runner::run_finals(&self.db, season.seed, &season.name, FINALS_TOP_N)?;
+        let eligible = self.season_eligible_players(&season)?;
+        let report = runner::run_finals(
+            &self.db,
+            season.seed,
+            &season.name,
+            FINALS_TOP_N,
+            Some(&eligible),
+        )?;
         let victor_name = match &report.victor {
             Some(id) => self.db.get_player(id)?.map(|p| p.name),
             None => None,
@@ -764,6 +771,41 @@ mod tests {
         assert!(results
             .iter()
             .all(|r| r.player_a != "cy" && r.player_b != "cy"));
+    }
+
+    #[test]
+    fn run_finals_excludes_season_illegal_teams() {
+        let s = state();
+        s.join("Ada").unwrap();
+        s.join("Bo").unwrap();
+        s.join("Cy").unwrap();
+        // Cy has the most points but an injected, season-illegal team.
+        for (id, pts) in [("ada", 50), ("bo", 50), ("cy", 99)] {
+            let mut p = s.db.get_player(id).unwrap().unwrap();
+            p.points = pts;
+            s.db.upsert_player(&p).unwrap();
+        }
+        let ada: Value = serde_json::from_str(include_str!(
+            "../../tools/ui/sample-data/teams/imperial_phalanx.json"
+        ))
+        .unwrap();
+        let bo: Value = serde_json::from_str(include_str!(
+            "../../tools/ui/sample-data/teams/guardian_column.json"
+        ))
+        .unwrap();
+        s.submit_team("ada", ada).unwrap();
+        s.submit_team("bo", bo).unwrap();
+        s.db.set_team(
+            "cy",
+            include_str!("../../tools/ui/sample-data/teams/good_stats.json"),
+        )
+        .unwrap();
+
+        let report = s.run_finals().unwrap();
+        // Only the two legal finalists contest; Cy is excluded despite leading.
+        assert_eq!(report["matches"], 1);
+        assert_ne!(report["victor"], serde_json::json!("cy"));
+        assert!(s.db.get_player("cy").unwrap().unwrap().title.is_none());
     }
 
     #[test]
