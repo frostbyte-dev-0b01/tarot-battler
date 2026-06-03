@@ -57,9 +57,23 @@ async function main() {
   try {
     // ===== Scenario 1: the normal bundled roster (core flows + watch) =====
     const errors = [];
+    const badResources = [];
+    // `latest_replay.json` is a gitignored dev convenience the app probes on
+    // load; it's legitimately absent in a fresh checkout (e.g. CI). Treat its
+    // 404 as benign, but flag any other failed resource or JS error.
+    const isBenignResource = (url) => /latest_replay\.json($|\?)/.test(url);
     const page = await browser.newPage();
     page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
-    page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text()); });
+    page.on("console", (m) => {
+      if (m.type() !== "error") return;
+      // Resource-load failures are tracked via the response listener below so we
+      // can key off the URL; skip the generic console line here.
+      if (/Failed to load resource/.test(m.text())) return;
+      errors.push("console: " + m.text());
+    });
+    page.on("response", (r) => {
+      if (r.status() >= 400 && !isBenignResource(r.url())) badResources.push(`${r.status()} ${r.url()}`);
+    });
 
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.waitForFunction(() => typeof window.runBattleWasm === "function", { timeout: 20000 });
@@ -120,7 +134,7 @@ async function main() {
       check("Watch keeps the replay loaded", stillLoaded, "replay was cleared after watch");
     }
 
-    check("no console/page errors", errors.length === 0, errors.join(" | "));
+    check("no console/page errors", errors.length === 0 && badResources.length === 0, [...errors, ...badResources].join(" | "));
 
     // ===== Scenario 2: a roster with a stale team -> Arena error banner (PR #28) =====
     // Reuse the same page (a fresh page can crash single-process Chromium):
