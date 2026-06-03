@@ -398,6 +398,47 @@ function describeDraftOffer(kind, id, catalogs) {
   return { label: id, tooltip: "" };
 }
 
+// Whether a team is legal for the season, given the player's unlocked pool and
+// the team's already-computed point `cost`. Pure mirror of the server's
+// `validate_team` (server/src/content.rs) — the server remains the source of
+// truth on submit; this is a faithful client pre-check used for the legality
+// badge and the builder's inline flags. `unlocked` is plain data:
+// { archetypes, aspects, teamPassives, banner, budget }. Returns
+// { valid, reasons } where each reason is structured so the UI can format it
+// with display names.
+function teamSeasonValidity(team, unlocked, cost) {
+  const reasons = [];
+  if (!team || !unlocked) return { valid: false, reasons };
+  const arche = new Set(unlocked.archetypes || []);
+  const aspects = new Set(unlocked.aspects || []);
+  const passives = new Set(unlocked.teamPassives || []);
+  const budget = Number(unlocked.budget ?? 0);
+  const characters = Array.isArray(team.characters) ? team.characters : [];
+
+  for (const c of characters) {
+    if (c && c.template_id && !arche.has(c.template_id)) {
+      reasons.push({ kind: "locked_archetype", id: c.template_id });
+    }
+    if (c && c.aspect && !aspects.has(c.aspect)) {
+      reasons.push({ kind: "locked_aspect", id: c.aspect });
+    }
+  }
+  if (Number(cost) > budget) {
+    reasons.push({ kind: "over_budget", cost: Number(cost), budget });
+  }
+  for (const tp of team.team_passives || []) {
+    if (!passives.has(tp)) reasons.push({ kind: "locked_passive", id: tp });
+  }
+  if (team.banner) {
+    if (!team.commander) reasons.push({ kind: "banner_needs_commander", id: team.banner });
+    else if (unlocked.banner !== team.banner) reasons.push({ kind: "banner_mismatch", id: team.banner });
+  }
+  if (team.commander && !characters.some((c) => (c.id || c.template_id) === team.commander)) {
+    reasons.push({ kind: "commander_missing", id: team.commander });
+  }
+  return { valid: reasons.length === 0, reasons };
+}
+
 // Node (test) export. In the browser `module` is undefined, so these stay
 // plain top-level declarations shared with app.js as globals.
 if (typeof module !== "undefined" && module.exports) {
@@ -434,5 +475,6 @@ if (typeof module !== "undefined" && module.exports) {
     tallyRecord,
     formatStatBonuses,
     describeDraftOffer,
+    teamSeasonValidity,
   };
 }

@@ -303,6 +303,22 @@ async function main() {
     const submitErr = await page.evaluate(() => document.querySelector('.season-builder-actions .season-error')?.textContent?.trim() || "");
     check("season team submit rejects locked content with a message", /locked archetype/i.test(submitErr), submitErr);
 
+    // Legality badge: with a season context loaded, season-legal teams get a
+    // seal in the Arena (the stale team, which uses a locked aspect, does not).
+    await page.evaluate(() => { const el = [...document.querySelectorAll("button")].find((x) => /^arena$/i.test(x.textContent.trim())); el && el.click(); });
+    await page.waitForFunction(() => document.querySelectorAll(".arena-foe").length > 0, { timeout: 5000 }).catch(() => {});
+    const seals = await page.evaluate(() => ({
+      total: document.querySelectorAll(".arena-foe .season-seal").length,
+      staleSealed: [...document.querySelectorAll(".arena-foe")].some(
+        (el) => /Stale Team/.test(el.textContent) && el.querySelector(".season-seal"),
+      ),
+    }));
+    check("arena marks season-legal teams with a seal", seals.total === 2, `seals=${seals.total}`);
+    check("arena leaves season-illegal teams unsealed", seals.staleSealed === false);
+    // Back to the Season tab for the Watch step.
+    await page.evaluate(() => { const el = [...document.querySelectorAll("button")].find((x) => /^season$/i.test(x.textContent.trim())); el && el.click(); });
+    await page.waitForFunction(() => document.querySelectorAll(".season-result").length > 0, { timeout: 5000 }).catch(() => {});
+
     // Watch a result → loads the replay into the existing viewer.
     await page.evaluate(() => document.querySelector('[data-season-action="watch"]')?.click());
     await page.waitForFunction(

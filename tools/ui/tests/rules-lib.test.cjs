@@ -188,3 +188,55 @@ test("describeDraftOffer resolves display names + tooltips per kind", () => {
   // Unknown id falls back to the raw id with no tooltip.
   assert.deepEqual(R.describeDraftOffer("character", "mystery", catalogs), { label: "mystery", tooltip: "" });
 });
+
+test("teamSeasonValidity passes a team within the unlocked pool + budget", () => {
+  const unlocked = { archetypes: ["the_emperor", "the_moon"], aspects: ["aspect_of_ruin"], teamPassives: ["Aegis"], banner: "Rally", budget: 12 };
+  const team = {
+    characters: [
+      { id: "e", template_id: "the_emperor", aspect: "aspect_of_ruin" },
+      { id: "m", template_id: "the_moon" },
+    ],
+    team_passives: ["Aegis"],
+    commander: "e",
+    banner: "Rally",
+  };
+  const v = R.teamSeasonValidity(team, unlocked, 9);
+  assert.equal(v.valid, true);
+  assert.deepEqual(v.reasons, []);
+});
+
+test("teamSeasonValidity flags each kind of violation", () => {
+  const unlocked = { archetypes: ["the_emperor"], aspects: [], teamPassives: [], banner: "Rally", budget: 8 };
+  const team = {
+    characters: [
+      { id: "e", template_id: "the_emperor" },
+      { id: "h", template_id: "the_hermit", aspect: "aspect_of_ruin" }, // locked archetype + locked aspect
+    ],
+    team_passives: ["Aegis"], // locked passive
+    commander: "ghost",        // not a team member
+    banner: "Bulwark",         // not the drafted banner
+  };
+  const v = R.teamSeasonValidity(team, unlocked, 12); // over the 8 budget
+  assert.equal(v.valid, false);
+  const kinds = v.reasons.map((r) => r.kind).sort();
+  assert.deepEqual(kinds, [
+    "banner_mismatch",
+    "commander_missing",
+    "locked_archetype",
+    "locked_aspect",
+    "locked_passive",
+    "over_budget",
+  ]);
+});
+
+test("teamSeasonValidity wants a commander when a banner is set", () => {
+  const unlocked = { archetypes: ["the_emperor"], aspects: [], teamPassives: [], banner: "Rally", budget: 10 };
+  const team = { characters: [{ id: "e", template_id: "the_emperor" }], banner: "Rally" };
+  const v = R.teamSeasonValidity(team, unlocked, 3);
+  assert.equal(v.valid, false);
+  assert.ok(v.reasons.some((r) => r.kind === "banner_needs_commander"));
+});
+
+test("teamSeasonValidity is invalid without a season context", () => {
+  assert.equal(R.teamSeasonValidity({ characters: [] }, null, 0).valid, false);
+});

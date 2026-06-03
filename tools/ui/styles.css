@@ -4515,3 +4515,11 @@ textarea:focus-visible {
   margin-left: var(--s-1);
   font-weight: 500;
 }
+
+/* Season-legality seal: marks teams that are legal for the current season. */
+.season-seal {
+  color: var(--accent);
+  font-size: var(--text-sm);
+  margin-left: var(--s-1);
+  cursor: help;
+}
