@@ -9,7 +9,7 @@
 //! [`AppState`] that return `Result<Value, ApiError>` (directly unit-testable),
 //! and thin axum handlers adapt extractors to those methods.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use axum::extract::{Path, Query, State};
@@ -364,11 +364,32 @@ impl AppState {
         Ok(json!({ "stats": rows }))
     }
 
+    /// Player ids whose submitted team is season-legal right now (validated
+    /// against each player's unlocked pool + the season budget). Only these play
+    /// the match day; an over-budget / locked team simply sits out.
+    fn season_eligible_players(&self, season: &Season) -> Result<HashSet<String>, ApiError> {
+        let mut eligible = HashSet::new();
+        for (player_id, team_json) in self.db.all_teams()? {
+            let draft = self.db.get_draft(&player_id)?;
+            let unlocked = self.unlocked_for(season, &draft);
+            if let Ok(config) =
+                serde_json::from_str::<battle_engine::loader::TeamConfig>(&team_json)
+            {
+                if self.content.validate_team(&config, &unlocked).is_ok() {
+                    eligible.insert(player_id);
+                }
+            }
+        }
+        Ok(eligible)
+    }
+
     /// Play the current match day. Idempotent: replaying the same day is a no-op
-    /// (advancing the clock is the separate `advance_day` admin action).
+    /// (advancing the clock is the separate `advance_day` admin action). Only
+    /// season-legal teams take part.
     pub fn run_day(&self) -> Result<Value, ApiError> {
         let season = self.ensure_season()?;
-        let report = runner::run_day(&self.db, season.day, season.seed)?;
+        let eligible = self.season_eligible_players(&season)?;
+        let report = runner::run_day(&self.db, season.day, season.seed, Some(&eligible))?;
         Ok(json!({
             "day": report.day,
             "matches": report.matches,
@@ -710,6 +731,39 @@ mod tests {
         assert_eq!(ada.title.as_deref(), Some("Victor — Season 1"));
         assert!(s.db.get_team("ada").unwrap().is_none());
         assert!(s.db.get_draft("ada").unwrap().claimed.is_empty());
+    }
+
+    #[test]
+    fn run_day_excludes_season_illegal_teams() {
+        let s = state();
+        s.join("Ada").unwrap();
+        s.join("Bo").unwrap();
+        s.join("Cy").unwrap();
+
+        // Legal starter teams, submitted through the season validation.
+        let ada: Value = serde_json::from_str(include_str!(
+            "../../tools/ui/sample-data/teams/imperial_phalanx.json"
+        ))
+        .unwrap();
+        let bo: Value = serde_json::from_str(include_str!(
+            "../../tools/ui/sample-data/teams/guardian_column.json"
+        ))
+        .unwrap();
+        s.submit_team("ada", ada).unwrap();
+        s.submit_team("bo", bo).unwrap();
+
+        // Cy's team uses locked content (the_magician + aspects). Inject it
+        // directly, past submission validation, to prove the runner re-checks.
+        let cy = include_str!("../../tools/ui/sample-data/teams/good_stats.json");
+        s.db.set_team("cy", cy).unwrap();
+
+        let report = s.run_day().unwrap();
+        // Only Ada vs Bo plays; Cy's illegal team sits out.
+        assert_eq!(report["matches"], 1);
+        let results = s.db.all_results().unwrap();
+        assert!(results
+            .iter()
+            .all(|r| r.player_a != "cy" && r.player_b != "cy"));
     }
 
     #[test]

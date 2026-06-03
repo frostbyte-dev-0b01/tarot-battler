@@ -14,7 +14,7 @@
 //! then.
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::db::Db;
 use crate::models::MatchResult;
@@ -106,16 +106,29 @@ pub struct DayReport {
     pub already_run: bool,
 }
 
-/// Run match day `day` using the real native engine.
-pub fn run_day(db: &Db, day: u32, season_seed: u64) -> Result<DayReport, String> {
-    run_day_with(db, day, season_seed, |a, b, seed| {
+/// Run match day `day` using the real native engine. `eligible`, when `Some`,
+/// restricts play to those player ids (season-legal teams, validated against the
+/// season budget + pool by the caller); `None` plays everyone (used in tests).
+pub fn run_day(
+    db: &Db,
+    day: u32,
+    season_seed: u64,
+    eligible: Option<&HashSet<String>>,
+) -> Result<DayReport, String> {
+    run_day_with(db, day, season_seed, eligible, |a, b, seed| {
         battle_engine::run_battle_json(a, b, seed)
     })
 }
 
 /// Run match day `day`, resolving each battle through `battle`. Idempotent: if
 /// the day already has results, returns early without re-scoring.
-pub fn run_day_with<F>(db: &Db, day: u32, season_seed: u64, battle: F) -> Result<DayReport, String>
+pub fn run_day_with<F>(
+    db: &Db,
+    day: u32,
+    season_seed: u64,
+    eligible: Option<&HashSet<String>>,
+    battle: F,
+) -> Result<DayReport, String>
 where
     F: Fn(&str, &str, u64) -> Result<String, String>,
 {
@@ -130,9 +143,11 @@ where
         });
     }
 
-    // Play over currently-submitted teams, in a deterministic order.
+    // Play over currently-submitted teams, in a deterministic order. Skip any
+    // player not in the eligible set (their team isn't season-legal today).
     let mut teams = db.all_teams()?;
     teams.sort_by(|a, b| a.0.cmp(&b.0));
+    teams.retain(|(id, _)| eligible.map_or(true, |e| e.contains(id)));
     let ids: Vec<String> = teams.iter().map(|(id, _)| id.clone()).collect();
     let team_json: HashMap<&str, &str> = teams
         .iter()
@@ -385,7 +400,7 @@ mod tests {
         seed_player(&db, "p2", 100, r#"{"neutral":true}"#);
         seed_player(&db, "p3", 100, r#"{"neutral":true}"#);
 
-        let report = run_day_with(&db, 0, 7, fake_battle).unwrap();
+        let report = run_day_with(&db, 0, 7, None, fake_battle).unwrap();
         assert!(!report.already_run);
         assert_eq!(report.matches, 3); // 3 players → 3 matchups
 
@@ -402,7 +417,7 @@ mod tests {
         }
 
         // Re-running the same day is a no-op (no double counting).
-        let again = run_day_with(&db, 0, 7, fake_battle).unwrap();
+        let again = run_day_with(&db, 0, 7, None, fake_battle).unwrap();
         assert!(again.already_run);
         assert_eq!(again.matches, 3);
         assert_eq!(pts("p1"), 110, "points unchanged on re-run");
@@ -415,7 +430,7 @@ mod tests {
         // p2 starts at 3; losing 5 in a day must floor to 0, not go negative.
         seed_player(&db, "p1", 0, r#"{"win":"a"}"#);
         seed_player(&db, "p2", 3, r#"{"neutral":true}"#);
-        run_day_with(&db, 0, 1, fake_battle).unwrap();
+        run_day_with(&db, 0, 1, None, fake_battle).unwrap();
         assert_eq!(db.get_player("p2").unwrap().unwrap().points, 0);
         assert_eq!(db.get_player("p1").unwrap().unwrap().points, 5);
     }
@@ -469,7 +484,7 @@ mod tests {
         seed_player(&db, "p1", 50, team_a);
         seed_player(&db, "p2", 50, team_b);
 
-        let report = run_day(&db, 0, 42).unwrap();
+        let report = run_day(&db, 0, 42, None).unwrap();
         assert_eq!(report.matches, 1);
 
         // Exactly one decisive/draw result, with a replay the viewer can load.
