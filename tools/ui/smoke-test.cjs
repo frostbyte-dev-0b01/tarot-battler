@@ -315,6 +315,42 @@ async function main() {
     }));
     check("arena marks season-legal teams with a seal", seals.total === 2, `seals=${seals.total}`);
     check("arena leaves season-illegal teams unsealed", seals.staleSealed === false);
+
+    // Phase 2/3: Season build mode in the Team builder.
+    await page.evaluate(() => { const el = [...document.querySelectorAll("button")].find((x) => /^team$/i.test(x.textContent.trim())); el && el.click(); });
+    await page.waitForFunction(() => !!document.querySelector('[data-builder-mode="season"]'), { timeout: 5000 }).catch(() => {});
+    await page.evaluate(() => document.querySelector('[data-builder-mode="season"]')?.click());
+    await page.waitForFunction(() => !!document.querySelector(".season-build-strip"), { timeout: 5000 }).catch(() => {});
+    const seasonBuild = await page.evaluate(() => ({
+      strip: !!document.querySelector(".season-build-strip"),
+      budget: (document.querySelector(".budget-meter")?.textContent || "").replace(/\s+/g, " ").trim(),
+    }));
+    check("team builder enters Season build mode", seasonBuild.strip, JSON.stringify(seasonBuild));
+    check("season build shows the season budget", /Season budget/.test(seasonBuild.budget) && /\/ 11/.test(seasonBuild.budget), seasonBuild.budget);
+
+    // Load a pool-legal team → submit enabled → submitting from the builder works.
+    await page.evaluate(() => { const sel = document.querySelector(".roster-select"); if (sel) { sel.value = "Valid Chariot"; sel.dispatchEvent(new Event("change", { bubbles: true })); } });
+    await page.waitForFunction(() => !!document.querySelector(".season-build-ok"), { timeout: 5000 }).catch(() => {});
+    const legal = await page.evaluate(() => ({
+      ok: !!document.querySelector(".season-build-ok"),
+      submitDisabled: document.querySelector('[data-team-action="submit-team-season"]')?.disabled,
+    }));
+    check("season build marks a pool-legal team legal", legal.ok && legal.submitDisabled === false, JSON.stringify(legal));
+    await page.evaluate(() => document.querySelector('[data-team-action="submit-team-season"]')?.click());
+    await page.waitForFunction(() => /Submitted/.test(document.querySelector(".season-build-strip .season-ok")?.textContent || ""), { timeout: 5000 }).catch(() => {});
+    const builderSubmit = await page.evaluate(() => document.querySelector(".season-build-strip .season-ok")?.textContent?.trim() || "");
+    check("season build submits a team from the Team tab", /Submitted/.test(builderSubmit), builderSubmit);
+
+    // Load a pool-illegal team → flagged, submit disabled.
+    await page.evaluate(() => { const sel = document.querySelector(".roster-select"); if (sel) { sel.value = "Stale Team"; sel.dispatchEvent(new Event("change", { bubbles: true })); } });
+    await page.waitForFunction(() => !!document.querySelector(".season-build-bad"), { timeout: 5000 }).catch(() => {});
+    const illegal = await page.evaluate(() => ({
+      bad: !!document.querySelector(".season-build-bad"),
+      submitDisabled: document.querySelector('[data-team-action="submit-team-season"]')?.disabled,
+      reasons: document.querySelectorAll(".season-build-reasons li").length,
+    }));
+    check("season build flags an illegal team and disables submit", illegal.bad && illegal.submitDisabled === true && illegal.reasons >= 1, JSON.stringify(illegal));
+
     // Back to the Season tab for the Watch step.
     await page.evaluate(() => { const el = [...document.querySelectorAll("button")].find((x) => /^season$/i.test(x.textContent.trim())); el && el.click(); });
     await page.waitForFunction(() => document.querySelectorAll(".season-result").length > 0, { timeout: 5000 }).catch(() => {});

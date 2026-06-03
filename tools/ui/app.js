@@ -182,6 +182,7 @@ const appState = {
   teamRoster: [],
   activeTeamName: null,
   arenaMode: "test",
+  builderMode: "free", // "free" (everything) | "season" (unlocked pool only)
   arenaAttackerName: null,
   arenaResultView: "winrate",
   lastRoundRobin: null,
@@ -201,6 +202,8 @@ const appState = {
     submitErr: null,   // last submit error message
     stats: [],         // /api/stats rows (per-player W/L/D)
     adminMsg: null,    // last admin action message (run-day/finals/reset)
+    builderSubmitMsg: null, // Team-tab "Submit to season" success message
+    builderSubmitErr: null, // Team-tab "Submit to season" error message
   },
   selectedTeamCharacterIndex: 0,
   teamDetailTab: "design",
@@ -1422,6 +1425,11 @@ appState.teamConfig = structuredClone(demoTeam);
 if (teamEditorConfig.jsonInput) {
   teamEditorConfig.jsonInput.value = JSON.stringify(appState.teamConfig, null, 2);
 }
+// Restore the persisted build mode before the first render.
+try {
+  const savedMode = localStorage.getItem("tarot:builder-mode");
+  if (savedMode === "season" || savedMode === "free") appState.builderMode = savedMode;
+} catch { /* ignore storage failures */ }
 resetTeamSummary();
 renderTeamEditor();
 renderCharacterLibrary();
@@ -1432,6 +1440,7 @@ void loadLatestReplay();
 // ===== localStorage persistence: team roster + character library =====
 const STORAGE_TEAMS = "tarot:teams";
 const STORAGE_CHARACTERS = "tarot:characters";
+const STORAGE_BUILDER_MODE = "tarot:builder-mode";
 
 function readStoredArray(key) {
   try {
@@ -3105,11 +3114,13 @@ function renderTeamTab() {
         <label class="field-group team-name-field team-name-field-compact">
           <input type="text" data-team-field="name" value="${escapeHtml(team.name)}" aria-label="Team name">
         </label>
+        ${renderBuilderModeToggle()}
         <div class="file-icon-actions" aria-label="Team actions">
           <button type="button" class="button-quiet" data-team-action="open-team-library" title="Load a team from your roster or import JSON">Load Team</button>
           <button type="button" class="icon-button" data-team-action="save-team-file" title="Export team JSON" aria-label="Export team JSON">${icon("export")}</button>
         </div>
       </div>
+      ${renderSeasonModeStrip(team)}
       ${renderTeamValidityBanner(team)}
       <div class="team-tab-body">
         <section class="builder-card team-formation-card">
@@ -3210,11 +3221,77 @@ function renderRosterOptions() {
 
 function renderBudgetMeter(team) {
   const spend = computeTeamCost(team.characters);
-  const over = spend > TEAM_BUDGET;
+  const budget = activeTeamBudget();
+  const over = spend > budget;
+  const season = builderSeasonActive();
   return `
-    <div class="budget-meter ${over ? "is-over" : ""}" title="Character + aspect point cost vs the team budget">
-      <span class="budget-meter-label">Budget</span>
-      <strong>${spend} / ${TEAM_BUDGET}</strong>
+    <div class="budget-meter ${over ? "is-over" : ""}" title="Character + aspect point cost vs the ${season ? "season" : "team"} budget">
+      <span class="budget-meter-label">${season ? "Season budget" : "Budget"}</span>
+      <strong>${spend} / ${budget}</strong>
+    </div>`;
+}
+
+// Free ↔ Season build toggle. Season stays selectable without a season context
+// (it just shows a hint and keeps the free palette until you join).
+function renderBuilderModeToggle() {
+  const mode = appState.builderMode;
+  const hasSeason = seasonUnlockedSnapshot() !== null;
+  return `
+    <div class="builder-mode-toggle seg-toggle" role="group" aria-label="Build mode">
+      <button type="button" class="seg-button ${mode === "free" ? "is-active" : ""}" data-team-action="set-builder-mode" data-builder-mode="free" title="Build with everything unlocked">Free build</button>
+      <button type="button" class="seg-button ${mode === "season" ? "is-active" : ""}" data-team-action="set-builder-mode" data-builder-mode="season" ${hasSeason ? "" : 'title="Join a season to build from your unlocked pool"'}>Season build</button>
+    </div>`;
+}
+
+// Human-readable line for a season-legality reason (display names, not ids).
+function formatSeasonReason(reason) {
+  switch (reason.kind) {
+    case "locked_archetype":
+      return `Locked character: ${seasonOfferInfo("character", reason.id).label}`;
+    case "locked_aspect":
+      return `Locked item: ${seasonOfferInfo("item", reason.id).label}`;
+    case "over_budget":
+      return `Over budget: ${reason.cost} / ${reason.budget}`;
+    case "locked_passive":
+      return `Team passive not unlocked: ${reason.id}`;
+    case "banner_mismatch":
+      return `${reason.id} isn't your drafted banner`;
+    case "banner_needs_commander":
+      return `Banner ${reason.id} needs a commander`;
+    case "commander_missing":
+      return `Commander isn't on the team`;
+    default:
+      return reason.kind;
+  }
+}
+
+// The Season-build context strip: pool/budget summary, legality + reasons, and a
+// "Submit to season" button (enabled only when the team is legal).
+function renderSeasonModeStrip(team) {
+  if (appState.builderMode !== "season") return "";
+  const unlocked = seasonUnlockedSnapshot();
+  if (!unlocked) {
+    return `<div class="season-build-strip is-muted">Season build — <button type="button" class="link-button" data-team-action="goto-season">join a season</button> to build from your unlocked pool. Showing the free palette until then.</div>`;
+  }
+  const seasonName = (appState.season.season && appState.season.season.season && appState.season.season.season.name) || "the season";
+  const v = teamSeasonValidity(team, unlocked, computeTeamCost(team.characters));
+  const status = v.valid
+    ? `<span class="season-build-ok">✦ Legal for ${escapeHtml(seasonName)}</span>`
+    : `<span class="season-build-bad">Not season-legal</span>`;
+  const reasons = v.valid
+    ? ""
+    : `<ul class="season-build-reasons">${v.reasons.map((r) => `<li>${escapeHtml(formatSeasonReason(r))}</li>`).join("")}</ul>`;
+  const msg = appState.season.builderSubmitMsg ? `<span class="season-ok">${escapeHtml(appState.season.builderSubmitMsg)}</span>` : "";
+  const err = appState.season.builderSubmitErr ? `<span class="season-error">${escapeHtml(appState.season.builderSubmitErr)}</span>` : "";
+  return `
+    <div class="season-build-strip">
+      <div class="season-build-head">
+        <span class="season-build-summary">Season build · ${unlocked.archetypes.length} characters in pool · ${activeTeamBudget()} pts</span>
+        ${status}
+        <button type="button" class="button-secondary button-sm" data-team-action="submit-team-season" ${v.valid ? "" : "disabled"} title="Submit this team to the season">Submit to season</button>
+      </div>
+      ${reasons}
+      ${msg}${err}
     </div>`;
 }
 
@@ -4178,6 +4255,21 @@ function handleTeamEditorAction(event) {
     case "save-team-file":
       downloadTeamJson();
       return;
+    case "set-builder-mode": {
+      const next = actionTarget.dataset.builderMode === "season" ? "season" : "free";
+      appState.builderMode = next;
+      appState.season.builderSubmitMsg = null;
+      appState.season.builderSubmitErr = null;
+      try { localStorage.setItem(STORAGE_BUILDER_MODE, next); } catch { /* ignore */ }
+      void ensureSeasonContext(); // fetch the pool if we haven't yet
+      break;
+    }
+    case "goto-season":
+      setActiveWorkspace("season");
+      return;
+    case "submit-team-season":
+      void submitCurrentTeamToSeason();
+      return;
     case "save-team-roster": {
       const validation = validateTeamConfig(team);
       if (!validation.ok && !window.confirm(`This team has ${validation.errors.length} issue${validation.errors.length === 1 ? "" : "s"} and isn't battle-ready. Save it anyway?`)) {
@@ -4577,7 +4669,13 @@ function getBrowserEntries(mode) {
     return pool.map((name) => ({ name, description: getPassiveDescription(name) }));
   }
   if (mode === "aspect") {
-    return appState.catalogs.aspects.map((name) => ({ name, description: getAspectDescription(name) }));
+    let aspects = appState.catalogs.aspects;
+    // Season mode: offer only unlocked items.
+    if (builderSeasonActive()) {
+      const pool = new Set(seasonUnlockedSnapshot().aspects);
+      aspects = aspects.filter((name) => pool.has(name));
+    }
+    return aspects.map((name) => ({ name, description: getAspectDescription(name) }));
   }
   const pool = Array.isArray(archetype?.active_pool) ? archetype.active_pool : appState.catalogs.abilities;
   return pool.map((name) => ({ name, description: getAbilityDescription(name) }));
@@ -4637,7 +4735,14 @@ function buildRuleStatusOptions(statusDefinitions) {
 }
 
 function buildArchetypeOptions(currentValue) {
-  const options = [...(appState.catalogs.archetypeIds ?? [])];
+  let ids = appState.catalogs.archetypeIds ?? [];
+  // Season mode: offer only unlocked archetypes (the current pick is still kept
+  // below so a locked, already-placed character stays selectable + flagged).
+  if (builderSeasonActive()) {
+    const pool = new Set(seasonUnlockedSnapshot().archetypes);
+    ids = ids.filter((id) => pool.has(id));
+  }
+  const options = [...ids];
   if (currentValue && !options.includes(currentValue)) {
     options.unshift(currentValue);
   }
@@ -5775,6 +5880,19 @@ function seasonUnlockedSnapshot() {
   };
 }
 
+// Is the builder currently restricted to the season's unlocked pool? Only when
+// the player chose Season mode AND a season context is actually available.
+function builderSeasonActive() {
+  return appState.builderMode === "season" && seasonUnlockedSnapshot() !== null;
+}
+
+// The point budget the builder validates against: the season budget in Season
+// mode, otherwise the engine's free-build budget.
+function activeTeamBudget() {
+  const unlocked = builderSeasonActive() ? seasonUnlockedSnapshot() : null;
+  return unlocked ? unlocked.budget : TEAM_BUDGET;
+}
+
 // True/false if a team is season-legal, or null when validity doesn't apply
 // (no season context). Cost is computed from the loaded catalogs.
 function teamSeasonLegal(team) {
@@ -5795,13 +5913,17 @@ function seasonSealText(team) {
   return teamSeasonLegal(team) === true ? " ✦" : "";
 }
 
-// Fetch the unlocked-pool snapshot once on load (if joined + a server answers)
-// so legality badges work in the Team/Arena tabs without first opening Season.
-let seasonContextTried = false;
+// Fetch the unlocked-pool snapshot (if joined + a server answers) so legality
+// badges and Season build mode work in the Team/Arena tabs without first
+// opening Season. Retries until it succeeds; no-ops once loaded.
+let seasonContextLoaded = false;
 async function ensureSeasonContext() {
-  if (seasonContextTried) return;
-  seasonContextTried = true;
+  if (seasonContextLoaded) return;
   const s = appState.season;
+  if (s.draft && s.draft.unlocked) {
+    seasonContextLoaded = true;
+    return;
+  }
   const player = s.player || loadStoredSeasonPlayer();
   if (!player) return; // not joined → no season context, no badges
   if (s.available === null) s.available = await probeSeasonServer();
@@ -5810,16 +5932,45 @@ async function ensureSeasonContext() {
   try {
     s.draft = await seasonFetch(`/api/draft?player=${encodeURIComponent(player.id)}`);
     if (!s.season) s.season = await seasonFetch("/api/season");
+    seasonContextLoaded = true;
     refreshSeasonBadgedViews();
   } catch {
     /* leave the season context absent; badges simply won't show */
   }
 }
 
-// Re-render the surfaces that show legality badges, if they're currently shown.
+// Re-render the surfaces that show legality badges / season build, if visible.
 function refreshSeasonBadgedViews() {
   if (document.getElementById("arena")?.classList.contains("is-active")) renderArena();
+  if (document.getElementById("team-builder")?.classList.contains("is-active")) renderTeamEditor();
   if (teamLibraryOverlay && !teamLibraryOverlay.hidden) renderTeamLibrary();
+}
+
+// Phase 3: submit the team currently open in the builder to the season. Submits
+// the live config as-is (banner/passives, if any); the server validates pool +
+// budget and the message surfaces in the Season-build strip.
+async function submitCurrentTeamToSeason() {
+  const s = appState.season;
+  s.builderSubmitMsg = null;
+  s.builderSubmitErr = null;
+  const team = appState.teamConfig;
+  const player = s.player || loadStoredSeasonPlayer();
+  if (!team) return;
+  if (!player) {
+    s.builderSubmitErr = "Join a season first (Season tab).";
+    renderTeamEditor();
+    return;
+  }
+  try {
+    await seasonFetch("/api/team", {
+      method: "POST",
+      body: JSON.stringify({ player: player.id, team }),
+    });
+    s.builderSubmitMsg = `Submitted “${teamDisplayName(team)}” to the season.`;
+  } catch (error) {
+    s.builderSubmitErr = error.message;
+  }
+  renderTeamEditor();
 }
 
 // Resolve a player id (slug) to a display name from the loaded standings/stats.
