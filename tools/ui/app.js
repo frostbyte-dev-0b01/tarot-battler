@@ -689,7 +689,7 @@ function renderArenaAttacker() {
   const options = roster
     .map((team) => {
       const name = teamDisplayName(team);
-      return `<option value="${escapeHtml(name)}" ${name === appState.arenaAttackerName ? "selected" : ""}>${escapeHtml(name)}</option>`;
+      return `<option value="${escapeHtml(name)}" ${name === appState.arenaAttackerName ? "selected" : ""}>${escapeHtml(name)}${seasonSealText(team)}</option>`;
     })
     .join("");
   el.innerHTML = `
@@ -719,7 +719,7 @@ function renderArenaFoes() {
       const name = teamDisplayName(team);
       const checked = appState.arenaSelectedFoes.has(name) ? "checked" : "";
       const marker = !roundRobin && name === attackerName ? '<span class="arena-foe-self">team under test</span>' : "";
-      return `<label class="arena-foe"><input type="checkbox" data-arena-foe="${escapeHtml(name)}" ${checked}><span>${escapeHtml(name)}</span>${marker}</label>`;
+      return `<label class="arena-foe"><input type="checkbox" data-arena-foe="${escapeHtml(name)}" ${checked}><span>${escapeHtml(name)}${seasonSealHtml(team)}</span>${marker}</label>`;
     })
     .join("");
   el.innerHTML = `
@@ -3877,7 +3877,7 @@ function renderTeamLibrary() {
           return `
             <div class="library-entry">
               <div class="library-entry-info">
-                <div class="library-entry-name">${escapeHtml(name)}</div>
+                <div class="library-entry-name">${escapeHtml(name)}${seasonSealHtml(team)}</div>
                 <div class="library-entry-sub">${count} characters · ${cost} pts</div>
               </div>
               <div class="library-entry-actions">
@@ -5760,6 +5760,68 @@ function seasonOfferInfo(kind, id) {
   return describeDraftOffer(kind, id, seasonCatalogs());
 }
 
+// The player's unlocked pool + budget as plain data for the legality predicate,
+// or null when there's no season context (offline / not joined / not loaded).
+function seasonUnlockedSnapshot() {
+  const draft = appState.season && appState.season.draft;
+  const u = draft && draft.unlocked;
+  if (!u) return null;
+  return {
+    archetypes: u.archetypes || [],
+    aspects: u.aspects || [],
+    teamPassives: u.team_passives || [],
+    banner: u.banner || null,
+    budget: Number(draft.budget ?? 0),
+  };
+}
+
+// True/false if a team is season-legal, or null when validity doesn't apply
+// (no season context). Cost is computed from the loaded catalogs.
+function teamSeasonLegal(team) {
+  const unlocked = seasonUnlockedSnapshot();
+  if (!unlocked) return null;
+  return teamSeasonValidity(team, unlocked, computeTeamCost(team.characters)).valid;
+}
+
+// Legal-only badge: a small seal on season-legal teams, nothing otherwise.
+function seasonSealHtml(team) {
+  if (teamSeasonLegal(team) !== true) return "";
+  const name = (appState.season.season && appState.season.season.season && appState.season.season.season.name) || "the season";
+  return `<span class="season-seal" title="Legal for ${escapeHtml(name)}" aria-label="Season-legal">✦</span>`;
+}
+
+// Plain-text seal for <option> labels (which can't hold markup).
+function seasonSealText(team) {
+  return teamSeasonLegal(team) === true ? " ✦" : "";
+}
+
+// Fetch the unlocked-pool snapshot once on load (if joined + a server answers)
+// so legality badges work in the Team/Arena tabs without first opening Season.
+let seasonContextTried = false;
+async function ensureSeasonContext() {
+  if (seasonContextTried) return;
+  seasonContextTried = true;
+  const s = appState.season;
+  const player = s.player || loadStoredSeasonPlayer();
+  if (!player) return; // not joined → no season context, no badges
+  if (s.available === null) s.available = await probeSeasonServer();
+  if (!s.available) return;
+  s.player = player;
+  try {
+    s.draft = await seasonFetch(`/api/draft?player=${encodeURIComponent(player.id)}`);
+    if (!s.season) s.season = await seasonFetch("/api/season");
+    refreshSeasonBadgedViews();
+  } catch {
+    /* leave the season context absent; badges simply won't show */
+  }
+}
+
+// Re-render the surfaces that show legality badges, if they're currently shown.
+function refreshSeasonBadgedViews() {
+  if (document.getElementById("arena")?.classList.contains("is-active")) renderArena();
+  if (teamLibraryOverlay && !teamLibraryOverlay.hidden) renderTeamLibrary();
+}
+
 // Resolve a player id (slug) to a display name from the loaded standings/stats.
 function seasonNameFor(id) {
   const s = appState.season;
@@ -5844,7 +5906,7 @@ function renderSeasonBuilder() {
   const teamOptions = roster
     .map((t) => {
       const name = teamDisplayName(t);
-      return `<option value="${escapeHtml(name)}" ${name === s.builderTeam ? "selected" : ""}>${escapeHtml(name)}</option>`;
+      return `<option value="${escapeHtml(name)}" ${name === s.builderTeam ? "selected" : ""}>${escapeHtml(name)}${seasonSealText(t)}</option>`;
     })
     .join("");
 
@@ -6165,3 +6227,8 @@ if (seasonRoot) {
     }
   });
 }
+
+// On load, pull the season's unlocked pool once (if you've joined and a server
+// answers) so season-legality badges appear in the Team and Arena tabs without
+// first visiting the Season tab.
+void ensureSeasonContext();
