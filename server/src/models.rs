@@ -17,6 +17,10 @@ pub struct Player {
     pub name: String,
     #[serde(default)]
     pub points: i64,
+    /// Cosmetic title awarded by the Victors round (no power). Carries across
+    /// season resets.
+    #[serde(default)]
+    pub title: Option<String>,
 }
 
 /// The live season clock for the pod. The fixed beat schedule + content pool

@@ -4475,3 +4475,27 @@ textarea:focus-visible {
   color: #2f7d3f;
   font-size: var(--text-sm);
 }
+
+/* Season: titles + admin */
+.season-admin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.season-title-badge,
+.season-title-inline {
+  display: inline-block;
+  padding: 1px var(--s-2);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.season-title-inline {
+  margin-left: var(--s-1);
+  font-weight: 500;
+}

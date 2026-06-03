@@ -27,6 +27,18 @@ cargo test <name>  # run a single test by name
 
 All cargo commands should be run from `battle_engine/`.
 
+### Season server
+
+```bash
+cd server && cargo run   # serve the UI + /api on http://127.0.0.1:8080
+cd server && cargo test  # server tests (db, draft, runner, api)
+```
+
+The `server/` crate hosts the monthly drafting season (one shared pod). It is a
+sibling crate with a path dependency on `battle_engine` (no Cargo workspace, so
+the engine's target dir, WASM build, and replay tooling stay untouched). See
+`server/README.md` for run/share/play steps and the full API.
+
 ### UI tests
 
 ```bash
@@ -34,19 +46,33 @@ node --test tools/ui/tests/*.test.cjs   # Tier 1: pure-logic unit tests (fast, n
 node tools/ui/smoke-test.cjs            # Tier 2: headless end-to-end smoke test
 ```
 
-Tier 1 unit-tests the DOM-free helpers in `tools/ui/rules-lib.js` via Node's built-in test runner (no dependencies). Tier 2 drives the static site in headless Chromium (Playwright) and checks the core flows — replay load/render, rule attribution, Arena run, Watch-Victory persistence, and the stale-team error banner. The smoke test self-serves over http and discovers Playwright/Chromium via `PW_MODULE` / `PW_CHROME` env overrides (see the file header); set `SMOKE_SERVE=0` to use an already-running server.
+Tier 1 unit-tests the DOM-free helpers in `tools/ui/rules-lib.js` via Node's built-in test runner (no dependencies). Tier 2 drives the static site in headless Chromium (Playwright) and checks the core flows — replay load/render, rule attribution, Arena run, Watch-Victory persistence, the stale-team error banner, and the Season tab (join/schedule/standings/results/stats, draft claim, team submit, finals victor, Watch→replay) against a stubbed `/api`. The smoke test self-serves over http and discovers Playwright/Chromium via `PW_MODULE` / `PW_CHROME` env overrides (see the file header); set `SMOKE_SERVE=0` to use an already-running server.
 
 To rebuild the in-browser WebAssembly engine used by the UI dev tool, run `tools/ui/build-engine.sh` (one-time prerequisites: `rustup target add wasm32-unknown-unknown` and `cargo install wasm-bindgen-cli`). It outputs `tools/ui/engine/`, which is committed so the static site needs no build step.
 
 ## Architecture
 
-**Current state:** Rust battle engine with a lightweight static UI dev tool in `tools/ui/`. No API or database layers yet.
+**Current state:** Rust battle engine, a lightweight static UI dev tool in `tools/ui/`, and a local season server in `server/` (axum + embedded redb) that hosts a single-pod monthly drafting season.
+
+### Season Server (`server/`)
+
+- Sibling crate with a path dependency on `battle_engine` (no Cargo workspace). Serves the static UI and a JSON `/api`, persisting to an embedded redb file. Runs battles natively via `run_battle_json`.
+- `src/main.rs` — process entry: opens the DB, loads engine content, builds the `AppState`, mounts the API router, and serves `tools/ui/` as a static fallback. Env: `TAROT_PORT`, `TAROT_DB`, `TAROT_UI_DIR`.
+- `src/models.rs` — persistence models: `Player` (with cosmetic `title`), `Season`, `DraftPick`/`DraftState`, `MatchResult`.
+- `src/db.rs` — redb access layer: per-entity tables (players, teams, drafts, season, results, replays) stored as JSON; standings, results, and `clear_season_data()` for resets.
+- `src/draft.rs` — pure, deterministic draft schedule: the fixed 8-beat arc, seeded per-beat offers, claim/auto-resolve/skip, and a player's unlocked pool/budget from their picks.
+- `src/runner.rs` — daily battle runner + scoring (`+5/-5/0`, floored at 0, idempotent per day) and the end-of-season finals (Victors round) that awards a cosmetic title.
+- `src/content.rs` — parses the engine's embedded catalogs once and builds the draft pools + starter roster; validates season teams against the unlocked pool + budget.
+- `src/api.rs` — `AppState` operations (join, season, draft/claim, team submit/fetch, standings, results, replays, stats, admin run-day/advance-day/reveal-beat/run-finals/reset-season) with thin axum handlers and a JSON `ApiError`.
+- `README.md` — run, share-with-friends, and play-a-season instructions.
 
 ### UI Dev Tools (`tools/ui/`)
 
-- `index.html` — static shell for Team Builder and Replay Viewer tabs; loads `rules-lib.js` before `app.js`
+### UI Dev Tools (`tools/ui/`)
+
+- `index.html` — static shell for Team, Character, Arena, Replay, and Season tabs; loads `rules-lib.js` before `app.js`
 - `styles.css` — responsive layout and placeholder styling for the dev tool
-- `rules-lib.js` — pure, DOM-free helpers (rule option vocabulary, rule/condition formatting + attribution clauses, Wilson interval, small utils) shared by `app.js` (as globals) and the Tier 1 unit tests (via `module.exports`). Keep it free of DOM/appState so it stays unit-testable.
+- `rules-lib.js` — pure, DOM-free helpers (rule option vocabulary, rule/condition formatting + attribution clauses, Wilson interval, season presentation helpers — `beatKindLabel`/`seasonClockLine`/`tallyRecord`, small utils) shared by `app.js` (as globals) and the Tier 1 unit tests (via `module.exports`). Keep it free of DOM/appState so it stays unit-testable.
 - `tests/rules-lib.test.cjs` — Tier 1 `node --test` unit tests for `rules-lib.js`
 - `smoke-test.cjs` — Tier 2 headless end-to-end smoke test (Playwright)
 - `app.js` — lightweight UI bootstrapping, currently tab switching plus replay loading, team loading, validation, structured team editing, import/export helpers, metadata rendering, snapshot board rendering, replay state application, playback controls, timeline rendering with rule attribution (which scripted rule drove each action), inspector state, and a "Run Battle" path that runs the current team vs a sample opponent through the in-browser WASM engine

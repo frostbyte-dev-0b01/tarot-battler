@@ -73,6 +73,17 @@ impl IntoResponse for ApiError {
     }
 }
 
+/// How many top-standings teams contest the Victors round.
+const FINALS_TOP_N: usize = 4;
+
+/// Parse the trailing number from a season id like `season-3` (defaults to 1).
+fn season_number(id: &str) -> u32 {
+    id.rsplit('-')
+        .next()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1)
+}
+
 /// The string tag for a beat kind, for JSON responses.
 fn kind_str(kind: BeatKind) -> &'static str {
     match kind {
@@ -158,6 +169,7 @@ impl AppState {
                     id: id.clone(),
                     name: name.trim().to_string(),
                     points: 0,
+                    title: None,
                 };
                 self.db.upsert_player(&p)?;
                 p
@@ -310,9 +322,12 @@ impl AppState {
 
     /// Minimal per-player post-game stats (wins/losses/draws + points).
     pub fn stats(&self) -> Result<Value, ApiError> {
-        // (wins, losses, draws) per player.
+        // (wins, losses, draws) per player, from daily matches (not finals).
         let mut wld: HashMap<String, (u32, u32, u32)> = HashMap::new();
         for r in self.db.all_results()? {
+            if r.day == runner::FINALS_DAY {
+                continue;
+            }
             let (a_won, b_won) = (r.winner == "a", r.winner == "b");
             let a = wld.entry(r.player_a.clone()).or_default();
             if a_won {
@@ -368,6 +383,44 @@ impl AppState {
         season.day += 1;
         self.db.set_season(&season)?;
         Ok(json!({ "season_day": season.day }))
+    }
+
+    /// Run the end-of-season Victors round among the pod's top teams and award
+    /// the cosmetic title.
+    pub fn run_finals(&self) -> Result<Value, ApiError> {
+        let season = self.ensure_season()?;
+        let report = runner::run_finals(&self.db, season.seed, &season.name, FINALS_TOP_N)?;
+        let victor_name = match &report.victor {
+            Some(id) => self.db.get_player(id)?.map(|p| p.name),
+            None => None,
+        };
+        Ok(json!({
+            "matches": report.matches,
+            "victor": report.victor,
+            "victor_name": victor_name,
+            "already_run": report.already_run,
+        }))
+    }
+
+    /// Roll over to the next month: a fresh season (new seed, day 0, opening beat
+    /// revealed) keeping the same pod and carrying point totals + titles. Teams,
+    /// drafts, and results are cleared.
+    pub fn reset_season(&self) -> Result<Value, ApiError> {
+        let current = self.ensure_season()?;
+        let next_num = season_number(&current.id) + 1;
+        let created = now_unix();
+        let season = Season {
+            id: format!("season-{next_num}"),
+            name: format!("Season {next_num}"),
+            day: 0,
+            beats_revealed: 1,
+            created_unix: created,
+            seed: (created as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15)
+                ^ (next_num as u64).wrapping_mul(0xD1B5_4A32_D192_ED03),
+        };
+        self.db.clear_season_data()?;
+        self.db.set_season(&season)?;
+        Ok(json!({ "season": season }))
     }
 
     /// Reveal the next draft beat, auto-resolving any now-closed unclaimed beats
@@ -428,6 +481,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/admin/run-day", post(h_run_day))
         .route("/api/admin/advance-day", post(h_advance_day))
         .route("/api/admin/reveal-beat", post(h_reveal_beat))
+        .route("/api/admin/run-finals", post(h_run_finals))
+        .route("/api/admin/reset-season", post(h_reset_season))
         .with_state(state)
 }
 
@@ -535,6 +590,14 @@ async fn h_reveal_beat(State(s): State<AppState>) -> Result<Json<Value>, ApiErro
     Ok(Json(s.reveal_beat()?))
 }
 
+async fn h_run_finals(State(s): State<AppState>) -> Result<Json<Value>, ApiError> {
+    Ok(Json(s.run_finals()?))
+}
+
+async fn h_reset_season(State(s): State<AppState>) -> Result<Json<Value>, ApiError> {
+    Ok(Json(s.reset_season()?))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -612,6 +675,41 @@ mod tests {
         let draft = s.draft_view("ada").unwrap();
         let claimed = &draft["beats"][0]["claimed"];
         assert!(claimed.is_string(), "closed beat 0 was auto-resolved");
+    }
+
+    #[test]
+    fn season_number_parses_the_id_suffix() {
+        assert_eq!(season_number("season-1"), 1);
+        assert_eq!(season_number("season-12"), 12);
+        assert_eq!(season_number("weird"), 1);
+    }
+
+    #[test]
+    fn reset_season_clears_data_but_carries_points_and_titles() {
+        let s = state();
+        s.join("Ada").unwrap();
+        // Give Ada points, a title, a team, and a draft pick.
+        let mut p = s.db.get_player("ada").unwrap().unwrap();
+        p.points = 42;
+        p.title = Some("Victor — Season 1".to_string());
+        s.db.upsert_player(&p).unwrap();
+        s.db.set_team("ada", r#"{"version":2,"name":"T","characters":[]}"#)
+            .unwrap();
+        let seed = s.ensure_season().unwrap().seed;
+        let banner = draft::offers(0, seed, &s.content.pools)[0].clone();
+        s.claim("ada", 0, &banner).unwrap();
+
+        let result = s.reset_season().unwrap();
+        assert_eq!(result["season"]["id"], "season-2");
+        assert_eq!(result["season"]["day"], 0);
+        assert_eq!(result["season"]["beats_revealed"], 1);
+
+        // Player carries over with points + title; season data is cleared.
+        let ada = s.db.get_player("ada").unwrap().unwrap();
+        assert_eq!(ada.points, 42);
+        assert_eq!(ada.title.as_deref(), Some("Victor — Season 1"));
+        assert!(s.db.get_team("ada").unwrap().is_none());
+        assert!(s.db.get_draft("ada").unwrap().claimed.is_empty());
     }
 
     #[test]

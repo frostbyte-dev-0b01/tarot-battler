@@ -197,6 +197,8 @@ const appState = {
     teamPassives: [],  // selected team-passive names
     submitMsg: null,   // last submit success message
     submitErr: null,   // last submit error message
+    stats: [],         // /api/stats rows (per-player W/L/D)
+    adminMsg: null,    // last admin action message (run-day/finals/reset)
   },
   selectedTeamCharacterIndex: 0,
   teamDetailTab: "design",
@@ -5582,16 +5584,18 @@ async function probeSeasonServer() {
 // Refresh the player-scoped payloads from the server into appState.season.
 async function refreshSeasonData(playerId) {
   const s = appState.season;
-  const [season, standings, results, draft] = await Promise.all([
+  const [season, standings, results, draft, stats] = await Promise.all([
     seasonFetch("/api/season"),
     seasonFetch("/api/standings"),
     seasonFetch(`/api/results?player=${encodeURIComponent(playerId)}`),
     seasonFetch(`/api/draft?player=${encodeURIComponent(playerId)}`),
+    seasonFetch("/api/stats"),
   ]);
   s.season = season;
   s.standings = (standings && standings.standings) || [];
   s.results = (results && results.results) || [];
   s.draft = draft;
+  s.stats = (stats && stats.stats) || [];
 }
 
 async function renderSeasonTab() {
@@ -5665,6 +5669,7 @@ function renderSeasonDashboard() {
   const record = tallyRecord(player.id, s.results);
   const me = s.standings.find((row) => row.id === player.id);
   const points = me ? me.points : (player.points || 0);
+  const title = (me && me.title) || (player.title || null);
 
   return `
     <div class="season-dashboard">
@@ -5675,6 +5680,7 @@ function renderSeasonDashboard() {
         </div>
         <div class="season-identity">
           <span class="season-you">${escapeHtml(player.name)}</span>
+          ${title ? `<span class="season-title-badge" title="Cosmetic title">${escapeHtml(title)}</span>` : ""}
           <span class="season-points">${points} pts</span>
           <span class="season-record">${record.wins}–${record.losses}–${record.draws}</span>
           <button type="button" class="icon-button icon-button-sm" data-season-action="refresh" title="Refresh">&#8635;</button>
@@ -5692,11 +5698,18 @@ function renderSeasonDashboard() {
           ${renderSeasonSchedule()}
           <div class="season-admin">
             <button type="button" class="button-secondary button-sm" data-season-action="run-day" title="Play today's pod matches">Run match day</button>
+            <button type="button" class="button-secondary button-sm" data-season-action="run-finals" title="Run the end-of-season Victors round">Run finals</button>
+            <button type="button" class="button-secondary button-sm" data-season-action="reset-season" title="Start a new season, carrying points + titles">New season</button>
           </div>
+          ${s.adminMsg ? `<p class="season-ok">${escapeHtml(s.adminMsg)}</p>` : ""}
         </section>
         <section class="season-panel">
           <h3>Standings</h3>
           ${renderSeasonStandings()}
+        </section>
+        <section class="season-panel">
+          <h3>Stats</h3>
+          ${renderSeasonStats()}
         </section>
         <section class="season-panel season-builder-panel">
           <h3>Your season team</h3>
@@ -5893,15 +5906,34 @@ function renderSeasonStandings() {
   const rows = s.standings
     .map((row, index) => {
       const you = s.player && row.id === s.player.id ? " season-row-you" : "";
+      const titleBadge = row.title ? ` <span class="season-title-inline" title="Cosmetic title">${escapeHtml(row.title)}</span>` : "";
       return `
         <tr class="season-standing-row${you}">
           <td class="season-rank">${index + 1}</td>
-          <td class="season-name">${escapeHtml(row.name)}</td>
+          <td class="season-name">${escapeHtml(row.name)}${titleBadge}</td>
           <td class="season-pts">${row.points}</td>
         </tr>`;
     })
     .join("");
   return `<table class="season-table"><thead><tr><th>#</th><th>Player</th><th>Pts</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderSeasonStats() {
+  const s = appState.season;
+  if (!s.stats.length) return `<p class="season-hint">No stats yet — run a match day.</p>`;
+  const rows = s.stats
+    .map((row) => {
+      const you = s.player && row.player === s.player.id ? " season-row-you" : "";
+      return `
+        <tr class="season-stat-row${you}">
+          <td class="season-name">${escapeHtml(row.name || row.player)}</td>
+          <td>${row.wins}</td>
+          <td>${row.losses}</td>
+          <td>${row.draws}</td>
+        </tr>`;
+    })
+    .join("");
+  return `<table class="season-table"><thead><tr><th>Player</th><th>W</th><th>L</th><th>D</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function renderSeasonResults() {
@@ -5915,9 +5947,11 @@ function renderSeasonResults() {
       const oppId = r.player_a === me ? r.player_b : r.player_a;
       const youAreA = r.player_a === me;
       const outcome = r.winner === "draw" ? "draw" : ((r.winner === "a") === youAreA ? "win" : "loss");
+      // FINALS_DAY (u32::MAX) is the Victors round sentinel.
+      const dayLabel = r.day >= 4294967295 ? "Finals" : `Day ${r.day + 1}`;
       return `
         <li class="season-result season-result-${outcome}">
-          <span class="season-result-day">Day ${r.day + 1}</span>
+          <span class="season-result-day">${dayLabel}</span>
           <span class="season-result-vs">vs ${escapeHtml(oppId)}</span>
           <span class="season-result-outcome">${outcome}</span>
           <button type="button" class="button-secondary button-sm" data-season-action="watch" data-replay-id="${escapeHtml(r.replay_id)}">Watch</button>
@@ -5973,8 +6007,30 @@ if (seasonRoot) {
     } else if (action === "refresh") {
       void renderSeasonTab();
     } else if (action === "run-day") {
+      s.adminMsg = null;
       try {
-        await seasonFetch("/api/admin/run-day", { method: "POST" });
+        const r = await seasonFetch("/api/admin/run-day", { method: "POST" });
+        s.adminMsg = r.already_run ? "Day already played." : `Match day played (${r.matches} matchups).`;
+      } catch (error) {
+        s.error = error.message;
+      }
+      void renderSeasonTab();
+    } else if (action === "run-finals") {
+      s.adminMsg = null;
+      try {
+        const r = await seasonFetch("/api/admin/run-finals", { method: "POST" });
+        if (r.matches === 0) s.adminMsg = "Finals need at least two submitted teams.";
+        else if (r.victor_name) s.adminMsg = `Victor: ${r.victor_name}!`;
+        else s.adminMsg = "Finals complete.";
+      } catch (error) {
+        s.error = error.message;
+      }
+      void renderSeasonTab();
+    } else if (action === "reset-season") {
+      s.adminMsg = null;
+      try {
+        const r = await seasonFetch("/api/admin/reset-season", { method: "POST" });
+        s.adminMsg = `Started ${r.season && r.season.name ? r.season.name : "a new season"} (points + titles carried over).`;
       } catch (error) {
         s.error = error.message;
       }
