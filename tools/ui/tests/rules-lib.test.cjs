@@ -154,3 +154,37 @@ test("tallyRecord counts wins/losses/draws for a player across both sides", () =
   assert.deepEqual(R.tallyRecord("nobody", results), { wins: 0, losses: 0, draws: 0 });
   assert.deepEqual(R.tallyRecord("ada", null), { wins: 0, losses: 0, draws: 0 });
 });
+
+test("formatStatBonuses orders stats and signs them, skipping zeros", () => {
+  assert.equal(R.formatStatBonuses({ mgt: 2, vit: -2, arm: -1 }), "VIT -2, MGT +2, ARM -1");
+  assert.equal(R.formatStatBonuses({ spd: 0, mag: 3 }), "MAG +3");
+  assert.equal(R.formatStatBonuses(null), "");
+});
+
+test("describeDraftOffer resolves display names + tooltips per kind", () => {
+  const catalogs = {
+    archetypes: { the_emperor: { display_name: "The Emperor", cost: 3, passive_pool: ["Imperial Formation"] } },
+    aspects: { aspect_of_ruin: { display_name: "Aspect of Ruin", description: "Trade durability for pressure.", stat_bonuses: { mgt: 2, vit: -2 } } },
+    teamPassives: { Aegis: { description: "Resist one debuff." } },
+    banners: { Rally: { description: "First turn comes sooner.", scope: "team" } },
+    passiveDescriptions: { "Imperial Formation": "Buffs the front row." },
+  };
+  const character = R.describeDraftOffer("character", "the_emperor", catalogs);
+  assert.equal(character.label, "The Emperor");
+  assert.match(character.tooltip, /Cost 3/);
+  assert.match(character.tooltip, /Imperial Formation — Buffs the front row\./);
+
+  const item = R.describeDraftOffer("item", "aspect_of_ruin", catalogs);
+  assert.equal(item.label, "Aspect of Ruin");
+  assert.match(item.tooltip, /Trade durability/);
+  assert.match(item.tooltip, /VIT -2, MGT \+2/);
+
+  assert.equal(R.describeDraftOffer("team_passive", "Aegis", catalogs).label, "Aegis");
+  assert.match(R.describeDraftOffer("team_passive", "Aegis", catalogs).tooltip, /Resist one debuff/);
+
+  const banner = R.describeDraftOffer("banner", "Rally", catalogs);
+  assert.match(banner.tooltip, /First turn comes sooner.*affects team/);
+
+  // Unknown id falls back to the raw id with no tooltip.
+  assert.deepEqual(R.describeDraftOffer("character", "mystery", catalogs), { label: "mystery", tooltip: "" });
+});
