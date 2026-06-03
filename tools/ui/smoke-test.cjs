@@ -57,9 +57,25 @@ async function main() {
   try {
     // ===== Scenario 1: the normal bundled roster (core flows + watch) =====
     const errors = [];
+    const badResources = [];
+    // `latest_replay.json` is a gitignored dev convenience the app probes on
+    // load; it's legitimately absent in a fresh checkout (e.g. CI). Treat its
+    // 404 as benign, but flag any other failed resource or JS error.
+    const isBenignResource = (url) => /latest_replay\.json($|\?)/.test(url);
     const page = await browser.newPage();
     page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
-    page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text()); });
+    page.on("console", (m) => {
+      if (m.type() !== "error") return;
+      // Resource-load failures are tracked via the response listener below so we
+      // can key off the URL; skip the generic console line here.
+      if (/Failed to load resource/.test(m.text())) return;
+      errors.push("console: " + m.text());
+    });
+    page.on("response", (r) => {
+      if (r.status() >= 400 && !isBenignResource(r.url())) badResources.push(`${r.status()} ${r.url()}`);
+    });
+    // Accept the host-control confirm() dialogs (finals / new season).
+    page.on("dialog", (d) => d.accept());
 
     await page.goto(URL, { waitUntil: "networkidle" });
     await page.waitForFunction(() => typeof window.runBattleWasm === "function", { timeout: 20000 });
@@ -120,7 +136,7 @@ async function main() {
       check("Watch keeps the replay loaded", stillLoaded, "replay was cleared after watch");
     }
 
-    check("no console/page errors", errors.length === 0, errors.join(" | "));
+    check("no console/page errors", errors.length === 0 && badResources.length === 0, [...errors, ...badResources].join(" | "));
 
     // ===== Scenario 2: a roster with a stale team -> Arena error banner (PR #28) =====
     // Reuse the same page (a fresh page can crash single-process Chromium):
@@ -254,6 +270,15 @@ async function main() {
     check("season dashboard renders standings", dash.standings === 2, `rows=${dash.standings}`);
     check("season dashboard renders results", dash.results === 1, `results=${dash.results}`);
     check("season clock line is legible", /Day \d+ · Beat \d+ of 8/.test(dash.clock), dash.clock);
+
+    // Next-action status strip + collapsible host controls.
+    const uiBits = await page.evaluate(() => ({
+      todos: document.querySelectorAll(".season-status-strip .season-todo").length,
+      hostCollapsible: document.querySelector(".season-host")?.tagName === "DETAILS",
+      adminButtons: document.querySelectorAll('.season-host [data-season-action="run-day"], .season-host [data-season-action="run-finals"], .season-host [data-season-action="reset-season"]').length,
+    }));
+    check("season shows a next-action status strip", uiBits.todos >= 1, `todos=${uiBits.todos}`);
+    check("season host controls are collapsible + grouped", uiBits.hostCollapsible && uiBits.adminButtons === 3, JSON.stringify(uiBits));
 
     // Stats panel renders per-player W/L/D.
     const statRows = await page.evaluate(() => document.querySelectorAll(".season-stat-row").length);
