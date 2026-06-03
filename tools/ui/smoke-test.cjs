@@ -209,6 +209,12 @@ async function main() {
       if (u.includes("/api/join")) return json(stubs.join);
       if (u.includes("/api/season")) return json(stubs.season);
       if (u.includes("/api/standings")) return json(stubs.standings);
+      if (u.includes("/api/stats")) return json({ stats: [
+        { player: "tester", name: "Tester", points: 10, wins: 1, losses: 0, draws: 0 },
+        { player: "rival", name: "Rival", points: 5, wins: 0, losses: 1, draws: 0 },
+      ] });
+      if (u.includes("/api/admin/run-finals")) return json({ matches: 3, victor: "tester", victor_name: "Tester", already_run: false });
+      if (u.includes("/api/admin/reset-season")) return json({ season: { id: "season-2", name: "Season 2", day: 0, beats_revealed: 1, seed: 2 } });
       if (u.includes("/api/results")) return json(stubs.results);
       if (u.includes("/api/draft/claim")) {
         const body = JSON.parse(route.request().postData() || "{}");
@@ -249,6 +255,16 @@ async function main() {
     check("season dashboard renders results", dash.results === 1, `results=${dash.results}`);
     check("season clock line is legible", /Day \d+ · Beat \d+ of 8/.test(dash.clock), dash.clock);
 
+    // Stats panel renders per-player W/L/D.
+    const statRows = await page.evaluate(() => document.querySelectorAll(".season-stat-row").length);
+    check("season stats panel renders", statRows === 2, `rows=${statRows}`);
+
+    // Finals (Victors round) → admin message names the victor.
+    await page.evaluate(() => document.querySelector('[data-season-action="run-finals"]')?.click());
+    await page.waitForFunction(() => /Victor/.test(document.querySelector(".season-admin ~ .season-ok, .season-ok")?.textContent || ""), { timeout: 5000 }).catch(() => {});
+    const finalsMsg = await page.evaluate(() => [...document.querySelectorAll(".season-ok")].map((e) => e.textContent).join(" "));
+    check("season finals announces a victor", /Victor: Tester/.test(finalsMsg), finalsMsg);
+
     // Draft UI: the open beat offers claimable options.
     const offersShown = await page.evaluate(() => document.querySelectorAll('.season-open-beat .season-offer').length);
     check("season open beat shows claimable offers", offersShown >= 2, `offers=${offersShown}`);
@@ -263,8 +279,8 @@ async function main() {
     const builderReady = await page.evaluate(() => !!document.querySelector('[data-season-action="submit-team"]'));
     check("season team builder renders", builderReady);
     await page.evaluate(() => document.querySelector('[data-season-action="submit-team"]')?.click());
-    await page.waitForFunction(() => !!document.querySelector('.season-ok'), { timeout: 5000 }).catch(() => {});
-    const submitOk = await page.evaluate(() => document.querySelector('.season-ok')?.textContent?.trim() || "");
+    await page.waitForFunction(() => !!document.querySelector('.season-builder-actions .season-ok'), { timeout: 5000 }).catch(() => {});
+    const submitOk = await page.evaluate(() => document.querySelector('.season-builder-actions .season-ok')?.textContent?.trim() || "");
     check("season team submit succeeds within pool", /submitted/i.test(submitOk), submitOk);
 
     // Submitting a team that uses locked content is rejected with a message.

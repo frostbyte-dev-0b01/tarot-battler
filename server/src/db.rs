@@ -207,6 +207,24 @@ impl Db {
     pub fn get_replay(&self, replay_id: &str) -> Result<Option<String>, String> {
         self.get_str(REPLAYS, replay_id)
     }
+
+    // ---- season reset ----
+
+    /// Clear the per-season data (teams, drafts, results, replays) while keeping
+    /// players (their points + titles carry across season resets). Tables are
+    /// dropped and recreated lazily on the next write.
+    pub fn clear_season_data(&self) -> Result<(), String> {
+        let tx = self.inner.begin_write().map_err(|e| e.to_string())?;
+        for table in [TEAMS, DRAFTS, RESULTS, REPLAYS] {
+            match tx.delete_table(table) {
+                Ok(_) => {}
+                Err(redb::TableError::TableDoesNotExist(_)) => {}
+                Err(e) => return Err(e.to_string()),
+            }
+        }
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -227,6 +245,7 @@ mod tests {
             id: id.to_string(),
             name: name.to_string(),
             points,
+            title: None,
         }
     }
 

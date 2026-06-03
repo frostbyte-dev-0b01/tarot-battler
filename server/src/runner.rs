@@ -185,6 +185,132 @@ where
     })
 }
 
+/// Sentinel "day" for finals (Victors round) results, so they never collide
+/// with real match days and can be filtered out of daily stats.
+pub const FINALS_DAY: u32 = u32::MAX;
+
+/// What the Victors round produced.
+#[derive(Debug, Clone)]
+pub struct FinalsReport {
+    pub matches: usize,
+    /// The id of the player awarded the cosmetic title, if any.
+    pub victor: Option<String>,
+    /// True if finals already ran (idempotent no-op).
+    pub already_run: bool,
+}
+
+/// Run the end-of-season Victors round among the pod's top `top_n` players (by
+/// standings) who have a submitted team: a round-robin reusing the engine. The
+/// player with the most finals wins is awarded a cosmetic `title` (no points
+/// change). Idempotent: if finals already ran, it's a no-op.
+pub fn run_finals(
+    db: &Db,
+    season_seed: u64,
+    season_label: &str,
+    top_n: usize,
+) -> Result<FinalsReport, String> {
+    run_finals_with(db, season_seed, season_label, top_n, |a, b, seed| {
+        battle_engine::run_battle_json(a, b, seed)
+    })
+}
+
+/// Finals, resolving battles through `battle` (testable).
+pub fn run_finals_with<F>(
+    db: &Db,
+    season_seed: u64,
+    season_label: &str,
+    top_n: usize,
+    battle: F,
+) -> Result<FinalsReport, String>
+where
+    F: Fn(&str, &str, u64) -> Result<String, String>,
+{
+    // Idempotency.
+    if db.all_results()?.iter().any(|r| r.day == FINALS_DAY) {
+        let victor = db
+            .all_players()?
+            .into_iter()
+            .find(|p| p.title.is_some())
+            .map(|p| p.id);
+        return Ok(FinalsReport {
+            matches: db
+                .all_results()?
+                .iter()
+                .filter(|r| r.day == FINALS_DAY)
+                .count(),
+            victor,
+            already_run: true,
+        });
+    }
+
+    // Finalists: top standings that have actually submitted a team.
+    let teams: HashMap<String, String> = db.all_teams()?.into_iter().collect();
+    let finalists: Vec<String> = db
+        .standings()?
+        .into_iter()
+        .filter(|p| teams.contains_key(&p.id))
+        .map(|p| p.id)
+        .take(top_n.max(2))
+        .collect();
+
+    if finalists.len() < 2 {
+        return Ok(FinalsReport {
+            matches: 0,
+            victor: None,
+            already_run: false,
+        });
+    }
+
+    let mut wins: HashMap<String, u32> = HashMap::new();
+    let mut played = 0;
+    for (a, b) in round_robin_pairs(&finalists) {
+        let seed = match_seed(season_seed, FINALS_DAY, &a, &b);
+        let replay =
+            battle(&teams[&a], &teams[&b], seed).map_err(|e| format!("finals {a} vs {b}: {e}"))?;
+        let winner = serde_json::from_str::<serde_json::Value>(&replay)
+            .ok()
+            .and_then(|v| v.get("winner").and_then(|w| w.as_str()).map(String::from))
+            .unwrap_or_else(|| "draw".to_string());
+        let outcome = Outcome::from_winner(&winner);
+        match outcome {
+            Outcome::A => *wins.entry(a.clone()).or_default() += 1,
+            Outcome::B => *wins.entry(b.clone()).or_default() += 1,
+            Outcome::Draw => {}
+        }
+        let id = format!("final-{a}-vs-{b}");
+        let result = MatchResult {
+            id: id.clone(),
+            day: FINALS_DAY,
+            player_a: a.clone(),
+            player_b: b.clone(),
+            winner: outcome.tag().to_string(),
+            seed,
+            replay_id: id,
+        };
+        db.add_result(&result, &replay)?;
+        played += 1;
+    }
+
+    // Victor = most finals wins, tie-broken by standings order (finalists are
+    // already in standings order, so the earliest finalist wins ties).
+    let victor = finalists
+        .iter()
+        .max_by_key(|id| wins.get(*id).copied().unwrap_or(0))
+        .cloned();
+    if let Some(ref id) = victor {
+        if let Some(mut player) = db.get_player(id)? {
+            player.title = Some(format!("Victor — {season_label}"));
+            db.upsert_player(&player)?;
+        }
+    }
+
+    Ok(FinalsReport {
+        matches: played,
+        victor,
+        already_run: false,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,6 +371,7 @@ mod tests {
             id: id.to_string(),
             name: id.to_string(),
             points,
+            title: None,
         })
         .unwrap();
         db.set_team(id, team).unwrap();
@@ -291,6 +418,46 @@ mod tests {
         run_day_with(&db, 0, 1, fake_battle).unwrap();
         assert_eq!(db.get_player("p2").unwrap().unwrap().points, 0);
         assert_eq!(db.get_player("p1").unwrap().unwrap().points, 5);
+    }
+
+    #[test]
+    fn finals_award_a_title_without_changing_points() {
+        let db = temp_db();
+        // p1 always wins finals; p2/p3 draw each other.
+        seed_player(&db, "p1", 120, r#"{"win":"a"}"#);
+        seed_player(&db, "p2", 110, r#"{"neutral":true}"#);
+        seed_player(&db, "p3", 100, r#"{"neutral":true}"#);
+
+        let report = run_finals_with(&db, 7, "Season 1", 4, fake_battle).unwrap();
+        assert_eq!(report.matches, 3);
+        assert_eq!(report.victor.as_deref(), Some("p1"));
+
+        // The victor gets a cosmetic title; points are untouched.
+        let p1 = db.get_player("p1").unwrap().unwrap();
+        assert_eq!(p1.title.as_deref(), Some("Victor — Season 1"));
+        assert_eq!(p1.points, 120);
+        assert!(db.get_player("p2").unwrap().unwrap().title.is_none());
+
+        // Finals results are tagged with the sentinel day.
+        assert!(db
+            .all_results()
+            .unwrap()
+            .iter()
+            .all(|r| r.day == FINALS_DAY));
+
+        // Idempotent: a second run is a no-op that still reports the victor.
+        let again = run_finals_with(&db, 7, "Season 1", 4, fake_battle).unwrap();
+        assert!(again.already_run);
+        assert_eq!(again.victor.as_deref(), Some("p1"));
+    }
+
+    #[test]
+    fn finals_need_at_least_two_teams() {
+        let db = temp_db();
+        seed_player(&db, "solo", 100, r#"{"win":"a"}"#);
+        let report = run_finals_with(&db, 1, "Season 1", 4, fake_battle).unwrap();
+        assert_eq!(report.matches, 0);
+        assert!(report.victor.is_none());
     }
 
     #[test]
