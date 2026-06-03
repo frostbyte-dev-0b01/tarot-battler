@@ -3284,10 +3284,9 @@ function renderSeasonModeStrip(team) {
   if (!unlocked) {
     return `<div class="season-build-strip is-muted">Season build — <button type="button" class="link-button" data-team-action="goto-season">join a season</button> to build from your unlocked pool. Showing the free palette until then.</div>`;
   }
-  const seasonName = (appState.season.season && appState.season.season.season && appState.season.season.season.name) || "the season";
   const v = teamSeasonValidity(team, unlocked, computeTeamCost(team.characters));
   const status = v.valid
-    ? `<span class="season-build-ok">✦ Legal for ${escapeHtml(seasonName)}</span>`
+    ? `<span class="season-build-ok">✦ Legal for ${escapeHtml(seasonName())}</span>`
     : `<span class="season-build-bad">Not season-legal</span>`;
   const reasons = v.valid
     ? ""
@@ -5666,6 +5665,9 @@ function formatDepthLabel(row) {
 // friendly offline panel and the rest of the app is unaffected.
 
 const SEASON_PLAYER_KEY = "tarot:season:player";
+// Finals (Victors round) results are tagged with this sentinel day (u32::MAX on
+// the server) so they never collide with real match days.
+const SEASON_FINALS_DAY = 4294967295;
 const seasonRoot = document.querySelector("#season-root");
 
 function loadStoredSeasonPlayer() {
@@ -5767,11 +5769,15 @@ async function renderSeasonTab() {
     return;
   }
 
-  // Joined: pull the live data and paint the dashboard.
+  // Joined: pull the live data and paint the dashboard. `busy` guards the
+  // auto-refresh poll from overlapping an in-flight refresh.
   try {
+    s.busy = true;
     await refreshSeasonData(s.player.id);
   } catch (error) {
     s.error = error.message;
+  } finally {
+    s.busy = false;
   }
   seasonRoot.innerHTML = renderSeasonDashboard();
 }
@@ -5918,12 +5924,20 @@ function seasonPollTick() {
   // user isn't mid-interaction (don't clobber a focused input/select).
   if (document.hidden) return;
   if (!document.getElementById("season")?.classList.contains("is-active")) return;
-  if (!s.available || !s.player) return;
+  if (!s.available || !s.player || s.busy) return;
   const active = document.activeElement;
   if (active && seasonRoot && seasonRoot.contains(active) && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName)) {
     return;
   }
   void renderSeasonTab();
+}
+
+// The current season's display name, or a neutral fallback. `appState.season`
+// is the client state slice; `.season` is the /api/season payload; `.season`
+// again is the inner Season record.
+function seasonName() {
+  const payload = appState.season.season;
+  return (payload && payload.season && payload.season.name) || "the season";
 }
 
 // The loaded content catalogs as plain data for the pure offer-describer.
@@ -5967,8 +5981,8 @@ function builderSeasonActive() {
 // The point budget the builder validates against: the season budget in Season
 // mode, otherwise the engine's free-build budget.
 function activeTeamBudget() {
-  const unlocked = builderSeasonActive() ? seasonUnlockedSnapshot() : null;
-  return unlocked ? unlocked.budget : TEAM_BUDGET;
+  const snap = seasonUnlockedSnapshot();
+  return appState.builderMode === "season" && snap ? snap.budget : TEAM_BUDGET;
 }
 
 // True/false if a team is season-legal, or null when validity doesn't apply
@@ -5982,8 +5996,7 @@ function teamSeasonLegal(team) {
 // Legal-only badge: a small seal on season-legal teams, nothing otherwise.
 function seasonSealHtml(team) {
   if (teamSeasonLegal(team) !== true) return "";
-  const name = (appState.season.season && appState.season.season.season && appState.season.season.season.name) || "the season";
-  return `<span class="season-seal" title="Legal for ${escapeHtml(name)}" aria-label="Season-legal">✦</span>`;
+  return `<span class="season-seal" title="Legal for ${escapeHtml(seasonName())}" aria-label="Season-legal">✦</span>`;
 }
 
 // Plain-text seal for <option> labels (which can't hold markup).
@@ -6124,14 +6137,6 @@ function renderSeasonBuilder() {
   const cost = computeTeamCost(characters);
   const overBudget = cost > budget;
 
-  // Client-side pool pre-check (the server is the source of truth on submit).
-  const lockedArche = characters
-    .map((c) => c.template_id)
-    .filter((id) => !unlocked.archetypes.includes(id));
-  const lockedAspects = characters
-    .map((c) => c.aspect)
-    .filter((a) => a && !unlocked.aspects.includes(a));
-
   const teamOptions = roster
     .map((t) => {
       const name = teamDisplayName(t);
@@ -6167,13 +6172,18 @@ function renderSeasonBuilder() {
         : `<p class="season-hint">Drafted banner ${bannerStrong} applies once you pick a commander.</p>`)
     : `<p class="season-hint">No banner drafted yet.</p>`;
 
-  // Render locked content by display name, not raw engine id.
-  const archeName = (id) => seasonOfferInfo("character", id).label;
-  const itemName = (id) => seasonOfferInfo("item", id).label;
-  const warnings = [];
-  if (overBudget) warnings.push(`Team costs ${cost}, over your ${budget}-point budget.`);
-  if (lockedArche.length) warnings.push(`Locked characters: ${lockedArche.map(archeName).join(", ")}.`);
-  if (lockedAspects.length) warnings.push(`Locked items: ${lockedAspects.map(itemName).join(", ")}.`);
+  // Validate the fully-assembled season team (incl. commander/banner/passives)
+  // via the shared predicate, so warnings match the badge and the Team-tab
+  // strip and can't drift. Reasons render by display name through formatSeasonReason.
+  const snapshot = {
+    archetypes: unlocked.archetypes || [],
+    aspects: unlocked.aspects || [],
+    teamPassives: unlocked.team_passives || [],
+    banner: unlocked.banner || null,
+    budget,
+  };
+  const assembled = buildSeasonTeamConfig() || team;
+  const warnings = teamSeasonValidity(assembled, snapshot, cost).reasons.map(formatSeasonReason);
 
   return `
     <div class="season-builder">
@@ -6288,7 +6298,7 @@ function renderSeasonStats() {
 
 function renderSeasonResults() {
   const s = appState.season;
-  if (!s.results.length) return `<p class="season-hint">No battles yet. Submit a team and run a match day.</p>`;
+  if (!s.player || !s.results.length) return `<p class="season-hint">No battles yet. Submit a team and run a match day.</p>`;
   const items = s.results
     .slice()
     .sort((a, b) => (b.day - a.day) || String(a.id).localeCompare(String(b.id)))
@@ -6297,8 +6307,7 @@ function renderSeasonResults() {
       const oppId = r.player_a === me ? r.player_b : r.player_a;
       const youAreA = r.player_a === me;
       const outcome = r.winner === "draw" ? "draw" : ((r.winner === "a") === youAreA ? "win" : "loss");
-      // FINALS_DAY (u32::MAX) is the Victors round sentinel.
-      const dayLabel = r.day >= 4294967295 ? "Finals" : `Day ${r.day + 1}`;
+      const dayLabel = r.day >= SEASON_FINALS_DAY ? "Finals" : `Day ${r.day + 1}`;
       return `
         <li class="season-result season-result-${outcome}">
           <span class="season-result-day">${dayLabel}</span>
@@ -6364,8 +6373,20 @@ if (seasonRoot) {
       }
       void renderSeasonTab();
     } else if (action === "leave") {
+      // Clear the whole season context so a different player who joins next
+      // doesn't inherit this one's pool/legality badges (and they vanish from
+      // the Team/Arena tabs while logged out).
       s.player = null;
       storeSeasonPlayer(null);
+      s.draft = null;
+      s.season = null;
+      s.submittedTeam = null;
+      s.standings = [];
+      s.results = [];
+      s.stats = [];
+      s.commander = "";
+      s.teamPassives = [];
+      seasonContextLoaded = false;
       void renderSeasonTab();
     } else if (action === "refresh") {
       void renderSeasonTab();
