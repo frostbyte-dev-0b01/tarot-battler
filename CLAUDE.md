@@ -62,7 +62,7 @@ To rebuild the in-browser WebAssembly engine used by the UI dev tool, run `tools
 - `src/db.rs` — redb access layer: per-entity tables (players, teams, drafts, season, results, replays) stored as JSON; standings, results, and `clear_season_data()` for resets.
 - `src/draft.rs` — pure, deterministic draft schedule: the fixed 8-beat arc, seeded per-beat offers, claim/auto-resolve/skip, and a player's unlocked pool/budget from their picks.
 - `src/runner.rs` — daily battle runner + scoring (`+5/-5/0`, floored at 0, idempotent per day) and the end-of-season finals (Victors round) that awards a cosmetic title.
-- `src/content.rs` — parses the engine's embedded catalogs once and builds the draft pools + starter roster; validates season teams against the unlocked pool + budget.
+- `src/content.rs` — parses the engine's embedded catalogs once and builds the draft pools + starter roster; validates season teams against the unlocked pool + budget. Hosts curate the pod here via the hardcoded `CURATED_OFFERS` (per-beat offers, validated at startup) and `STARTING_ROSTER` knobs (see `server/README.md`).
 - `src/api.rs` — `AppState` operations (join, season, draft/claim, team submit/fetch, standings, results, replays, stats, admin run-day/advance-day/reveal-beat/run-finals/reset-season) with thin axum handlers and a JSON `ApiError`.
 - `README.md` — run, share-with-friends, and play-a-season instructions.
 

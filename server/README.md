@@ -66,6 +66,22 @@ The host drives the clock from the Season tab's admin controls:
 The same actions are available as `POST /api/admin/{run-day,advance-day,
 reveal-beat,run-finals,reset-season}` if you prefer to script them.
 
+## Curating the pod (what friends can draft)
+
+By default each beat draws its options randomly from the full content catalog.
+To control exactly what gets offered while you test the meta, edit the hardcoded
+knobs in `src/content.rs`, then restart (`cargo run`) and hit **New season**:
+
+- **`CURATED_OFFERS`** — one list per beat of the exact options to present
+  (archetype ids, aspect ids, team-passive names, or banner names, depending on
+  the beat). A non-empty list is shown verbatim; an empty list (`&[]`) falls back
+  to random sampling for that beat. Unknown ids fail fast at startup.
+- **`STARTING_ROSTER`** — the characters everyone starts the season with.
+- **`draft::schedule()`** (in `src/draft.rs`) — the beat order and budget growth.
+
+Ids come from the engine catalogs in `battle_engine/src/data/`
+(`archetypes.json`, `aspects.json`, `team_passives.json`, `banners.json`).
+
 ## API summary
 
 | Method | Path | Purpose |

@@ -93,7 +93,8 @@ pub fn beat_kind(index: usize) -> Option<BeatKind> {
 }
 
 /// The content options available to draft from, by category. The same pools are
-/// shared across the pod for a season; offers are sampled deterministically.
+/// shared across the pod for a season; offers are sampled deterministically
+/// unless a beat is curated (see `curated_offers`).
 #[derive(Debug, Clone, Default)]
 pub struct Pools {
     /// Characters (archetype names).
@@ -104,6 +105,11 @@ pub struct Pools {
     pub team_passives: Vec<String>,
     /// Banner names.
     pub banners: Vec<String>,
+    /// Optional hardcoded offers per beat (indexed by beat). A non-empty entry
+    /// is shown verbatim for that beat; an empty entry (or a missing index)
+    /// falls back to seeded sampling from the category pool. Built/validated by
+    /// the server's content layer so the host can curate the pod.
+    pub curated_offers: Vec<Vec<String>>,
 }
 
 impl Pools {
@@ -149,6 +155,13 @@ pub fn offers(beat_index: usize, season_seed: u64, pools: &Pools) -> Vec<String>
     let Some(beat) = schedule().get(beat_index).copied() else {
         return Vec::new();
     };
+    // A curated (non-empty) entry for this beat is shown verbatim; otherwise
+    // fall back to seeded sampling from the category pool.
+    if let Some(curated) = pools.curated_offers.get(beat_index) {
+        if !curated.is_empty() {
+            return curated.clone();
+        }
+    }
     let pool = pools.source(beat.kind);
     sample(
         pool,
@@ -273,6 +286,7 @@ mod tests {
             ],
             team_passives: vec!["Aegis".into(), "War Drums".into(), "Reservoir".into()],
             banners: vec!["Rally".into(), "Bulwark".into(), "Resolve".into()],
+            curated_offers: vec![],
         }
     }
 
@@ -344,6 +358,27 @@ mod tests {
         assert_eq!(o.len(), 2);
         let set: HashSet<&String> = o.iter().collect();
         assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn curated_offers_override_sampling_per_beat() {
+        let mut p = pools();
+        // Curate only beat 2 (Character); leave the rest to sampling.
+        p.curated_offers = vec![
+            vec![],                                      // 0 — sampled
+            vec![],                                      // 1 — sampled
+            vec!["The Tower".into(), "The Star".into()], // 2 — curated (verbatim)
+        ];
+        // Beat 2 returns exactly the curated list, regardless of seed.
+        assert_eq!(offers(2, 1, &p), vec!["The Tower", "The Star"]);
+        assert_eq!(offers(2, 999, &p), vec!["The Tower", "The Star"]);
+        // An empty curated entry falls back to seeded sampling (full trio).
+        assert_eq!(offers(1, 42, &p).len(), OFFER_COUNT);
+        // A beat past the curated vec also falls back to sampling.
+        assert_eq!(offers(3, 42, &p).len(), OFFER_COUNT);
+        // Auto-resolve of a curated beat draws from the curated offers.
+        let pick = resolve_missed_beat(2, 7, &p).unwrap();
+        assert!(["The Tower", "The Star"].contains(&pick.choice.as_str()));
     }
 
     #[test]
