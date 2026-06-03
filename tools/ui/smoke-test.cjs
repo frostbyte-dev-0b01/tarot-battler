@@ -265,15 +265,21 @@ async function main() {
     const finalsMsg = await page.evaluate(() => [...document.querySelectorAll(".season-ok")].map((e) => e.textContent).join(" "));
     check("season finals announces a victor", /Victor: Tester/.test(finalsMsg), finalsMsg);
 
-    // Draft UI: the open beat offers claimable options.
-    const offersShown = await page.evaluate(() => document.querySelectorAll('.season-open-beat .season-offer').length);
-    check("season open beat shows claimable offers", offersShown >= 2, `offers=${offersShown}`);
+    // Draft UI: the open beat offers claimable options, by display name + blurb.
+    const draftOffers = await page.evaluate(() => ({
+      count: document.querySelectorAll('.season-open-beat .season-offer').length,
+      names: [...document.querySelectorAll('.season-open-beat .season-offer-name')].map((e) => e.textContent.trim()),
+      descs: document.querySelectorAll('.season-open-beat .season-offer-desc').length,
+    }));
+    check("season open beat shows claimable offers", draftOffers.count >= 2, `offers=${draftOffers.count}`);
+    check("season draft offers use display names", draftOffers.names.includes("The Fool"), draftOffers.names.join(","));
+    check("season draft offers show descriptions", draftOffers.descs >= 2, `descs=${draftOffers.descs}`);
 
-    // Claim the first offer → it reflects as claimed.
+    // Claim the first offer → it reflects as claimed (by display name).
     await page.evaluate(() => document.querySelector('.season-offer[data-season-action="claim"]')?.click());
     await page.waitForFunction(() => !!document.querySelector('.season-offer.is-claimed'), { timeout: 5000 }).catch(() => {});
     const claimed = await page.evaluate(() => document.querySelector('.season-offer.is-claimed')?.textContent?.trim() || "");
-    check("season claim marks the chosen offer", /the_fool/.test(claimed), claimed);
+    check("season claim marks the chosen offer", /The Fool/.test(claimed), claimed);
 
     // Season builder: submitting a team within the pool succeeds.
     const builderReady = await page.evaluate(() => !!document.querySelector('[data-season-action="submit-team"]'));

@@ -115,6 +115,8 @@ const passiveCatalogPath = "../../battle_engine/src/data/passives.json";
 const abilityCatalogPath = "../../battle_engine/src/data/abilities.json";
 const aspectCatalogPath = "../../battle_engine/src/data/aspects.json";
 const statusCatalogPath = "../../battle_engine/src/data/statuses.json";
+const teamPassiveCatalogPath = "../../battle_engine/src/data/team_passives.json";
+const bannerCatalogPath = "../../battle_engine/src/data/banners.json";
 const conditionCatalog = ["Stunned", "Marked", "Severed"];
 const ruleStatusCatalog = ["Omen", "Restoration", "Ward", "Empower:MGT", "Empower:MAG", "Empower:ARM", "Empower:RES", "Weaken:MGT", "Weaken:MAG", "Weaken:ARM", "Weaken:RES"];
 const TEAM_SLOT_POSITIONS = [
@@ -219,6 +221,8 @@ const appState = {
     abilityDescriptions: {},
     aspectDescriptions: {},
     aspectDefinitions: {},
+    teamPassives: {},
+    banners: {},
   },
 };
 const metadataFields = {
@@ -1561,7 +1565,9 @@ async function waitForEngineReady(timeoutMs = 8000) {
   return await window.tarotEngineReady;
 }
 
-function applyCatalogs(archetypes, passives, abilities, aspects, statuses) {
+function applyCatalogs(archetypes, passives, abilities, aspects, statuses, teamPassives = {}, banners = {}) {
+  appState.catalogs.teamPassives = teamPassives || {};
+  appState.catalogs.banners = banners || {};
   appState.catalogs.archetypes = archetypes;
   appState.catalogs.archetypeIds = Object.keys(archetypes).sort();
   appState.catalogs.passives = Object.keys(passives).sort();
@@ -1598,6 +1604,8 @@ function applyEmptyCatalogs() {
   appState.catalogs.abilityDescriptions = {};
   appState.catalogs.aspectDescriptions = {};
   appState.catalogs.aspectDefinitions = {};
+  appState.catalogs.teamPassives = {};
+  appState.catalogs.banners = {};
   // The load attempt is over (catalogs unavailable); resolve the banner rather
   // than leaving it stuck on "Checking team…".
   appState.catalogsReady = true;
@@ -1617,7 +1625,15 @@ async function loadEditorCatalogs() {
           return {};
         }
       };
-      applyCatalogs(get("archetypes"), get("passives"), get("abilities"), get("aspects"), get("statuses"));
+      applyCatalogs(
+        get("archetypes"),
+        get("passives"),
+        get("abilities"),
+        get("aspects"),
+        get("statuses"),
+        get("team_passives"),
+        get("banners"),
+      );
       return;
     }
   } catch {
@@ -1626,12 +1642,14 @@ async function loadEditorCatalogs() {
 
   // Fallback: fetch the engine data files (works when served from the repo root).
   try {
-    const [archetypeResponse, passiveResponse, abilityResponse, aspectResponse, statusResponse] = await Promise.all([
+    const [archetypeResponse, passiveResponse, abilityResponse, aspectResponse, statusResponse, teamPassiveResponse, bannerResponse] = await Promise.all([
       fetch(archetypeCatalogPath, { cache: "no-store" }),
       fetch(passiveCatalogPath, { cache: "no-store" }),
       fetch(abilityCatalogPath, { cache: "no-store" }),
       fetch(aspectCatalogPath, { cache: "no-store" }).catch(() => null),
       fetch(statusCatalogPath, { cache: "no-store" }).catch(() => null),
+      fetch(teamPassiveCatalogPath, { cache: "no-store" }).catch(() => null),
+      fetch(bannerCatalogPath, { cache: "no-store" }).catch(() => null),
     ]);
 
     if (!archetypeResponse.ok || !passiveResponse.ok || !abilityResponse.ok) {
@@ -1640,15 +1658,17 @@ async function loadEditorCatalogs() {
       );
     }
 
-    const [archetypes, passives, abilities, aspects, statuses] = await Promise.all([
+    const [archetypes, passives, abilities, aspects, statuses, teamPassives, banners] = await Promise.all([
       archetypeResponse.json(),
       passiveResponse.json(),
       abilityResponse.json(),
       aspectResponse?.ok ? aspectResponse.json() : Promise.resolve({}),
       statusResponse?.ok ? statusResponse.json() : Promise.resolve({}),
+      teamPassiveResponse?.ok ? teamPassiveResponse.json() : Promise.resolve({}),
+      bannerResponse?.ok ? bannerResponse.json() : Promise.resolve({}),
     ]);
 
-    applyCatalogs(archetypes, passives, abilities, aspects, statuses);
+    applyCatalogs(archetypes, passives, abilities, aspects, statuses, teamPassives, banners);
   } catch {
     applyEmptyCatalogs();
   }
@@ -5723,6 +5743,33 @@ function renderSeasonDashboard() {
     </div>`;
 }
 
+// The loaded content catalogs as plain data for the pure offer-describer.
+function seasonCatalogs() {
+  const c = appState.catalogs || {};
+  return {
+    archetypes: c.archetypes || {},
+    aspects: c.aspectDefinitions || {},
+    teamPassives: c.teamPassives || {},
+    banners: c.banners || {},
+    passiveDescriptions: c.passiveDescriptions || {},
+  };
+}
+
+// A draft choice's player-facing { label, tooltip }.
+function seasonOfferInfo(kind, id) {
+  return describeDraftOffer(kind, id, seasonCatalogs());
+}
+
+// Resolve a player id (slug) to a display name from the loaded standings/stats.
+function seasonNameFor(id) {
+  const s = appState.season;
+  const fromStandings = (s.standings || []).find((p) => p.id === id);
+  if (fromStandings) return fromStandings.name;
+  const fromStats = (s.stats || []).find((p) => p.player === id);
+  if (fromStats) return fromStats.name || id;
+  return id;
+}
+
 // The currently open beat: its offered options as claimable cards, plus the
 // claim/auto-resolve rules. Swap beats note that they're skipped if unclaimed.
 function renderSeasonOpenBeat() {
@@ -5736,13 +5783,16 @@ function renderSeasonOpenBeat() {
   const offers = (open.offers || [])
     .map((choice) => {
       const isClaimed = open.claimed === choice;
+      const info = seasonOfferInfo(open.kind, choice);
       return `
         <button type="button"
           class="season-offer ${isClaimed ? "is-claimed" : ""}"
           data-season-action="claim"
           data-beat="${open.index}"
-          data-choice="${escapeHtml(choice)}">
-          <span class="season-offer-name">${escapeHtml(choice)}</span>
+          data-choice="${escapeHtml(choice)}"
+          ${info.tooltip ? `title="${escapeHtml(info.tooltip)}"` : ""}>
+          <span class="season-offer-name">${escapeHtml(info.label)}</span>
+          ${info.tooltip ? `<span class="season-offer-desc">${escapeHtml(info.tooltip)}</span>` : ""}
           ${isClaimed ? `<span class="season-offer-tag">claimed</span>` : ""}
         </button>`;
     })
@@ -5807,24 +5857,32 @@ function renderSeasonBuilder() {
     .join("");
 
   const passiveBoxes = (unlocked.team_passives || []).length
-    ? unlocked.team_passives.map((name) => `
-        <label class="season-check">
+    ? unlocked.team_passives.map((name) => {
+        const info = seasonOfferInfo("team_passive", name);
+        return `
+        <label class="season-check" ${info.tooltip ? `title="${escapeHtml(info.tooltip)}"` : ""}>
           <input type="checkbox" data-season-action="toggle-passive" data-passive="${escapeHtml(name)}" ${s.teamPassives.includes(name) ? "checked" : ""}>
           <span>${escapeHtml(name)}</span>
-        </label>`).join("")
+        </label>`;
+      }).join("")
     : `<p class="season-hint">No team passives unlocked yet.</p>`;
 
   const banner = unlocked.banner;
+  const bannerTip = banner ? seasonOfferInfo("banner", banner).tooltip : "";
+  const bannerStrong = banner ? `<strong ${bannerTip ? `title="${escapeHtml(bannerTip)}"` : ""}>${escapeHtml(banner)}</strong>` : "";
   const bannerLine = banner
     ? (s.commander
-        ? `<p class="season-hint">Banner <strong>${escapeHtml(banner)}</strong> flies for your commander.</p>`
-        : `<p class="season-hint">Drafted banner <strong>${escapeHtml(banner)}</strong> applies once you pick a commander.</p>`)
+        ? `<p class="season-hint">Banner ${bannerStrong} flies for your commander.</p>`
+        : `<p class="season-hint">Drafted banner ${bannerStrong} applies once you pick a commander.</p>`)
     : `<p class="season-hint">No banner drafted yet.</p>`;
 
+  // Render locked content by display name, not raw engine id.
+  const archeName = (id) => seasonOfferInfo("character", id).label;
+  const itemName = (id) => seasonOfferInfo("item", id).label;
   const warnings = [];
   if (overBudget) warnings.push(`Team costs ${cost}, over your ${budget}-point budget.`);
-  if (lockedArche.length) warnings.push(`Locked characters: ${lockedArche.join(", ")}.`);
-  if (lockedAspects.length) warnings.push(`Locked items: ${lockedAspects.join(", ")}.`);
+  if (lockedArche.length) warnings.push(`Locked characters: ${lockedArche.map(archeName).join(", ")}.`);
+  if (lockedAspects.length) warnings.push(`Locked items: ${lockedAspects.map(itemName).join(", ")}.`);
 
   return `
     <div class="season-builder">
@@ -5888,12 +5946,13 @@ function renderSeasonSchedule() {
     .map((beat) => {
       const state = beat.index < current ? "past" : beat.index === current ? "current" : "future";
       const pick = claimed[beat.index];
+      const pickLabel = pick ? seasonOfferInfo(beat.kind, pick).label : "";
       const delta = beat.budget_delta ? `<span class="season-beat-budget">+${beat.budget_delta}</span>` : "";
       return `
         <li class="season-beat season-beat-${state}">
           <span class="season-beat-num">${beat.index + 1}</span>
           <span class="season-beat-kind">${escapeHtml(beatKindLabel(beat.kind))}${delta}</span>
-          <span class="season-beat-pick">${pick ? escapeHtml(pick) : (state === "current" ? "open" : state === "future" ? "—" : "")}</span>
+          <span class="season-beat-pick">${pick ? escapeHtml(pickLabel) : (state === "current" ? "open" : state === "future" ? "—" : "")}</span>
         </li>`;
     })
     .join("");
@@ -5952,7 +6011,7 @@ function renderSeasonResults() {
       return `
         <li class="season-result season-result-${outcome}">
           <span class="season-result-day">${dayLabel}</span>
-          <span class="season-result-vs">vs ${escapeHtml(oppId)}</span>
+          <span class="season-result-vs">vs ${escapeHtml(seasonNameFor(oppId))}</span>
           <span class="season-result-outcome">${outcome}</span>
           <button type="button" class="button-secondary button-sm" data-season-action="watch" data-replay-id="${escapeHtml(r.replay_id)}">Watch</button>
         </li>`;

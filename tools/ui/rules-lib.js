@@ -344,6 +344,60 @@ function tallyRecord(playerId, results) {
   return tally;
 }
 
+// Format a stat-bonus map (e.g. { mgt: 2, vit: -2 }) as "MGT +2, VIT -2".
+// Keeps a stable stat order so the same item always reads the same way.
+const STAT_ORDER = ["vit", "mgt", "mag", "arm", "res", "spd"];
+function formatStatBonuses(bonuses) {
+  if (!bonuses || typeof bonuses !== "object") return "";
+  const keys = Object.keys(bonuses).sort(
+    (a, b) => STAT_ORDER.indexOf(a) - STAT_ORDER.indexOf(b),
+  );
+  return keys
+    .filter((k) => Number(bonuses[k]) !== 0)
+    .map((k) => `${k.toUpperCase()} ${Number(bonuses[k]) > 0 ? "+" : ""}${bonuses[k]}`)
+    .join(", ");
+}
+
+// Resolve a draft offer id into a player-facing { label, tooltip } using the
+// loaded content catalogs. Pure: `catalogs` is plain data
+// ({ archetypes, aspects, teamPassives, banners, passiveDescriptions }), so this
+// is unit-testable and shared by the Season UI. Unknown ids fall back to the
+// raw id with an empty tooltip.
+function describeDraftOffer(kind, id, catalogs) {
+  const c = catalogs || {};
+  if (kind === "character" || kind === "swap") {
+    const arch = (c.archetypes || {})[id];
+    if (!arch) return { label: id, tooltip: "" };
+    const cost = arch.cost != null ? `Cost ${arch.cost}` : "";
+    const passive = Array.isArray(arch.passive_pool) ? arch.passive_pool[0] : null;
+    const pdesc = passive ? (c.passiveDescriptions || {})[passive] : "";
+    const passiveBit = passive ? `Passive: ${passive}${pdesc ? " — " + pdesc : ""}` : "";
+    return {
+      label: arch.display_name || id,
+      tooltip: [cost, passiveBit].filter(Boolean).join(" · "),
+    };
+  }
+  if (kind === "item") {
+    const aspect = (c.aspects || {})[id];
+    if (!aspect) return { label: id, tooltip: "" };
+    const stats = formatStatBonuses(aspect.stat_bonuses);
+    return {
+      label: aspect.display_name || id,
+      tooltip: [aspect.description || "", stats].filter(Boolean).join(" · "),
+    };
+  }
+  if (kind === "team_passive") {
+    const def = (c.teamPassives || {})[id];
+    return { label: id, tooltip: (def && def.description) || "" };
+  }
+  if (kind === "banner") {
+    const def = (c.banners || {})[id];
+    const scope = def && def.scope ? ` (affects ${def.scope})` : "";
+    return { label: id, tooltip: def ? `${def.description || ""}${scope}` : "" };
+  }
+  return { label: id, tooltip: "" };
+}
+
 // Node (test) export. In the browser `module` is undefined, so these stay
 // plain top-level declarations shared with app.js as globals.
 if (typeof module !== "undefined" && module.exports) {
@@ -378,5 +432,7 @@ if (typeof module !== "undefined" && module.exports) {
     beatKindLabel,
     seasonClockLine,
     tallyRecord,
+    formatStatBonuses,
+    describeDraftOffer,
   };
 }
