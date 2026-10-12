@@ -15,7 +15,7 @@ Primary design references:
 - `design/team_builder_schema.md` — interim JSON contract for team builder and replay tooling
 - `design/replay_schema.md` — replay JSON contract for the battle viewer
 - `design/ability_roster.md` — ability/passive design catalog and balance notes
-- `design/redesign_spread.md` — **proposal**: distilled PvE-first redesign ("The Spread") that replaces rule scripting with Place / Order / Flip; not yet implemented and does not supersede `game_spec.md` until prototyped
+- `design/before_dawn_spec.md` — handoff spec for a **separate new game** ("Before Dawn", a necromancer-duel roguelike autobattler) that grew out of a redesign discussion; it is meant to be built in a fresh repo and does not describe this codebase
 
 ## Build Commands
 
