@@ -15,6 +15,7 @@ Primary design references:
 - `design/team_builder_schema.md` — interim JSON contract for team builder and replay tooling
 - `design/replay_schema.md` — replay JSON contract for the battle viewer
 - `design/ability_roster.md` — ability/passive design catalog and balance notes
+- `design/redesign_spread.md` — **proposal**: distilled PvE-first redesign ("The Spread") that replaces rule scripting with Place / Order / Flip; not yet implemented and does not supersede `game_spec.md` until prototyped
 
 ## Build Commands
 
